@@ -1,0 +1,11 @@
+node_modules
+.git
+.env
+*.log
+Dockerfile
+dist/
+tests/
+*.test.*
+*.md
+coverage/
+certs/

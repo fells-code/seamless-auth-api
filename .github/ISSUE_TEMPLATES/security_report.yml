@@ -1,0 +1,16 @@
+name: Security vulnerability report
+description: Report a security issue privately
+title: '[Security]: '
+labels: ['security']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not disclose security vulnerabilities publicly.**
+
+        Please report security issues by email so we can coordinate a responsible disclosure.
+
+        security@seamlessauth.com  
+        Subject: Security Issue: seamless-auth-server
+
+        This issue will be closed without discussion.

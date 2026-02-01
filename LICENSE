@@ -1,0 +1,79 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc.
+<https://fsf.org/>
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+
+This license is identical to the GNU General Public License, except that it also
+ensures that software running as a network service makes its source code
+available to users.
+
+---
+
+TERMS AND CONDITIONS
+
+0. Definitions.
+
+“This License” refers to version 3 of the GNU Affero General Public License.
+
+“Copyright” also means copyright-like laws that apply to other kinds of works,
+such as semiconductor masks.
+
+The “Program” refers to any copyrightable work licensed under this License.
+Each licensee is addressed as “you”.
+
+To “modify” a work means to copy from or adapt all or part of the work in a
+fashion requiring copyright permission, other than the making of an exact copy.
+
+To “propagate” a work means to do anything with it that, without permission,
+would make you directly or secondarily liable for infringement under applicable
+copyright law, except executing it on a computer or modifying a private copy.
+
+To “convey” a work means any kind of propagation that enables other parties to
+make or receive copies.
+
+An interactive user interface displays “Appropriate Legal Notices” to the extent
+that it includes a convenient and prominently visible feature that displays an
+appropriate copyright notice, and tells the user that there is no warranty for
+the work (except to the extent that warranties are provided), that licensees may
+convey the work under this License, and how to view a copy of this License.
+
+---
+
+13. Remote Network Interaction; Use with the GNU General Public License.
+
+Notwithstanding any other provision of this License, if you modify the Program,
+your modified version must prominently offer all users interacting with it
+remotely through a computer network an opportunity to receive the Corresponding
+Source of your version by providing access to the Corresponding Source from a
+network server at no charge, through some standard or customary means of
+facilitating copying of software.
+
+---
+
+15. Disclaimer of Warranty.
+
+THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.
+EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER
+PARTIES PROVIDE THE PROGRAM “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER
+EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+---
+
+16. Limitation of Liability.
+
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL ANY
+COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS
+PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL,
+INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
+THE PROGRAM.
+
+---
+
+END OF TERMS AND CONDITIONS
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.

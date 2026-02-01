@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an improvement or new feature
+title: '[Feature]: '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature requests are welcome. Please focus on the problem being solved,
+        not just the implementation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches you considered?
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact area
+      options:
+        - Security
+        - Developer experience
+        - Performance
+        - Documentation
+        - Other
