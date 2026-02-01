@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Secrets / keys
+keys/
+certs/
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-data/
+
+# OS / editor
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Lint / tooling cache
+.eslintcache
