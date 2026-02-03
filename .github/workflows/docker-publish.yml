@@ -38,15 +38,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/seamlessauth/seamless-auth-server
+            ghcr.io/fells-code/seamless-auth-server
           tags: |
-            # Tag from git tag: v1.2.3 → 1.2.3
             type=ref,event=tag
-
-            # Latest only on version tags
-            type=raw,value=latest,enable=startsWith(ref, 'refs/tags/v')
-
-            # Nightly builds from main
+            type=raw,value=latest
             type=raw,value=nightly,enable=ref == 'refs/heads/main'
 
 
