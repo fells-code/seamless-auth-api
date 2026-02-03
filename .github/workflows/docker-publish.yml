@@ -42,7 +42,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=raw,value=latest
-            type=raw,value=nightly,enable=ref == 'refs/heads/main'
+            type=raw,value=nightly,event=main
 
 
       - name: Build and push Docker image
