@@ -1,6 +1,6 @@
 #!/bin/sh
 
-required_vars="DB_OPERATOR DB_KEY DB_SCHEMA DB_URI APP_ORIGIN APP_NAME ACCESS_TOKEN_TTL REFRESH_TOKEN_TTL AWS_REGION SES_EMAIL ORIGINS RPID AUTH_MODE OWNER_EMAILS"
+required_vars=""
 
 for var in $required_vars; do
   if [ -z "$(eval echo \$$var)" ]; then

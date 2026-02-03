@@ -273,7 +273,18 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         return;
       }
 
-      return res.status(200).json({ message: 'Success', token, refreshToken, sub: user.id });
+      const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
+
+      return res
+        .status(200)
+        .json({
+          message: 'Success',
+          token,
+          refreshToken,
+          sub: user.id,
+          ttl: parseDurationToSeconds(access_token_ttl || '15m'),
+          refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
+        });
     }
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);

@@ -47,7 +47,7 @@ const corsOptions: CorsOptions = {
 
     if (process.env.DEMO === 'true') {
       // Local development mode
-      if (origin === 'https://localhost:5001' || origin === 'https://localhost:3000') {
+      if (origin === 'http://localhost:5001' || origin === 'http://localhost:3000') {
         return callback(null, true);
       }
     }

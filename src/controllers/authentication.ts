@@ -169,11 +169,13 @@ export const login = async (req: Request, res: Response) => {
         return;
       }
 
+      const { access_token_ttl } = await getSystemConfig();
       return res.status(200).json({
         message: 'Success',
         sub: user.id,
         token,
         identifierType,
+        ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       });
     }
     return res.status(401).json({ message: 'Login failed.' });
@@ -235,7 +237,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(401).json('Not allowed');
   }
 
-  const serviceSecret = await getSecret('ADMIN_SERVICE_TOKEN');
+  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
 
   const payload = jwt.verify(refreshToken, serviceSecret, {
     issuer: process.env.APP_ORIGIN,

@@ -141,7 +141,7 @@ At minimum, ensure these values are set:
 
 ```env
 DATABASE_URL=postgres://myuser:mypassword@host:5432/seamless-auth
-APP_ORIGIN=https://localhost:5001
+APP_ORIGIN=http://localhost:5001
 ISSUER=http://localhost:5312
 ```
 

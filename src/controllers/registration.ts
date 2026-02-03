@@ -123,7 +123,7 @@ export const register = async (req: Request, res: Response) => {
       return;
     }
 
-    return res.status(200).json({ message: 'Success', sub: user.id, token });
+    return res.status(200).json({ message: 'Success', sub: user.id, token, ttl: '300' });
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error during registration for email ${email}: ${error}`);

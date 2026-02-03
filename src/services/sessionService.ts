@@ -140,7 +140,7 @@ export async function validateSession({
     }
 
     if (type === 'bearer') {
-      const serviceSecret = await getSecret('ADMIN_SERVICE_TOKEN');
+      const serviceSecret = await getSecret('API_SERVICE_TOKEN');
 
       try {
         payload = jwt.verify(value, serviceSecret, {
