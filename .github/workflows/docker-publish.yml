@@ -38,7 +38,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/fells-code/seamless-auth-server
+            ghcr.io/fells-code/seamless-auth-api
           tags: |
             type=ref,event=tag
             type=raw,value=latest
