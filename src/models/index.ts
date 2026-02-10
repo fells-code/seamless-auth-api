@@ -12,8 +12,11 @@ const logger = getLogger('sequelize');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const enableDbLogging = !isProduction && process.env.DB_LOGGING === 'true';
+const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
 
-const sequelize = new Sequelize(process.env.DATABASE_URL ?? '', {
+const DATABASE_URL = `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
+
+const sequelize = new Sequelize(DATABASE_URL, {
   logging: enableDbLogging ? (msg) => logger.debug(msg) : false,
 });
 

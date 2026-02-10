@@ -1,0 +1,19 @@
+# NOT a production image
+FROM node:20-alpine
+WORKDIR /app
+
+RUN apk add --no-cache postgresql-client netcat-openbsd
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY . .
+RUN mkdir -p ./keys
+
+ENV NODE_ENV=development
+
+EXPOSE 5312
+RUN chmod +x validateEnvs.sh 
+
+ENTRYPOINT ["./validateEnvs.sh"]
+CMD ["npm", "run", "dev"]

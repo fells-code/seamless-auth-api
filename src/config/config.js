@@ -5,16 +5,37 @@
 module.exports = {
   development: {
     dialect: 'postgres',
-    use_env_variable: 'DATABASE_URL',
+    development: {
+      username: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      dialect: 'postgres',
+    },
     logging: 'false',
   },
   test: {
     dialect: 'postgres',
-    use_env_variable: process.env.TEST_DATABASE_URL,
+    development: {
+      username: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      dialect: 'postgres',
+    },
   },
   production: {
     dialect: 'postgres',
-    use_env_variable: process.env.DATABASE_URL,
+    development: {
+      username: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      dialect: 'postgres',
+    },
     logging: 'false',
   },
 };

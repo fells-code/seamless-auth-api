@@ -140,7 +140,11 @@ cp .env.example .env
 At minimum, ensure these values are set:
 
 ```env
-DATABASE_URL=postgres://myuser:mypassword@host:5432/seamless-auth
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=seamless-auth
+DB_USER=myuser
+DB_PASSWORD=mypassword
 APP_ORIGIN=http://localhost:5001
 ISSUER=http://localhost:5312
 ```
@@ -163,7 +167,7 @@ docker run -d \
   postgres:15
 ```
 
-Update `DATABASE_URL` accordingly.
+Update DB env values accordingly.
 
 ## 4. Run Seamless Auth Server
 
