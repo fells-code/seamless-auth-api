@@ -16,4 +16,3 @@ EXPOSE 5312
 RUN chmod +x validateEnvs.sh 
 
 ENTRYPOINT ["./validateEnvs.sh"]
-CMD ["npm", "run", "dev"]
