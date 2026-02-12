@@ -142,7 +142,7 @@ At minimum, ensure these values are set:
 ```env
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=seamless-auth
+DB_NAME=seamless_auth
 DB_USER=myuser
 DB_PASSWORD=mypassword
 APP_ORIGIN=http://localhost:5001
@@ -162,7 +162,7 @@ docker run -d \
   --name seamless-auth-postgres \
   -e POSTGRES_USER=myuser \
   -e POSTGRES_PASSWORD=mypassword \
-  -e POSTGRES_DB=seamless-auth \
+  -e POSTGRES_DB=seamless_auth \
   -p 5432:5432 \
   postgres:15
 ```
