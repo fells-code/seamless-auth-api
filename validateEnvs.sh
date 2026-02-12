@@ -14,7 +14,7 @@ echo "Generating JWKS keys"
 npx tsx ./src/scripts/initKeys.ts
 echo "JWKS keys ready"
 
-echo "Waiting for database..."
+echo "Waiting for database"
 until nc -z "$DB_HOST" "$DB_PORT"; do
   sleep 1
 done

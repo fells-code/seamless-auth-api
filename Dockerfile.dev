@@ -13,6 +13,6 @@ RUN mkdir -p ./keys
 ENV NODE_ENV=development
 
 EXPOSE 5312
-RUN chmod +x validateEnvs.sh 
+RUN chmod +x ./validateEnvs.sh 
 
 ENTRYPOINT ["./validateEnvs.sh"]
