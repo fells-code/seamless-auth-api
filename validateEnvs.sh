@@ -14,19 +14,6 @@ echo "Generating JWKS keys"
 npx tsx ./src/scripts/initKeys.ts
 echo "JWKS keys ready"
 
-echo "Waiting for database"
-until nc -z "$DB_HOST" "$DB_PORT"; do
-  sleep 1
-done
-
-echo "Ensuring database exists..."
-export PGPASSWORD="$DB_PASSWORD"
-
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-  -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 \
-  || psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-     -c "CREATE DATABASE \"$DB_NAME\""
-
 echo "Running migrations..."
 npx sequelize-cli db:migrate --debug
 
