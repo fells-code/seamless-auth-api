@@ -251,7 +251,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       lastUsedAt: undefined,
     });
 
-    const token = await signAccessToken(session.id, user.id);
+    const token = await signAccessToken(session.id, user.id, user.roles);
 
     user.challenge = '';
     user.verified = true;
@@ -275,16 +275,17 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
       const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
 
-      return res
-        .status(200)
-        .json({
-          message: 'Success',
-          token,
-          refreshToken,
-          sub: user.id,
-          ttl: parseDurationToSeconds(access_token_ttl || '15m'),
-          refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
-        });
+      return res.status(200).json({
+        message: 'Success',
+        token,
+        refreshToken,
+        sub: user.id,
+        roles: user.roles,
+        email: user.email,
+        phone: user.phone,
+        ttl: parseDurationToSeconds(access_token_ttl || '15m'),
+        refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
+      });
     }
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);
@@ -516,6 +517,8 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
           refreshToken,
           sub: user.id,
           roles: user.roles,
+          email: user.email,
+          phone: user.phone,
           ttl: parseDurationToSeconds(access_token_ttl || '15m'),
           refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
         });

@@ -231,7 +231,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
           lastUsedAt: undefined,
         });
 
-        token = await signAccessToken(session.id, user.id);
+        token = await signAccessToken(session.id, user.id, user.roles);
       }
 
       if (token && refreshToken) {
@@ -342,7 +342,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         lastUsedAt: undefined,
       });
 
-      token = await signAccessToken(session.id, user.id);
+      token = await signAccessToken(session.id, user.id, user.roles);
     }
 
     if (token && refreshToken) {
@@ -438,7 +438,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           lastUsedAt: undefined,
         });
 
-        token = await signAccessToken(session.id, user.id);
+        token = await signAccessToken(session.id, user.id, user.roles);
       }
 
       if (token && refreshToken) {
@@ -560,7 +560,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         lastUsedAt: undefined,
       });
 
-      token = await signAccessToken(session.id, user.id);
+      token = await signAccessToken(session.id, user.id, user.roles);
     }
 
     if (token && refreshToken) {

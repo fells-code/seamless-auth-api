@@ -319,7 +319,7 @@ export const refreshSession = async (req: Request, res: Response) => {
   session.replacedBySessionId = newSession.id;
   await session.save();
 
-  const token = await signAccessToken(session.id, user.id);
+  const token = await signAccessToken(session.id, user.id, user.roles);
 
   if (token && newRefreshTokenHash) {
     await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
