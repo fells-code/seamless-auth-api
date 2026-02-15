@@ -13,7 +13,7 @@ import { AuthEventService } from '../services/authEventService';
 import { ServiceRequest } from '../types/types';
 import getLogger from '../utils/logger';
 
-const UpdateSystemConfigSchema = PatchSystemConfigSchema.partial();
+const UpdateSystemConfigSchema = PatchSystemConfigSchema;
 const logger = getLogger('systemConfig');
 
 async function getRolesInUse(): Promise<Set<string>> {
