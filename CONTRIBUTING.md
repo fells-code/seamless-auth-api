@@ -1,98 +1,116 @@
-# Contributing to Seamless Auth Server
+# Contributing to Seamless Auth
 
-Thanks for your interest in contributing. This project powers passwordless authentication flows and is security-sensitive, so we value correctness, clarity, and careful changes over speed.
+Thank you for contributing to Seamless Auth.
 
-## Code of conduct
+## Philosophy
 
-Be respectful, constructive, and professional. Harassment or abusive behavior is not tolerated.
+Seamless Auth is:
 
-## How to contribute
+- Passwordless-first
+- Security-focused
+- Minimal and intentional
+- Infrastructure-grade software
 
-### 1) Report bugs
+## Before You Start
 
-- Search existing issues first.
-- If you found a security issue, **do not open a public issue**. Follow the Security section below.
+For non-trivial changes:
 
-When filing a bug, include:
+1. Open an issue first
+2. Explain the motivation
+3. Describe your proposed solution
+4. Wait for feedback
 
-- Expected behavior
-- Actual behavior
-- Reproduction steps
-- Environment (OS, Node version, DB version, deployment mode)
-- Logs (redact secrets)
+## Development Setup
 
-### 2) Suggest features
+### 1. Fork and Clone
 
-Open an issue describing:
+Fork the repository and clone it locally:
 
-- The problem you are solving
-- Why it matters
-- Proposed API/UX
-- Alternatives considered
+```bash
+# Clone the auth server code or your forks
+git clone https://github.com/fells-code/seamless-auth-api.git
+```
 
-### 3) Submit a pull request
+---
 
-1. Fork the repo
-2. Create a branch: `feat/<short-name>` or `fix/<short-name>`
-3. Keep PRs focused and small where possible
-4. Add/adjust tests
-5. Update docs (README or docs folder) if behavior changes
-6. Open a PR with a clear description and checklist
+## 2. Run the Seamless Auth Server
 
-## Development setup
+```bash
+cd seamless-auth-api
+cp .env.example .env
+```
 
-### Requirements
+### If docker and docker compose are avaliable
 
-- Node.js (LTS recommended)
-- A Postgres instance (local, Docker, or managed)
+```bash
+docker compose up -d
+```
 
-### Install
+> If you are using docker you can stop here and move on to Step 3.
 
-- `npm install`
+### If not using docker
 
-### Run (dev)
+Start postgres in whatever way your system does e.g. on mac
 
-- `npm run dev`
+```bash
+brew services start postgresql
+```
 
-### Tests
+### Prepare the database
 
-- `npm test`
+```bash
+npm install
 
-### Lint / formatting
+npm run db:create
+npm run db:migrate
 
-- `npm run lint`
-- `npm run format`
+npm run dev
+```
 
-## Coding standards
+---
 
-- Prefer small, composable modules
-- Avoid introducing new dependencies unless necessary
-- Validate inputs at API boundaries
-- Never log secrets (tokens, cookie values, private keys, OTP codes)
-- Treat auth and crypto changes as high-risk (add tests + docs)
+Ensure the server is running locally (default: `http://localhost:5312`).
 
-## Security
+```bash
+curl http://localhost:5312/health/status
 
-### Reporting a vulnerability
+## Expected result
+## {"message":"System up"}
+```
 
-Please report security issues privately.
+---
 
-- Email: security@seamlessauth.com
-- Subject: `Security Issue: seamless-auth-server`
+## Expectations
 
-Include:
+When submitting a pull request:
 
-- Impact and severity assessment (if known)
-- Reproduction steps or PoC
-- Affected versions / commit hashes
-- Suggested fix (if you have one)
+- Ensure the SDK works against a running local auth server
+- Verify login, logout, and session behavior
+- Confirm role-based logic works as expected
+- Run lint and tests before submitting
 
-We will acknowledge receipt and work with you on a responsible disclosure timeline.
+This ensures changes remain aligned with real authentication flows and infrastructure behavior.
 
-## License / contribution terms
+## Commit Conventions
 
-By contributing, you agree that your contributions will be licensed under the same license as this repository (AGPL-3.0-only), unless otherwise agreed in writing.
+- feat:
+- fix:
+- docs:
+- refactor:
+- test:
+- chore:
 
-## Release process
+Example:
 
-Maintainers may squash-merge PRs and may edit titles/descriptions for clarity.
+feat: add configurable token expiration override
+
+## Pull Requests Must
+
+- Be scoped
+- Include tests
+- Update docs
+- Pass CI
+
+## Licensing
+
+By contributing, you agree your contributions fall under the project license.
