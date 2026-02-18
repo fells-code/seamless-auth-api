@@ -16,6 +16,7 @@ import { dynamicSlowDown } from './middleware/slowDown';
 import { verifyBearerAuth } from './middleware/verifyBearerAuth';
 import { AuthEvent } from './models/authEvents';
 import health from './routes/health';
+import magicLink from './routes/magicLink';
 import otp from './routes/otp';
 import registration from './routes/registration';
 import systemConfigRouter from './routes/systemConfig';
@@ -92,6 +93,7 @@ app.use(cookieParser());
 const startServer = async () => {
   try {
     app.use('/login', login);
+    app.use('/auth/magic-link', magicLink);
     app.use('/logout', attachAuthMiddleware('access'), logout);
     app.use('/registration', registration);
     app.use('/webAuthn', webAuthn);

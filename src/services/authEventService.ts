@@ -62,6 +62,8 @@ type AuthEventType =
   | 'system_config_error'
   | 'system_config_read'
   | 'notication_sent'
+  | 'magic_link_requested'
+  | 'magic_link_success'
   | 'informational';
 
 export interface AuthEventOptions {
