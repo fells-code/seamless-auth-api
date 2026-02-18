@@ -29,3 +29,16 @@ export async function dynamicRateLimit(req: Request, res: Response, next: NextFu
 
   return cachedLimiter(req, res, next);
 }
+
+export const magicLinkIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const magicLinkEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.body.email ?? req.ip,
+});
