@@ -11,7 +11,13 @@ for var in $required_vars; do
 done
 
 echo "Generating JWKS keys"
-npx tsx ./src/scripts/initKeys.ts
+if [ "${NODE_ENV:-development}" = "production" ]; then
+  echo "Running in production mode"
+  npx tsx ./dist/scripts/initKeys.ts
+else
+  echo "Running in development mode"
+  npx tsx ./src/scripts/initKeys.ts
+fi
 echo "JWKS keys ready"
 
 if ! PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -p "$DB_PORT" -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
