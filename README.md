@@ -98,7 +98,7 @@ npm install
 npm run dev
 ```
 
-The server should start on `http://localhost:5001` (or your configured port).
+The server should start on `http://localhost:5312` (or your configured port).
 
 ---
 
@@ -137,18 +137,6 @@ Copy the example and adjust as needed:
 cp .env.example .env
 ```
 
-At minimum, ensure these values are set:
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=seamless_auth
-DB_USER=myuser
-DB_PASSWORD=mypassword
-APP_ORIGIN=http://localhost:5001
-ISSUER=http://localhost:5312
-```
-
 ⚠️ Do not commit `.env` files. They are ignored by default.
 
 ---
@@ -164,7 +152,7 @@ docker run -d \
   -e POSTGRES_PASSWORD=mypassword \
   -e POSTGRES_DB=seamless_auth \
   -p 5432:5432 \
-  postgres:15
+  postgres:16
 ```
 
 Update DB env values accordingly.
