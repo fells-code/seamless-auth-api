@@ -86,7 +86,7 @@ app.use(cookieParser());
 const startServer = async () => {
   try {
     app.use('/login', login);
-    app.use('/auth/magic-link', magicLink);
+    app.use('/magic-link', magicLink);
     app.use('/logout', attachAuthMiddleware('access'), logout);
     app.use('/registration', registration);
     app.use('/webAuthn', webAuthn);

@@ -11,20 +11,16 @@ import { User } from '../models/users';
 import { MagicLinkRequestSchema, MagicLinkVerifyQuerySchema } from '../schemas/magicLink.schema';
 import { AuthEventService } from '../services/authEventService';
 import { sendMagicLinkEmail } from '../services/messagingService';
+import { AuthenticatedRequest } from '../types/types';
 import { hashDeviceFingerprint, hashSha256, validateRedirectUrl } from '../utils/utils';
 
 const TTL_MINUTES = 15;
 
 export async function requestMagicLink(req: Request, res: Response) {
-  const parse = MagicLinkRequestSchema.safeParse(req.body);
+  const authReq = req as AuthenticatedRequest;
+  const preAuthUser = authReq.user;
 
-  if (!parse.success) {
-    return res.status(400).json({ error: 'Invalid request' });
-  }
-
-  const { email, redirect_url } = parse.data;
-
-  const user = await User.findOne({ where: { email } });
+  const user = await User.findOne({ where: { email: preAuthUser.email } });
 
   if (!user) {
     return res.json({
@@ -32,10 +28,21 @@ export async function requestMagicLink(req: Request, res: Response) {
     });
   }
 
+  const parse = MagicLinkRequestSchema.safeParse(req.body);
+
+  if (!parse.success) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
+  const { redirect_url } = parse.data;
+
   const config = await getSystemConfig();
 
   const safeRedirect = validateRedirectUrl(redirect_url, config.origins);
 
+  if (!safeRedirect) {
+    return res.status(400).json({ error: 'Invalid callback URL recieved' });
+  }
   const rawToken = crypto.randomBytes(32).toString('base64url');
   const tokenHash = hashSha256(rawToken);
 
@@ -50,7 +57,7 @@ export async function requestMagicLink(req: Request, res: Response) {
     expires_at: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
   });
 
-  await sendMagicLinkEmail(user.email, rawToken);
+  await sendMagicLinkEmail(user.email, rawToken, safeRedirect);
 
   await AuthEventService.log({
     userId: user.id,
@@ -122,4 +129,50 @@ export async function verifyMagicLink(req: Request, res: Response) {
   });
 
   return res.redirect(record.redirect_url || '/');
+}
+
+export async function pollMagicLinkConfirmation(req: Request, res: Response) {
+  const authReq = req as AuthenticatedRequest;
+  const preAuthUser = authReq.user;
+
+  const user = await User.findOne({ where: { email: preAuthUser.email } });
+
+  if (!user) {
+    return res.json({
+      message: 'If an account exists, a login link has been sent.',
+    });
+  }
+
+  const { token } = req.params;
+  const tokenHash = hashSha256(token);
+
+  const record = await MagicLinkToken.findOne({
+    where: { token_hash: tokenHash },
+  });
+
+  if (!record) {
+    return res.status(500).json({ error: 'Invalid request' });
+  }
+
+  // Device binding check
+  const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
+
+  if (record.ip_hash && record.ip_hash !== ip_hash) {
+    return res.status(500).json({ error: 'Invalid request' });
+  }
+
+  if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
+    return res.status(500).json({ error: 'Invalid request' });
+  }
+
+  if (record.used_at && record.expires_at > new Date()) {
+    await AuthEventService.log({
+      userId: record.user_id,
+      type: 'magic_link_poll_completed_successfully',
+      req,
+    });
+    return res.status(200).json({ message: 'Success' });
+  }
+
+  return res.status(500).json({ error: 'Invalid request' });
 }

@@ -4,13 +4,25 @@
  */
 import { Router } from 'express';
 
-import { requestMagicLink, verifyMagicLink } from '../controllers/magicLinks';
+import {
+  pollMagicLinkConfirmation,
+  requestMagicLink,
+  verifyMagicLink,
+} from '../controllers/magicLinks';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware';
 import { magicLinkEmailLimiter, magicLinkIpLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
-router.post('/', magicLinkIpLimiter, magicLinkEmailLimiter, requestMagicLink);
+router.post(
+  '/',
+  attachAuthMiddleware('ephemeral'),
+  magicLinkIpLimiter,
+  magicLinkEmailLimiter,
+  requestMagicLink,
+);
 
-router.get('/verify', verifyMagicLink);
+router.get('/poll/:token', attachAuthMiddleware('ephemeral'), pollMagicLinkConfirmation);
+router.get('/verify', attachAuthMiddleware('ephemeral'), verifyMagicLink);
 
 export default router;

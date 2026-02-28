@@ -26,6 +26,13 @@ export class MagicLinkToken extends Model<
   declare expires_at: Date;
   declare used_at: Date | null;
   declare created_at: CreationOptional<Date>;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static associate(models: any) {
+    MagicLinkToken.belongsTo(models.User, {
+      foreignKey: 'userId',
+    });
+  }
 }
 
 const initializeMagicTokenModel = (sequelize: Sequelize) => {
@@ -78,9 +85,5 @@ const initializeMagicTokenModel = (sequelize: Sequelize) => {
   );
   return MagicLinkToken;
 };
-
-MagicLinkToken.belongsTo(User, {
-  foreignKey: 'user_id',
-});
 
 export default initializeMagicTokenModel;
