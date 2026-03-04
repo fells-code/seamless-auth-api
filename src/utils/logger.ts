@@ -2,8 +2,6 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import 'dotenv/config';
-
 import fs from 'fs';
 import path from 'path';
 import { createLogger, format, Logger, transports } from 'winston';
