@@ -147,6 +147,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   });
 
   if (!record) {
+    console.log('No magic link token');
     return res.status(500).json({ error: 'Invalid request' });
   }
 
@@ -170,5 +171,5 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     return res.status(200).json({ message: 'Success' });
   }
 
-  return res.status(500).json({ error: 'Invalid request' });
+  return res.status(204).json({ error: 'Not verified.' });
 }
