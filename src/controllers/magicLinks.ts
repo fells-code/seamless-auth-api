@@ -4,15 +4,16 @@
  */
 import crypto from 'crypto';
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig';
 import { MagicLinkToken } from '../models/magicLinks';
 import { User } from '../models/users';
-import { MagicLinkRequestSchema, MagicLinkVerifyQuerySchema } from '../schemas/magicLink.schema';
+import { MagicLinkVerifyQuerySchema } from '../schemas/magicLink.schema';
 import { AuthEventService } from '../services/authEventService';
 import { sendMagicLinkEmail } from '../services/messagingService';
 import { AuthenticatedRequest } from '../types/types';
-import { hashDeviceFingerprint, hashSha256, validateRedirectUrl } from '../utils/utils';
+import { hashDeviceFingerprint, hashSha256 } from '../utils/utils';
 
 const TTL_MINUTES = 15;
 
@@ -32,9 +33,19 @@ export async function requestMagicLink(req: Request, res: Response) {
   const tokenHash = hashSha256(rawToken);
 
   const config = await getSystemConfig();
-  const redirect_url = `${config.origins[0]}/${tokenHash}`;
+  const redirect_url = `${config.origins[0]}/verify-magiclink?token=${rawToken}`;
 
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
+
+  // Expire all previous links
+  await MagicLinkToken.update(
+    { expires_at: new Date() },
+    {
+      where: {
+        user_id: user.id,
+      },
+    },
+  );
 
   await MagicLinkToken.create({
     user_id: user.id,
@@ -45,7 +56,7 @@ export async function requestMagicLink(req: Request, res: Response) {
     expires_at: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
   });
 
-  await sendMagicLinkEmail(user.email, tokenHash, redirect_url);
+  await sendMagicLinkEmail(user.email, rawToken, redirect_url);
 
   await AuthEventService.log({
     userId: user.id,
@@ -131,11 +142,8 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     });
   }
 
-  const { token } = req.params;
-  const tokenHash = hashSha256(token);
-
   const record = await MagicLinkToken.findOne({
-    where: { token_hash: tokenHash },
+    where: { user_id: user.id, expires_at: { [Op.gt]: new Date() } },
   });
 
   if (!record) {
