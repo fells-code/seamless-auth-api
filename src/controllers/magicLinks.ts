@@ -28,36 +28,24 @@ export async function requestMagicLink(req: Request, res: Response) {
     });
   }
 
-  const parse = MagicLinkRequestSchema.safeParse(req.body);
-
-  if (!parse.success) {
-    return res.status(400).json({ error: 'Invalid request' });
-  }
-
-  const { redirect_url } = parse.data;
-
-  const config = await getSystemConfig();
-
-  const safeRedirect = validateRedirectUrl(redirect_url, config.origins);
-
-  if (!safeRedirect) {
-    return res.status(400).json({ error: 'Invalid callback URL recieved' });
-  }
   const rawToken = crypto.randomBytes(32).toString('base64url');
   const tokenHash = hashSha256(rawToken);
+
+  const config = await getSystemConfig();
+  const redirect_url = `${config.origins[0]}/${tokenHash}`;
 
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
   await MagicLinkToken.create({
     user_id: user.id,
     token_hash: tokenHash,
-    redirect_url: safeRedirect,
+    redirect_url,
     ip_hash,
     user_agent_hash,
     expires_at: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
   });
 
-  await sendMagicLinkEmail(user.email, rawToken, safeRedirect);
+  await sendMagicLinkEmail(user.email, tokenHash, redirect_url);
 
   await AuthEventService.log({
     userId: user.id,
@@ -138,8 +126,8 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   const user = await User.findOne({ where: { email: preAuthUser.email } });
 
   if (!user) {
-    return res.json({
-      message: 'If an account exists, a login link has been sent.',
+    return res.status(400).json({
+      message: 'Failed',
     });
   }
 

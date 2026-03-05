@@ -30,7 +30,7 @@ export class MagicLinkToken extends Model<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static associate(models: any) {
     MagicLinkToken.belongsTo(models.User, {
-      foreignKey: 'userId',
+      foreignKey: 'user_id',
     });
   }
 }

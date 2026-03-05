@@ -30,15 +30,39 @@ export async function dynamicRateLimit(req: Request, res: Response, next: NextFu
   return cachedLimiter(req, res, next);
 }
 
-export const magicLinkIpLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+export async function magicLinkIpLimiter(req: Request, res: Response, next: NextFunction) {
+  const { rate_limit } = await getSystemConfig();
 
-export const magicLinkEmailLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => req.body.email ?? req.ip,
-});
+  const limit = rate_limit ?? 50;
+
+  if (!cachedLimiter || cachedLimit !== limit) {
+    cachedLimit = limit;
+
+    cachedLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 20,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+  }
+
+  return cachedLimiter(req, res, next);
+}
+
+export async function magicLinkEmailLimiter(req: Request, res: Response, next: NextFunction) {
+  const { rate_limit } = await getSystemConfig();
+
+  const limit = rate_limit ?? 50;
+
+  if (!cachedLimiter || cachedLimit !== limit) {
+    cachedLimit = limit;
+
+    cachedLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      keyGenerator: (req) => req.body.email ?? req.ip,
+    });
+  }
+
+  return cachedLimiter(req, res, next);
+}

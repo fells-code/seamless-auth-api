@@ -14,7 +14,7 @@ import { magicLinkEmailLimiter, magicLinkIpLimiter } from '../middleware/rateLim
 
 const router = Router();
 
-router.post(
+router.get(
   '/',
   attachAuthMiddleware('ephemeral'),
   magicLinkIpLimiter,
@@ -22,7 +22,7 @@ router.post(
   requestMagicLink,
 );
 
-router.get('/poll/:token', attachAuthMiddleware('ephemeral'), pollMagicLinkConfirmation);
-router.get('/verify', attachAuthMiddleware('ephemeral'), verifyMagicLink);
+router.get('/poll', attachAuthMiddleware('ephemeral'), pollMagicLinkConfirmation);
+router.get('/verify/:token', attachAuthMiddleware('ephemeral'), verifyMagicLink);
 
 export default router;
