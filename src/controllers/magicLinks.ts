@@ -70,13 +70,11 @@ export async function requestMagicLink(req: Request, res: Response) {
 }
 
 export async function verifyMagicLink(req: Request, res: Response) {
-  const parse = MagicLinkVerifyQuerySchema.safeParse(req.query);
+  const { token } = req.params;
 
-  if (!parse.success) {
-    return res.redirect('/login?error=invalid');
+  if (!token) {
+    return res.status(400).json({ message: 'Missing verification token' });
   }
-
-  const { token } = parse.data;
   const tokenHash = hashSha256(token);
 
   const record = await MagicLinkToken.findOne({
@@ -84,26 +82,15 @@ export async function verifyMagicLink(req: Request, res: Response) {
   });
 
   if (!record) {
-    return res.redirect('/login?error=invalid');
+    return res.status(400).json({ message: 'Invalid verification token' });
   }
 
   if (record.used_at) {
-    return res.redirect('/login?error=used');
+    return res.status(400).json({ message: 'Invalid verification token' });
   }
 
   if (record.expires_at < new Date()) {
-    return res.redirect('/login?error=expired');
-  }
-
-  // Device binding check
-  const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
-
-  if (record.ip_hash && record.ip_hash !== ip_hash) {
-    return res.redirect('/login?error=device_mismatch');
-  }
-
-  if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
-    return res.redirect('/login?error=device_mismatch');
+    return res.status(400).json({ message: 'Invalid verification token' });
   }
 
   // Atomic consume
@@ -118,7 +105,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
   );
 
   if (!updated) {
-    return res.redirect('/login?error=invalid');
+    return res.status(500).json({ message: 'Failed to use token' });
   }
 
   await AuthEventService.log({
@@ -127,7 +114,18 @@ export async function verifyMagicLink(req: Request, res: Response) {
     req,
   });
 
-  return res.redirect(record.redirect_url || '/');
+  // Device binding check
+  const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
+
+  if (record.ip_hash && record.ip_hash !== ip_hash) {
+    return res.status(200).json({ message: 'Success' });
+  }
+
+  if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
+    return res.status(200).json({ message: 'Success' });
+  }
+
+  return res.status(200).json({ message: 'Success' });
 }
 
 export async function pollMagicLinkConfirmation(req: Request, res: Response) {

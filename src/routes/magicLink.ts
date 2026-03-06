@@ -23,6 +23,6 @@ router.get(
 );
 
 router.get('/poll', attachAuthMiddleware('ephemeral'), pollMagicLinkConfirmation);
-router.get('/verify/:token', attachAuthMiddleware('ephemeral'), verifyMagicLink);
+router.get('/verify/:token', verifyMagicLink);
 
 export default router;
