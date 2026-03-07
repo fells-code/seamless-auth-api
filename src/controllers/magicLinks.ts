@@ -7,15 +7,24 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig';
+import { setAuthCookies } from '../lib/cookie';
+import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token';
+import { AuthEvent } from '../models/authEvents';
 import { MagicLinkToken } from '../models/magicLinks';
+import { Session } from '../models/sessions';
 import { User } from '../models/users';
-import { MagicLinkVerifyQuerySchema } from '../schemas/magicLink.schema';
 import { AuthEventService } from '../services/authEventService';
 import { sendMagicLinkEmail } from '../services/messagingService';
 import { AuthenticatedRequest } from '../types/types';
-import { hashDeviceFingerprint, hashSha256 } from '../utils/utils';
+import {
+  computeSessionTimes,
+  hashDeviceFingerprint,
+  hashSha256,
+  parseDurationToSeconds,
+} from '../utils/utils';
 
 const TTL_MINUTES = 15;
+const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
 
 export async function requestMagicLink(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
@@ -166,7 +175,59 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       type: 'magic_link_poll_completed_successfully',
       req,
     });
-    return res.status(200).json({ message: 'Success' });
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = await hashRefreshToken(refreshToken);
+    const { expiresAt, idleExpiresAt } = computeSessionTimes();
+
+    const session = await Session.create({
+      userId: user.id,
+      infraId: process.env.APP_ID!,
+      mode: AUTH_MODE,
+      refreshTokenHash,
+      userAgent: req.get('user-agent'),
+      ipAddress: req.ip,
+      expiresAt,
+      idleExpiresAt,
+      lastUsedAt: undefined,
+    });
+
+    const token = await signAccessToken(session.id, user.id, user.roles);
+
+    user.challenge = '';
+    user.verified = true;
+
+    await user.save();
+
+    if (token && refreshToken) {
+      await AuthEvent.create({
+        user_id: user.id,
+        type: 'registration_success',
+        ip_address: req.ip,
+        user_agent: req.headers['user-agent'],
+        metadata: {},
+      });
+
+      if (AUTH_MODE === 'web') {
+        await setAuthCookies(res, { accessToken: token, refreshToken });
+        res.status(200).json({ message: 'Success' });
+        return;
+      }
+
+      const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
+
+      return res.status(200).json({
+        message: 'Success',
+        token,
+        refreshToken,
+        sub: user.id,
+        roles: user.roles,
+        email: user.email,
+        phone: user.phone,
+        ttl: parseDurationToSeconds(access_token_ttl || '15m'),
+        refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
+      });
+    }
   }
 
   return res.status(204).json({ error: 'Not verified.' });
