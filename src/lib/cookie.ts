@@ -52,7 +52,6 @@ export async function setAuthCookies(
 }
 
 export function clearAuthCookies(res: Response) {
-  logger.debug('Cookies cleared');
   res.clearCookie('seamless_access', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

@@ -16,12 +16,15 @@ import { User } from '../models/users';
 import { AuthEventService } from '../services/authEventService';
 import { sendMagicLinkEmail } from '../services/messagingService';
 import { AuthenticatedRequest } from '../types/types';
+import getLogger from '../utils/logger';
 import {
   computeSessionTimes,
   hashDeviceFingerprint,
   hashSha256,
   parseDurationToSeconds,
 } from '../utils/utils';
+
+const logger = getLogger('magic-links');
 
 const TTL_MINUTES = 15;
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
@@ -79,6 +82,7 @@ export async function requestMagicLink(req: Request, res: Response) {
 }
 
 export async function verifyMagicLink(req: Request, res: Response) {
+  logger.debug('Verifying magic link');
   const { token } = req.params;
 
   if (!token) {
@@ -91,18 +95,23 @@ export async function verifyMagicLink(req: Request, res: Response) {
   });
 
   if (!record) {
+    logger.warn(`No magic link found for token: ${token}`);
     return res.status(400).json({ message: 'Invalid verification token' });
   }
 
   if (record.used_at) {
+    logger.warn(`Magic link token is already used ${token}`);
     return res.status(400).json({ message: 'Invalid verification token' });
   }
 
   if (record.expires_at < new Date()) {
+    logger.warn(`Magic link token expired: ${token}`);
     return res.status(400).json({ message: 'Invalid verification token' });
   }
 
   // Atomic consume
+  logger.info(`Magic link being consumed ${token}`);
+
   const [updated] = await MagicLinkToken.update(
     { used_at: new Date() },
     {
@@ -114,6 +123,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
   );
 
   if (!updated) {
+    logger.error(`Magic link token was not consumted: ${token}`);
     return res.status(500).json({ message: 'Failed to use token' });
   }
 
@@ -121,6 +131,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
     userId: record.user_id,
     type: 'magic_link_success',
     req,
+    metadata: { message: `Token: ${token}` },
   });
 
   // Device binding check
