@@ -22,7 +22,7 @@ router.get(
   requestMagicLink,
 );
 
-router.get('/poll', attachAuthMiddleware('ephemeral'), pollMagicLinkConfirmation);
+router.get('/check', attachAuthMiddleware('ephemeral'), pollMagicLinkConfirmation);
 router.get('/verify/:token', verifyMagicLink);
 
 export default router;
