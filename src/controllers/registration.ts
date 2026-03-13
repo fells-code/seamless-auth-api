@@ -12,7 +12,7 @@ import { AuthEvent } from '../models/authEvents';
 import { User } from '../models/users';
 import { AuthEventService } from '../services/authEventService';
 import getLogger from '../utils/logger';
-import { generateEmailOTP, generatePhoneOTP } from '../utils/otp';
+import { generatePhoneOTP } from '../utils/otp';
 import { isValidEmail, isValidPhoneNumber } from '../utils/utils';
 
 const logger = getLogger('registration');

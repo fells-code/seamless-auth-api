@@ -5,10 +5,8 @@
 import { Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig';
-import getLogger from '../utils/logger';
 import { parseDurationToSeconds } from '../utils/utils';
 
-const logger = getLogger('cookies');
 export async function setAuthCookies(
   res: Response,
   cookie: {

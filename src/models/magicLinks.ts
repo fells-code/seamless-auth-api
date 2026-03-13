@@ -11,8 +11,6 @@ import {
   Sequelize,
 } from 'sequelize';
 
-import { User } from './users';
-
 export class MagicLinkToken extends Model<
   InferAttributes<MagicLinkToken>,
   InferCreationAttributes<MagicLinkToken>
