@@ -7,29 +7,29 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import { clearAuthCookies, setAuthCookies } from '../lib/cookie';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
 import {
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
-} from '../lib/token';
-import { AuthEvent } from '../models/authEvents';
-import { Credential } from '../models/credentials';
-import { Session } from '../models/sessions';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
-import { hardRevokeSession, revokeSessionChain } from '../services/sessionService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
-import { getSecret } from '../utils/secretsStore';
+} from '../lib/token.js';
+import { AuthEvent } from '../models/authEvents.js';
+import { Credential } from '../models/credentials.js';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { hardRevokeSession, revokeSessionChain } from '../services/sessionService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
+import { getSecret } from '../utils/secretsStore.js';
 import {
   computeSessionTimes,
   isValidEmail,
   isValidPhoneNumber,
   parseDurationToSeconds,
-} from '../utils/utils';
+} from '../utils/utils.js';
 
 const logger = getLogger('authentication');
 const AUTH_MODE = process.env.AUTH_MODE;

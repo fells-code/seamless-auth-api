@@ -4,25 +4,17 @@
  */
 import cookieParser from 'cookie-parser';
 import cors, { CorsOptions } from 'cors';
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
 
-import { login, logout, refreshSession } from './controllers/authentication';
-import { jwksHandler } from './controllers/jwks';
-import { attachAuthMiddleware } from './middleware/attachAuthMiddleware';
-import { dynamicJWKSRateLimit } from './middleware/jwksRateLimit';
-import { dynamicRateLimit } from './middleware/rateLimit';
-import { dynamicSlowDown } from './middleware/slowDown';
-import { verifyBearerAuth } from './middleware/verifyBearerAuth';
-import { AuthEvent } from './models/authEvents';
-import health from './routes/health';
-import magicLink from './routes/magicLink';
-import otp from './routes/otp';
-import registration from './routes/registration';
-import systemConfigRouter from './routes/systemConfig';
-import user from './routes/user';
-import webAuthn from './routes/webauthn';
-import getLogger from './utils/logger';
+import { loadRoutes } from './lib/loadRoutes.js';
+import { dynamicRateLimit } from './middleware/rateLimit.js';
+import { logRoute } from './middleware/routeLogger.js';
+import { dynamicSlowDown } from './middleware/slowDown.js';
+import { AuthEvent } from './models/authEvents.js';
+import { generateOpenApiDocument } from './openapi/document.js';
+import getLogger from './utils/logger.js';
 
 const logger = getLogger('app');
 const app = express();
@@ -72,69 +64,66 @@ app.use(
   }),
 );
 
-app.use('/health', health);
-app.use(dynamicSlowDown);
-app.use(dynamicRateLimit);
+const isDev = process.env.NODE_ENV !== 'production';
+
+if (isDev) {
+  app.get('/openapi.json', (_req, res) => {
+    const document = generateOpenApiDocument();
+    res.json(document);
+  });
+
+  app.use(
+    '/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(undefined, {
+      swaggerOptions: {
+        url: '/openapi.json',
+      },
+    }),
+  );
+}
+
+if (process.env.NODE_ENV !== 'test') {
+  app.use(dynamicSlowDown);
+  app.use(dynamicRateLimit);
+}
 
 app.use(express.json());
-
-app.use('/.well-known/jwks.json', dynamicJWKSRateLimit, jwksHandler);
-
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
-const startServer = async () => {
-  try {
-    app.use('/login', login);
-    app.use('/magic-link', magicLink);
-    app.use('/logout', attachAuthMiddleware('access'), logout);
-    app.use('/registration', registration);
-    app.use('/webAuthn', webAuthn);
-    app.use('/users', user);
-    app.use('/otp', otp);
+app.use(logRoute);
 
-    // API only routes
-    app.use('/system-config', systemConfigRouter);
-    app.use('/refresh', verifyBearerAuth, refreshSession);
-
-    app.use((err: Error, req: Request, res: Response) => {
-      if (err.message === 'Not allowed by CORS') {
-        AuthEvent.create({
-          user_id: 'null',
-          type: 'request_suspicous',
-          ip_address: req.ip,
-          user_agent: req.headers['user-agent'],
-          metadata: { reason: 'Request from an unexpected origin' },
-        });
-        res.setHeader('Access-Control-Allow-Origin', process.env.APP_ORIGIN!);
-        return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
-      }
-    });
-
-    app.use((req: Request, res: Response) => {
-      logger.warn(
-        `[${req.ip}] didn't make it anywhere. Path: ${req.path}. Tracking of suspicous behavior`,
-      );
+export async function createApp() {
+  await loadRoutes(app);
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    if (err.message === 'Not allowed by CORS') {
       AuthEvent.create({
-        user_id: 'null',
         type: 'request_suspicous',
         ip_address: req.ip,
         user_agent: req.headers['user-agent'],
-        metadata: { reason: 'Request to an unknown route.' },
+        metadata: { reason: 'Request from an unexpected origin' },
       });
-      res.status(404).json({ error: 'Not Found' });
-    });
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      logger.error(`Failed to start server: ${error.message}`);
-    } else {
-      logger.error(`Failed to start server: ${String(error)}`);
+      res.setHeader('Access-Control-Allow-Origin', process.env.APP_ORIGIN!);
+      return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
     }
+    return next();
+  });
 
-    process.exit(1);
-  }
-};
+  app.use((req: Request, res: Response) => {
+    logger.warn(
+      `[${req.ip}] didn't make it anywhere. Path: ${req.path}. Tracking of suspicous behavior`,
+    );
+    AuthEvent.create({
+      type: 'request_suspicous',
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent'],
+      metadata: { reason: 'Request to an unknown route.' },
+    });
+    return res.status(404).json({ error: 'Not Found' });
+  });
 
-startServer();
+  return app;
+}
 
 export default app;

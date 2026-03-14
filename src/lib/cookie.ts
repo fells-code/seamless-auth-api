@@ -4,8 +4,8 @@
  */
 import { Response } from 'express';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import { parseDurationToSeconds } from '../utils/utils';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { parseDurationToSeconds } from '../utils/utils.js';
 
 export async function setAuthCookies(
   res: Response,

@@ -6,23 +6,23 @@ import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import { setAuthCookies } from '../lib/cookie';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token';
-import { AuthEvent } from '../models/authEvents';
-import { MagicLinkToken } from '../models/magicLinks';
-import { Session } from '../models/sessions';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
-import { sendMagicLinkEmail } from '../services/messagingService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { setAuthCookies } from '../lib/cookie.js';
+import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token.js';
+import { AuthEvent } from '../models/authEvents.js';
+import { MagicLinkToken } from '../models/magicLinks.js';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { sendMagicLinkEmail } from '../services/messagingService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
 import {
   computeSessionTimes,
   hashDeviceFingerprint,
   hashSha256,
   parseDurationToSeconds,
-} from '../utils/utils';
+} from '../utils/utils.js';
 
 const logger = getLogger('magic-links');
 

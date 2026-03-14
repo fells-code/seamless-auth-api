@@ -4,8 +4,8 @@
  */
 import { Request } from 'express';
 
-import { AuthEvent } from '../models/authEvents';
-import getLogger from '../utils/logger';
+import { AuthEvent } from '../models/authEvents.js';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('authEventService');
 

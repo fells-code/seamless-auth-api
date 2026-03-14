@@ -2,31 +2,27 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import {
-  AuthenticatorTransportFuture,
-  Base64URLString,
-  CredentialDeviceType,
-} from '@simplewebauthn/server/script/types';
+import { AuthenticatorTransportFuture, CredentialDeviceType } from '@simplewebauthn/server';
 import { DataTypes, Model, Sequelize } from 'sequelize';
 
-import type { User } from './users';
+import type { User } from './users.js';
 
 export class Credential extends Model {
   declare id: Base64URLString;
-  public userId!: string;
-  public publicKey!: Uint8Array;
-  public counter!: number;
-  public transports?: AuthenticatorTransportFuture[];
-  public deviceType!: CredentialDeviceType;
-  public backedup!: boolean;
+  declare userId: string;
+  declare publicKey: Uint8Array;
+  declare counter: number;
+  declare transports?: AuthenticatorTransportFuture[];
+  declare deviceType: CredentialDeviceType;
+  declare backedup: boolean;
 
-  public friendlyName!: string | null;
-  public lastUsedAt!: Date | null;
-  public platform!: string | null;
-  public browser!: string | null;
-  public deviceInfo!: string | null;
+  declare friendlyName: string | null;
+  declare lastUsedAt: Date | null;
+  declare platform: string | null;
+  declare browser: string | null;
+  declare deviceInfo: string | null;
 
-  public readonly user?: User;
+  declare readonly user?: User;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static associate(models: any) {

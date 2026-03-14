@@ -2,7 +2,6 @@ import js from '@eslint/js';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
-import pluginJest from 'eslint-plugin-jest';
 
 export default [
   {
@@ -10,10 +9,6 @@ export default [
   },
   {
     files: ['**/*.spec.js', '**/*.test.js', '**/*.spec.ts', '**/*.test.ts'],
-    plugins: { jest: pluginJest },
-    languageOptions: {
-      globals: pluginJest.environments.globals.globals,
-    },
     rules: {
       'jest/no-disabled-tests': 'warn',
       'jest/no-focused-tests': 'error',

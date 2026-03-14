@@ -3,11 +3,19 @@
  * Licensed under the GNU Affero General Public License v3.0
  */
 import request from 'supertest';
-import app from '../src/app';
+import { createApp } from '../src/app.js';
+import { Application } from 'express';
 
-describe('GET /health/healthCheck', () => {
+let app: Application;
+
+beforeAll(async () => {
+  app = await createApp();
+});
+
+describe('GET /health/status', () => {
   it('returns ok', async () => {
     const res = await request(app).get('/health/status');
+
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: 'System up' });
   });

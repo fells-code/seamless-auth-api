@@ -6,20 +6,20 @@ import { compareSync } from 'bcrypt-ts';
 import { NextFunction, Request, Response } from 'express';
 import { Op } from 'sequelize';
 
-import { clearAuthCookies, setAuthCookies } from '../lib/cookie';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token';
-import { Session } from '../models/sessions';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
+import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
+import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token.js';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
 import {
   CookieType,
   hardRevokeSession,
   revokeSessionChain,
   validateSession,
-} from '../services/sessionService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
-import { computeSessionTimes } from '../utils/utils';
+} from '../services/sessionService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
+import { computeSessionTimes } from '../utils/utils.js';
 
 const logger = getLogger('verify-cookie');
 

@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 
-import { SystemConfigSchema } from './systemConfig.schema';
+import { SystemConfigSchema } from './systemConfig.schema.js';
 
 export const PatchSystemConfigSchema = SystemConfigSchema.partial().superRefine((data, ctx) => {
   if (

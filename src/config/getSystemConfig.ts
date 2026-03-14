@@ -2,8 +2,8 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import { SystemConfig as SysConfigModel } from '../models/systemConfig';
-import { SystemConfig } from '../schemas/systemConfig.schema';
+import { SystemConfig as SysConfigModel } from '../models/systemConfig.js';
+import { SystemConfig } from '../schemas/systemConfig.schema.js';
 
 let cachedConfig: { [k: string]: unknown } | null;
 let lastLoadedAt = 0;

@@ -5,11 +5,11 @@
 import { importSPKI, jwtVerify } from 'jose';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
-import { Session } from '../models/sessions';
-import { User } from '../models/users';
-import getLogger from '../utils/logger';
-import { getSecret } from '../utils/secretsStore';
-import { getPublicKeyByKid } from '../utils/signingKeyStore';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
+import getLogger from '../utils/logger.js';
+import { getSecret } from '../utils/secretsStore.js';
+import { getPublicKeyByKid } from '../utils/signingKeyStore.js';
 
 const logger = getLogger('sessionService');
 

@@ -6,9 +6,9 @@ import { hashSync } from 'bcrypt-ts';
 import { randomBytes } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import getLogger from '../utils/logger';
-import { getSigningKey } from '../utils/signingKeyStore';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import getLogger from '../utils/logger.js';
+import { getSigningKey } from '../utils/signingKeyStore.js';
 
 const logger = getLogger('tokens');
 

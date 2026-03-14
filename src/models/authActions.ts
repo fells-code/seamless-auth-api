@@ -14,13 +14,13 @@ export interface AuthActionAttributes {
 }
 
 export class AuthAction extends Model<AuthActionAttributes> implements AuthActionAttributes {
-  public id!: string;
-  public endpoint!: string;
-  public method!: string;
-  public count!: number;
+  declare id: string;
+  declare endpoint: string;
+  declare method: string;
+  declare count: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 const initializeAuthActionModel = (sequelize: Sequelize) => {

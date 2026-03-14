@@ -25,14 +25,14 @@ export class AuthEvent
   extends Model<AuthEventAttributes, AuthEventCreationAttributes>
   implements AuthEventAttributes
 {
-  public id!: string;
-  public user_id?: string | null;
-  public type!: string;
-  public ip_address?: string | null;
-  public user_agent?: string | null;
-  public metadata!: Record<string, any> | null;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+  declare id: string;
+  declare user_id?: string | null;
+  declare type: string;
+  declare ip_address?: string | null;
+  declare user_agent?: string | null;
+  declare metadata: Record<string, any> | null;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
 
   static associate(models: any) {
     AuthEvent.belongsTo(models.User, {

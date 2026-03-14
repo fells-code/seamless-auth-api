@@ -4,7 +4,8 @@
  */
 import { Request, Response } from 'express';
 
-import getLogger from '../utils/logger';
+import { getPackageVersion } from '../openapi/document.js';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('health');
 
@@ -14,5 +15,5 @@ export const healthCheck = (req: Request, res: Response) => {
 
 export const version = (req: Request, res: Response) => {
   logger.info('Version information obtained.');
-  return res.status(200).json({ message: process.env.VERSION });
+  return res.status(200).json({ message: getPackageVersion() });
 };

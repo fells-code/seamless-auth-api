@@ -28,7 +28,7 @@ jobs:
         run: npm run format
 
       - name: Run Tests with Coverage
-        run: npm test
+        run: npm run coverage
 
       - name: Run type checks
         run: npm run typecheck

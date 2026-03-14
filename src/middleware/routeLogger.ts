@@ -4,7 +4,7 @@
  */
 import { NextFunction, Request, Response } from 'express';
 
-import getLogger from '../utils/logger';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('routeLogger');
 

@@ -2,7 +2,7 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import getLogger from '../utils/logger';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('messaging');
 

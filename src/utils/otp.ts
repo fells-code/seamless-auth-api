@@ -2,9 +2,9 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import { User } from '../models/users';
-import { sendOTPEmail, sendOTPSMS } from '../services/messagingService';
-import getLogger from './logger';
+import { User } from '../models/users.js';
+import { sendOTPEmail, sendOTPSMS } from '../services/messagingService.js';
+import getLogger from './logger.js';
 
 const logger = getLogger('utils.otp');
 

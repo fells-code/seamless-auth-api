@@ -4,11 +4,13 @@
  */
 import 'dotenv/config';
 
-import app from './app';
-import { bootstrapSystemConfig } from './config/bootstrapSystemConfig';
-import { connectToDb } from './db';
-import { initializeModels } from './models';
-import getLogger from './utils/logger';
+import { Application } from 'express';
+
+import { createApp } from './app.js';
+import { bootstrapSystemConfig } from './config/bootstrapSystemConfig.js';
+import { connectToDb } from './db.js';
+import { initializeModels } from './models/index.js';
+import getLogger from './utils/logger.js';
 
 const logger = getLogger('server');
 
@@ -21,6 +23,8 @@ async function startServer() {
 
     await connectToDb(models);
     await bootstrapSystemConfig();
+
+    const app: Application = await createApp();
 
     app.listen(PORT as number, HOST, () => {
       logger.info(`Server online.`);
