@@ -5,11 +5,13 @@
 import { readdirSync } from 'fs';
 import path from 'path';
 import { Sequelize } from 'sequelize';
+import { fileURLToPath } from 'url';
 
-import getLogger from '../utils/logger';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('sequelize');
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const isProduction = process.env.NODE_ENV === 'production';
 const enableDbLogging = !isProduction && process.env.DB_LOGGING === 'true';
 const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;

@@ -5,7 +5,7 @@
 import { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
-import { getSystemConfig } from '../config/getSystemConfig';
+import { getSystemConfig } from '../config/getSystemConfig.js';
 
 let cachedLimiter: ReturnType<typeof rateLimit> | null = null;
 let cachedLimit: number | null = null;
@@ -24,6 +24,43 @@ export async function dynamicRateLimit(req: Request, res: Response, next: NextFu
       standardHeaders: true,
       legacyHeaders: false,
       message: 'Too many requests, please try again later',
+    });
+  }
+
+  return cachedLimiter(req, res, next);
+}
+
+export async function magicLinkIpLimiter(req: Request, res: Response, next: NextFunction) {
+  const { rate_limit } = await getSystemConfig();
+
+  const limit = rate_limit ?? 50;
+
+  if (!cachedLimiter || cachedLimit !== limit) {
+    cachedLimit = limit;
+
+    cachedLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 20,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+  }
+
+  return cachedLimiter(req, res, next);
+}
+
+export async function magicLinkEmailLimiter(req: Request, res: Response, next: NextFunction) {
+  const { rate_limit } = await getSystemConfig();
+
+  const limit = rate_limit ?? 50;
+
+  if (!cachedLimiter || cachedLimit !== limit) {
+    cachedLimit = limit;
+
+    cachedLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      keyGenerator: (req) => req.body.email ?? req.ip,
     });
   }
 

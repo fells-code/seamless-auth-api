@@ -4,19 +4,24 @@
  */
 import { Request, Response } from 'express';
 
-import { setAuthCookies } from '../lib/cookie';
+import { setAuthCookies } from '../lib/cookie.js';
 import {
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
-} from '../lib/token';
-import { Session } from '../models/sessions';
-import { AuthEventService } from '../services/authEventService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
-import { generateEmailOTP, generatePhoneOTP, verifyEmailOTP, verifyPhoneOTP } from '../utils/otp';
-import { computeSessionTimes, isValidEmail, isValidPhoneNumber } from '../utils/utils';
+} from '../lib/token.js';
+import { Session } from '../models/sessions.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
+import {
+  generateEmailOTP,
+  generatePhoneOTP,
+  verifyEmailOTP,
+  verifyPhoneOTP,
+} from '../utils/otp.js';
+import { computeSessionTimes, isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('otp');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';

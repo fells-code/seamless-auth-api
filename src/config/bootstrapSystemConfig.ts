@@ -2,10 +2,10 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import { SystemConfig } from '../models/systemConfig';
-import { SystemConfigSchema } from '../schemas/systemConfig.schema';
-import { parseSystemConfigEnvValue } from '../utils/parseEnvConfigs';
-import { SYSTEM_CONFIG_ENV_MAP } from './systemConfig.envMap';
+import { SystemConfig } from '../models/systemConfig.js';
+import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
+import { parseSystemConfigEnvValue } from '../utils/parseEnvConfigs.js';
+import { SYSTEM_CONFIG_ENV_MAP } from './systemConfig.envMap.js';
 
 export async function bootstrapSystemConfig() {
   const resolvedConfig: Record<string, unknown> = {};

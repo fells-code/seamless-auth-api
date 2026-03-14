@@ -13,17 +13,17 @@ import {
 import base64url from 'base64url';
 import { Request, Response } from 'express';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import { clearAuthCookies, setAuthCookies } from '../lib/cookie';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token';
-import { AuthEvent } from '../models/authEvents';
-import { Session } from '../models/sessions';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
-import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils';
-import { Credential } from './../models/credentials';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
+import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token.js';
+import { AuthEvent } from '../models/authEvents.js';
+import { Credential } from '../models/credentials.js';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
+import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 
 const logger = getLogger('webauthn');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';

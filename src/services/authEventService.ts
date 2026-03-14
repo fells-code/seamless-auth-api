@@ -4,8 +4,8 @@
  */
 import { Request } from 'express';
 
-import { AuthEvent } from '../models/authEvents';
-import getLogger from '../utils/logger';
+import { AuthEvent } from '../models/authEvents.js';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('authEventService');
 
@@ -62,6 +62,9 @@ type AuthEventType =
   | 'system_config_error'
   | 'system_config_read'
   | 'notication_sent'
+  | 'magic_link_requested'
+  | 'magic_link_success'
+  | 'magic_link_poll_completed_successfully'
   | 'informational';
 
 export interface AuthEventOptions {

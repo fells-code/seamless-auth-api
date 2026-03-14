@@ -4,7 +4,7 @@
  */
 import { Association, DataTypes, Model, Sequelize } from 'sequelize';
 
-import type { Credential } from './credentials';
+import type { Credential } from './credentials.js';
 
 export interface UserAttributes {
   id?: string;
@@ -27,23 +27,23 @@ export interface UserAttributes {
 }
 
 export class User extends Model<UserAttributes> implements UserAttributes {
-  public id!: string;
-  public email!: string;
-  public phone!: string;
-  public revoked!: boolean;
-  public emailVerificationToken!: string | null;
-  public emailVerificationTokenExpiry!: number | null;
-  public phoneVerificationToken!: string | null;
-  public phoneVerificationTokenExpiry!: number | null;
-  public emailVerified!: boolean;
-  public phoneVerified!: boolean;
-  public verified!: boolean;
-  public challenge!: string | null;
-  public roles?: string[];
-  public lastLogin?: Date;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-  public readonly credentials?: Credential[];
+  declare id: string;
+  declare email: string;
+  declare phone: string;
+  declare revoked: boolean;
+  declare emailVerificationToken: string | null;
+  declare emailVerificationTokenExpiry: number | null;
+  declare phoneVerificationToken: string | null;
+  declare phoneVerificationTokenExpiry: number | null;
+  declare emailVerified: boolean;
+  declare phoneVerified: boolean;
+  declare verified: boolean;
+  declare challenge: string | null;
+  declare roles?: string[];
+  declare lastLogin?: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+  declare readonly credentials?: Credential[];
 
   public static associations: {
     credentials: Association<User, Credential>;

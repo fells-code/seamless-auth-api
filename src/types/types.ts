@@ -4,10 +4,12 @@
  */
 import { Request } from 'express';
 
-import { User } from '../models/users';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
 
 export interface AuthenticatedRequest extends Request {
   user: User;
+  sessionId: Session['id'];
 }
 export interface ServiceRequest extends Request {
   clientId?: string | (() => string);

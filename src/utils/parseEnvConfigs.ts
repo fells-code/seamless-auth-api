@@ -2,7 +2,7 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import { SYSTEM_CONFIG_ENV_MAP } from '../config/systemConfig.envMap';
+import { SYSTEM_CONFIG_ENV_MAP } from '../config/systemConfig.envMap.js';
 
 export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MAP, raw: string) {
   switch (key) {

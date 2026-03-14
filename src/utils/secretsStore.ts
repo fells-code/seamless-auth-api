@@ -3,7 +3,7 @@
  * Licensed under the GNU Affero General Public License v3.0
  */
 
-import getLogger from './logger';
+import getLogger from './logger.js';
 
 const logger = getLogger('secret_store');
 

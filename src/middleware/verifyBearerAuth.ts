@@ -4,9 +4,9 @@
  */
 import { NextFunction, Request, Response } from 'express';
 
-import { validateSession } from '../services/sessionService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
+import { validateSession } from '../services/sessionService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('verifyBearerAuth');
 

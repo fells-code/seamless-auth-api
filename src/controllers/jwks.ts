@@ -6,8 +6,8 @@ import { Request, Response } from 'express';
 import fs from 'fs';
 import { exportJWK, importSPKI, JWK } from 'jose';
 
-import getLogger from '../utils/logger';
-import { getSecret } from '../utils/secretsStore';
+import getLogger from '../utils/logger.js';
+import { getSecret } from '../utils/secretsStore.js';
 
 const logger = getLogger('jwks');
 

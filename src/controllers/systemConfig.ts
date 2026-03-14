@@ -4,14 +4,14 @@
  */
 import { Response } from 'express';
 
-import { invalidateSystemConfigCache } from '../config/getSystemConfig';
-import { SystemConfig } from '../models/systemConfig';
-import { User } from '../models/users';
-import { PatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema';
-import { SystemConfigSchema } from '../schemas/systemConfig.schema';
-import { AuthEventService } from '../services/authEventService';
-import { ServiceRequest } from '../types/types';
-import getLogger from '../utils/logger';
+import { invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { SystemConfig } from '../models/systemConfig.js';
+import { User } from '../models/users.js';
+import { PatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
+import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { ServiceRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
 
 const UpdateSystemConfigSchema = PatchSystemConfigSchema;
 const logger = getLogger('systemConfig');

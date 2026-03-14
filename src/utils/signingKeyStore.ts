@@ -6,8 +6,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-import getLogger from '../utils/logger';
-import { getSecret } from './secretsStore';
+import getLogger from '../utils/logger.js';
+import { getSecret } from './secretsStore.js';
 
 const logger = getLogger('signing-key-store');
 

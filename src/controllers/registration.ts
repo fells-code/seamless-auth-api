@@ -5,15 +5,15 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import { setAuthCookies } from '../lib/cookie';
-import { signEphemeralToken } from '../lib/token';
-import { AuthEvent } from '../models/authEvents';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
-import getLogger from '../utils/logger';
-import { generateEmailOTP, generatePhoneOTP } from '../utils/otp';
-import { isValidEmail, isValidPhoneNumber } from '../utils/utils';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { setAuthCookies } from '../lib/cookie.js';
+import { signEphemeralToken } from '../lib/token.js';
+import { AuthEvent } from '../models/authEvents.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
+import getLogger from '../utils/logger.js';
+import { generatePhoneOTP } from '../utils/otp.js';
+import { isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('registration');
 const AUTH_MODE = process.env.AUTH_MODE;
@@ -71,7 +71,7 @@ export const register = async (req: Request, res: Response) => {
 
     if (user) {
       logger.info(`Registration attempt for a user that already exisited`);
-      logger.info(`Sending OTPs`);
+      logger.info(`Sending OTP`);
       AuthEventService.log({
         userId: user.id,
         type: 'informational',
@@ -81,7 +81,6 @@ export const register = async (req: Request, res: Response) => {
 
       token = await signEphemeralToken(user.id);
 
-      await generateEmailOTP(user);
       await generatePhoneOTP(user);
     } else {
       logger.info(`Creating new user`);
@@ -105,8 +104,7 @@ export const register = async (req: Request, res: Response) => {
         reason: 'Owner notified of new user registration',
       });
 
-      logger.info(`Sending OTPs to  ${email} and ${phone}`);
-      await generateEmailOTP(user);
+      logger.info(`Sending phone OTP to ${phone}`);
       await generatePhoneOTP(user);
 
       AuthEventService.log({

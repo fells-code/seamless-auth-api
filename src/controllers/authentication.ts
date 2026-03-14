@@ -7,36 +7,36 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 
-import { getSystemConfig } from '../config/getSystemConfig';
-import { clearAuthCookies, setAuthCookies } from '../lib/cookie';
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
 import {
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
-} from '../lib/token';
-import { AuthEvent } from '../models/authEvents';
-import { Credential } from '../models/credentials';
-import { Session } from '../models/sessions';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
-import { hardRevokeSession, revokeSessionChain } from '../services/sessionService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
-import { getSecret } from '../utils/secretsStore';
+} from '../lib/token.js';
+import { AuthEvent } from '../models/authEvents.js';
+import { Credential } from '../models/credentials.js';
+import { Session } from '../models/sessions.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { hardRevokeSession, revokeSessionChain } from '../services/sessionService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
+import { getSecret } from '../utils/secretsStore.js';
 import {
   computeSessionTimes,
   isValidEmail,
   isValidPhoneNumber,
   parseDurationToSeconds,
-} from '../utils/utils';
+} from '../utils/utils.js';
 
 const logger = getLogger('authentication');
 const AUTH_MODE = process.env.AUTH_MODE;
 
 export const login = async (req: Request, res: Response) => {
   // For the initial login step, user either passes in an email or a phone number
-  const { identifier } = req.body;
+  const { identifier, passkeyAvailable } = req.body;
   let user, identifierType;
 
   if (!identifier) {
@@ -142,7 +142,7 @@ export const login = async (req: Request, res: Response) => {
 
     const credential = await Credential.findOne({ where: { userId: user.id } });
 
-    if (!credential) {
+    if (passkeyAvailable && !credential) {
       logger.error(`Login attempt for a verified users, but no passkey. ${identifier}`);
       await AuthEvent.create({
         user_id: user.id,

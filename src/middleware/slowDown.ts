@@ -6,7 +6,7 @@ import { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 
-import { getSystemConfig } from '../config/getSystemConfig';
+import { getSystemConfig } from '../config/getSystemConfig.js';
 
 let cachedLimiter: ReturnType<typeof rateLimit> | null = null;
 let cachedLimit: number | null = null;

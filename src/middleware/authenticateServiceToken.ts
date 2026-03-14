@@ -5,9 +5,9 @@
 import { NextFunction, Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
-import { ServiceRequest } from '../types/types';
-import getLogger from '../utils/logger';
-import { getSecret } from '../utils/secretsStore';
+import { ServiceRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
+import { getSecret } from '../utils/secretsStore.js';
 
 const logger = getLogger('authenticateServiceToken');
 

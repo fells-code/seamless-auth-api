@@ -4,17 +4,18 @@
  */
 import { Request, Response } from 'express';
 
-import { clearAuthCookies } from '../lib/cookie';
-import { AuthEvent } from '../models/authEvents';
-import { Credential } from '../models/credentials';
-import { User } from '../models/users';
-import { AuthEventService } from '../services/authEventService';
-import { AuthenticatedRequest } from '../types/types';
-import getLogger from '../utils/logger';
+import { clearAuthCookies } from '../lib/cookie.js';
+import { AuthEvent } from '../models/authEvents.js';
+import { Credential } from '../models/credentials.js';
+import { User } from '../models/users.js';
+import { AuthEventService } from '../services/authEventService.js';
+import { AuthenticatedRequest } from '../types/types.js';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('user');
 
 export const getUser = async (req: Request, res: Response) => {
+  logger.debug('Retrieving user');
   const authReq = req as AuthenticatedRequest;
   const authUser = authReq.user;
 

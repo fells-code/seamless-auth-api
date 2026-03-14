@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 
-import getLogger from '../utils/logger';
+import getLogger from '../utils/logger.js';
 
 const logger = getLogger('jwks-bootstrap');
 
