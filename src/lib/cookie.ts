@@ -5,10 +5,8 @@
 import { Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig';
-import getLogger from '../utils/logger';
 import { parseDurationToSeconds } from '../utils/utils';
 
-const logger = getLogger('cookies');
 export async function setAuthCookies(
   res: Response,
   cookie: {
@@ -52,7 +50,6 @@ export async function setAuthCookies(
 }
 
 export function clearAuthCookies(res: Response) {
-  logger.debug('Cookies cleared');
   res.clearCookie('seamless_access', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

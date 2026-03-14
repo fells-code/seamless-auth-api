@@ -12,6 +12,8 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+RUN npm prune --omit=dev
+
 # ---------- Runtime stage ----------
 FROM node:20-slim AS runner
 WORKDIR /app
@@ -21,10 +23,10 @@ RUN useradd -m appuser
 COPY validateEnvs.sh /usr/local/bin/validateEnvs.sh
 RUN chmod +x /usr/local/bin/validateEnvs.sh
 
-COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
-
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/config ./src/config
 COPY --from=builder /app/src/migrations ./src/migrations
 COPY --from=builder /app/.sequelizerc ./.sequelizerc
 

@@ -2,6 +2,7 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
+import crypto from 'crypto';
 import parsePhoneNumberFromString from 'libphonenumber-js';
 import validator from 'validator';
 
@@ -47,4 +48,36 @@ export function parseDurationToSeconds(input: string): number {
   };
 
   return value * multipliers[unit];
+}
+
+export function hashSha256(value: string) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+export function hashDeviceFingerprint(ip?: string, userAgent?: string) {
+  return {
+    ip_hash: ip ? hashSha256(ip) : null,
+    user_agent_hash: userAgent ? hashSha256(userAgent) : null,
+  };
+}
+
+export function validateRedirectUrl(
+  redirectUrl: string | undefined,
+  allowedOrigins: string[],
+): string | null {
+  if (!redirectUrl) return null;
+
+  try {
+    const url = new URL(redirectUrl, allowedOrigins[0]);
+
+    const isAllowed = allowedOrigins.some((origin) => url.origin === origin);
+
+    if (!isAllowed) {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
 }

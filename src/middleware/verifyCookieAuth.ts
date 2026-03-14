@@ -35,7 +35,6 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
           clearAuthCookies(res);
           return res.status(401).json({ error: 'unauthorized' });
         }
-        logger.debug(`Validating ephemeral cookie`);
         const user = await validateSession({
           type: 'cookie',
           value: ephemeralCookie,
@@ -77,7 +76,7 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
       }
 
       // If we reach here, both access & refresh failed
-      clearAuthCookies(res);
+      //clearAuthCookies(res);
       return res.status(401).json({ error: 'unauthorized' });
     } catch (err) {
       logger.error('verifyCookieAuth error:', err);

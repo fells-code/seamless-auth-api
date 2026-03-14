@@ -23,3 +23,11 @@ export const sendOTPSMS = async (to: string, token: number) => {
     return;
   }
 };
+
+export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect: string) => {
+  logger.debug(`Sending magic link to: ${to}. URL: ${safeRedirect}`);
+
+  if (isDevelopment) {
+    return;
+  }
+};

@@ -36,7 +36,7 @@ const AUTH_MODE = process.env.AUTH_MODE;
 
 export const login = async (req: Request, res: Response) => {
   // For the initial login step, user either passes in an email or a phone number
-  const { identifier } = req.body;
+  const { identifier, passkeyAvailable } = req.body;
   let user, identifierType;
 
   if (!identifier) {
@@ -142,7 +142,7 @@ export const login = async (req: Request, res: Response) => {
 
     const credential = await Credential.findOne({ where: { userId: user.id } });
 
-    if (!credential) {
+    if (passkeyAvailable && !credential) {
       logger.error(`Login attempt for a verified users, but no passkey. ${identifier}`);
       await AuthEvent.create({
         user_id: user.id,
