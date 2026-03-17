@@ -19,7 +19,7 @@ import {
   MagicLinkVerifyResponseSchema,
 } from '../schemas/magiclink.responses.js';
 
-const magicLinkRouter = createRouter('/magiclinks');
+const magicLinkRouter = createRouter('/magic-link');
 
 magicLinkRouter.get(
   '',
