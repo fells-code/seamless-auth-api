@@ -5,11 +5,11 @@ export const MagicLinkRequestResponseSchema = z.object({
 });
 
 export const MagicLinkVerifyResponseSchema = z.object({
-  message: z.literal('Success'),
+  message: z.string(),
 });
 
 export const MagicLinkPollSuccessSchema = z.object({
-  message: z.literal('Success'),
+  message: z.string(),
   token: z.string().optional(),
   refreshToken: z.string().optional(),
   sub: z.string().optional(),

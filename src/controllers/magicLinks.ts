@@ -166,18 +166,18 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
   if (!record) {
     console.log('No magic link token');
-    return res.status(500).json({ error: 'Invalid request' });
+    return res.status(500).json({ message: 'Invalid request' });
   }
 
   // Device binding check
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
   if (record.ip_hash && record.ip_hash !== ip_hash) {
-    return res.status(500).json({ error: 'Invalid request' });
+    return res.status(500).json({ message: 'Invalid request' });
   }
 
   if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
-    return res.status(500).json({ error: 'Invalid request' });
+    return res.status(500).json({ message: 'Invalid request' });
   }
 
   if (record.used_at && record.expires_at > new Date()) {
@@ -241,5 +241,5 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     }
   }
 
-  return res.status(204).json({ error: 'Not verified.' });
+  return res.status(204).json({ message: 'Not verified.' });
 }

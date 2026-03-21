@@ -48,6 +48,7 @@ magicLinkRouter.get(
       response: {
         200: MagicLinkPollSuccessSchema,
         204: MagicLinkPollPendingSchema,
+        404: MagicLinkPollPendingSchema,
         500: MagicLinkErrorSchema,
       },
     },

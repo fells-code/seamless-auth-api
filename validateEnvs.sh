@@ -13,20 +13,26 @@ done
 echo "Generating JWKS keys"
 if [ "${NODE_ENV:-development}" = "production" ]; then
   echo "Running in production mode"
-  npx tsx ./dist/scripts/initKeys.ts
+  node ./dist/scripts/initKeys.js
 else
   echo "Running in development mode"
   npx tsx ./src/scripts/initKeys.ts
 fi
 echo "JWKS keys ready"
 
-if ! PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -p "$DB_PORT" -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
-  echo "Database does not exist. Creating..."
-  npm run db:create
-fi
-
 echo "Running migrations..."
-npx sequelize-cli db:migrate --debug
+
+if ! npx sequelize-cli db:migrate --debug; then
+  echo "Initial migration failed. Attempting database creation..."
+
+  if npm run db:create; then
+    echo "Database created. Retrying migrations..."
+    npx sequelize-cli db:migrate --debug
+  else
+    echo "Database creation failed"
+    exit 1
+  fi
+fi
 
 echo "Starting application"
 if [ "${NODE_ENV:-development}" = "production" ]; then
