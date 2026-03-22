@@ -31,6 +31,7 @@ type AuthEventType =
   | 'otp_success'
   | 'otp_failed'
   | 'otp_suspicious'
+  | 'internal_user_updated_by_owner'
   | 'verify_otp_success'
   | 'verify_otp_failed'
   | 'verify_otp_suspicious'
