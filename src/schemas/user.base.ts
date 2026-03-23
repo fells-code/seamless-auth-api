@@ -10,6 +10,10 @@ export const UserBaseSchema = z.object({
   lastLogin: IsoDate.optional(),
   createdAt: IsoDate,
   updatedAt: IsoDate.optional(),
+  revoked: z.boolean().optional(),
+  emailVerified: z.boolean().optional(),
+  phoneVerified: z.boolean().optional(),
+  verified: z.boolean().optional(),
 });
 
 export type UserBase = z.infer<typeof UserBaseSchema>;

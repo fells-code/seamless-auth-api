@@ -13,10 +13,41 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal');
 
+function expandType(type?: string): string[] {
+  if (!type) return [];
+
+  if (type === 'login') return ['login_success', 'login_failed'];
+  if (type === 'otp') return ['otp_success', 'otp_failed'];
+  if (type === 'webauthn') return ['webauthn_login_success', 'webauthn_login_failed'];
+  if (type === 'magicLink') return ['magic_link_success', 'magic_link_requested'];
+
+  if (type === 'suspicious')
+    return [
+      'login_suspicious',
+      'otp_suspicious',
+      'webauthn_login_suspicious',
+      'verify_otp_suspicious',
+      'service_token_suspicious',
+    ];
+
+  return [type];
+}
+
 export const getUsers = async (req: ServiceRequest, res: Response) => {
-  logger.info('Internal users call made.');
-  try {
-    const users = await User.findAll({
+  const { limit = 50, offset = 0, search } = req.query;
+
+  const where: any = {};
+
+  if (search) {
+    where[Op.or] = [
+      { email: { [Op.iLike]: `%${search}%` } },
+      { phone: { [Op.iLike]: `%${search}%` } },
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    await User.findAll({
+      where,
       attributes: [
         'id',
         'email',
@@ -27,14 +58,19 @@ export const getUsers = async (req: ServiceRequest, res: Response) => {
         'verified',
         'lastLogin',
         'roles',
+        'createdAt',
+        'updatedAt',
       ],
-    });
+      limit: Number(limit),
+      offset: Number(offset),
+    }),
+    User.count({ where }),
+  ]);
 
-    return res.json({ users });
-  } catch (err) {
-    logger.error(`Failed to fetch users: ${err}`);
-    res.status(500).json({ message: 'Failed to fetch users' });
-  }
+  return res.json({
+    users: users ?? [],
+    total,
+  });
 };
 
 export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
@@ -48,8 +84,23 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
 
   const where: any = {};
 
+  if (type) {
+    const raw = Array.isArray(type) ? req.query.type : [req.query.type];
+
+    const expanded = raw.flatMap(expandType);
+
+    where.type = {
+      [Op.in]: expanded,
+    };
+  }
+
+  if (from || to) {
+    where.created_at = {};
+    if (from) where.created_at[Op.gte] = new Date(from);
+    if (to) where.created_at[Op.lte] = new Date(to);
+  }
+
   if (userId) where.user_id = userId;
-  if (type) where.type = type;
 
   if (from || to) {
     where.created_at = {};
@@ -131,13 +182,12 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
 };
 
 export const updateUser = async (req: ServiceRequest, res: Response) => {
-  const { userId, triggeredBy: actorId } = req.params;
+  const { userId } = req.params;
 
-  if (!actorId || !userId) {
+  if (!userId) {
+    logger.error('Missing user id for updating user');
     return res.status(400).json({ message: 'Bad request' });
   }
-
-  logger.info(`${actorId} is updating user profile for ${userId}`);
 
   const parsed = UpdateUserSchema.safeParse(req.body);
 
@@ -163,7 +213,6 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
 
       await AuthEventService.log({
         type: 'internal_user_updated_by_owner',
-        userId: actorId,
         req,
         metadata: {
           before,

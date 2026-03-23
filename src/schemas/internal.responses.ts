@@ -1,11 +1,15 @@
 import { z } from 'zod';
 
+import { AuthEventSchema } from './authEvent.schema.js';
+import { UserBaseSchema } from './user.base.js';
+
 export const UsersListResponseSchema = z.object({
-  users: z.array(z.record(z.unknown())),
+  users: z.array(UserBaseSchema),
+  total: z.number(),
 });
 
 export const AuthEventsResponseSchema = z.object({
-  events: z.array(z.record(z.unknown())),
+  events: z.array(AuthEventSchema),
 });
 
 export const CredentialCountSchema = z.object({

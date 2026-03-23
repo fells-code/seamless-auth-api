@@ -38,7 +38,7 @@ const corsOptions: CorsOptions = {
       return callback(null, true);
     }
 
-    if (origin === allowedOrigin) {
+    if (origin === allowedOrigin || origin === 'http://localhost:5174') {
       return callback(null, true);
     }
 
@@ -107,6 +107,18 @@ export async function createApp() {
       res.setHeader('Access-Control-Allow-Origin', process.env.APP_ORIGIN!);
       return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
     }
+    return next();
+  });
+
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (err) {
+      logger.error('Unhandled error', err);
+
+      return res.status(500).json({
+        error: 'Internal server error',
+      });
+    }
+
     return next();
   });
 

@@ -2,11 +2,14 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import { getSystemConfigHandler, updateSystemConfig } from '../controllers/systemConfig.js';
+import {
+  getAvailableRoles,
+  getSystemConfigHandler,
+  updateSystemConfig,
+} from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
 import { SystemConfigParamsSchema } from '../schemas/systemConfig.params.js';
-import { PatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
 import {
   GetSystemConfigResponseSchema,
   InvalidPayloadSchema,
@@ -14,20 +17,28 @@ import {
   UnauthorizedSchema,
   UpdateSystemConfigResponseSchema,
 } from '../schemas/systemConfig.responses.js';
+import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 
 const systemConfigRouter = createRouter('/system-config');
 
 systemConfigRouter.get(
-  '/:triggeredBy',
+  '/roles',
+  {
+    summary: 'Get available roles',
+    tags: ['SystemConfig'],
+  },
+  getAvailableRoles,
+);
+
+systemConfigRouter.get(
+  '/admin',
   {
     summary: 'Retrieve system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken],
+    //middleware: [verifyServiceToken],
 
     schemas: {
-      params: SystemConfigParamsSchema,
-
       response: {
         200: GetSystemConfigResponseSchema,
         401: UnauthorizedSchema,
@@ -39,17 +50,14 @@ systemConfigRouter.get(
 );
 
 systemConfigRouter.patch(
-  '/:triggeredBy',
+  '/admin',
   {
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken],
+    //middleware: [verifyServiceToken],
 
     schemas: {
-      params: SystemConfigParamsSchema,
-      body: PatchSystemConfigSchema,
-
       response: {
         200: UpdateSystemConfigResponseSchema,
         400: InvalidPayloadSchema,

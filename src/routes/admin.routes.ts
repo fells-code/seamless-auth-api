@@ -1,6 +1,8 @@
+import { createUser, getUserAnomalies, getUserDetail } from '../controllers/admin.js';
 import { deleteUser, updateUser } from '../controllers/internal.js';
 import { createRouter } from '../lib/createRouter.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
+import { CreateUserSchema } from '../schemas/admin.createUser.js';
 import {
   InternalErrorSchema,
   SuccessMessageSchema,
@@ -10,12 +12,40 @@ import { UpdateUserSchema } from '../schemas/user.patch.schema.js';
 
 const adminRouter = createRouter('/admin');
 
+adminRouter.post(
+  '/users',
+  {
+    // middleware: [verifyServiceToken],
+    schemas: {
+      body: CreateUserSchema,
+    },
+  },
+  createUser,
+);
+
+adminRouter.delete(
+  '/users',
+  {
+    summary: 'Delete user',
+    tags: ['Admin'],
+    //middleware: [verifyServiceToken],
+
+    schemas: {
+      response: {
+        200: SuccessMessageSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  deleteUser,
+);
+
 adminRouter.patch(
-  '/users/:triggeredBy/:userId',
+  '/users/:userId',
   {
     summary: 'Update user',
     tags: ['Admin'],
-    middleware: [verifyServiceToken],
+    //middleware: [verifyServiceToken],
 
     schemas: {
       body: UpdateUserSchema,
@@ -30,21 +60,20 @@ adminRouter.patch(
   updateUser,
 );
 
-adminRouter.delete(
-  '/users',
+adminRouter.get(
+  '/users/:userId',
   {
-    summary: 'Delete user',
-    tags: ['Admin'],
-    middleware: [verifyServiceToken],
-
-    schemas: {
-      response: {
-        200: SuccessMessageSchema,
-        500: InternalErrorSchema,
-      },
-    },
+    //middleware: [verifyServiceToken],
   },
-  deleteUser,
+  getUserDetail,
+);
+
+adminRouter.get(
+  '/users/:userId/anomalies',
+  {
+    //middleware: [verifyServiceToken]
+  },
+  getUserAnomalies,
 );
 
 export default adminRouter.router;

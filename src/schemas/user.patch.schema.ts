@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const UpdateUserSchema = z
   .object({
-    userId: z.guid(),
     email: z.email().optional(),
     phone: z.string().min(5).optional(),
     emailVerified: z.boolean().optional(),

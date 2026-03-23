@@ -12,7 +12,7 @@ import { getSecret } from '../utils/secretsStore.js';
 const logger = getLogger('authenticateServiceToken');
 
 export async function verifyServiceToken(req: ServiceRequest, res: Response, next: NextFunction) {
-  const JWT_INTERNAL = await getSecret('SEAMLESS_INTERNAL_TOKEN');
+  const JWT_INTERNAL = await getSecret('API_SERVICE_TOKEN');
   const authHeader = req.headers.authorization || '';
   const token = authHeader.replace('Bearer ', '');
 
