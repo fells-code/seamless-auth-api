@@ -12,13 +12,9 @@ import {
 } from '../controllers/otp.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
+import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { VerifyOTPRequestSchema } from '../schemas/otp.requests.js';
-import {
-  OTPInvalidSchema,
-  OTPServerErrorSchema,
-  OTPSuccessSchema,
-  OTPVerifyTokenSuccessSchema,
-} from '../schemas/otp.responses.js';
+import { OTPVerifyTokenSuccessSchema } from '../schemas/otp.responses.js';
 
 const otpRouter = createRouter('/otp');
 
@@ -31,9 +27,9 @@ otpRouter.get(
 
     schemas: {
       response: {
-        200: OTPSuccessSchema,
-        400: OTPInvalidSchema,
-        500: OTPServerErrorSchema,
+        200: MessageSchema,
+        400: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -49,9 +45,9 @@ otpRouter.get(
 
     schemas: {
       response: {
-        200: OTPSuccessSchema,
-        400: OTPInvalidSchema,
-        500: OTPServerErrorSchema,
+        200: MessageSchema,
+        400: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -67,7 +63,7 @@ otpRouter.get(
 
     schemas: {
       response: {
-        200: OTPSuccessSchema,
+        200: MessageSchema,
       },
     },
   },
@@ -83,7 +79,7 @@ otpRouter.get(
 
     schemas: {
       response: {
-        200: OTPSuccessSchema,
+        200: MessageSchema,
       },
     },
   },
@@ -102,8 +98,8 @@ otpRouter.post(
 
       response: {
         200: OTPVerifyTokenSuccessSchema,
-        401: OTPInvalidSchema,
-        500: OTPServerErrorSchema,
+        401: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -122,8 +118,8 @@ otpRouter.post(
 
       response: {
         200: OTPVerifyTokenSuccessSchema,
-        401: OTPInvalidSchema,
-        500: OTPServerErrorSchema,
+        401: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -142,8 +138,8 @@ otpRouter.post(
 
       response: {
         200: OTPVerifyTokenSuccessSchema,
-        401: OTPInvalidSchema,
-        500: OTPServerErrorSchema,
+        401: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -162,8 +158,8 @@ otpRouter.post(
 
       response: {
         200: OTPVerifyTokenSuccessSchema,
-        401: OTPInvalidSchema,
-        500: OTPServerErrorSchema,
+        401: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },

@@ -2,12 +2,8 @@ import { z } from 'zod';
 
 export const WebAuthnChallengeSchema = z.record(z.string(), z.unknown());
 
-export const WebAuthnSimpleSuccessSchema = z.object({
-  message: z.literal('Success'),
-});
-
 export const WebAuthnTokenSuccessSchema = z.object({
-  message: z.literal('Success'),
+  message: z.string(),
   token: z.string().optional(),
   refreshToken: z.string().optional(),
   refreshTokenHash: z.string().optional(),
@@ -19,8 +15,4 @@ export const WebAuthnTokenSuccessSchema = z.object({
 
   ttl: z.number().optional(),
   refreshTtl: z.number().optional(),
-});
-
-export const WebAuthnErrorSchema = z.object({
-  message: z.string(),
 });

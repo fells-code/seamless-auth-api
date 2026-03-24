@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { col, fn, literal, Op } from 'sequelize';
 
 import { AuthEvent } from '../models/authEvents.js';
-import { MetricsQuerySchema } from '../schemas/internal.metrics.query.js';
+import { MetricsQuerySchema } from '../schemas/internal.query.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal-metrics');
@@ -171,7 +171,6 @@ export const getLoginStats = async (req: Request, res: Response) => {
   }
 };
 
-// src/controllers/internalMetrics.ts
 export const getGroupedEventSummary = async (_req: Request, res: Response) => {
   try {
     const events = await AuthEvent.findAll();

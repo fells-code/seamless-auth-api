@@ -2,12 +2,9 @@
 import { listUserSessions, revokeAllUserSessions } from '../controllers/admin.js';
 import { createRouter } from '../lib/createRouter.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
-import { UserIdParamSchema } from '../schemas/admin.sessions.js';
-import { InternalErrorSchema } from '../schemas/internal.responses.js';
-import {
-  SessionDeleteResponseSchema,
-  SessionListResponseSchema,
-} from '../schemas/session.responses.js';
+import { UserIdParamSchema } from '../schemas/admin.query.js';
+import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
+import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
 const adminSessionsRouter = createRouter('/admin/sessions');
 
@@ -35,7 +32,7 @@ adminSessionsRouter.delete(
     schemas: {
       params: UserIdParamSchema,
       response: {
-        200: SessionDeleteResponseSchema,
+        200: MessageSchema,
         500: InternalErrorSchema,
       },
     },

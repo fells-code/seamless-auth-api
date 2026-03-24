@@ -9,15 +9,13 @@ import {
 } from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
-import { SystemConfigParamsSchema } from '../schemas/systemConfig.params.js';
+import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   GetSystemConfigResponseSchema,
   InvalidPayloadSchema,
-  SystemConfigErrorSchema,
   UnauthorizedSchema,
   UpdateSystemConfigResponseSchema,
 } from '../schemas/systemConfig.responses.js';
-import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 
 const systemConfigRouter = createRouter('/system-config');
 
@@ -41,8 +39,8 @@ systemConfigRouter.get(
     schemas: {
       response: {
         200: GetSystemConfigResponseSchema,
-        401: UnauthorizedSchema,
-        500: SystemConfigErrorSchema,
+        401: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -61,7 +59,7 @@ systemConfigRouter.patch(
       response: {
         200: UpdateSystemConfigResponseSchema,
         400: InvalidPayloadSchema,
-        401: UnauthorizedSchema,
+        401: ErrorSchema,
       },
     },
   },

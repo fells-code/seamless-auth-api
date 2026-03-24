@@ -10,14 +10,9 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { magicLinkEmailLimiter, magicLinkIpLimiter } from '../middleware/rateLimit.js';
+import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { MagicLinkVerifyParamsSchema } from '../schemas/magiclink.requests.js';
-import {
-  MagicLinkErrorSchema,
-  MagicLinkPollPendingSchema,
-  MagicLinkPollSuccessSchema,
-  MagicLinkRequestResponseSchema,
-  MagicLinkVerifyResponseSchema,
-} from '../schemas/magiclink.responses.js';
+import { MagicLinkPollSuccessSchema } from '../schemas/magiclink.responses.js';
 
 const magicLinkRouter = createRouter('/magic-link');
 
@@ -30,7 +25,7 @@ magicLinkRouter.get(
 
     schemas: {
       response: {
-        200: MagicLinkRequestResponseSchema,
+        200: MessageSchema,
       },
     },
   },
@@ -47,9 +42,9 @@ magicLinkRouter.get(
     schemas: {
       response: {
         200: MagicLinkPollSuccessSchema,
-        204: MagicLinkPollPendingSchema,
-        404: MagicLinkPollPendingSchema,
-        500: MagicLinkErrorSchema,
+        204: MessageSchema,
+        404: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -66,9 +61,9 @@ magicLinkRouter.get(
       params: MagicLinkVerifyParamsSchema,
 
       response: {
-        200: MagicLinkVerifyResponseSchema,
-        400: MagicLinkErrorSchema,
-        500: MagicLinkErrorSchema,
+        200: MessageSchema,
+        400: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },

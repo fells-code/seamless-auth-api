@@ -1,4 +1,4 @@
-import { getAuthEvents, getCredentialsCount, getLogs, getUsers } from '../controllers/internal.js';
+import { getAuthEvents, getCredentialsCount, getUsers } from '../controllers/internal.js';
 import { getDashboardMetrics } from '../controllers/internalDashboard.js';
 import {
   getAuthEventSummary,
@@ -9,13 +9,11 @@ import {
 import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
-import { MetricsQuerySchema } from '../schemas/internal.metrics.query.js';
-import { AuthEventQuerySchema } from '../schemas/internal.query.js';
+import { InternalErrorSchema } from '../schemas/generic.responses.js';
+import { AuthEventQuerySchema, MetricsQuerySchema } from '../schemas/internal.query.js';
 import {
   AuthEventsResponseSchema,
   CredentialCountSchema,
-  InternalErrorSchema,
-  LogsResponseSchema,
   UsersListResponseSchema,
 } from '../schemas/internal.responses.js';
 
@@ -68,23 +66,6 @@ internalRouter.get(
     },
   },
   getCredentialsCount,
-);
-
-internalRouter.get(
-  '/logs',
-  {
-    summary: 'Fetch logs (dev only)',
-    tags: ['Internal'],
-    // middleware: [verifyServiceToken],
-
-    schemas: {
-      response: {
-        200: LogsResponseSchema,
-        500: InternalErrorSchema,
-      },
-    },
-  },
-  getLogs,
 );
 
 internalRouter.get(

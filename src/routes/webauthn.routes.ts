@@ -10,13 +10,13 @@ import {
 } from '../controllers/webauthn.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
+import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   WebAuthnLoginFinishSchema,
   WebAuthnRegisterFinishSchema,
 } from '../schemas/webauthn.requests.js';
 import {
   WebAuthnChallengeSchema,
-  WebAuthnErrorSchema,
   WebAuthnTokenSuccessSchema,
 } from '../schemas/webauthn.responses.js';
 
@@ -32,8 +32,8 @@ webauthnRouter.get(
     schemas: {
       response: {
         200: WebAuthnChallengeSchema,
-        403: WebAuthnErrorSchema,
-        500: WebAuthnErrorSchema,
+        403: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -52,8 +52,8 @@ webauthnRouter.post(
 
       response: {
         200: WebAuthnTokenSuccessSchema,
-        403: WebAuthnErrorSchema,
-        500: WebAuthnErrorSchema,
+        403: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -70,9 +70,9 @@ webauthnRouter.post(
     schemas: {
       response: {
         200: WebAuthnChallengeSchema,
-        401: WebAuthnErrorSchema,
-        403: WebAuthnErrorSchema,
-        500: WebAuthnErrorSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -91,9 +91,9 @@ webauthnRouter.post(
 
       response: {
         200: WebAuthnTokenSuccessSchema,
-        401: WebAuthnErrorSchema,
-        403: WebAuthnErrorSchema,
-        500: WebAuthnErrorSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },

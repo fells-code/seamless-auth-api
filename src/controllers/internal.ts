@@ -1,3 +1,4 @@
+import { UpdateUserSchema } from '@seamless-auth/types';
 import { Response } from 'express';
 import { Op } from 'sequelize';
 
@@ -5,10 +6,8 @@ import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
-import { UpdateUserSchema } from '../schemas/user.patch.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { ServiceRequest } from '../types/types.js';
-import { getLocalLogs } from '../utils/getLocalLogs.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal');
@@ -109,19 +108,25 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
   }
 
   try {
-    const events = await AuthEvent.findAll({
-      where,
-      order: [['created_at', 'DESC']],
-      limit,
-      offset,
-    });
+    const [events, total] = await Promise.all([
+      AuthEvent.findAll({
+        where,
+        order: [['created_at', 'DESC']],
+        limit,
+        offset,
+      }),
+      AuthEvent.count({
+        where,
+      }),
+    ]);
 
-    return res.json({ events });
+    return res.json({ events, total });
   } catch (err) {
     logger.error(`Failed to fetch auth events: ${err}`);
     res.status(500).json({ message: 'Failed to fetch events' });
   }
 };
+
 export const getCredentialsCount = async (req: ServiceRequest, res: Response) => {
   logger.info('Internal credential count call made.');
   try {
@@ -132,19 +137,6 @@ export const getCredentialsCount = async (req: ServiceRequest, res: Response) =>
     logger.error(`Failed to fetch credential count: ${err}`);
     res.status(500).json({ message: 'Failed to fetch credential count' });
   }
-};
-
-export const getLogs = async (req: ServiceRequest, res: Response) => {
-  logger.info('Internal logs call made.');
-
-  if (process.env.NODE_ENV !== 'production') {
-    const logsResult = await getLocalLogs(req.query.search as string);
-    res.json(logsResult);
-
-    return;
-  }
-
-  return res.status(200).json({ message: 'No logs' });
 };
 
 export const deleteUser = async (req: ServiceRequest, res: Response) => {

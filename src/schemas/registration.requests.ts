@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
 export const RegistrationRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   phone: z.string(),
 });

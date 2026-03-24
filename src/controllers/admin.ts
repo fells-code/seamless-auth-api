@@ -1,3 +1,4 @@
+import { CreateUserSchema } from '@seamless-auth/types';
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
@@ -6,7 +7,6 @@ import { Credential } from '../models/credentials.js';
 import { sequelize } from '../models/index.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
-import { CreateUserSchema } from '../schemas/admin.createUser.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -93,6 +93,21 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
     logger.error(`Failed to revoke sessions: ${err}`);
     return res.status(500).json({ message: 'Failed to revoke sessions' });
   }
+};
+
+export const listAllSessions = async (req: Request, res: Response) => {
+  const { limit = 10, offset = 0 } = req.query;
+
+  const [sessions, total] = await Promise.all([
+    Session.findAll({
+      where: { revokedAt: null },
+      limit: Number(limit),
+      offset: Number(offset),
+    }),
+    Session.count({ where: { revokedAt: null } }),
+  ]);
+
+  return res.json({ sessions, total });
 };
 
 export const getUserDetail = async (req: ServiceRequest, res: Response) => {

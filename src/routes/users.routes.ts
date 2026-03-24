@@ -2,14 +2,12 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
+import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@seamless-auth/types';
+
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
-import {
-  DeleteCredentialRequestSchema,
-  UpdateCredentialRequestSchema,
-} from '../schemas/credential.request.js';
-import { MeResponseSchema } from '../schemas/me.schema.js';
-import { DeleteUserResponseSchema } from '../schemas/user.responses.js';
+import { MessageSchema } from '../schemas/generic.responses.js';
+import { MeResponseSchema } from '../schemas/me.response.js';
 
 const usersRouter = createRouter('/users');
 
@@ -48,7 +46,7 @@ usersRouter.delete(
     summary: 'Delete authenticated user',
 
     schemas: {
-      response: DeleteUserResponseSchema,
+      response: MessageSchema,
     },
   },
   deleteUser,
