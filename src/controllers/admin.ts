@@ -4,7 +4,7 @@ import { Op, WhereOptions } from 'sequelize';
 
 import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
-import { sequelize } from '../models/index.js';
+import { getSequelize } from '../models/index.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
@@ -334,7 +334,7 @@ export const listAllSessions = async (req: Request, res: Response) => {
 };
 
 export const getDatabaseSize = async () => {
-  const [result] = await sequelize.query(`
+  const [result] = await getSequelize().query(`
     SELECT pg_database_size(current_database()) as size
   `);
 
