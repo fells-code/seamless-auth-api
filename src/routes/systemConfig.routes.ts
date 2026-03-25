@@ -2,36 +2,48 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
-import { getSystemConfigHandler, updateSystemConfig } from '../controllers/systemConfig.js';
+import {
+  getAvailableRoles,
+  getSystemConfigHandler,
+  updateSystemConfig,
+} from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
-import { SystemConfigParamsSchema } from '../schemas/systemConfig.params.js';
-import { PatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
+import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   GetSystemConfigResponseSchema,
   InvalidPayloadSchema,
-  SystemConfigErrorSchema,
-  UnauthorizedSchema,
   UpdateSystemConfigResponseSchema,
 } from '../schemas/systemConfig.responses.js';
 
 const systemConfigRouter = createRouter('/system-config');
 
 systemConfigRouter.get(
-  '/:triggeredBy',
+  '/roles',
+  {
+    summary: 'Get available roles',
+    tags: ['SystemConfig'],
+
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+  },
+  getAvailableRoles,
+);
+
+systemConfigRouter.get(
+  '/admin',
   {
     summary: 'Retrieve system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
-      params: SystemConfigParamsSchema,
-
       response: {
         200: GetSystemConfigResponseSchema,
-        401: UnauthorizedSchema,
-        500: SystemConfigErrorSchema,
+        401: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -39,21 +51,18 @@ systemConfigRouter.get(
 );
 
 systemConfigRouter.patch(
-  '/:triggeredBy',
+  '/admin',
   {
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
-      params: SystemConfigParamsSchema,
-      body: PatchSystemConfigSchema,
-
       response: {
         200: UpdateSystemConfigResponseSchema,
         400: InvalidPayloadSchema,
-        401: UnauthorizedSchema,
+        401: ErrorSchema,
       },
     },
   },

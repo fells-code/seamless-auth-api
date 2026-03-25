@@ -6,7 +6,3 @@ export const RegistrationSuccessSchema = z.object({
   token: z.string().optional(),
   ttl: z.string().optional(),
 });
-
-export const RegistrationErrorSchema = z.object({
-  message: z.string(),
-});

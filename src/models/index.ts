@@ -18,7 +18,7 @@ const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
 
 const DATABASE_URL = `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 
-const sequelize = new Sequelize(DATABASE_URL, {
+export const sequelize = new Sequelize(DATABASE_URL, {
   logging: enableDbLogging ? (msg) => logger.debug(msg) : false,
 });
 

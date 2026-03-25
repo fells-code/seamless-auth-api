@@ -5,12 +5,9 @@
 import { listSessions, revokeAllSessions, revokeSession } from '../controllers/sessions.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
+import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { SessionIdParamsSchema } from '../schemas/session.params.js';
-import {
-  SessionDeleteResponseSchema,
-  SessionErrorSchema,
-  SessionListResponseSchema,
-} from '../schemas/session.responses.js';
+import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
 const sessionsRouter = createRouter('/sessions');
 
@@ -24,7 +21,7 @@ sessionsRouter.get(
     schemas: {
       response: {
         200: SessionListResponseSchema,
-        401: SessionErrorSchema,
+        401: ErrorSchema,
       },
     },
   },
@@ -42,9 +39,9 @@ sessionsRouter.delete(
       params: SessionIdParamsSchema,
 
       response: {
-        200: SessionDeleteResponseSchema,
-        401: SessionErrorSchema,
-        404: SessionErrorSchema,
+        200: MessageSchema,
+        401: ErrorSchema,
+        404: ErrorSchema,
       },
     },
   },
@@ -60,8 +57,8 @@ sessionsRouter.delete(
 
     schemas: {
       response: {
-        200: SessionDeleteResponseSchema,
-        401: SessionErrorSchema,
+        200: MessageSchema,
+        401: ErrorSchema,
       },
     },
   },

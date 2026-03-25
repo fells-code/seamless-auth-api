@@ -5,7 +5,7 @@
 import { z } from 'zod';
 
 export const MagicLinkRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   redirect_url: z.string().optional(),
 });
 

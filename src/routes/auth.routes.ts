@@ -6,12 +6,8 @@ import { login, logout, refreshSession } from '../controllers/authentication.js'
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { LoginRequestSchema } from '../schemas/auth.requests.js';
-import {
-  AuthErrorSchema,
-  LoginSuccessSchema,
-  LogoutSuccessSchema,
-  RefreshSuccessSchema,
-} from '../schemas/auth.responses.js';
+import { LoginSuccessResponseSchema } from '../schemas/auth.responses.js';
+import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 
 const authRouter = createRouter('');
 
@@ -25,11 +21,11 @@ authRouter.post(
       body: LoginRequestSchema,
 
       response: {
-        200: LoginSuccessSchema,
-        400: AuthErrorSchema,
-        401: AuthErrorSchema,
-        403: AuthErrorSchema,
-        500: AuthErrorSchema,
+        200: LoginSuccessResponseSchema,
+        400: ErrorSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },
@@ -45,7 +41,7 @@ authRouter.get(
 
     schemas: {
       response: {
-        200: LogoutSuccessSchema,
+        200: MessageSchema,
       },
     },
   },
@@ -61,9 +57,9 @@ authRouter.post(
 
     schemas: {
       response: {
-        200: RefreshSuccessSchema,
-        401: AuthErrorSchema,
-        500: AuthErrorSchema,
+        200: MessageSchema,
+        401: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },

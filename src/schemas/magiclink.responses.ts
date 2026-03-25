@@ -1,13 +1,5 @@
 import { z } from 'zod';
 
-export const MagicLinkRequestResponseSchema = z.object({
-  message: z.string(),
-});
-
-export const MagicLinkVerifyResponseSchema = z.object({
-  message: z.string(),
-});
-
 export const MagicLinkPollSuccessSchema = z.object({
   message: z.string(),
   token: z.string().optional(),
@@ -18,12 +10,4 @@ export const MagicLinkPollSuccessSchema = z.object({
   phone: z.string().nullable().optional(),
   ttl: z.number().optional(),
   refreshTtl: z.number().optional(),
-});
-
-export const MagicLinkPollPendingSchema = z.object({
-  error: z.string(),
-});
-
-export const MagicLinkErrorSchema = z.object({
-  message: z.string(),
 });

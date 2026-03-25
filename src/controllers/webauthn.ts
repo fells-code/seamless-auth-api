@@ -409,13 +409,13 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     }
 
     if (!user || !user.challenge) {
-      await AuthEvent.create({
-        user_id: null,
-        type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_login_failed',
+        req,
         metadata: { reason: 'No user or user challenge' },
       });
+
       return res.status(401).json({ message: 'Authentication failed.' });
     }
 
@@ -425,13 +425,14 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
     if (!cred) {
       logger.error(`Failed to find the credental for the user ${assertionResponse.id}`);
-      await AuthEvent.create({
-        user_id: user.id,
-        type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_login_failed',
+        req,
         metadata: { reason: 'No credential' },
       });
+
       return res.status(401).json({ message: 'Authentication failed.' });
     }
 
@@ -459,13 +460,13 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       if (error instanceof Error) {
         logger.error(`Verification failed error stack: ${error.stack}`);
       }
-      await AuthEvent.create({
-        user_id: user.id,
-        type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_login_failed',
+        req,
         metadata: { reason: 'Incorrect passkey' },
       });
+
       return res.status(500).json({ message: 'Internal server error' });
     }
 
@@ -473,6 +474,13 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       await cred.update({
         lastUsedAt: new Date(),
         counter: verification.authenticationInfo.newCounter,
+      });
+
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_login_success',
+        req,
+        metadata: { reason: 'Successful login' },
       });
 
       const refreshToken = generateRefreshToken();

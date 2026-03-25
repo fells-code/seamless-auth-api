@@ -61,7 +61,7 @@ function ensureDevKeys() {
 async function loadProdSigningKey(): Promise<SigningKeyCache> {
   const now = Date.now();
 
-  logger.info('Refreshing signing key from Secrets Manager');
+  logger.info('Refreshing signing key from env');
 
   const activeKid = await getSecret(`${jwksPrefix}_ACTIVE_KID`);
   const privateKeySecretName = `${jwksPrefix}_KEY_${activeKid}_PRIVATE`;
@@ -124,7 +124,6 @@ export async function getPublicKeyByKid(kid: string): Promise<string | null> {
     return cached.pem;
   }
 
-  // TTL expired or not in cache → reload entire secret
   await loadAllPublicKeys();
 
   return publicKeyCache[kid]?.pem ?? null;

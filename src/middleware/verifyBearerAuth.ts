@@ -4,7 +4,7 @@
  */
 import { NextFunction, Request, Response } from 'express';
 
-import { validateSession } from '../services/sessionService.js';
+import { validateBearerToken } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -19,7 +19,7 @@ export async function verifyBearerAuth(req: Request, res: Response, next: NextFu
 
   const token = auth.slice(7);
   try {
-    const user = await validateSession({ type: 'bearer', value: token });
+    const user = await validateBearerToken(token);
     if (!user) {
       logger.error('No user found for service bearer token');
       return res.status(401).json({ error: 'unauthorized' });

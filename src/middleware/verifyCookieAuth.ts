@@ -13,9 +13,12 @@ import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   CookieType,
+  getUserFromSession,
   hardRevokeSession,
   revokeSessionChain,
-  validateSession,
+  validateAccessToken,
+  validateSessionRecord,
+  verifyJwtWithKid,
 } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -35,10 +38,12 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
           clearAuthCookies(res);
           return res.status(401).json({ error: 'unauthorized' });
         }
-        const user = await validateSession({
-          type: 'cookie',
-          value: ephemeralCookie,
-          cookieType: 'ephemeral',
+
+        const payload = await verifyJwtWithKid(ephemeralCookie, cookieType);
+        if (!payload) return null;
+
+        const user = await User.findOne({
+          where: { id: payload.sub, revoked: false },
         });
 
         if (!user) {
@@ -55,15 +60,23 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
       // Try validating existing access token first
       if (accessCookie) {
         logger.debug(`Validating access cookie`);
-        const user = await validateSession({
-          type: 'cookie',
-          value: accessCookie,
-          cookieType: 'access',
-        });
+        const accessCookie = cookies['seamless_access'];
 
-        if (user) {
-          (req as AuthenticatedRequest).user = user;
-          return next();
+        if (accessCookie) {
+          const tokenData = await validateAccessToken(accessCookie);
+
+          if (tokenData) {
+            const session = await validateSessionRecord(tokenData.sessionId as string);
+
+            if (session) {
+              const user = await getUserFromSession(session);
+
+              if (user) {
+                (req as AuthenticatedRequest).user = user;
+                return next();
+              }
+            }
+          }
         }
       }
 
@@ -98,13 +111,13 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
   const now = new Date();
   logger.debug(`Validating refresh cookie`);
 
-  // Find candidate sessions for this refresh token
   const candidateSessions = await Session.findAll({
     where: {
       revokedAt: null,
       expiresAt: { [Op.gt]: now },
       idleExpiresAt: { [Op.gt]: now },
     },
+    limit: 50,
   });
 
   let session: Session | null = null;

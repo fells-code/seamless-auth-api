@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LoginSuccessSchema = z.object({
+export const LoginSuccessResponseSchema = z.object({
   message: z.string(),
   token: z.string().optional(),
   sub: z.string().optional(),
@@ -8,19 +8,11 @@ export const LoginSuccessSchema = z.object({
   ttl: z.number().optional(),
 });
 
-export const LogoutSuccessSchema = z.object({
-  message: z.string(),
-});
-
-export const RefreshSuccessSchema = z.object({
+export const RefreshSuccessResponseSchema = z.object({
   message: z.string(),
   token: z.string().optional(),
   refreshToken: z.string().optional(),
   sub: z.string().optional(),
   ttl: z.number().optional(),
   refreshTtl: z.number().optional(),
-});
-
-export const AuthErrorSchema = z.object({
-  message: z.string(),
 });

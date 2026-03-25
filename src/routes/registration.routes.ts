@@ -4,11 +4,9 @@
  */
 import { register } from '../controllers/registration.js';
 import { createRouter } from '../lib/createRouter.js';
+import { ErrorSchema } from '../schemas/generic.responses.js';
 import { RegistrationRequestSchema } from '../schemas/registration.requests.js';
-import {
-  RegistrationErrorSchema,
-  RegistrationSuccessSchema,
-} from '../schemas/registration.responses.js';
+import { RegistrationSuccessSchema } from '../schemas/registration.responses.js';
 
 const registrationRouter = createRouter('/registration');
 
@@ -23,8 +21,8 @@ registrationRouter.post(
 
       response: {
         200: RegistrationSuccessSchema,
-        400: RegistrationErrorSchema,
-        500: RegistrationErrorSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },

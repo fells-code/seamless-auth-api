@@ -3,14 +3,17 @@
  * Licensed under the GNU Affero General Public License v3.0
  */
 import { NextFunction, RequestHandler, Response, Router } from 'express';
-import { ZodTypeAny } from 'zod';
+import { ZodError, ZodTypeAny } from 'zod';
 
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { registry } from '../openapi/registry.js';
 import { CookieType } from '../services/sessionService.js';
+import getLogger from '../utils/logger.js';
 import { expressToOpenAPI } from './convertPath.js';
 import { InferRequest, RouteSchemas } from './routeTypes.js';
 import { generateExample } from './zodExample.js';
+
+const logger = getLogger('defineRoute');
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
@@ -144,21 +147,37 @@ export function defineRoute<S extends RouteSchemas>(
       const originalJson = res.json.bind(res);
 
       if (response) {
-        const schema =
-          typeof response === 'object' && '200' in (response as object)
-            ? (response as Record<number, ZodTypeAny>)[200]
-            : response;
+        res.json = ((data: unknown) => {
+          try {
+            const status = res.statusCode || 200;
 
-        if (schema) {
-          res.json = ((data: unknown) => {
-            const parsed = (schema as ZodTypeAny).parse(data);
-            return originalJson(parsed);
-          }) as typeof res.json;
-        }
+            let schema: ZodTypeAny | undefined;
+
+            if (typeof response === 'object') {
+              schema = (response as Record<number, ZodTypeAny>)[status];
+            } else {
+              schema = response;
+            }
+
+            if (schema) {
+              const parsed = schema.parse(data);
+              return originalJson(parsed);
+            }
+
+            return originalJson(data);
+          } catch (err) {
+            logger.error('Response schema validation failed', err);
+
+            return originalJson({
+              error: 'Response validation failed',
+              issues: err instanceof ZodError ? err.issues : err,
+            });
+          }
+        }) as typeof res.json;
       }
-
       await Promise.resolve(handler(req as InferRequest<S>, res, next));
     } catch (error: unknown) {
+      logger.error(`Error wrapping parsed handler. ${error}`);
       return next(error);
     }
   };

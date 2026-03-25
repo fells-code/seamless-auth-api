@@ -4,16 +4,15 @@
  */
 import { Response } from 'express';
 
-import { invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { User } from '../models/users.js';
-import { PatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
+import { createPatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
-const UpdateSystemConfigSchema = PatchSystemConfigSchema;
 const logger = getLogger('systemConfig');
 
 async function getRolesInUse(): Promise<Set<string>> {
@@ -29,15 +28,12 @@ async function getRolesInUse(): Promise<Set<string>> {
 }
 
 export async function updateSystemConfig(req: ServiceRequest, res: Response) {
-  const actorId = req.triggeredBy;
+  logger.info('Updating system config');
+  const existing = await getSystemConfig();
 
-  logger.debug(`Updating Systeml config. Updated by ${actorId}`);
+  const schema = createPatchSystemConfigSchema(existing);
 
-  if (!actorId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const parsed = UpdateSystemConfigSchema.safeParse(req.body);
+  const parsed = schema.safeParse(req.body);
 
   if (!parsed.success) {
     return res.status(400).json({
@@ -81,7 +77,6 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
         {
           key,
           value,
-          updatedBy: actorId,
         },
         { transaction: tx },
       );
@@ -92,7 +87,6 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 
   await AuthEventService.log({
     type: 'system_config_updated',
-    userId: actorId,
     req,
     metadata: {
       before: existingMap,
@@ -107,12 +101,6 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 }
 
 export async function getSystemConfigHandler(req: ServiceRequest, res: Response) {
-  const actorId = req.triggeredBy;
-
-  if (!actorId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   const rows = await SystemConfig.findAll();
 
   const configObject = Object.fromEntries(rows.map((row) => [row.key, row.value]));
@@ -122,7 +110,6 @@ export async function getSystemConfigHandler(req: ServiceRequest, res: Response)
   if (!parsed.success) {
     logger.error(`System config has become tainted. Critical issue.`);
     AuthEventService.log({
-      userId: actorId,
       type: 'system_config_error',
       req,
       metadata: { reason: 'Failed to parse the system config schema from the database' },
@@ -134,9 +121,16 @@ export async function getSystemConfigHandler(req: ServiceRequest, res: Response)
 
   await AuthEventService.log({
     type: 'system_config_read',
-    userId: actorId,
     req,
   });
 
   return res.status(200).json(parsed.data);
 }
+
+export const getAvailableRoles = async (_req: Request, res: Response) => {
+  const config = await getSystemConfig();
+
+  return res.json({
+    roles: config.available_roles ?? [],
+  });
+};

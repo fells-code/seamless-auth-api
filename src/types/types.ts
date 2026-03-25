@@ -10,6 +10,7 @@ import { User } from '../models/users.js';
 export interface AuthenticatedRequest extends Request {
   user: User;
   sessionId: Session['id'];
+  clientId?: string;
 }
 export interface ServiceRequest extends Request {
   clientId?: string | (() => string);

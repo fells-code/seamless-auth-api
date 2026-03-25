@@ -2,14 +2,13 @@
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
  */
+import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@seamless-auth/types';
+
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
-import {
-  DeleteCredentialRequestSchema,
-  UpdateCredentialRequestSchema,
-} from '../schemas/credential.request.js';
-import { MeResponseSchema } from '../schemas/me.schema.js';
-import { DeleteUserResponseSchema } from '../schemas/user.responses.js';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
+import { MessageSchema } from '../schemas/generic.responses.js';
+import { MeResponseSchema } from '../schemas/me.response.js';
 
 const usersRouter = createRouter('/users');
 
@@ -33,6 +32,8 @@ usersRouter.post(
     tags: ['Users'],
     summary: 'Update credential metadata',
 
+    middleware: [attachAuthMiddleware],
+
     schemas: {
       body: UpdateCredentialRequestSchema,
     },
@@ -47,8 +48,10 @@ usersRouter.delete(
     tags: ['Users'],
     summary: 'Delete authenticated user',
 
+    middleware: [attachAuthMiddleware],
+
     schemas: {
-      response: DeleteUserResponseSchema,
+      response: MessageSchema,
     },
   },
   deleteUser,
@@ -60,6 +63,8 @@ usersRouter.delete(
     auth: 'access',
     tags: ['Users'],
     summary: 'Delete credential',
+
+    middleware: [attachAuthMiddleware],
 
     schemas: {
       body: DeleteCredentialRequestSchema,
