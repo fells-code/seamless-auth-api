@@ -183,8 +183,16 @@ export const getUserDetail = async (req: ServiceRequest, res: Response) => {
     return res.status(404).json({ message: 'User not found' });
   }
 
+  const now = new Date();
+
   const sessions = await Session.findAll({
-    where: { userId },
+    where: {
+      userId,
+      revokedAt: null,
+      expiresAt: {
+        [Op.gt]: now,
+      },
+    },
   });
 
   const credentials = await Credential.findAll({
@@ -247,11 +255,16 @@ export const getUserAnomalies = async (req: Request, res: Response) => {
 export const listUserSessions = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
+  const now = new Date();
+
   try {
     const sessions = await Session.findAll({
       where: {
         userId,
         revokedAt: null,
+        expiresAt: {
+          [Op.gt]: now,
+        },
       },
     });
 
@@ -299,13 +312,22 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
 export const listAllSessions = async (req: Request, res: Response) => {
   const { limit = 10, offset = 0 } = req.query;
 
+  const now = new Date();
+
+  const where = {
+    revokedAt: null,
+    expiresAt: {
+      [Op.gt]: now,
+    },
+  };
+
   const [sessions, total] = await Promise.all([
     Session.findAll({
-      where: { revokedAt: null },
+      where: where,
       limit: Number(limit),
       offset: Number(offset),
     }),
-    Session.count({ where: { revokedAt: null } }),
+    Session.count({ where }),
   ]);
 
   return res.json({ sessions, total });
