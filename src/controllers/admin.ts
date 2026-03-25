@@ -1,8 +1,8 @@
 import { CreateUserSchema, UpdateUserSchema } from '@seamless-auth/types';
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
+import { Op, WhereOptions } from 'sequelize';
 
-import { AuthEvent } from '../models/authEvents.js';
+import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { sequelize } from '../models/index.js';
 import { Session } from '../models/sessions.js';
@@ -18,14 +18,14 @@ const logger = getLogger('admin');
 export const getUsers = async (req: ServiceRequest, res: Response) => {
   const { limit = 50, offset = 0, search } = req.query;
 
-  const where: any = {};
-
-  if (search) {
-    where[Op.or] = [
-      { email: { [Op.iLike]: `%${search}%` } },
-      { phone: { [Op.iLike]: `%${search}%` } },
-    ];
-  }
+  const where: WhereOptions<User> = search
+    ? {
+        [Op.or]: [
+          { email: { [Op.iLike]: `%${search}%` } },
+          { phone: { [Op.iLike]: `%${search}%` } },
+        ],
+      }
+    : {};
 
   const [users, total] = await Promise.all([
     await User.findAll({
@@ -82,6 +82,7 @@ export const createUser = async (req: Request, res: Response) => {
 
     return res.status(201).json({ user });
   } catch (err) {
+    logger.error(`Failed to create user. Reason: ${err}`);
     return res.status(500).json({ message: 'Failed to create user' });
   }
 };
@@ -213,8 +214,11 @@ export const getUserAnomalies = async (req: Request, res: Response) => {
       attributes: ['ip_address', 'user_agent'],
     });
 
-    const ips = [...new Set(userEvents.map((e) => e.ip_address).filter(Boolean))];
-    const agents = [...new Set(userEvents.map((e) => e.user_agent).filter(Boolean))];
+    const ips = [...new Set(userEvents.map((e) => e.ip_address).filter((v): v is string => !!v))];
+
+    const agents = [
+      ...new Set(userEvents.map((e) => e.user_agent).filter((v): v is string => !!v)),
+    ];
 
     const suspiciousEvents = await AuthEvent.findAll({
       where: {
@@ -312,7 +316,8 @@ export const getDatabaseSize = async () => {
     SELECT pg_database_size(current_database()) as size
   `);
 
-  return Number((result as any)[0].size);
+  // TODO: Properly type this one day
+  return Number((result as { size: string }[])[0].size);
 };
 
 function expandType(type?: string): string[] {
@@ -344,10 +349,15 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
 
   const { limit, offset, userId, type, from, to } = parsed.data;
 
-  const where: any = {};
+  const where: WhereOptions<AuthEventAttributes> = {};
 
   if (type) {
-    const raw = Array.isArray(type) ? req.query.type : [req.query.type];
+    const rawType = req.query.type;
+    const raw: string[] = Array.isArray(rawType)
+      ? rawType.filter((v): v is string => typeof v === 'string')
+      : typeof rawType === 'string'
+        ? [rawType]
+        : [];
 
     const expanded = raw.flatMap(expandType);
 
@@ -357,18 +367,13 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
   }
 
   if (from || to) {
-    where.created_at = {};
-    if (from) where.created_at[Op.gte] = new Date(from);
-    if (to) where.created_at[Op.lte] = new Date(to);
+    where.created_at = {
+      ...(from ? { [Op.gte]: new Date(from) } : {}),
+      ...(to ? { [Op.lte]: new Date(to) } : {}),
+    };
   }
 
   if (userId) where.user_id = userId;
-
-  if (from || to) {
-    where.created_at = {};
-    if (from) where.created_at[Op.gte] = new Date(from);
-    if (to) where.created_at[Op.lte] = new Date(to);
-  }
 
   try {
     const [events, total] = await Promise.all([

@@ -1,11 +1,38 @@
 import { Request, Response } from 'express';
-import { col, fn, literal, Op } from 'sequelize';
+import { col, fn, literal, Op, WhereOptions } from 'sequelize';
 
-import { AuthEvent } from '../models/authEvents.js';
+import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { MetricsQuerySchema } from '../schemas/internal.query.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal-metrics');
+
+type TimeseriesRow = {
+  bucket: Date | string;
+  type: string;
+  count: string | number;
+};
+
+type ResultInstance = {
+  get<K extends keyof TimeseriesRow>(key: K): TimeseriesRow[K];
+};
+
+type BucketStats = {
+  bucket: string;
+  success: number;
+  failed: number;
+};
+
+type SummaryRow = {
+  type: string;
+  count: string | number;
+};
+
+type SummaryResultInstance = {
+  get<K extends keyof SummaryRow>(key: K): SummaryRow[K];
+} & {
+  type: string;
+};
 
 export const getAuthEventSummary = async (req: Request, res: Response) => {
   const parsed = MetricsQuerySchema.safeParse(req.query);
@@ -16,23 +43,25 @@ export const getAuthEventSummary = async (req: Request, res: Response) => {
 
   const { from, to } = parsed.data;
 
-  const where: any = {};
-
-  if (from || to) {
-    where.created_at = {};
-    if (from) where.created_at[Op.gte] = new Date(from);
-    if (to) where.created_at[Op.lte] = new Date(to);
-  }
+  const where: WhereOptions<AuthEventAttributes> =
+    from || to
+      ? {
+          created_at: {
+            ...(from ? { [Op.gte]: new Date(from) } : {}),
+            ...(to ? { [Op.lte]: new Date(to) } : {}),
+          },
+        }
+      : {};
 
   try {
-    const results = await AuthEvent.findAll({
+    const results = (await AuthEvent.findAll({
       attributes: ['type', [fn('COUNT', col('type')), 'count']],
       where,
       group: ['type'],
-    });
+    })) as SummaryResultInstance[];
 
     return res.json({
-      summary: results.map((r: any) => ({
+      summary: results.map((r: SummaryResultInstance) => ({
         type: r.type,
         count: Number(r.get('count')),
       })),
@@ -52,29 +81,29 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
 
   const { from, to, interval, userId } = parsed.data;
 
-  const where: any = {
-    type: {
-      [Op.in]: ['login_success', 'login_failed'],
-    },
-  };
-
-  if (userId) {
-    where.user_id = req.query.userId;
-  }
-
   // Default to last 24h if not provided
   const now = new Date();
   const defaultFrom = new Date(now.getTime() - 1000 * 60 * 60 * 24);
 
-  if (from || to) {
-    where.created_at = {};
-    if (from) where.created_at[Op.gte] = new Date(from);
-    if (to) where.created_at[Op.lte] = new Date(to);
-  } else {
-    where.created_at = {
-      [Op.gte]: defaultFrom,
-    };
-  }
+  const createdAtFilter =
+    from || to
+      ? {
+          ...(from ? { [Op.gte]: new Date(from) } : {}),
+          ...(to ? { [Op.lte]: new Date(to) } : {}),
+        }
+      : {
+          [Op.gte]: defaultFrom,
+        };
+
+  const where: WhereOptions<AuthEventAttributes> = {
+    type: {
+      [Op.in]: ['login_success', 'login_failed'],
+    },
+
+    ...(userId ? { user_id: userId } : {}),
+
+    created_at: createdAtFilter,
+  };
 
   const bucket =
     interval === 'day'
@@ -89,9 +118,9 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
       order: [[literal('bucket'), 'ASC']],
     });
 
-    const map: Record<string, any> = {};
+    const map: Record<string, BucketStats> = {};
 
-    for (const r of results as any[]) {
+    for (const r of results as ResultInstance[]) {
       const bucket = new Date(r.get('bucket')).toISOString();
       const type = r.get('type');
       const count = Number(r.get('count'));
@@ -111,7 +140,7 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
       }
     }
 
-    const filled: any[] = [];
+    const filled: BucketStats[] = [];
 
     if (interval === 'day') {
       for (let i = 29; i >= 0; i--) {
@@ -167,6 +196,7 @@ export const getLoginStats = async (req: Request, res: Response) => {
       successRate: success + failed > 0 ? success / (success + failed) : 0,
     });
   } catch (err) {
+    logger.error(`Failed to get Auth Events timeseries data. Reason: ${err}`);
     return res.status(500).json({ message: 'Failed to compute login stats' });
   }
 };
