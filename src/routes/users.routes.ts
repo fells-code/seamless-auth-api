@@ -6,6 +6,7 @@ import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@s
 
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { MessageSchema } from '../schemas/generic.responses.js';
 import { MeResponseSchema } from '../schemas/me.response.js';
 
@@ -31,6 +32,8 @@ usersRouter.post(
     tags: ['Users'],
     summary: 'Update credential metadata',
 
+    middleware: [attachAuthMiddleware],
+
     schemas: {
       body: UpdateCredentialRequestSchema,
     },
@@ -45,6 +48,8 @@ usersRouter.delete(
     tags: ['Users'],
     summary: 'Delete authenticated user',
 
+    middleware: [attachAuthMiddleware],
+
     schemas: {
       response: MessageSchema,
     },
@@ -58,6 +63,8 @@ usersRouter.delete(
     auth: 'access',
     tags: ['Users'],
     summary: 'Delete credential',
+
+    middleware: [attachAuthMiddleware],
 
     schemas: {
       body: DeleteCredentialRequestSchema,

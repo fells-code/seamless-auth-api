@@ -8,12 +8,13 @@ import {
   updateSystemConfig,
 } from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   GetSystemConfigResponseSchema,
   InvalidPayloadSchema,
-  UnauthorizedSchema,
   UpdateSystemConfigResponseSchema,
 } from '../schemas/systemConfig.responses.js';
 
@@ -24,6 +25,8 @@ systemConfigRouter.get(
   {
     summary: 'Get available roles',
     tags: ['SystemConfig'],
+
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
   },
   getAvailableRoles,
 );
@@ -34,7 +37,7 @@ systemConfigRouter.get(
     summary: 'Retrieve system configuration',
     tags: ['SystemConfig'],
 
-    //middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {
@@ -53,7 +56,7 @@ systemConfigRouter.patch(
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    //middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {

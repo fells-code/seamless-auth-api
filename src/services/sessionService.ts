@@ -3,7 +3,7 @@
  * Licensed under the GNU Affero General Public License v3.0
  */
 import { importSPKI, jwtVerify } from 'jose';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
@@ -15,6 +15,14 @@ const logger = getLogger('sessionService');
 
 export type CookieType = 'ephemeral' | 'access';
 
+let cachedSecret: string | null = null;
+
+async function getInternalSecret() {
+  if (cachedSecret) return cachedSecret;
+  cachedSecret = await getSecret('API_SERVICE_TOKEN');
+  return cachedSecret;
+}
+
 export interface ValidateSessionInput {
   type: 'cookie' | 'bearer';
   value: string;
@@ -23,7 +31,7 @@ export interface ValidateSessionInput {
 
 const ISSUER = process.env.ISSUER!;
 
-async function verifyJwtWithKid(token: string, expectedType?: 'access' | 'ephemeral') {
+export async function verifyJwtWithKid(token: string, expectedType?: 'access' | 'ephemeral') {
   try {
     const { payload } = await jwtVerify(
       token,
@@ -72,104 +80,6 @@ async function verifyJwtWithKid(token: string, expectedType?: 'access' | 'epheme
   }
 }
 
-export async function validateSession({
-  type,
-  value,
-  cookieType = 'access',
-}: {
-  type: 'cookie' | 'bearer';
-  value: string;
-  cookieType?: 'access' | 'ephemeral';
-}): Promise<User | null> {
-  try {
-    let payload: JwtPayload | string | null = null;
-
-    if (type === 'cookie') {
-      payload = await verifyJwtWithKid(value, cookieType);
-      if (!payload) return null;
-
-      if (cookieType === 'ephemeral') {
-        const user = await User.findOne({
-          where: { id: payload.sub, revoked: false },
-        });
-        return user ?? null;
-      }
-
-      if (cookieType === 'access') {
-        const { sub: userId, sid: sessionId, typ } = payload;
-
-        if (!userId || !sessionId || typ !== 'access') {
-          logger.warn('Access token missing required claims');
-          return null;
-        }
-
-        const session = await Session.findByPk(sessionId);
-        if (!session) {
-          logger.warn(`No session found for sid=${sessionId}`);
-          return null;
-        }
-
-        const now = new Date();
-
-        if (session.revokedAt) {
-          logger.warn(`Session ${sessionId} revoked`);
-          return null;
-        }
-
-        if (session.replacedBySessionId) {
-          logger.warn(`Session ${sessionId} rotated → reuse detected`);
-          await revokeSessionChain(session);
-          return null;
-        }
-
-        if (session.expiresAt < now) {
-          logger.warn(`Session ${sessionId} expired`);
-          return null;
-        }
-
-        if (session.idleExpiresAt < now) {
-          logger.warn(`Session ${sessionId} idle timeout`);
-          return null;
-        }
-
-        const user = await User.findOne({
-          where: { id: userId, revoked: false },
-        });
-        return user ?? null;
-      }
-    }
-
-    if (type === 'bearer') {
-      const serviceSecret = await getSecret('API_SERVICE_TOKEN');
-
-      try {
-        payload = jwt.verify(value, serviceSecret, {
-          issuer: process.env.APP_ORIGIN,
-          audience: process.env.ISSUER,
-        });
-      } catch (err: Error | unknown) {
-        if (err instanceof Error && err.name === 'TokenExpiredError') {
-          logger.info(`Expired bearer token`);
-        } else {
-          logger.error(`Bearer token verification error: ${err}`);
-        }
-        return null;
-      }
-
-      const user = await User.findOne({
-        where: { id: payload.sub as string, revoked: false },
-      });
-
-      return user ?? null;
-    }
-
-    return null;
-  } catch (err) {
-    console.error('[validateSession] failed:', err);
-    return null;
-  }
-}
-
 export async function revokeSessionChain(session: Session, reason = 'refresh_token_reuse') {
   const now = new Date();
   const seen = new Set<string>();
@@ -190,4 +100,71 @@ export async function hardRevokeSession(session: Session, reason = 'manual_revok
   session.revokedAt = new Date();
   session.revokedReason = reason;
   await session.save();
+}
+
+export async function validateAccessToken(token: string) {
+  const payload = await verifyJwtWithKid(token, 'access');
+  if (!payload) return null;
+
+  const { sub: userId, sid: sessionId } = payload;
+
+  if (!userId || !sessionId) return null;
+
+  return {
+    userId,
+    sessionId,
+    roles: payload.roles || [],
+  };
+}
+
+export async function validateSessionRecord(sessionId: string) {
+  const session = await Session.findByPk(sessionId);
+  if (!session) return null;
+
+  const now = new Date();
+
+  if (session.revokedAt) return null;
+
+  if (session.replacedBySessionId) {
+    await revokeSessionChain(session);
+    return null;
+  }
+
+  if (session.expiresAt < now) return null;
+  if (session.idleExpiresAt < now) return null;
+
+  return session;
+}
+
+export async function getUserFromSession(session: Session) {
+  const user = await User.findOne({
+    where: { id: session.userId, revoked: false },
+  });
+
+  return user ?? null;
+}
+
+export async function validateBearerToken(token: string) {
+  const serviceSecret = await getInternalSecret();
+  let payload;
+
+  try {
+    payload = jwt.verify(token, serviceSecret, {
+      issuer: process.env.APP_ORIGIN,
+      audience: process.env.ISSUER,
+    });
+  } catch (err: Error | unknown) {
+    if (err instanceof Error && err.name === 'TokenExpiredError') {
+      logger.info(`Expired bearer token`);
+    } else {
+      logger.error(`Bearer token verification error: ${err}`);
+    }
+    return null;
+  }
+
+  const user = await User.findOne({
+    where: { id: payload.sub as string, revoked: false },
+  });
+
+  return user ?? null;
 }

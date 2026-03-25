@@ -1,4 +1,3 @@
-import { getAuthEvents, getCredentialsCount, getUsers } from '../controllers/internal.js';
 import { getDashboardMetrics } from '../controllers/internalDashboard.js';
 import {
   getAuthEventSummary,
@@ -8,70 +7,17 @@ import {
 } from '../controllers/internalMetrics.js';
 import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
-import { InternalErrorSchema } from '../schemas/generic.responses.js';
-import { AuthEventQuerySchema, MetricsQuerySchema } from '../schemas/internal.query.js';
-import {
-  AuthEventsResponseSchema,
-  CredentialCountSchema,
-  UsersListResponseSchema,
-} from '../schemas/internal.responses.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
+import { MetricsQuerySchema } from '../schemas/internal.query.js';
 
 const internalRouter = createRouter('/internal');
 
 internalRouter.get(
-  '/users',
-  {
-    summary: 'List users (internal)',
-    tags: ['Internal'],
-    // middleware: [verifyServiceToken],
-
-    schemas: {
-      response: {
-        200: UsersListResponseSchema,
-        500: InternalErrorSchema,
-      },
-    },
-  },
-  getUsers,
-);
-
-internalRouter.get(
-  '/auth-events',
-  {
-    // middleware: [verifyServiceToken],
-    tags: ['Internal'],
-    schemas: {
-      query: AuthEventQuerySchema,
-      response: {
-        200: AuthEventsResponseSchema,
-      },
-    },
-  },
-  getAuthEvents,
-);
-
-internalRouter.get(
-  '/credential-count',
-  {
-    summary: 'Get credential count',
-    tags: ['Internal'],
-    // middleware: [verifyServiceToken],
-
-    schemas: {
-      response: {
-        200: CredentialCountSchema,
-        500: InternalErrorSchema,
-      },
-    },
-  },
-  getCredentialsCount,
-);
-
-internalRouter.get(
   '/auth-events/summary',
   {
-    // middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -83,7 +29,7 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/timeseries',
   {
-    // middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -95,7 +41,7 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/login-stats',
   {
-    // middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     tags: ['Internal'],
   },
   getLoginStats,
@@ -104,7 +50,7 @@ internalRouter.get(
 internalRouter.get(
   '/security/anomalies',
   {
-    // middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     summary: 'Detect suspicious activity',
     tags: ['Internal'],
   },
@@ -114,8 +60,7 @@ internalRouter.get(
 internalRouter.get(
   '/metrics/dashboard',
   {
-    //TODO: Uncomment just for testing locally
-    // middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     summary: 'Dashboard metrics',
     tags: ['Internal'],
   },
@@ -125,8 +70,7 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/grouped',
   {
-    //TODO: Uncomment just for testing locally
-    // middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     summary: 'Auth Event metrics grouped',
     tags: ['Internal'],
   },

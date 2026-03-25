@@ -2,23 +2,84 @@ import { CreateUserSchema, UpdateUserSchema } from '@seamless-auth/types';
 
 import {
   createUser,
+  deleteUser,
+  getAuthEvents,
+  getCredentialsCount,
   getUserAnomalies,
   getUserDetail,
+  getUsers,
   listAllSessions,
+  updateUser,
 } from '../controllers/admin.js';
-import { deleteUser, updateUser } from '../controllers/internal.js';
 import { createRouter } from '../lib/createRouter.js';
+import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
 import { UserResponseSchema } from '../schemas/admin.responses.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
-import { PaginationQuerySchema } from '../schemas/internal.query.js';
+import { AuthEventQuerySchema, PaginationQuerySchema } from '../schemas/internal.query.js';
+import {
+  AuthEventsResponseSchema,
+  CredentialCountSchema,
+  UsersListResponseSchema,
+} from '../schemas/internal.responses.js';
 
 const adminRouter = createRouter('/admin');
+
+adminRouter.get(
+  '/users',
+  {
+    summary: 'List users (internal)',
+    tags: ['Admin'],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+
+    schemas: {
+      response: {
+        200: UsersListResponseSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  getUsers,
+);
+
+adminRouter.get(
+  '/auth-events',
+  {
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    tags: ['Admin'],
+    schemas: {
+      query: AuthEventQuerySchema,
+      response: {
+        200: AuthEventsResponseSchema,
+      },
+    },
+  },
+  getAuthEvents,
+);
+
+adminRouter.get(
+  '/credential-count',
+  {
+    summary: 'Get credential count',
+    tags: ['Admin'],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+
+    schemas: {
+      response: {
+        200: CredentialCountSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  getCredentialsCount,
+);
 
 adminRouter.post(
   '/users',
   {
-    // middleware: [verifyServiceToken],
+    tags: ['Admin'],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     schemas: {
       body: CreateUserSchema,
     },
@@ -31,7 +92,7 @@ adminRouter.delete(
   {
     summary: 'Delete user',
     tags: ['Admin'],
-    //middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {
@@ -48,7 +109,7 @@ adminRouter.patch(
   {
     summary: 'Update user',
     tags: ['Admin'],
-    //middleware: [verifyServiceToken],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       body: UpdateUserSchema,
@@ -66,7 +127,8 @@ adminRouter.patch(
 adminRouter.get(
   '/users/:userId',
   {
-    //middleware: [verifyServiceToken],
+    tags: ['Admin'],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
   },
   getUserDetail,
 );
@@ -74,7 +136,8 @@ adminRouter.get(
 adminRouter.get(
   '/users/:userId/anomalies',
   {
-    //middleware: [verifyServiceToken]
+    tags: ['Admin'],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
   },
   getUserAnomalies,
 );
@@ -82,6 +145,8 @@ adminRouter.get(
 adminRouter.get(
   '/sessions',
   {
+    tags: ['Admin'],
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
     schema: {
       query: PaginationQuerySchema,
     },
