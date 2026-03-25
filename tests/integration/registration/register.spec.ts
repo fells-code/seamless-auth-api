@@ -5,7 +5,6 @@ import { Application } from 'express';
 
 import { buildUser } from '../../factories/users/userFactory.js';
 
-// 🔥 mocks
 vi.mock('../../../src/models/users.js', () => ({
   User: {
     findOne: vi.fn(),
@@ -65,7 +64,6 @@ beforeEach(() => {
 });
 
 describe('POST /registration/register', () => {
-  // ✅ Happy path - new user
   it('creates a new user', async () => {
     (User.findOne as any).mockResolvedValue(null);
 
@@ -82,7 +80,6 @@ describe('POST /registration/register', () => {
     expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
   });
 
-  // ✅ Existing user
   it('handles existing user', async () => {
     const user = buildUser();
 
@@ -96,14 +93,12 @@ describe('POST /registration/register', () => {
     expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
   });
 
-  // ❌ Missing email
   it('fails without email', async () => {
     const res = await request(app).post('/registration/register').send({ phone: '+15555555555' });
 
     expect(res.status).toBe(400);
   });
 
-  // ❌ Missing phone
   it('fails without phone', async () => {
     const res = await request(app)
       .post('/registration/register')
@@ -112,7 +107,6 @@ describe('POST /registration/register', () => {
     expect(res.status).toBe(400);
   });
 
-  // ❌ Invalid email
   it('fails invalid email', async () => {
     const res = await request(app)
       .post('/registration/register')
@@ -121,7 +115,6 @@ describe('POST /registration/register', () => {
     expect(res.status).toBe(400);
   });
 
-  // 💥 Error case
   it('handles unexpected errors', async () => {
     (User.findOne as any).mockRejectedValue(new Error('boom'));
 

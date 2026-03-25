@@ -6,7 +6,7 @@ export function buildUser(overrides: Partial<any> = {}) {
   return {
     id: `user-${Date.now()}`,
     email: 'test@example.com',
-    phone: '+14155552671', // ✅ VALID US number
+    phone: '+14155552671',
     roles: ['user'],
     ...overrides,
   };

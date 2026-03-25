@@ -19,11 +19,7 @@ export default defineConfig({
 
       include: ['src/**/*.ts'],
 
-      exclude: [
-        'src/**/*.d.ts',
-        'src/models/index.ts', // bootstrap files
-        'src/server.ts', // entrypoint
-      ],
+      exclude: ['src/**/*.d.ts', 'src/models/index.ts', 'src/server.ts'],
 
       thresholds: {
         lines: 80,
