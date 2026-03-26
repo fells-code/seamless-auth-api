@@ -38,7 +38,7 @@ export const listSessions = async (req: Request, res: Response) => {
     current: session.id === currentSessionId,
   }));
 
-  return res.json({ sessions: response });
+  return res.json({ sessions: response, total: response.length });
 };
 
 export const revokeSession = async (req: Request, res: Response) => {

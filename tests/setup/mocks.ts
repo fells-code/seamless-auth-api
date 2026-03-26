@@ -14,6 +14,22 @@ vi.mock('../../src/models/sessions.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/users.js', () => ({
+  User: {
+    findOne: vi.fn(),
+    findByPk: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/sessionService.js', () => ({
+  validateAccessToken: vi.fn(),
+  validateSessionRecord: vi.fn(),
+  getUserFromSession: vi.fn(),
+  verifyJwtWithKid: vi.fn(),
+  revokeSessionChain: vi.fn(),
+  hardRevokeSession: vi.fn(),
+}));
+
 vi.mock('../../src/middleware/attachAuthMiddleware.js', () => ({
   attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
     // inject fake authenticated user
@@ -36,6 +52,8 @@ vi.mock('../../src/middleware/attachAuthMiddleware.js', () => ({
 
       update: vi.fn(),
     };
+
+    req.sessionId = 'session-1';
     next();
   },
 }));
@@ -52,4 +70,9 @@ vi.mock('../../src/lib/token.js', () => ({
   signAccessToken: vi.fn(),
   generateRefreshToken: vi.fn(),
   hashRefreshToken: vi.fn(),
+}));
+
+vi.mock('../../src/lib/cookie.js', () => ({
+  setAuthCookies: vi.fn(),
+  clearAuthCookies: vi.fn(),
 }));
