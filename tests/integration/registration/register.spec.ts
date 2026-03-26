@@ -3,23 +3,13 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { createApp } from '../../../src/app';
 import { Application } from 'express';
 
-import { buildUser } from '../../factories/users/userFactory.js';
+import { buildUser } from '../../factories/userFactory.js';
 
 vi.mock('../../../src/models/users.js', () => ({
   User: {
     findOne: vi.fn(),
     create: vi.fn(),
   },
-}));
-
-vi.mock('../../../src/models/authEvents.js', () => ({
-  AuthEvent: {
-    create: vi.fn(),
-  },
-}));
-
-vi.mock('../../../src/lib/token.js', () => ({
-  signEphemeralToken: vi.fn(),
 }));
 
 vi.mock('../../../src/utils/otp.js', () => ({
@@ -35,10 +25,6 @@ vi.mock('../../../src/services/authEventService.js', () => ({
     log: vi.fn(),
     notificationSent: vi.fn(),
   },
-}));
-
-vi.mock('../../../src/lib/cookie.js', () => ({
-  setAuthCookies: vi.fn(),
 }));
 
 // imports after mocks

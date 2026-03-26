@@ -32,7 +32,7 @@ usersRouter.post(
     tags: ['Users'],
     summary: 'Update credential metadata',
 
-    middleware: [attachAuthMiddleware],
+    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       body: UpdateCredentialRequestSchema,
@@ -48,7 +48,7 @@ usersRouter.delete(
     tags: ['Users'],
     summary: 'Delete authenticated user',
 
-    middleware: [attachAuthMiddleware],
+    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       response: MessageSchema,
@@ -64,7 +64,7 @@ usersRouter.delete(
     tags: ['Users'],
     summary: 'Delete credential',
 
-    middleware: [attachAuthMiddleware],
+    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       body: DeleteCredentialRequestSchema,

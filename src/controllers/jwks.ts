@@ -20,6 +20,10 @@ let jwkCache: JwkCache | null = null;
 
 const CACHE_TTL = 1000 * 60 * 5;
 
+export function __resetJwksCache() {
+  jwkCache = null;
+}
+
 async function loadJwksFromSecrets(): Promise<JWK[]> {
   logger.info('Loading JWKS from Secrets Manager');
 

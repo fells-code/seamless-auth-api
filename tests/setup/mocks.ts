@@ -1,8 +1,26 @@
 import { vi } from 'vitest';
 
-vi.mock('../../../src/models/authEvents.js', () => ({
+vi.mock('../../src/models/authEvents.js', () => ({
   AuthEvent: {
     create: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/models/systemConfig.js', () => ({
+  SystemConfig: {
+    findAll: vi.fn(),
+    upsert: vi.fn(),
+    sequelize: {
+      transaction: vi.fn((fn: any) => fn({})),
+    },
+  },
+}));
+
+vi.mock('../../src/models/credentials.js', () => ({
+  Credential: {
+    findAll: vi.fn(),
+    findOne: vi.fn(),
+    count: vi.fn(),
   },
 }));
 
@@ -16,9 +34,16 @@ vi.mock('../../src/models/sessions.js', () => ({
 
 vi.mock('../../src/models/users.js', () => ({
   User: {
+    create: vi.fn(),
     findOne: vi.fn(),
     findByPk: vi.fn(),
+    findAll: vi.fn(),
   },
+}));
+
+vi.mock('../../src/config/getSystemConfig.js', () => ({
+  getSystemConfig: vi.fn(),
+  invalidateSystemConfigCache: vi.fn(),
 }));
 
 vi.mock('../../src/services/sessionService.js', () => ({
@@ -58,6 +83,18 @@ vi.mock('../../src/middleware/attachAuthMiddleware.js', () => ({
   },
 }));
 
+vi.mock('../../src/middleware/authenticateServiceToken.js', () => ({
+  verifyServiceToken: (_req: any, _res: any, next: any) => {
+    next();
+  },
+}));
+
+vi.mock('../../src/middleware/requireAdmin.js', () => ({
+  requireAdmin: () => (_req: any, _res: any, next: any) => {
+    next();
+  },
+}));
+
 vi.mock('../../src/utils/otp.js', () => ({
   generatePhoneOTP: vi.fn(),
   generateEmailOTP: vi.fn(),
@@ -75,4 +112,16 @@ vi.mock('../../src/lib/token.js', () => ({
 vi.mock('../../src/lib/cookie.js', () => ({
   setAuthCookies: vi.fn(),
   clearAuthCookies: vi.fn(),
+}));
+
+vi.mock('bcrypt-ts', () => ({
+  compareSync: vi.fn(),
+}));
+
+vi.mock('../../src/services/authEventService.js', () => ({
+  AuthEventService: {
+    log: vi.fn(),
+    notificationSent: vi.fn(),
+    serviceTokenInvalid: vi.fn(),
+  },
 }));
