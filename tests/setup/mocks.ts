@@ -95,6 +95,13 @@ vi.mock('../../src/middleware/requireAdmin.js', () => ({
   },
 }));
 
+vi.mock('../../src/middleware/rateLimit.js', () => ({
+  magicLinkIpLimiter: (_req: any, _res: any, next: any) => next(),
+  magicLinkEmailLimiter: (_req: any, _res: any, next: any) => next(),
+  dynamicRateLimit: (_req: any, _res: any, next: any) => next(),
+  dynamicSlowDown: (_req: any, _res: any, next: any) => next(),
+}));
+
 vi.mock('../../src/utils/otp.js', () => ({
   generatePhoneOTP: vi.fn(),
   generateEmailOTP: vi.fn(),
@@ -125,3 +132,39 @@ vi.mock('../../src/services/authEventService.js', () => ({
     serviceTokenInvalid: vi.fn(),
   },
 }));
+
+vi.mock('../../src/models/magicLinks.js', () => ({
+  MagicLinkToken: {
+    create: vi.fn(),
+    findOne: vi.fn(),
+    update: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/services/messagingService.js', () => ({
+  sendMagicLinkEmail: vi.fn(),
+}));
+
+vi.mock('crypto', async () => {
+  const actual = await vi.importActual<typeof import('crypto')>('crypto');
+  return {
+    ...actual,
+    randomBytes: vi.fn(() => ({
+      toString: () => 'mock-token',
+    })),
+  };
+});
+
+vi.mock('../../src/utils/utils.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/utils/utils.js')>(
+    '../../src/utils/utils.js',
+  );
+
+  return {
+    ...actual,
+    hashDeviceFingerprint: vi.fn(() => ({
+      ip_hash: 'ip',
+      user_agent_hash: 'ua',
+    })),
+  };
+});

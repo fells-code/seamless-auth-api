@@ -86,7 +86,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
   const { token } = req.params;
 
   if (!token) {
-    return res.status(400).json({ message: 'Missing verification token' });
+    return res.status(400).json({ error: 'Missing verification token' });
   }
   const tokenHash = hashSha256(token);
 
@@ -96,17 +96,17 @@ export async function verifyMagicLink(req: Request, res: Response) {
 
   if (!record) {
     logger.warn(`No magic link found for token: ${token}`);
-    return res.status(400).json({ message: 'Invalid verification token' });
+    return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   if (record.used_at) {
     logger.warn(`Magic link token is already used ${token}`);
-    return res.status(400).json({ message: 'Invalid verification token' });
+    return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   if (record.expires_at < new Date()) {
     logger.warn(`Magic link token expired: ${token}`);
-    return res.status(400).json({ message: 'Invalid verification token' });
+    return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   // Atomic consume
@@ -124,7 +124,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
 
   if (!updated) {
     logger.error(`Magic link token was not consumted: ${token}`);
-    return res.status(500).json({ message: 'Failed to use token' });
+    return res.status(500).json({ error: 'Failed to use token' });
   }
 
   await AuthEventService.log({
@@ -156,7 +156,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
   if (!user) {
     return res.status(400).json({
-      message: 'Failed',
+      error: 'Failed',
     });
   }
 
@@ -165,19 +165,19 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   });
 
   if (!record) {
-    console.log('No magic link token');
-    return res.status(500).json({ message: 'Invalid request' });
+    logger.warn('No magic link token');
+    return res.status(500).json({ error: 'Invalid request' });
   }
 
   // Device binding check
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
   if (record.ip_hash && record.ip_hash !== ip_hash) {
-    return res.status(500).json({ message: 'Invalid request' });
+    return res.status(500).json({ error: 'Invalid request' });
   }
 
   if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
-    return res.status(500).json({ message: 'Invalid request' });
+    return res.status(500).json({ error: 'Invalid request' });
   }
 
   if (record.used_at && record.expires_at > new Date()) {
