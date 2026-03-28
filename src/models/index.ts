@@ -49,16 +49,6 @@ export function getSequelize(): Sequelize {
     return sequelizeInstance;
   }
 
-  if (process.env.NODE_ENV === 'test' && testDbMode === 'mock') {
-    logger.warn('TEST_DB=mock → Sequelize initialized but should not be used');
-
-    sequelizeInstance = new Sequelize('sqlite::memory:', {
-      logging: false,
-    });
-
-    return sequelizeInstance;
-  }
-
   const DATABASE_URL = buildDatabaseUrl();
 
   logger.info('Using Postgres database');

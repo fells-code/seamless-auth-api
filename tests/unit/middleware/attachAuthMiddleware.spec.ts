@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 vi.unmock('../../../src/middleware/verifyBearerAuth');
 vi.unmock('../../../src/middleware/verifyCookieAuth');
@@ -28,6 +28,9 @@ describe('attachAuthMiddleware', () => {
     delete process.env.AUTH_MODE;
   });
 
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
   it('defaults to cookie auth', async () => {
     attachAuthMiddleware();
 

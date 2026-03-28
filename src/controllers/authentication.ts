@@ -227,22 +227,11 @@ export const refreshSession = async (req: Request, res: Response) => {
   const authUser = authReq.user;
   logger.info(`Refreshing user token`);
 
-  let refreshToken;
+  let refreshToken: string | null = null;
 
-  refreshToken = req.headers['authorization']?.toString().startsWith('Bearer ')
-    ? req.headers['authorization']!.slice('Bearer '.length)
-    : null;
-
-  if (!refreshToken) {
-    return res.status(401).json('Not allowed');
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    refreshToken = req.headers.authorization.slice('Bearer '.length);
   }
-
-  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
-
-  const payload = jwt.verify(refreshToken, serviceSecret, {
-    issuer: process.env.APP_ORIGIN,
-    audience: process.env.ISSUER,
-  }) as jwt.JwtPayload;
 
   if (!refreshToken) {
     logger.error('Refresh token provided is not of expected type for auth server configurations');
@@ -252,9 +241,16 @@ export const refreshSession = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing all required headers and tokens needed to perform a refresh' },
     });
-    res.status(401).json({ error: 'Missing refresh token parameters' });
+    res.status(401).json({ error: 'Not allowed' });
     return;
   }
+
+  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
+
+  const payload = jwt.verify(refreshToken, serviceSecret, {
+    issuer: process.env.APP_ORIGIN,
+    audience: process.env.ISSUER,
+  }) as jwt.JwtPayload;
 
   const now = new Date();
 

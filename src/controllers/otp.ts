@@ -241,11 +241,11 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
 
       if (token && refreshToken) {
         if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+          await setAuthCookies(res, { accessToken: token, refreshToken });
           return res.status(200).json({ message: 'Success' });
         }
 
-        return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+        return res.status(200).json({ message: 'Success', token, refreshToken });
       }
       res.json({ message: 'Success' });
     } else {
@@ -352,11 +352,11 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
     if (token && refreshToken) {
       if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+        await setAuthCookies(res, { accessToken: token, refreshToken });
         return res.status(200).json({ message: 'Success' });
       }
 
-      return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+      return res.status(200).json({ message: 'Success', token, refreshToken });
     }
     return res.json({ message: 'Success' });
   } else {
@@ -453,11 +453,11 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           logger.warn(`An error occured saving user last login - ${error}`);
         }
         if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+          await setAuthCookies(res, { accessToken: token, refreshToken });
           return res.status(200).json({ message: 'Success' });
         }
 
-        return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+        return res.status(200).json({ message: 'Success', token, refreshToken });
       }
       return res.json({ message: 'Success' });
     } else {
@@ -575,11 +575,11 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         logger.warn(`An error occured saving user last login - ${error}`);
       }
       if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+        await setAuthCookies(res, { accessToken: token, refreshToken });
         return res.status(200).json({ message: 'Success' });
       }
 
-      return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+      return res.status(200).json({ message: 'Success', token, refreshToken });
     }
     return res.json({ message: 'Success' });
   } else {

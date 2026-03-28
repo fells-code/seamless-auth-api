@@ -33,8 +33,8 @@ export const listSessions = async (req: Request, res: Response) => {
     deviceName: session.deviceName,
     ipAddress: session.ipAddress,
     userAgent: session.userAgent,
-    lastUsedAt: session.lastUsedAt,
-    expiresAt: session.expiresAt,
+    lastUsedAt: session.lastUsedAt.toISOString(),
+    expiresAt: session.expiresAt.toISOString(),
     current: session.id === currentSessionId,
   }));
 

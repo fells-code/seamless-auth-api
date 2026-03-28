@@ -513,7 +513,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         clearAuthCookies(res);
 
         if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken: refreshToken });
+          await setAuthCookies(res, { accessToken: token, refreshToken });
           res.status(200).json({ message: 'Success' });
           return;
         }

@@ -18,7 +18,6 @@ export const sendOTPEmail = async (to: string, token: string) => {
 
 export const sendOTPSMS = async (to: string, token: number) => {
   logger.debug(`Sending verification SMS: ${to} with ${token}`);
-
   if (isDevelopment) {
     return;
   }
