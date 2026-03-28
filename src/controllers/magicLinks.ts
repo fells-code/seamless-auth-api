@@ -49,6 +49,10 @@ export async function requestMagicLink(req: Request, res: Response) {
 
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
+  if (!ip_hash || !user_agent_hash) {
+    logger.error('Could not identify devive metadata to send a magic link');
+    return res.status(400).json({ error: 'Invalid device data' });
+  }
   // Expire all previous links
   await MagicLinkToken.update(
     { expires_at: new Date() },

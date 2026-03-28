@@ -72,7 +72,7 @@ export function validateRedirectUrl(
 
     const isAllowed = allowedOrigins.some((origin) => url.origin === origin);
 
-    if (!isAllowed) {
+    if (!isAllowed || !url) {
       return null;
     }
 

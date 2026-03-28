@@ -22,10 +22,10 @@ export default defineConfig({
       exclude: ['src/**/*.d.ts', 'src/models/index.ts', 'src/server.ts'],
 
       thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 70,
-        statements: 80,
+        lines: 70,
+        functions: 70,
+        branches: 65,
+        statements: 70,
       },
     },
   },

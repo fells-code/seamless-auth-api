@@ -7,6 +7,7 @@ import { verifyBearerAuth } from './verifyBearerAuth.js';
 import { verifyCookieAuth } from './verifyCookieAuth.js';
 
 export function attachAuthMiddleware(cookieType: CookieType = 'access') {
+  console.log(process.env.AUTH_MODE);
   const mode = (process.env.AUTH_MODE || 'web').toLowerCase();
   return mode === 'server' ? verifyBearerAuth : verifyCookieAuth(cookieType);
 }

@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 export function buildSession(overrides: any = {}) {
   return {
     id: 'session-1',
@@ -8,6 +10,7 @@ export function buildSession(overrides: any = {}) {
     lastUsedAt: new Date().toDateString(),
     expiresAt: new Date(Date.now() + 100000).toDateString(),
     revokedAt: null,
+    save: vi.fn(),
     ...overrides,
   };
 }
