@@ -4,8 +4,9 @@ export function buildSession(overrides: any = {}) {
     deviceName: 'MacBook',
     ipAddress: '127.0.0.1',
     userAgent: 'agent',
-    lastUsedAt: new Date(),
-    expiresAt: new Date(Date.now() + 100000),
+    current: true,
+    lastUsedAt: new Date().toDateString(),
+    expiresAt: new Date(Date.now() + 100000).toDateString(),
     revokedAt: null,
     ...overrides,
   };

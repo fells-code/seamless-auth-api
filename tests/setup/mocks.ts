@@ -1,8 +1,17 @@
 import { vi } from 'vitest';
 
+export let mockUser: any = {
+  id: 'user-1',
+  email: 'test@example.com',
+  phone: '+14155552671',
+  roles: ['user'],
+};
+
 vi.mock('../../src/models/authEvents.js', () => ({
   AuthEvent: {
     create: vi.fn(),
+    findAll: vi.fn(),
+    count: vi.fn(),
   },
 }));
 
@@ -21,6 +30,8 @@ vi.mock('../../src/models/credentials.js', () => ({
     findAll: vi.fn(),
     findOne: vi.fn(),
     count: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
   },
 }));
 
@@ -29,6 +40,7 @@ vi.mock('../../src/models/sessions.js', () => ({
     create: vi.fn(),
     findAll: vi.fn(),
     findOne: vi.fn(),
+    count: vi.fn(),
   },
 }));
 
@@ -38,6 +50,8 @@ vi.mock('../../src/models/users.js', () => ({
     findOne: vi.fn(),
     findByPk: vi.fn(),
     findAll: vi.fn(),
+    count: vi.fn(),
+    save: vi.fn(),
   },
 }));
 
@@ -130,6 +144,7 @@ vi.mock('../../src/services/authEventService.js', () => ({
     log: vi.fn(),
     notificationSent: vi.fn(),
     serviceTokenInvalid: vi.fn(),
+    loginSuccess: vi.fn(),
   },
 }));
 
@@ -168,3 +183,27 @@ vi.mock('../../src/utils/utils.js', async () => {
     })),
   };
 });
+
+vi.mock('@simplewebauthn/server', () => ({
+  generateRegistrationOptions: vi.fn(),
+  verifyRegistrationResponse: vi.fn(),
+  generateAuthenticationOptions: vi.fn(),
+  verifyAuthenticationResponse: vi.fn(),
+}));
+
+vi.mock('base64url', () => ({
+  default: {
+    encode: vi.fn(() => 'encoded'),
+    toBuffer: vi.fn(() => Buffer.from('buffer')),
+  },
+}));
+
+vi.mock('jsonwebtoken', () => ({
+  default: {
+    verify: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/utils/secretsStore.js', () => ({
+  getSecret: vi.fn(),
+}));

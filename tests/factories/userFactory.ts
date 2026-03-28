@@ -1,20 +1,20 @@
 import { vi } from 'vitest';
 
 let idCounter = 1;
+export let testGuid = 'c6e39f68-a09d-49dd-86b4-eab2c1e5de52';
 
 export function buildUser(overrides: Partial<any> = {}) {
   return {
-    id: `user-${Date.now()}`,
+    id: testGuid,
     email: 'test@example.com',
     phone: '+14155552671',
     roles: ['user'],
+    challenge: 'challenge',
+    createdAt: Date.now(),
+    toJSON: vi.fn(() => ({ id: 'user-1' })),
+    update: vi.fn(),
+    destroy: vi.fn(),
+    save: vi.fn(),
     ...overrides,
-  };
-}
-
-export function mockUserModel() {
-  return {
-    findOne: vi.fn(),
-    create: vi.fn(),
   };
 }

@@ -119,9 +119,7 @@ describe('E2E Auth Flow', () => {
       id: 'user-1',
     });
 
-    (Session.create as any).mockResolvedValue({
-      id: 'session-2',
-    });
+    (Session.create as any).mockResolvedValue(buildSession({ id: 'session-2' }));
 
     const refreshRes = await request(app)
       .get('/sessions')

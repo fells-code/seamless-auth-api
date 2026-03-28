@@ -5,6 +5,7 @@ import { Application } from 'express';
 import { createApp } from '../../../src/app';
 import { Credential } from '../../../src/models/credentials.js';
 import { User } from '../../../src/models/users.js';
+import { buildCredential } from '../../factories/credentialFactory.js';
 
 let app: Application;
 
@@ -15,26 +16,6 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
 });
-
-function buildCredential(overrides: any = {}) {
-  return {
-    id: 'cred-1',
-    userId: 'user-1',
-    friendlyName: 'My Device',
-    transports: [],
-    deviceType: 'platform',
-    backedup: false,
-    counter: 0,
-    lastUsedAt: new Date(),
-    platform: 'web',
-    browser: 'chrome',
-    deviceInfo: 'test',
-    createdAt: new Date(),
-    update: vi.fn(),
-    destroy: vi.fn(),
-    ...overrides,
-  };
-}
 
 describe('GET /users/me', () => {
   it('returns user and credentials', async () => {

@@ -5,6 +5,7 @@ import { Application } from 'express';
 
 import { Session } from '../../../src/models/sessions.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { buildSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -15,19 +16,6 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
 });
-
-function buildSession(overrides: any = {}) {
-  return {
-    id: 'session-1',
-    deviceName: 'MacBook',
-    ipAddress: '127.0.0.1',
-    userAgent: 'test-agent',
-    lastUsedAt: new Date(),
-    expiresAt: new Date(Date.now() + 100000),
-    revokedAt: null,
-    ...overrides,
-  };
-}
 
 describe('GET /sessions', () => {
   it('returns active sessions', async () => {

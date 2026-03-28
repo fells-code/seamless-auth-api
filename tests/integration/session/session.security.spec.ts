@@ -5,6 +5,7 @@ import { Application } from 'express';
 import { createApp } from '../../../src/app';
 import { Session } from '../../../src/models/sessions.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { buildSession } from '../../factories/sessionFactory.js';
 
 let mockUser: any = {
   id: 'user-1',
@@ -37,20 +38,6 @@ beforeEach(() => {
     roles: ['user'],
   };
 });
-
-function buildSession(overrides: any = {}) {
-  return {
-    id: 'session-1',
-    userId: 'user-1',
-    deviceName: 'MacBook',
-    ipAddress: '127.0.0.1',
-    userAgent: 'agent',
-    lastUsedAt: new Date(),
-    expiresAt: new Date(Date.now() + 100000),
-    revokedAt: null,
-    ...overrides,
-  };
-}
 
 describe('Session Security - Authorization', () => {
   it('rejects listSessions when user missing', async () => {

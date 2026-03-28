@@ -276,7 +276,9 @@ export const listUserSessions = async (req: Request, res: Response) => {
         userAgent: s.userAgent,
         lastUsedAt: s.lastUsedAt,
         expiresAt: s.expiresAt,
+        current: false,
       })),
+      total: sessions.length,
     });
   } catch (err) {
     logger.error(`Failed to fetch sessions: ${err}`);
@@ -330,7 +332,17 @@ export const listAllSessions = async (req: Request, res: Response) => {
     Session.count({ where }),
   ]);
 
-  return res.json({ sessions, total });
+  const response = sessions.map((session) => ({
+    id: session.id,
+    deviceName: session.deviceName,
+    ipAddress: session.ipAddress,
+    userAgent: session.userAgent,
+    lastUsedAt: session.lastUsedAt.toISOString(),
+    expiresAt: session.expiresAt.toISOString(),
+    current: false,
+  }));
+
+  return res.json({ sessions: response, total });
 };
 
 export const getDatabaseSize = async () => {
