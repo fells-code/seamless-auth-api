@@ -71,7 +71,9 @@ afterAll(() => {
   vi.unstubAllEnvs();
 });
 
-it('full auth lifecycle works', async () => {
+const isCI = process.env.CI === 'true';
+
+(isCI ? it.skip : it)('full auth lifecycle works', async () => {
   const email = 'test@example.com';
   const phone = '+14155552671';
 

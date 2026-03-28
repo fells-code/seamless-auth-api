@@ -12,6 +12,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "coverage": "vitest run --coverage",
+    "test:ci": "CI=true vitest",
+    "test:e2e": "CI=false vitest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
     "db:create": "env-cmd -f .env sequelize-cli db:create || sequelize-cli db:create",
