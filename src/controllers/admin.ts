@@ -60,7 +60,7 @@ export const createUser = async (req: Request, res: Response) => {
 
   if (!parsed.success) {
     return res.status(400).json({
-      message: 'Invalid payload',
+      error: 'Invalid payload',
       details: parsed.error,
     });
   }
@@ -71,7 +71,7 @@ export const createUser = async (req: Request, res: Response) => {
     const existing = await User.findOne({ where: { email } });
 
     if (existing) {
-      return res.status(409).json({ message: 'User already exists' });
+      return res.status(409).json({ error: 'User already exists' });
     }
 
     const user = await User.create({
@@ -83,7 +83,7 @@ export const createUser = async (req: Request, res: Response) => {
     return res.status(201).json({ user });
   } catch (err) {
     logger.error(`Failed to create user. Reason: ${err}`);
-    return res.status(500).json({ message: 'Failed to create user' });
+    return res.status(500).json({ error: 'Failed to create user' });
   }
 };
 
@@ -93,7 +93,7 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
 
   try {
     if (!userId) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ error: 'User not found.' });
     }
 
     try {
@@ -113,11 +113,11 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
       return res.status(200).json({ message: 'Success' });
     } catch (error: unknown) {
       logger.error(`Failed to delete user: ${userId}. Error: ${error}`);
-      return res.status(500).json({ message: 'Failed' });
+      return res.status(500).json({ error: 'Failed' });
     }
   } catch (error) {
     logger.error(`Error occured deleting a user: ${error}`);
-    return res.status(500).json({ message: `Failed` });
+    return res.status(500).json({ error: `Failed` });
   }
 };
 
@@ -126,7 +126,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
 
   if (!userId) {
     logger.error('Missing user id for updating user');
-    return res.status(400).json({ message: 'Bad request' });
+    return res.status(400).json({ error: 'Bad request' });
   }
 
   const parsed = UpdateUserSchema.safeParse(req.body);
@@ -134,7 +134,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
   if (!parsed.success || Object.keys(parsed.data).length === 0) {
     logger.error(`Failed to parse update user body. ${JSON.stringify(req.body)}`);
     return res.status(400).json({
-      message: 'Invalid update payload',
+      error: 'Invalid update payload',
       details: parsed.error,
     });
   }
@@ -143,7 +143,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
     const user = await User.findByPk(userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const before = user.toJSON();
@@ -162,7 +162,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
       });
     } catch (error) {
       logger.error(`Failed to update user ${error}`);
-      res.status(500).json({ message: 'Failed to update user' });
+      res.status(500).json({ error: 'Failed to update user' });
       return;
     }
 
@@ -170,7 +170,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
     return;
   } catch {
     logger.error('Failed to find user');
-    res.status(400).json({ message: 'Could not update users' });
+    res.status(400).json({ error: 'Could not update users' });
   }
 };
 
@@ -180,7 +180,7 @@ export const getUserDetail = async (req: ServiceRequest, res: Response) => {
   const user = await User.findByPk(userId);
 
   if (!user) {
-    return res.status(404).json({ message: 'User not found' });
+    return res.status(404).json({ error: 'User not found' });
   }
 
   const now = new Date();
@@ -247,7 +247,7 @@ export const getUserAnomalies = async (req: Request, res: Response) => {
       relatedAgents: Array.from(agents),
     });
   } catch {
-    return res.status(500).json({ message: 'Failed to fetch anomalies' });
+    return res.status(500).json({ error: 'Failed to fetch anomalies' });
   }
 };
 
@@ -274,15 +274,15 @@ export const listUserSessions = async (req: Request, res: Response) => {
         deviceName: s.deviceName,
         ipAddress: s.ipAddress,
         userAgent: s.userAgent,
-        lastUsedAt: s.lastUsedAt,
-        expiresAt: s.expiresAt,
+        lastUsedAt: s.lastUsedAt.toISOString(),
+        expiresAt: s.expiresAt.toISOString(),
         current: false,
       })),
       total: sessions.length,
     });
   } catch (err) {
     logger.error(`Failed to fetch sessions: ${err}`);
-    return res.status(500).json({ message: 'Failed to fetch sessions' });
+    return res.status(500).json({ error: 'Failed to fetch sessions' });
   }
 };
 
@@ -306,7 +306,7 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
     return res.json({ message: 'Success' });
   } catch (err) {
     logger.error(`Failed to revoke sessions: ${err}`);
-    return res.status(500).json({ message: 'Failed to revoke sessions' });
+    return res.status(500).json({ error: 'Failed to revoke sessions' });
   }
 };
 
@@ -378,7 +378,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
   const parsed = AuthEventQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
-    return res.status(400).json({ message: 'Invalid query params' });
+    return res.status(400).json({ error: 'Invalid query params' });
   }
 
   const { limit, offset, userId, type, from, to } = parsed.data;
@@ -425,7 +425,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
     return res.json({ events, total });
   } catch (err) {
     logger.error(`Failed to fetch auth events: ${err}`);
-    res.status(500).json({ message: 'Failed to fetch events' });
+    res.status(500).json({ error: 'Failed to fetch events' });
   }
 };
 
@@ -437,6 +437,6 @@ export const getCredentialsCount = async (req: ServiceRequest, res: Response) =>
     return res.json({ count: credentialCount || 0 });
   } catch (err) {
     logger.error(`Failed to fetch credential count: ${err}`);
-    res.status(500).json({ message: 'Failed to fetch credential count' });
+    res.status(500).json({ error: 'Failed to fetch credential count' });
   }
 };

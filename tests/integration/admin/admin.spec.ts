@@ -28,7 +28,6 @@ describe('GET /admin/users', () => {
     const res = await request(app).get('/admin/users');
 
     expect(res.status).toBe(200);
-    console.log(res.body.users);
     expect(res.body.users).toHaveLength(1);
     expect(res.body.total).toBe(1);
   });
@@ -185,12 +184,7 @@ describe('POST /admin/users', () => {
 
 describe('PATCH /admin/users/:userId', () => {
   it('updates user successfully', async () => {
-    const user = {
-      id: 'user-1',
-      email: 'test@example.com',
-      toJSON: vi.fn(() => ({ id: 'user-1' })),
-      update: vi.fn(),
-    };
+    const user = buildUser();
 
     (User.findByPk as any).mockResolvedValue(user);
 
