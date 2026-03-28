@@ -1,13 +1,14 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import { CookieType } from '../services/sessionService.js';
 import { verifyBearerAuth } from './verifyBearerAuth.js';
 import { verifyCookieAuth } from './verifyCookieAuth.js';
 
 export function attachAuthMiddleware(cookieType: CookieType = 'access') {
-  console.log(process.env.AUTH_MODE);
   const mode = (process.env.AUTH_MODE || 'web').toLowerCase();
   return mode === 'server' ? verifyBearerAuth : verifyCookieAuth(cookieType);
 }

@@ -45,15 +45,10 @@ describe('attachAuthMiddleware', () => {
 
   it('uses bearer in server mode', async () => {
     vi.stubEnv('AUTH_MODE', 'server');
-    console.log(process.env.AUTH_MODE);
 
     const { attachAuthMiddleware } = await import('../../../src/middleware/attachAuthMiddleware');
     const { verifyBearerAuth } = await import('../../../src/middleware/verifyBearerAuth');
-
-    console.log(process.env.AUTH_MODE);
     const res = attachAuthMiddleware();
-
-    console.log(res);
 
     expect(res).toBe(verifyBearerAuth);
   });
