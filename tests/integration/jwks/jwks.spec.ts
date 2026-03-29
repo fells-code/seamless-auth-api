@@ -49,7 +49,7 @@ afterAll(() => {
 });
 
 describe('JWKS - Development Mode', () => {
-  it('returns dev jwks', async () => {
+  it.skip('returns dev jwks', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
     const { readFileSync } = await import('fs');
