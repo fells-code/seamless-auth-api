@@ -1,5 +1,7 @@
 # Seamless Auth API
 
+[![codecov](https://codecov.io/gh/fells-code/seamless-auth-api/graph/badge.svg?token=6PQV8KVY30)](https://codecov.io/gh/fells-code/seamless-auth-api)
+
 **Seamless Auth API** is the open-source core authentication server for SeamlessAuth: an exclusively passwordless authentication system designed for modern web applications.
 
 It provides the backend services for passkeys (WebAuthn) and other passwordless flows, issuing secure sessions and tokens while giving teams full transparency into how authentication is implemented.
