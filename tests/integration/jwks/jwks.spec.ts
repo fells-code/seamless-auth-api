@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
 
 import { createApp } from '../../../src/app';
@@ -44,9 +44,13 @@ beforeEach(() => {
   });
 });
 
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
+
 describe('JWKS - Development Mode', () => {
   it('returns dev jwks', async () => {
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
 
     const { readFileSync } = await import('fs');
     const { importSPKI, exportJWK } = await import('jose');
@@ -70,7 +74,7 @@ describe('JWKS - Development Mode', () => {
 
 describe('JWKS - Production Mode', () => {
   it('returns jwks from secrets', async () => {
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
 
     const { importSPKI, exportJWK } = await import('jose');
 
@@ -103,7 +107,7 @@ describe('JWKS - Production Mode', () => {
 
 describe('JWKS - Error Handling', () => {
   it('returns 500 when secrets fail', async () => {
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
 
     (getSecret as any).mockRejectedValue(new Error('boom'));
 
@@ -116,7 +120,7 @@ describe('JWKS - Error Handling', () => {
 
 describe('JWKS - Caching', () => {
   it('uses cached jwks on second call', async () => {
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
 
     const { importSPKI, exportJWK } = await import('jose');
 
