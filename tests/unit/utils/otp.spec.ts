@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.unmock('../../../src/utils/otp.js');
 vi.mock('../../../src/services/messagingService.js', () => ({
@@ -38,9 +38,11 @@ function buildUser(overrides: any = {}) {
 }
 
 describe('OTP utils', () => {
-  // ---------------------------
-  // Random generators
-  // ---------------------------
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
   describe('generateRandomEmailOTP', () => {
     it('returns 6 uppercase letters', () => {
       const otp = generateRandomEmailOTP();
