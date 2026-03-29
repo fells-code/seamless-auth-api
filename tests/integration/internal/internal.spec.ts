@@ -82,23 +82,68 @@ describe('GET /internal/auth-events/login-stats', () => {
 describe('GET /internal/security/anomalies', () => {
   it('returns anomalies', async () => {
     (AuthEvent.findAll as any).mockResolvedValue([
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
-      { ip_address: '1.1.1.1' },
+      {
+        user_id: 'user_1',
+        type: 'login_failed',
+        ip_address: '192.168.1.10',
+        user_agent: 'Mozilla/5.0 Chrome',
+        metadata: { reason: 'invalid_password' },
+        created_at: new Date('2026-03-29T10:00:00Z'),
+      },
+      {
+        user_id: 'user_2',
+        type: 'jwt_failed',
+        ip_address: '192.168.1.11',
+        user_agent: 'Mozilla/5.0 Firefox',
+        metadata: { reason: 'invalid_signature' },
+        created_at: new Date('2026-03-29T10:05:00Z'),
+      },
+      {
+        user_id: null,
+        type: 'suspicious_ip',
+        ip_address: '10.0.0.5',
+        user_agent: null,
+        metadata: { flagged: true },
+        created_at: new Date('2026-03-29T10:10:00Z'),
+      },
+      {
+        user_id: 'user_3',
+        type: 'otp_failed',
+        ip_address: '172.16.0.3',
+        user_agent: 'Safari',
+        metadata: { attempts: 3 },
+        created_at: new Date('2026-03-29T10:15:00Z'),
+      },
+      {
+        user_id: 'user_4',
+        type: 'refresh_token_failed',
+        ip_address: '192.168.1.20',
+        user_agent: 'Mozilla/5.0 Edge',
+        metadata: { expired: true },
+        created_at: new Date('2026-03-29T10:20:00Z'),
+      },
+      {
+        user_id: null,
+        type: 'suspicious_device',
+        ip_address: '203.0.113.42',
+        user_agent: 'Unknown',
+        metadata: { anomaly: 'new_device' },
+        created_at: new Date('2026-03-29T10:25:00Z'),
+      },
+      {
+        user_id: 'user_5',
+        type: 'webauthn_login_failed',
+        ip_address: '198.51.100.8',
+        user_agent: 'Mozilla/5.0 Chrome',
+        metadata: { challenge_failed: true },
+        created_at: new Date('2026-03-29T10:30:00Z'),
+      },
     ]);
 
     const res = await request(app).get('/internal/security/anomalies');
 
     expect(res.status).toBe(200);
-    expect(res.body.suspiciousIps.length).toBeGreaterThan(0);
+    expect(res.body.total).toBe(7);
   });
 });
 

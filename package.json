@@ -22,7 +22,8 @@
     "migrate:create": "env-cmd -f .env sequelize-cli migration:generate --name",
     "migrate:up": "env-cmd -f .env sequelize-cli db:migrate || sequelize-cli db:migrate",
     "migrate:down": "env-cmd -f .env sequelize-cli db:migrate:undo",
-    "migrate:reset": "env-cmd -f .env sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate"
+    "migrate:reset": "env-cmd -f .env sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -61,8 +62,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.1.0",
-    "@commitlint/config-conventional": "^20.0.0",
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^9.25.1",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
