@@ -1,6 +1,7 @@
 # Seamless Auth API
 
 [![codecov](https://codecov.io/gh/fells-code/seamless-auth-api/graph/badge.svg?token=6PQV8KVY30)](https://codecov.io/gh/fells-code/seamless-auth-api)
+[![Publish Docker Image](https://github.com/fells-code/seamless-auth-api/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/fells-code/seamless-auth-api/actions/workflows/docker-publish.yml)
 
 **Seamless Auth API** is the open-source core authentication server for SeamlessAuth: an exclusively passwordless authentication system designed for modern web applications.
 
