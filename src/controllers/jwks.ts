@@ -1,7 +1,9 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import { Request, Response } from 'express';
 import fs from 'fs';
 import { exportJWK, importSPKI, JWK } from 'jose';
@@ -19,6 +21,10 @@ type JwkCache = {
 let jwkCache: JwkCache | null = null;
 
 const CACHE_TTL = 1000 * 60 * 5;
+
+export function __resetJwksCache() {
+  jwkCache = null;
+}
 
 async function loadJwksFromSecrets(): Promise<JWK[]> {
   logger.info('Loading JWKS from Secrets Manager');

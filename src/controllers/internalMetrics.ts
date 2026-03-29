@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { Request, Response } from 'express';
 import { col, fn, literal, Op, WhereOptions } from 'sequelize';
 
@@ -41,6 +47,7 @@ export const getAuthEventSummary = async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Invalid query params' });
   }
 
+  // TODO: need to parse these for valid time ranges
   const { from, to } = parsed.data;
 
   const where: WhereOptions<AuthEventAttributes> =

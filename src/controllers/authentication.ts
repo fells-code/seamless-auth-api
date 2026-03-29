@@ -1,7 +1,9 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import { compareSync } from 'bcrypt-ts';
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
@@ -48,7 +50,7 @@ export const login = async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
       metadata: { reason: 'No identifier supplied' },
     });
-    return res.status(403).json({ message: 'Not allowed' });
+    return res.status(403).json({ error: 'Not allowed' });
   }
 
   logger.info(`Login attempt with ${identifier}`);
@@ -86,7 +88,7 @@ export const login = async (req: Request, res: Response) => {
           user_agent: req.headers['user-agent'],
           metadata: { reason: `No user found for identifer: ${identifier}` },
         });
-        return res.status(403).json({ message: 'Not allowed' });
+        return res.status(403).json({ error: 'Not allowed' });
       }
     } else {
       logger.error(`Invalid identifier: ${identifier}`);
@@ -97,7 +99,7 @@ export const login = async (req: Request, res: Response) => {
         user_agent: req.headers['user-agent'],
         metadata: { reason: `No user found for identifer: ${identifier}` },
       });
-      return res.status(400).json({ message: 'Invalid data' });
+      return res.status(400).json({ error: 'Invalid data' });
     }
   } catch (error) {
     logger.error(`Failed to find a user with valid Identifier: ${error}`);
@@ -108,7 +110,7 @@ export const login = async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
       metadata: { reason: `No user found for identifer: ${identifier}` },
     });
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 
   try {
@@ -121,7 +123,7 @@ export const login = async (req: Request, res: Response) => {
         user_agent: req.headers['user-agent'],
         metadata: { reason: `No user found for identifer: ${identifier}` },
       });
-      return res.status(401).json({ message: 'Not Allowed' });
+      return res.status(401).json({ error: 'Not Allowed' });
     }
 
     // pre-auth token
@@ -137,7 +139,7 @@ export const login = async (req: Request, res: Response) => {
         metadata: { reason: `Unverified but valid user` },
       });
 
-      return res.status(401).json({ message: 'Login failed. Need to verify.' });
+      return res.status(401).json({ error: 'Login failed. Need to verify.' });
     }
 
     const credential = await Credential.findOne({ where: { userId: user.id } });
@@ -151,7 +153,7 @@ export const login = async (req: Request, res: Response) => {
         user_agent: req.headers['user-agent'],
         metadata: { reason: `No credentials ${identifier}` },
       });
-      return res.status(401).json({ message: 'Need to re-register and create passkey' });
+      return res.status(401).json({ error: 'Need to re-register and create passkey' });
     }
 
     if (token) {
@@ -178,7 +180,7 @@ export const login = async (req: Request, res: Response) => {
         ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       });
     }
-    return res.status(401).json({ message: 'Login failed.' });
+    return res.status(401).json({ error: 'Login failed.' });
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error during login for email ${error.message}`);
@@ -193,7 +195,7 @@ export const login = async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
       metadata: { reason: 'Catch all error' },
     });
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -227,22 +229,11 @@ export const refreshSession = async (req: Request, res: Response) => {
   const authUser = authReq.user;
   logger.info(`Refreshing user token`);
 
-  let refreshToken;
+  let refreshToken: string | null = null;
 
-  refreshToken = req.headers['authorization']?.toString().startsWith('Bearer ')
-    ? req.headers['authorization']!.slice('Bearer '.length)
-    : null;
-
-  if (!refreshToken) {
-    return res.status(401).json('Not allowed');
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    refreshToken = req.headers.authorization.slice('Bearer '.length);
   }
-
-  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
-
-  const payload = jwt.verify(refreshToken, serviceSecret, {
-    issuer: process.env.APP_ORIGIN,
-    audience: process.env.ISSUER,
-  }) as jwt.JwtPayload;
 
   if (!refreshToken) {
     logger.error('Refresh token provided is not of expected type for auth server configurations');
@@ -252,9 +243,16 @@ export const refreshSession = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing all required headers and tokens needed to perform a refresh' },
     });
-    res.status(401).json({ error: 'Missing refresh token parameters' });
+    res.status(401).json({ error: 'Not allowed' });
     return;
   }
+
+  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
+
+  const payload = jwt.verify(refreshToken, serviceSecret, {
+    issuer: process.env.APP_ORIGIN,
+    audience: process.env.ISSUER,
+  }) as jwt.JwtPayload;
 
   const now = new Date();
 

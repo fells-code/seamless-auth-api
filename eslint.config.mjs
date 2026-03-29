@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
+import licenseHeader from 'eslint-plugin-license-header';
 
 export default [
   {
@@ -45,6 +46,7 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
       'simple-import-sort': simpleImportSort,
+      'license-header': licenseHeader,
     },
     rules: {
       ...js.configs.recommended.rules,
@@ -53,6 +55,8 @@ export default [
       'simple-import-sort/exports': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'error',
+
+      'license-header/header': ['error', './resources/license-header.js'],
     },
   },
 ];

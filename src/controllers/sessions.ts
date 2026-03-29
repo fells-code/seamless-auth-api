@@ -1,7 +1,9 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import { Request, Response } from 'express';
 
 import { Session } from '../models/sessions.js';
@@ -38,7 +40,7 @@ export const listSessions = async (req: Request, res: Response) => {
     current: session.id === currentSessionId,
   }));
 
-  return res.json({ sessions: response });
+  return res.json({ sessions: response, total: response.length });
 };
 
 export const revokeSession = async (req: Request, res: Response) => {

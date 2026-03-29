@@ -1,7 +1,9 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
@@ -24,6 +26,7 @@ export const register = async (req: Request, res: Response) => {
   logger.info(`Registering phone and email account`);
 
   try {
+    // TODO: These checks can go away thanks to the zod refactor
     if (!email) {
       logger.error(`Missing email`);
       AuthEventService.log({
@@ -35,6 +38,7 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid data.' });
     }
 
+    // TODO: These checks can go away thanks to the zod refactor
     if (!phone) {
       logger.error(`Missing phone`);
       AuthEventService.log({
@@ -136,6 +140,6 @@ export const register = async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
       metadata: { reason: 'Catch all error' },
     });
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };

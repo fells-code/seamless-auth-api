@@ -1,7 +1,9 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import { Request, Response } from 'express';
 
 import { setAuthCookies } from '../lib/cookie.js';
@@ -39,7 +41,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing required phone.' },
     });
-    return res.status(400).json({ message: 'Invalid data' });
+    return res.status(400).json({ error: 'Invalid data' });
   }
 
   logger.info(`Sending OTP to phone number: ${phone}`);
@@ -53,7 +55,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Invalid phone number.' },
       });
-      return res.status(400).json({ message: 'Invalid data' });
+      return res.status(400).json({ error: 'Invalid data' });
     }
 
     if (!user) {
@@ -64,7 +66,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing required phone.' },
       });
-      return res.status(400).json({ message: 'Invalid data' });
+      return res.status(400).json({ error: 'Invalid data' });
     }
 
     logger.info(`${phone} requested a phone OTP`);
@@ -91,7 +93,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       logger.error(`Error during registration: ${String(error)}`);
     }
 
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -109,7 +111,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing required user.' },
       });
-      return res.status(400).json({ message: 'Invalid data.' });
+      return res.status(400).json({ error: 'Invalid data.' });
     }
 
     if (!email) {
@@ -120,7 +122,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing required email.' },
       });
-      return res.status(400).json({ message: 'Invalid data.' });
+      return res.status(400).json({ error: 'Invalid data.' });
     }
 
     logger.info(`Sending OTP to email: ${email}`);
@@ -133,7 +135,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Invalid email.' },
       });
-      return res.status(400).json({ message: 'Invalid data.' });
+      return res.status(400).json({ error: 'Invalid data.' });
     }
 
     logger.info(`${email} requested an email OTP`);
@@ -159,7 +161,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       logger.error(`Error during registration: ${String(error)}`);
     }
 
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -181,7 +183,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Failed to verify OTP' });
+    return res.status(401).json({ error: 'Failed to verify OTP' });
   }
 
   try {
@@ -193,7 +195,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing data' },
       });
-      return res.status(401).json({ message: 'Not Allowed.' });
+      return res.status(401).json({ error: 'Not Allowed.' });
     }
 
     const verificationResult = await verifyPhoneOTP(user, verificationToken);
@@ -241,11 +243,11 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
 
       if (token && refreshToken) {
         if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+          await setAuthCookies(res, { accessToken: token, refreshToken });
           return res.status(200).json({ message: 'Success' });
         }
 
-        return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+        return res.status(200).json({ message: 'Success', token, refreshToken });
       }
       res.json({ message: 'Success' });
     } else {
@@ -254,11 +256,11 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
           user.phoneVerificationToken
         } or ${user.phoneVerificationTokenExpiry} is less than ${new Date().getTime()}`,
       );
-      return res.status(401).json({ message: 'Not allowed' });
+      return res.status(401).json({ error: 'Not allowed' });
     }
   } catch (error) {
     logger.error(`Failed to verify OTP: ${error}`);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -281,7 +283,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Invalid data.' });
+    return res.status(401).json({ error: 'Invalid data.' });
   }
 
   if (!verificationToken) {
@@ -292,7 +294,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Invalid data' });
+    return res.status(401).json({ error: 'Invalid data' });
   }
 
   if (!email || !phone) {
@@ -303,7 +305,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Invalid data' });
+    return res.status(401).json({ error: 'Invalid data' });
   }
 
   const verificationResult = await verifyEmailOTP(user, verificationToken);
@@ -352,11 +354,11 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
     if (token && refreshToken) {
       if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+        await setAuthCookies(res, { accessToken: token, refreshToken });
         return res.status(200).json({ message: 'Success' });
       }
 
-      return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+      return res.status(200).json({ message: 'Success', token, refreshToken });
     }
     return res.json({ message: 'Success' });
   } else {
@@ -367,7 +369,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     );
   }
 
-  return res.status(500).json({ message: 'Internal server error' });
+  return res.status(500).json({ error: 'Internal server error' });
 };
 
 export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
@@ -387,7 +389,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Not allowed' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   try {
@@ -399,7 +401,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing data' },
       });
-      return res.status(401).json({ message: 'Not Allowed.' });
+      return res.status(401).json({ error: 'Not Allowed.' });
     }
 
     const verificationResult = await verifyPhoneOTP(user, verificationToken);
@@ -453,11 +455,11 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           logger.warn(`An error occured saving user last login - ${error}`);
         }
         if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+          await setAuthCookies(res, { accessToken: token, refreshToken });
           return res.status(200).json({ message: 'Success' });
         }
 
-        return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+        return res.status(200).json({ message: 'Success', token, refreshToken });
       }
       return res.json({ message: 'Success' });
     } else {
@@ -472,11 +474,11 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'User verification failed for phone' },
       });
-      return res.status(401).json({ message: 'Not allowed' });
+      return res.status(401).json({ error: 'Not allowed' });
     }
   } catch (error) {
     logger.error(`Failed to verify OTP: ${error}`);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -499,7 +501,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Not allowed' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   if (!verificationToken) {
@@ -510,7 +512,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Not allowed' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   if (!email || !phone) {
@@ -521,7 +523,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ message: 'Not allowed' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   const verificationResult = await verifyEmailOTP(user, verificationToken);
@@ -575,11 +577,11 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         logger.warn(`An error occured saving user last login - ${error}`);
       }
       if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken: refreshTokenHash });
+        await setAuthCookies(res, { accessToken: token, refreshToken });
         return res.status(200).json({ message: 'Success' });
       }
 
-      return res.status(200).json({ message: 'Success', token, refreshTokenHash });
+      return res.status(200).json({ message: 'Success', token, refreshToken });
     }
     return res.json({ message: 'Success' });
   } else {
@@ -596,5 +598,5 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
     });
   }
 
-  return res.status(500).json({ message: 'Internal server error' });
+  return res.status(500).json({ error: 'Internal server error' });
 };

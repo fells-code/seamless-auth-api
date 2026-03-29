@@ -1,7 +1,9 @@
 /*
  * Copyright © 2026 Fells Code, LLC
  * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
  */
+
 import {
   AuthenticatorTransportFuture,
   generateAuthenticationOptions,
@@ -126,6 +128,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     }
 
     if (!verifiedUser.email || !attestationResponse) {
+      logger.warn('Missing verified user email or attestation response');
       await AuthEvent.create({
         user_id: null,
         type: 'registration_failed',
@@ -154,6 +157,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     const expectedChallenge = user.challenge;
     if (!expectedChallenge) {
+      logger.error('Unexpected user challegnge supplied.');
       await AuthEvent.create({
         user_id: user.id,
         type: 'registration_suspicous',
@@ -223,6 +227,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     await user.update({
       challenge: null,
       lastLogin: new Date(),
+      verified: true,
     });
 
     logger.info(`Passkey credential saved successfully for user: ${verifiedUser.email}`);
@@ -253,11 +258,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     const token = await signAccessToken(session.id, user.id, user.roles);
 
-    user.challenge = '';
-    user.verified = true;
-
-    await user.save();
-
     if (token && refreshToken) {
       await AuthEvent.create({
         user_id: user.id,
@@ -287,9 +287,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
       });
     }
+    return res.status(500).json({ error: 'Unknown error verifying passkey' });
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);
-    return res.status(500).json({ message: 'Unknown error verifying passkey' });
+    return res.status(500).json({ error: 'Unknown error verifying passkey' });
   }
 };
 
@@ -338,7 +339,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
         user_agent: req.headers['user-agent'],
         metadata: { reason: 'No credentials' },
       });
-      logger.info('Valid user with no credentials');
+      logger.error('Valid user with no credentials');
       return res.status(401).send('Credentials not found');
     }
 
@@ -392,6 +393,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
   try {
     const { assertionResponse } = req.body;
+
     const email = verifiedUser.email;
     const phone = verifiedUser.phone;
     let user = verifiedUser;
@@ -409,6 +411,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     }
 
     if (!user || !user.challenge) {
+      logger.error('User or user challenge missing');
       await AuthEventService.log({
         userId: user.id,
         type: 'webauthn_login_failed',
@@ -416,7 +419,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'No user or user challenge' },
       });
 
-      return res.status(401).json({ message: 'Authentication failed.' });
+      return res.status(401).json({ error: 'Authentication failed.' });
     }
 
     const cred = await Credential.findOne({
@@ -433,7 +436,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'No credential' },
       });
 
-      return res.status(401).json({ message: 'Authentication failed.' });
+      return res.status(401).json({ error: 'Authentication failed.' });
     }
 
     const expectedChallenge = user.challenge;
@@ -467,7 +470,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'Incorrect passkey' },
       });
 
-      return res.status(500).json({ message: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
 
     if (verification.verified) {
@@ -512,7 +515,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         clearAuthCookies(res);
 
         if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken: refreshToken });
+          await setAuthCookies(res, { accessToken: token, refreshToken });
           res.status(200).json({ message: 'Success' });
           return;
         }
@@ -539,7 +542,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         user_agent: req.headers['user-agent'],
         metadata: { reason: 'Verification failed' },
       });
-      res.status(401).send('Authentication failed');
+      res.status(401).json({ error: 'Authentication failed' });
       return;
     }
   } catch (error) {
@@ -551,7 +554,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       user_agent: req.headers['user-agent'],
       metadata: { reason: 'Catch all error' },
     });
-    res.status(500).json({ message: 'Internal Server error' });
+    res.status(500).json({ error: 'Internal Server error' });
     return;
   }
 };

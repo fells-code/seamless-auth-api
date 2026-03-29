@@ -1,3 +1,9 @@
+/*
+ * Copyright © 2026 Fells Code, LLC
+ * Licensed under the GNU Affero General Public License v3.0
+ * See LICENSE file in the project root for full license information
+ */
+
 import { CreateUserSchema, UpdateUserSchema } from '@seamless-auth/types';
 
 import {
@@ -9,12 +15,15 @@ import {
   getUserDetail,
   getUsers,
   listAllSessions,
+  listUserSessions,
+  revokeAllUserSessions,
   updateUser,
 } from '../controllers/admin.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { UserIdParamSchema } from '../schemas/admin.query.js';
 import { UserResponseSchema } from '../schemas/admin.responses.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { AuthEventQuerySchema, PaginationQuerySchema } from '../schemas/internal.query.js';
@@ -23,6 +32,7 @@ import {
   CredentialCountSchema,
   UsersListResponseSchema,
 } from '../schemas/internal.responses.js';
+import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
 const adminRouter = createRouter('/admin');
 
@@ -152,6 +162,38 @@ adminRouter.get(
     },
   },
   listAllSessions,
+);
+
+adminRouter.get(
+  '/sessions/:userId',
+  {
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    tags: ['Admin'],
+    schemas: {
+      params: UserIdParamSchema,
+      response: {
+        200: SessionListResponseSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  listUserSessions,
+);
+
+adminRouter.delete(
+  '/sessions/:userId/revoke-all',
+  {
+    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    tags: ['Admin'],
+    schemas: {
+      params: UserIdParamSchema,
+      response: {
+        200: MessageSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  revokeAllUserSessions,
 );
 
 export default adminRouter.router;
