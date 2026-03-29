@@ -12,6 +12,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  vi.resetModules();
   vi.clearAllMocks();
 });
 

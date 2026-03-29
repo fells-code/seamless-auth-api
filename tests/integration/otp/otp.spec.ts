@@ -46,6 +46,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  vi.resetModules();
   vi.clearAllMocks();
 
   (signEphemeralToken as any).mockResolvedValue('ephemeral-token');

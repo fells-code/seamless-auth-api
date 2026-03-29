@@ -1,23 +1,10 @@
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
-import { getSystemConfig } from '../../../src/config/getSystemConfig';
 import { Application } from 'express';
-import { Credential } from '../../../src/models/credentials';
-import { attachAuthMiddleware } from '../../../src/middleware/attachAuthMiddleware';
 import { createApp } from '../../../src/app';
-import { buildSystemConfig } from '../../factories/systemConfigFactory';
 import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
-import { buildCredential } from '../../factories/credentialFactory';
-import {
-  generateRefreshToken,
-  hashRefreshToken,
-  signAccessToken,
-  signEphemeralToken,
-} from '../../../src/lib/token';
-import { compareSync } from 'bcrypt-ts';
-import { getSecret } from '../../../src/utils/secretsStore';
 import { AuthEvent } from '../../../src/models/authEvents';
 
 let app: Application;

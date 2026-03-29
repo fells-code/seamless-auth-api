@@ -36,6 +36,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  vi.resetModules();
   vi.clearAllMocks();
   __resetJwksCache();
   (getSystemConfig as any).mockResolvedValue({

@@ -18,6 +18,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  vi.resetModules();
   vi.clearAllMocks();
 
   (getSystemConfig as any).mockResolvedValue({
