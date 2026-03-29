@@ -8,36 +8,59 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { AuthEvent } from '../models/authEvents.js';
+import getLogger from '../utils/logger.js';
+
+const logger = getLogger('internalSecurity');
 
 export const getSecurityAnomalies = async (_req: Request, res: Response) => {
   const now = new Date();
-  const windowStart = new Date(now.getTime() - 60 * 60 * 1000);
+  const windowStart = new Date(now.getTime() - 60 * 60 * 1000 * 24);
 
   try {
-    const failedLogins = await AuthEvent.findAll({
+    const FAILURE_TYPES = [
+      'login_failed',
+      'cookie_token_failed',
+      'bearer_token_failed',
+      'jwks_failed',
+      'mfa_otp_failed',
+      'otp_failed',
+      'recovery_otp_failed',
+      'refresh_token_failed',
+      'registration_failed',
+      'service_token_failed',
+      'user_data_failed',
+      'webauthn_login_failed',
+      'webauthn_registration_failed',
+    ];
+
+    const events = await AuthEvent.findAll({
       where: {
-        type: 'login_failed',
-        created_at: { [Op.gte]: windowStart },
+        created_at: {
+          [Op.gte]: windowStart,
+        },
+        [Op.or]: [
+          {
+            type: {
+              [Op.in]: FAILURE_TYPES,
+            },
+          },
+          {
+            type: {
+              [Op.like]: '%suspicious%',
+            },
+          },
+        ],
       },
-      attributes: ['ip_address'],
+      attributes: ['user_id', 'type', 'ip_address', 'user_agent', 'metadata', 'created_at'],
     });
 
-    const ipCounts: Record<string, number> = {};
-
-    for (const event of failedLogins) {
-      const ip = event.ip_address || 'unknown';
-      ipCounts[ip] = (ipCounts[ip] || 0) + 1;
-    }
-
-    const suspicious = Object.entries(ipCounts)
-      .filter(([_, count]) => count > 10)
-      .map(([ip, count]) => ({ ip, count }));
-
+    console.log('events', events);
     return res.json({
-      suspiciousIps: suspicious,
-      totalFailedLogins: failedLogins.length,
+      suspiciousEvents: events,
+      total: events.length,
     });
   } catch {
+    logger.error(`Failed to get security events`);
     return res.status(500).json({ message: 'Failed to detect anomalies' });
   }
 };
