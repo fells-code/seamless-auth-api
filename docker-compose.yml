@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: seamless-auth
     ports:
-      - "5312:5312"
+      - '5312:5312'
     volumes:
       - .:/app
       - /app/node_modules
@@ -17,7 +17,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "./healthCheck.js"]
+      test: ['CMD', 'node', './healthCheck.js']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -27,13 +27,13 @@ services:
     restart: always
     container_name: db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
       POSTGRES_DB: postgres
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U myuser -d postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U myuser -d postgres']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -44,7 +44,7 @@ services:
     image: seamless-admin:local
     container_name: seamless-admin
     ports:
-      - "5174:80"
+      - '5174:80'
     depends_on:
       - api
     environment:
