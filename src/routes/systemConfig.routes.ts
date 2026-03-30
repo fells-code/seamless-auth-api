@@ -11,7 +11,6 @@ import {
 } from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
-import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {

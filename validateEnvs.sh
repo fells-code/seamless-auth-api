@@ -11,13 +11,7 @@ for var in $required_vars; do
 done
 
 echo "Generating JWKS keys"
-if [ "${NODE_ENV:-development}" = "production" ]; then
-  echo "Running in production mode"
-  node ./dist/scripts/initKeys.js
-else
-  echo "Running in development mode"
-  npx tsx ./src/scripts/initKeys.ts
-fi
+node ./dist/scripts/initKeys.js
 echo "JWKS keys ready"
 
 echo "Running migrations..."

@@ -14,7 +14,6 @@ import {
 import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
-import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { MetricsQuerySchema } from '../schemas/internal.query.js';
 

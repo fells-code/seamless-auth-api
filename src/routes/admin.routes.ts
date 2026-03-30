@@ -21,7 +21,6 @@ import {
 } from '../controllers/admin.js';
 import { createRouter } from '../lib/createRouter.js';
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
-import { verifyServiceToken } from '../middleware/authenticateServiceToken.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { UserIdParamSchema } from '../schemas/admin.query.js';
 import { UserResponseSchema } from '../schemas/admin.responses.js';
