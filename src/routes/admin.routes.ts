@@ -41,7 +41,7 @@ adminRouter.get(
   {
     summary: 'List users (internal)',
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {
@@ -56,7 +56,7 @@ adminRouter.get(
 adminRouter.get(
   '/auth-events',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     tags: ['Admin'],
     schemas: {
       query: AuthEventQuerySchema,
@@ -73,7 +73,7 @@ adminRouter.get(
   {
     summary: 'Get credential count',
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {
@@ -89,7 +89,7 @@ adminRouter.post(
   '/users',
   {
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     schemas: {
       body: CreateUserSchema,
     },
@@ -102,7 +102,7 @@ adminRouter.delete(
   {
     summary: 'Delete user',
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {
@@ -119,7 +119,7 @@ adminRouter.patch(
   {
     summary: 'Update user',
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       body: UpdateUserSchema,
@@ -138,7 +138,7 @@ adminRouter.get(
   '/users/:userId',
   {
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
   },
   getUserDetail,
 );
@@ -147,7 +147,7 @@ adminRouter.get(
   '/users/:userId/anomalies',
   {
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
   },
   getUserAnomalies,
 );
@@ -156,7 +156,7 @@ adminRouter.get(
   '/sessions',
   {
     tags: ['Admin'],
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     schema: {
       query: PaginationQuerySchema,
     },
@@ -167,7 +167,7 @@ adminRouter.get(
 adminRouter.get(
   '/sessions/:userId',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     tags: ['Admin'],
     schemas: {
       params: UserIdParamSchema,
@@ -183,7 +183,7 @@ adminRouter.get(
 adminRouter.delete(
   '/sessions/:userId/revoke-all',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     tags: ['Admin'],
     schemas: {
       params: UserIdParamSchema,

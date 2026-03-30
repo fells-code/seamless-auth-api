@@ -23,7 +23,7 @@ const internalRouter = createRouter('/internal');
 internalRouter.get(
   '/auth-events/summary',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -35,7 +35,7 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/timeseries',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -47,7 +47,7 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/login-stats',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     tags: ['Internal'],
   },
   getLoginStats,
@@ -56,7 +56,7 @@ internalRouter.get(
 internalRouter.get(
   '/security/anomalies',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     summary: 'Detect suspicious activity',
     tags: ['Internal'],
   },
@@ -66,7 +66,7 @@ internalRouter.get(
 internalRouter.get(
   '/metrics/dashboard',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     summary: 'Dashboard metrics',
     tags: ['Internal'],
   },
@@ -76,7 +76,7 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/grouped',
   {
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
     summary: 'Auth Event metrics grouped',
     tags: ['Internal'],
   },

@@ -28,7 +28,7 @@ systemConfigRouter.get(
     summary: 'Get available roles',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
   },
   getAvailableRoles,
 );
@@ -39,7 +39,7 @@ systemConfigRouter.get(
     summary: 'Retrieve system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {
@@ -58,7 +58,7 @@ systemConfigRouter.patch(
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [verifyServiceToken, attachAuthMiddleware(), requireAdmin()],
+    middleware: [attachAuthMiddleware(), requireAdmin()],
 
     schemas: {
       response: {

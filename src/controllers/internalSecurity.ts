@@ -54,7 +54,6 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
       attributes: ['user_id', 'type', 'ip_address', 'user_agent', 'metadata', 'created_at'],
     });
 
-    console.log('events', events);
     return res.json({
       suspiciousEvents: events,
       total: events.length,

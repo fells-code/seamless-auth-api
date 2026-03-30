@@ -14,11 +14,6 @@ const logger = getLogger('requireAdmin');
 export function requireAdmin() {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.clientId) {
-        logger.error('Admin route hit without service identity');
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
       if (!req.user) {
         logger.error('Admin route hit without authenticated user');
         return res.status(401).json({ error: 'Unauthorized' });
