@@ -32,3 +32,11 @@ export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect
     return;
   }
 };
+
+export const sendBootstrapEmail = async (to: string, url: string) => {
+  logger.debug(`Sending bootsrap invitation email to: ${to}. URL: ${url}`);
+
+  if (isDevelopment) {
+    return;
+  }
+};

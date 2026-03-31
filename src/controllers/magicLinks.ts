@@ -9,22 +9,16 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { setAuthCookies } from '../lib/cookie.js';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token.js';
 import { AuthEvent } from '../models/authEvents.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
-import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { maybePromoteBootstrapAdmin } from '../services/bootstrapPromotionService.js';
 import { sendMagicLinkEmail } from '../services/messagingService.js';
+import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
-import {
-  computeSessionTimes,
-  hashDeviceFingerprint,
-  hashSha256,
-  parseDurationToSeconds,
-} from '../utils/utils.js';
+import { hashDeviceFingerprint, hashSha256 } from '../utils/utils.js';
 
 const logger = getLogger('magic-links');
 
@@ -193,59 +187,43 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       req,
     });
 
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = await hashRefreshToken(refreshToken);
-    const { expiresAt, idleExpiresAt } = computeSessionTimes();
-
-    const session = await Session.create({
-      userId: user.id,
-      infraId: process.env.APP_ID!,
-      mode: AUTH_MODE,
-      refreshTokenHash,
-      userAgent: req.get('user-agent'),
-      ipAddress: req.ip,
-      expiresAt,
-      idleExpiresAt,
-      lastUsedAt: undefined,
-    });
-
-    const token = await signAccessToken(session.id, user.id, user.roles);
-
     user.challenge = '';
     user.verified = true;
 
     await user.save();
 
-    if (token && refreshToken) {
-      await AuthEvent.create({
-        user_id: user.id,
-        type: 'registration_success',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
-        metadata: {},
-      });
+    const bootstrapResult = await maybePromoteBootstrapAdmin({
+      user,
+      req,
+      completionMethod: 'magic_link_fallback',
+    });
 
-      if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken });
-        res.status(200).json({ message: 'Success' });
-        return;
-      }
+    if (bootstrapResult.promoted) {
+      logger.info(`Bootstrap admin granted to ${user.email}`);
+    }
 
-      const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
+    await AuthEvent.create({
+      user_id: user.id,
+      type: 'registration_success',
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent'],
+      metadata: {},
+    });
 
-      return res.status(200).json({
-        message: 'Success',
-        token,
-        refreshToken,
-        sub: user.id,
-        roles: user.roles,
+    await issueSessionAndRespond({
+      user: {
+        id: user.id,
         email: user.email,
         phone: user.phone,
-        ttl: parseDurationToSeconds(access_token_ttl || '15m'),
-        refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
-      });
-    }
-  }
+        roles: user.roles ?? [],
+      },
+      req,
+      res,
+      authMode: AUTH_MODE,
+      clearBootstrap: true,
+    });
 
-  return res.status(204).json({ message: 'Not verified.' });
+    return res.json({ message: 'Success' });
+  }
+  return res.status(204).json({ message: 'Success' });
 }

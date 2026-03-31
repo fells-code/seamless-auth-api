@@ -7,14 +7,9 @@
 import { Request, Response } from 'express';
 
 import { setAuthCookies } from '../lib/cookie.js';
-import {
-  generateRefreshToken,
-  hashRefreshToken,
-  signAccessToken,
-  signEphemeralToken,
-} from '../lib/token.js';
-import { Session } from '../models/sessions.js';
+import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import {
@@ -23,7 +18,7 @@ import {
   verifyEmailOTP,
   verifyPhoneOTP,
 } from '../utils/otp.js';
-import { computeSessionTimes, isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
+import { isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('otp');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
@@ -211,7 +206,6 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'User verified their phone number' },
       });
-      let token, refreshToken, refreshTokenHash;
 
       if (user.phoneVerified && user.emailVerified && user.verified) {
         logger.info(`${phone} is fully verified. Logging in...`);
@@ -222,32 +216,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
           metadata: { reason: 'User completed verification of phone and email' },
         });
 
-        refreshToken = generateRefreshToken();
-        refreshTokenHash = await hashRefreshToken(refreshToken);
-        const { expiresAt, idleExpiresAt } = computeSessionTimes();
-
-        const session = await Session.create({
-          userId: user.id,
-          infraId: process.env.APP_ID!,
-          mode: AUTH_MODE,
-          refreshTokenHash,
-          userAgent: req.get('user-agent'),
-          ipAddress: req.ip,
-          expiresAt,
-          idleExpiresAt,
-          lastUsedAt: undefined,
-        });
-
-        token = await signAccessToken(session.id, user.id, user.roles);
-      }
-
-      if (token && refreshToken) {
-        if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken });
-          return res.status(200).json({ message: 'Success' });
-        }
-
-        return res.status(200).json({ message: 'Success', token, refreshToken });
+        return res.status(200).json({ message: 'Success' });
       }
       res.json({ message: 'Success' });
     } else {
@@ -321,7 +290,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'User verified their email number' },
     });
-    let token, refreshToken, refreshTokenHash;
 
     if (user.phoneVerified && user.emailVerified && user.verified) {
       logger.info(`${email} is fully verified. Logging in...`);
@@ -333,32 +301,19 @@ export const verifyEmail = async (req: Request, res: Response) => {
         metadata: { reason: 'User completed verification of phone and email' },
       });
 
-      refreshToken = generateRefreshToken();
-      refreshTokenHash = await hashRefreshToken(refreshToken);
-      const { expiresAt, idleExpiresAt } = computeSessionTimes();
-
-      const session = await Session.create({
-        userId: user.id,
-        infraId: process.env.APP_ID!,
-        mode: AUTH_MODE,
-        refreshTokenHash,
-        userAgent: req.get('user-agent'),
-        ipAddress: req.ip,
-        expiresAt,
-        idleExpiresAt,
-        lastUsedAt: undefined,
+      await issueSessionAndRespond({
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          roles: user.roles ?? [],
+        },
+        req,
+        res,
+        authMode: AUTH_MODE,
       });
 
-      token = await signAccessToken(session.id, user.id, user.roles);
-    }
-
-    if (token && refreshToken) {
-      if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken });
-        return res.status(200).json({ message: 'Success' });
-      }
-
-      return res.status(200).json({ message: 'Success', token, refreshToken });
+      return;
     }
     return res.json({ message: 'Success' });
   } else {
@@ -417,8 +372,6 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
         req,
       });
 
-      let token, refreshToken, refreshTokenHash;
-
       if (user.phoneVerified && user.emailVerified && user.verified) {
         logger.info(`${email} is fully verified. Logging in...`);
 
@@ -429,37 +382,19 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           metadata: { reason: 'User completed verification of phone and email' },
         });
 
-        refreshToken = generateRefreshToken();
-        refreshTokenHash = await hashRefreshToken(refreshToken);
-        const { expiresAt, idleExpiresAt } = computeSessionTimes();
-
-        const session = await Session.create({
-          userId: user.id,
-          infraId: process.env.APP_ID!,
-          mode: AUTH_MODE,
-          refreshTokenHash,
-          userAgent: req.get('user-agent'),
-          ipAddress: req.ip,
-          expiresAt,
-          idleExpiresAt,
-          lastUsedAt: undefined,
+        await issueSessionAndRespond({
+          user: {
+            id: user.id,
+            email: user.email,
+            phone: user.phone,
+            roles: user.roles ?? [],
+          },
+          req,
+          res,
+          authMode: AUTH_MODE,
         });
 
-        token = await signAccessToken(session.id, user.id, user.roles);
-      }
-
-      if (token && refreshToken) {
-        try {
-          await user.update({ lastLogin: new Date() });
-        } catch (error) {
-          logger.warn(`An error occured saving user last login - ${error}`);
-        }
-        if (AUTH_MODE === 'web') {
-          await setAuthCookies(res, { accessToken: token, refreshToken });
-          return res.status(200).json({ message: 'Success' });
-        }
-
-        return res.status(200).json({ message: 'Success', token, refreshToken });
+        return;
       }
       return res.json({ message: 'Success' });
     } else {
@@ -539,8 +474,6 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       req,
     });
 
-    let token, refreshToken, refreshTokenHash;
-
     if (user.phoneVerified && user.emailVerified && user.verified) {
       logger.info(`${email} is fully verified. Logging in...`);
 
@@ -551,37 +484,19 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         metadata: { reason: 'User completed verification of phone and email' },
       });
 
-      refreshToken = generateRefreshToken();
-      refreshTokenHash = await hashRefreshToken(refreshToken);
-      const { expiresAt, idleExpiresAt } = computeSessionTimes();
-
-      const session = await Session.create({
-        userId: user.id,
-        infraId: process.env.APP_ID!,
-        mode: AUTH_MODE,
-        refreshTokenHash,
-        userAgent: req.get('user-agent'),
-        ipAddress: req.ip,
-        expiresAt,
-        idleExpiresAt,
-        lastUsedAt: undefined,
+      await issueSessionAndRespond({
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          roles: user.roles ?? [],
+        },
+        req,
+        res,
+        authMode: AUTH_MODE,
       });
 
-      token = await signAccessToken(session.id, user.id, user.roles);
-    }
-
-    if (token && refreshToken) {
-      try {
-        await user.update({ lastLogin: new Date() });
-      } catch (error) {
-        logger.warn(`An error occured saving user last login - ${error}`);
-      }
-      if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { accessToken: token, refreshToken });
-        return res.status(200).json({ message: 'Success' });
-      }
-
-      return res.status(200).json({ message: 'Success', token, refreshToken });
+      return;
     }
     return res.json({ message: 'Success' });
   } else {

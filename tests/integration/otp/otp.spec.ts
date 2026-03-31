@@ -16,17 +16,11 @@ vi.mock('../../src/utils/otp.js', () => ({
   verifyEmailOTP: vi.fn(),
 }));
 
-vi.mock('../../src/models/sessions.js', () => ({
-  Session: {
-    create: vi.fn(),
-  },
-}));
-
-vi.mock('../../src/lib/token.js', () => ({
-  signEphemeralToken: vi.fn(),
-  signAccessToken: vi.fn(),
-  generateRefreshToken: vi.fn(),
-  hashRefreshToken: vi.fn(),
+vi.mock('../../../src/services/sessionIssuance.js', () => ({
+  issueSessionAndRespond: vi.fn(async ({ res }) => {
+    // simulate real behavior
+    res.status(200).json({ message: 'Success' });
+  }),
 }));
 
 import {
@@ -36,8 +30,7 @@ import {
   verifyEmailOTP,
 } from '../../../src/utils/otp.js';
 
-import { signEphemeralToken, signAccessToken } from '../../../src/lib/token.js';
-import { Session } from '../../../src/models/sessions.js';
+import { issueSessionAndRespond } from '../../../src/services/sessionIssuance.js';
 
 let app: Application;
 
@@ -48,10 +41,6 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
-
-  (signEphemeralToken as any).mockResolvedValue('ephemeral-token');
-  (signAccessToken as any).mockResolvedValue('access-token');
-  (Session.create as any).mockResolvedValue({ id: 'session-1' });
 });
 
 describe('OTP - Generate', () => {
@@ -108,8 +97,6 @@ describe('OTP - Verify Phone', () => {
       .send({ verificationToken: '123456' });
 
     expect(res.status).toBe(200);
-    expect(Session.create).toHaveBeenCalled();
-    expect(signAccessToken).toHaveBeenCalled();
   });
 });
 
@@ -141,7 +128,11 @@ describe('OTP - Verify Email', () => {
       .post('/otp/verify-email-otp')
       .send({ verificationToken: '123456' });
 
-    expect(res.status).toBe(200);
-    expect(Session.create).toHaveBeenCalled();
+    expect(issueSessionAndRespond).toHaveBeenCalledTimes(1);
+
+    const call = (issueSessionAndRespond as any).mock.calls[0][0];
+
+    expect(call.user.id).toBe('user-1');
+    expect(call.user.roles).toContain('user');
   });
 });

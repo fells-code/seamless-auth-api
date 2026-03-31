@@ -53,7 +53,7 @@ function buildResponses(
     };
   }
 
-  if (!(response instanceof Object) || !('200' in response)) {
+  if (!(response instanceof Object)) {
     const schema = response as ZodTypeAny;
 
     return {
