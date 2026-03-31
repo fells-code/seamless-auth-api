@@ -313,6 +313,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
         authMode: AUTH_MODE,
       });
 
+      user.update({
+        lastLogin: new Date(),
+      });
+
       return;
     }
     return res.json({ message: 'Success' });
@@ -392,6 +396,10 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           req,
           res,
           authMode: AUTH_MODE,
+        });
+
+        user.update({
+          lastLogin: new Date(),
         });
 
         return;
@@ -494,6 +502,10 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         req,
         res,
         authMode: AUTH_MODE,
+      });
+
+      user.update({
+        lastLogin: new Date(),
       });
 
       return;

@@ -259,6 +259,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       clearBootstrap: true,
     });
 
+    user.update({
+      lastLogin: new Date(),
+    });
+
     return;
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);
@@ -469,6 +473,10 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         res,
         authMode: AUTH_MODE,
         clearExistingCookies: true,
+      });
+
+      user.update({
+        lastLogin: new Date(),
       });
 
       return;

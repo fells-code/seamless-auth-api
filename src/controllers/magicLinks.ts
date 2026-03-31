@@ -223,7 +223,11 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       clearBootstrap: true,
     });
 
-    return res.json({ message: 'Success' });
+    user.update({
+      lastLogin: new Date(),
+    });
+
+    return;
   }
   return res.status(204).json({ message: 'Success' });
 }
