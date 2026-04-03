@@ -6,6 +6,7 @@ vi.unmock('../../../src/middleware/attachAuthMiddleware');
 
 vi.mock('../../../src/middleware/verifyBearerAuth', () => ({
   verifyBearerAuth: () => vi.fn().mockResolvedValue('Bearer Auth User'),
+  verifyCookieAuth: () => vi.fn().mockResolvedValue('Cookie auth'),
 }));
 
 vi.mock('../../../src/middleware/verifyCookieAuth', () => ({

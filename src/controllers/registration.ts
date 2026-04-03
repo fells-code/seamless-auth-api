@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { setBootstrapCookie } from '../lib/bootstrapCookie.js';
 import { setAuthCookies } from '../lib/cookie.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEvent } from '../models/authEvents.js';
@@ -21,35 +22,18 @@ const logger = getLogger('registration');
 const AUTH_MODE = process.env.AUTH_MODE;
 
 export const register = async (req: Request, res: Response) => {
-  const { email, phone } = req.body;
+  const { email, phone, bootstrapToken } = req.body;
+
+  if (bootstrapToken && bootstrapToken.length > 10) {
+    setBootstrapCookie(res, bootstrapToken);
+
+    logger.info('Bootstrap token stored in cookie for registration flow');
+  }
+
   const systemConfig = await getSystemConfig();
   logger.info(`Registering phone and email account`);
 
   try {
-    // TODO: These checks can go away thanks to the zod refactor
-    if (!email) {
-      logger.error(`Missing email`);
-      AuthEventService.log({
-        userId: null,
-        type: 'registration_suspicious',
-        req,
-        metadata: { reason: 'Missing required email.' },
-      });
-      return res.status(400).json({ message: 'Invalid data.' });
-    }
-
-    // TODO: These checks can go away thanks to the zod refactor
-    if (!phone) {
-      logger.error(`Missing phone`);
-      AuthEventService.log({
-        userId: null,
-        type: 'registration_suspicious',
-        req,
-        metadata: { reason: 'Missing required phone.' },
-      });
-      return res.status(400).json({ message: 'Invalid data.' });
-    }
-
     if (!isValidEmail(email) || !isValidPhoneNumber(phone)) {
       logger.error(`Invalid email or phone provided: ${email} - ${phone}`);
       AuthEventService.log({

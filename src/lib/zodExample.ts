@@ -12,6 +12,7 @@ export function generateExample(schema: any): unknown {
   if (schema instanceof z.ZodNumber) return 0;
   if (schema instanceof z.ZodBoolean) return true;
 
+  if (schema instanceof z.ZodEmail) return 'example@fellscode.com';
   if (schema instanceof z.ZodArray) {
     const elementSchema = schema.def.type;
     return [generateExample(elementSchema)];

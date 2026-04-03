@@ -27,7 +27,6 @@ vi.mock('../../../src/services/authEventService.js', () => ({
   },
 }));
 
-// imports after mocks
 import { User } from '../../../src/models/users.js';
 import { signEphemeralToken } from '../../../src/lib/token.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';

@@ -16,6 +16,8 @@ export type AuthEventType =
   | 'bearer_token_failed'
   | 'bearer_token_success'
   | 'bearer_token_suspicious'
+  | 'bootstrap_admin_granted'
+  | 'bootstrap_admin_check_skipped'
   | 'cookie_token_failed'
   | 'cookie_token_success'
   | 'cookie_token_suspicious'

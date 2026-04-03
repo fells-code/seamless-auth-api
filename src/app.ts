@@ -21,18 +21,7 @@ import getLogger from './utils/logger.js';
 const logger = getLogger('app');
 const app = express();
 
-const isValidUrl = (str: string) => {
-  try {
-    if (str === '*') return true;
-    new URL(str);
-    return true;
-  } catch {
-    throw new Error('Invalid host provied.');
-  }
-};
-
-const rawOrigin = process.env.APP_ORIGIN?.trim();
-const allowedOrigin = rawOrigin && isValidUrl(rawOrigin) ? rawOrigin : '';
+const rawOrigin = process.env.APP_ORIGINS!.split(',');
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
@@ -40,7 +29,7 @@ const corsOptions: CorsOptions = {
       return callback(null, true);
     }
 
-    if (origin === allowedOrigin || origin === 'http://localhost:5174') {
+    if (rawOrigin.includes(origin)) {
       return callback(null, true);
     }
 
