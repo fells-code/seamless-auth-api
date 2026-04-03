@@ -12,6 +12,9 @@ import {
   BootstrapError,
   createAdminBootstrapInvite,
 } from '../services/bootstrapService.js';
+import getLogger from '../utils/logger.js';
+
+const logger = getLogger('bootstrapAdminInvite');
 
 function getBearerToken(req: Request): string | undefined {
   const auth = req.header('authorization');
@@ -25,6 +28,8 @@ function getBearerToken(req: Request): string | undefined {
 
 export async function createAdminBootstrapInviteHandler(req: Request, res: Response) {
   try {
+    logger.info('Creating a bootstrap admin invitation');
+
     const bearerToken = getBearerToken(req);
 
     assertBootstrapSecret(bearerToken);

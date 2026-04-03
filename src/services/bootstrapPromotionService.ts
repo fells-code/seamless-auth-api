@@ -66,6 +66,7 @@ export async function maybePromoteBootstrapAdmin(params: {
   logger.debug('checking for promotion');
 
   async function logSkip(reason: string) {
+    logger.info(`Skipped bootstrap for ${reason}`);
     await AuthEventService.log({
       userId: user.id,
       type: 'bootstrap_admin_check_skipped',
@@ -75,30 +76,18 @@ export async function maybePromoteBootstrapAdmin(params: {
   }
 
   if (!isBootstrapEnabled()) {
-    logger.info('Bootstrap is not enabled');
-    await AuthEventService.log({
-      userId: user.id,
-      type: 'bootstrap_admin_check_skipped',
-      req,
-      metadata: { reason: 'bootstrap disabled', completionMethod },
-    });
+    logSkip('disabled');
     return { promoted: false, reason: 'bootstrap_disabled' };
   }
 
   if (userHasAdminRole(user)) {
-    logger.info('User is already and admin');
-    await AuthEventService.log({
-      userId: user.id,
-      type: 'bootstrap_admin_check_skipped',
-      req,
-      metadata: { reason: 'User was already an admin', completionMethod },
-    });
+    logSkip('bootstrap_admin_check_skipped');
     return { promoted: false, reason: 'already_admin' };
   }
 
   const rawToken = getBootstrapCookie(req);
   if (!rawToken) {
-    logger.info('Missing token');
+    logSkip('Missing token');
     return { promoted: false, reason: 'missing_token' };
   }
 
@@ -167,6 +156,8 @@ export async function maybePromoteBootstrapAdmin(params: {
         email: user.email,
       },
     });
+
+    logger.info('User promoted to admin');
 
     return { promoted: true, reason: 'success' } as PromotionResult;
   });

@@ -15,7 +15,7 @@ const logger = getLogger('verifyBearerAuth');
 export async function verifyBearerAuth(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) {
-    logger.error('Missing beartoken for authentication request');
+    logger.error('Missing bearer token for authentication request');
     return res.status(401).json({ error: 'missing bearer token' });
   }
 

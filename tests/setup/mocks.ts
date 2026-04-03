@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
 
+vi.stubEnv('APP_ORIGINS', 'http://localhost:5137');
+
 export let mockUser: any = {
   id: 'user-1',
   email: 'test@example.com',

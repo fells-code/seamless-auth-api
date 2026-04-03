@@ -14,7 +14,6 @@ import getLogger from '../utils/logger.js';
 import { sendBootstrapEmail } from './messagingService.js';
 
 const logger = getLogger('adminBootstrapService');
-const DEFAULT_BOOTSTRAP_TTL_MINUTES = 15;
 
 export class BootstrapError extends Error {
   code: string;
@@ -25,11 +24,6 @@ export class BootstrapError extends Error {
     this.code = code;
     this.status = status;
   }
-}
-
-function getBootstrapTtlMinutes(): number {
-  const raw = Number(process.env.SEAMLESS_BOOTSTRAP_TTL_MINUTES ?? DEFAULT_BOOTSTRAP_TTL_MINUTES);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_BOOTSTRAP_TTL_MINUTES;
 }
 
 export function isBootstrapEnabled(): boolean {
@@ -50,6 +44,7 @@ export function getBootstrapSecret(): string {
 
 export function assertBootstrapSecret(provided: string | undefined): void {
   if (!provided) {
+    logger.error('Nothing provided for bootstrap secret');
     throw new BootstrapError('BOOTSTRAP_UNAUTHORIZED', 'Unauthorized.', 401);
   }
 
@@ -62,6 +57,7 @@ export function assertBootstrapSecret(provided: string | undefined): void {
     providedBuf.length !== expectedBuf.length ||
     !crypto.timingSafeEqual(providedBuf, expectedBuf)
   ) {
+    logger.error('Incorrect bootstrap secret');
     throw new BootstrapError('BOOTSTRAP_UNAUTHORIZED', 'Unauthorized.', 401);
   }
 }
@@ -120,9 +116,7 @@ export async function createAdminBootstrapInvite(params: {
 
   const rawToken = generateRawToken();
   const tokenHash = hashToken(rawToken);
-
-  const ttlMinutes = getBootstrapTtlMinutes();
-  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
   await BootstrapInvite.create({
     email: params.email.toLowerCase(),

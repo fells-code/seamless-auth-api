@@ -48,7 +48,6 @@ beforeEach(() => {
 
   process.env.SEAMLESS_BOOTSTRAP_ENABLED = 'true';
   process.env.SEAMLESS_BOOTSTRAP_SECRET = 'test-secret';
-  process.env.SEAMLESS_BOOTSTRAP_TTL_MINUTES = '15';
   process.env.NODE_ENV = 'test';
 
   (User.count as any).mockResolvedValue(0);
@@ -148,16 +147,6 @@ it('stores email in lowercase', async () => {
       email: 'test@example.com',
     }),
   );
-});
-
-it('falls back to default TTL when invalid env', async () => {
-  process.env.SEAMLESS_BOOTSTRAP_TTL_MINUTES = 'invalid';
-
-  const result = await createAdminBootstrapInvite({
-    email: 'test@example.com',
-  });
-
-  expect(result.expiresAt).toBeInstanceOf(Date);
 });
 
 it('hashes token consistently', () => {
