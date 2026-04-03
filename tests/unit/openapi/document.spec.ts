@@ -43,7 +43,7 @@ describe('getPackageVersion', () => {
 
     const result = getPackageVersion();
 
-    expect(result).toBe('0.1.7');
+    expect(result).toBe('0.1.8');
   });
 
   it('falls back to default version', async () => {
@@ -55,6 +55,6 @@ describe('getPackageVersion', () => {
 
     const result = getPackageVersion();
 
-    expect(result).toBe('0.1.7');
+    expect(result).toBe('0.1.8');
   });
 });
