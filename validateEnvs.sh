@@ -29,10 +29,4 @@ if ! npx sequelize-cli db:migrate --debug; then
 fi
 
 echo "Starting application"
-if [ "${NODE_ENV:-development}" = "production" ]; then
-  echo "Running in production mode"
-  exec npm run start
-else
-  echo "Running in development mode"
-  exec npm run dev
-fi
+exec npm run start
