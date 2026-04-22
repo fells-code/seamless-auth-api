@@ -24,10 +24,16 @@ const logger = getLogger('magic-links');
 
 const TTL_MINUTES = 15;
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
+const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
+
+function wantsExternalDelivery(req: Request) {
+  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
+}
 
 export async function requestMagicLink(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
+  const useExternalDelivery = wantsExternalDelivery(req);
 
   const user = await User.findOne({ where: { email: preAuthUser.email } });
 
@@ -68,7 +74,9 @@ export async function requestMagicLink(req: Request, res: Response) {
     expires_at: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
   });
 
-  await sendMagicLinkEmail(user.email, rawToken, redirect_url);
+  if (!useExternalDelivery) {
+    await sendMagicLinkEmail(user.email, rawToken, redirect_url);
+  }
 
   await AuthEventService.log({
     userId: user.id,
@@ -78,6 +86,16 @@ export async function requestMagicLink(req: Request, res: Response) {
 
   return res.json({
     message: 'If an account exists, a login link has been sent.',
+    ...(useExternalDelivery
+      ? {
+          delivery: {
+            kind: 'magic_link_email',
+            to: user.email,
+            token: rawToken,
+            magicLinkUrl: redirect_url,
+          },
+        }
+      : {}),
   });
 }
 

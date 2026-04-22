@@ -4,6 +4,8 @@ vi.unmock('../../../src/services/messagingService');
 vi.mock('../../../src/utils/logger', () => ({
   default: () => ({
     debug: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   }),
 }));
 

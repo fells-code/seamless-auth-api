@@ -250,7 +250,7 @@ export const refreshSession = async (req: Request, res: Response) => {
   const serviceSecret = await getSecret('API_SERVICE_TOKEN');
 
   const payload = jwt.verify(refreshToken, serviceSecret, {
-    issuer: process.env.APP_ORIGIN,
+    issuer: process.env.APP_ORIGINS!.split(',')[0],
     audience: process.env.ISSUER,
   }) as jwt.JwtPayload;
 

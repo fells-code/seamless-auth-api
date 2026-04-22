@@ -152,7 +152,7 @@ export async function validateBearerToken(token: string) {
 
   try {
     payload = jwt.verify(token, serviceSecret, {
-      issuer: process.env.APP_ORIGIN,
+      issuer: process.env.APP_ORIGINS!.split(',')[0],
       audience: process.env.ISSUER,
     });
   } catch (err: Error | unknown) {

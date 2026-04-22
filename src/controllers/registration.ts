@@ -20,9 +20,15 @@ import { isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('registration');
 const AUTH_MODE = process.env.AUTH_MODE;
+const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
+
+function wantsExternalDelivery(req: Request) {
+  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
+}
 
 export const register = async (req: Request, res: Response) => {
   const { email, phone, bootstrapToken } = req.body;
+  const useExternalDelivery = wantsExternalDelivery(req);
 
   if (bootstrapToken && bootstrapToken.length > 10) {
     setBootstrapCookie(res, bootstrapToken);
@@ -56,6 +62,7 @@ export const register = async (req: Request, res: Response) => {
     });
 
     let token;
+    let phoneOtp: number | null = null;
 
     if (user) {
       logger.info(`Registration attempt for a user that already exisited`);
@@ -69,7 +76,9 @@ export const register = async (req: Request, res: Response) => {
 
       token = await signEphemeralToken(user.id);
 
-      await generatePhoneOTP(user);
+      phoneOtp = await generatePhoneOTP(user, {
+        sendMessage: !useExternalDelivery,
+      });
     } else {
       logger.info(`Creating new user`);
 
@@ -93,7 +102,9 @@ export const register = async (req: Request, res: Response) => {
       });
 
       logger.info(`Sending phone OTP to ${phone}`);
-      await generatePhoneOTP(user);
+      phoneOtp = await generatePhoneOTP(user, {
+        sendMessage: !useExternalDelivery,
+      });
 
       AuthEventService.log({
         userId: user.id,
@@ -103,13 +114,31 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    const delivery =
+      useExternalDelivery && phoneOtp !== null
+        ? {
+            kind: 'otp_sms',
+            to: user.phone,
+            token: phoneOtp,
+          }
+        : undefined;
+
     if (AUTH_MODE === 'web') {
       await setAuthCookies(res, { ephemeralToken: token });
-      res.status(200).json({ message: 'Success' });
+      res.status(200).json({
+        message: 'Success',
+        ...(delivery ? { delivery } : {}),
+      });
       return;
     }
 
-    return res.status(200).json({ message: 'Success', sub: user.id, token, ttl: '300' });
+    return res.status(200).json({
+      message: 'Success',
+      sub: user.id,
+      token,
+      ttl: '300',
+      ...(delivery ? { delivery } : {}),
+    });
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error during registration for email ${email}: ${error}`);

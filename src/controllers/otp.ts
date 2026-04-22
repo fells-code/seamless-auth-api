@@ -22,11 +22,17 @@ import { isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('otp');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
+const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
+
+function wantsExternalDelivery(req: Request) {
+  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
+}
 
 export const sendPhoneOTP = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
   const phone = user.phone;
+  const useExternalDelivery = wantsExternalDelivery(req);
 
   if (!phone) {
     logger.warn(`Missing phone`);
@@ -65,7 +71,9 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
     }
 
     logger.info(`${phone} requested a phone OTP`);
-    await generatePhoneOTP(user);
+    const generatedToken = await generatePhoneOTP(user, {
+      sendMessage: !useExternalDelivery,
+    });
 
     AuthEventService.log({
       userId: null,
@@ -77,10 +85,33 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
 
     if (AUTH_MODE === 'web') {
       await setAuthCookies(res, { ephemeralToken: token });
-      return res.status(200).json({ message: 'success' });
+      return res.status(200).json({
+        message: 'success',
+        ...(useExternalDelivery
+          ? {
+              delivery: {
+                kind: 'otp_sms',
+                to: phone,
+                token: generatedToken,
+              },
+            }
+          : {}),
+      });
     }
 
-    return res.status(200).json({ message: 'success', token });
+    return res.status(200).json({
+      message: 'success',
+      token,
+      ...(useExternalDelivery
+        ? {
+            delivery: {
+              kind: 'otp_sms',
+              to: phone,
+              token: generatedToken,
+            },
+          }
+        : {}),
+    });
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error sending phone OTP ${error.message}`);
@@ -96,6 +127,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
   const email = user.email;
+  const useExternalDelivery = wantsExternalDelivery(req);
 
   try {
     if (!user) {
@@ -134,7 +166,9 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
     }
 
     logger.info(`${email} requested an email OTP`);
-    await generateEmailOTP(user);
+    const generatedToken = await generateEmailOTP(user, {
+      sendMessage: !useExternalDelivery,
+    });
     AuthEventService.log({
       userId: null,
       type: 'otp_success',
@@ -145,10 +179,33 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
 
     if (AUTH_MODE === 'web') {
       await setAuthCookies(res, { ephemeralToken: token });
-      return res.status(200).json({ message: 'success' });
+      return res.status(200).json({
+        message: 'success',
+        ...(useExternalDelivery
+          ? {
+              delivery: {
+                kind: 'otp_email',
+                to: email,
+                token: generatedToken,
+              },
+            }
+          : {}),
+      });
     }
 
-    return res.status(200).json({ message: 'success', token });
+    return res.status(200).json({
+      message: 'success',
+      token,
+      ...(useExternalDelivery
+        ? {
+            delivery: {
+              kind: 'otp_email',
+              to: email,
+              token: generatedToken,
+            },
+          }
+        : {}),
+    });
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error sending email OTP ${error.message}`);

@@ -92,6 +92,7 @@ export async function createAdminBootstrapInvite(params: {
   email: string;
   createdIp?: string | null;
   createdUserAgent?: string | null;
+  sendMessage?: boolean;
 }) {
   await assertBootstrapAllowed();
 
@@ -138,9 +139,12 @@ export async function createAdminBootstrapInvite(params: {
     logger.info('invite link: ', registrationUrl);
   }
 
-  sendBootstrapEmail(params.email, registrationUrl);
+  if (params.sendMessage !== false) {
+    await sendBootstrapEmail(params.email, registrationUrl);
+  }
 
   return {
+    email: params.email.toLowerCase(),
     registrationUrl,
     token: rawToken,
     expiresAt,

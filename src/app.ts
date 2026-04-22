@@ -95,7 +95,7 @@ export async function createApp() {
         user_agent: req.headers['user-agent'],
         metadata: { reason: 'Request from an unexpected origin' },
       });
-      res.setHeader('Access-Control-Allow-Origin', process.env.APP_ORIGIN!);
+      res.setHeader('Access-Control-Allow-Origin', rawOrigin[0]);
       return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
     }
     return next();
