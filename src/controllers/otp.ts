@@ -18,7 +18,7 @@ import {
   verifyEmailOTP,
   verifyPhoneOTP,
 } from '../utils/otp.js';
-import { isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
+import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('otp');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
@@ -32,6 +32,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
   const phone = user.phone;
+  const normalizedPhone = normalizePhoneNumber(phone);
   const useExternalDelivery = wantsExternalDelivery(req);
 
   if (!phone) {
@@ -48,7 +49,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
   logger.info(`Sending OTP to phone number: ${phone}`);
 
   try {
-    if (!isValidPhoneNumber(phone)) {
+    if (!isValidPhoneNumber(phone) || !normalizedPhone) {
       logger.warn(`Invalid phone provided: ${phone}`);
       AuthEventService.log({
         userId: null,
@@ -91,7 +92,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
           ? {
               delivery: {
                 kind: 'otp_sms',
-                to: phone,
+                to: normalizedPhone,
                 token: generatedToken,
               },
             }
@@ -106,7 +107,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
         ? {
             delivery: {
               kind: 'otp_sms',
-              to: phone,
+              to: normalizedPhone,
               token: generatedToken,
             },
           }

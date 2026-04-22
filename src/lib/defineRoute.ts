@@ -8,6 +8,10 @@ import { NextFunction, RequestHandler, Response, Router } from 'express';
 import { ZodError, ZodTypeAny } from 'zod';
 
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
+import {
+  AuthAwareRequestHandler,
+  getSecuritySchemeName,
+} from '../middleware/attachAuthMiddleware.js';
 import { registry } from '../openapi/registry.js';
 import { CookieType } from '../services/sessionService.js';
 import getLogger from '../utils/logger.js';
@@ -90,11 +94,31 @@ function buildResponses(
   return responses;
 }
 
+function resolveAuthType(
+  auth: CookieType | undefined,
+  middleware: RequestHandler[] | undefined,
+): CookieType | undefined {
+  if (auth) {
+    return auth;
+  }
+
+  for (const handler of middleware ?? []) {
+    const authType = (handler as AuthAwareRequestHandler).seamlessAuthType;
+
+    if (authType) {
+      return authType;
+    }
+  }
+
+  return undefined;
+}
+
 export function defineRoute<S extends RouteSchemas>(
   router: Router,
   options: DefineRouteOptions<S>,
 ): void {
   const { method, path, auth, schemas, summary, description, tags, handler } = options;
+  const authType = resolveAuthType(auth, options.middleware);
 
   const params = schemas?.params;
   const query = schemas?.query;
@@ -109,7 +133,7 @@ export function defineRoute<S extends RouteSchemas>(
     summary,
     description,
     tags,
-    security: auth ? [{ bearerAuth: [] }] : undefined,
+    security: authType ? [{ [getSecuritySchemeName(authType)]: [] }] : undefined,
     request: {
       params,
       query,

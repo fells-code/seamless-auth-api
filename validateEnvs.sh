@@ -15,6 +15,14 @@ warn() {
   echo "Warning: $1"
 }
 
+run_migrations() {
+  if [ "${DB_LOGGING:-false}" = "true" ]; then
+    npx sequelize-cli db:migrate --debug
+  else
+    npx sequelize-cli db:migrate
+  fi
+}
+
 require_var APP_NAME
 require_var APP_ID
 require_var APP_ORIGINS
@@ -56,11 +64,15 @@ if [ "${NODE_ENV:-development}" = "production" ]; then
   require_var "$private_key_var"
 fi
 
-aws_region="${AWS_REGION:-${REGION:-}}"
-sms_provider="$(printf '%s' "${SMS_PROVIDER:-}" | tr '[:upper:]' '[:lower:]')"
+aws_region="${MESSAGING_AWS_REGION:-${AWS_REGION:-${REGION:-}}}"
+email_from="${MESSAGING_EMAIL_FROM:-${SES_EMAIL:-}}"
+sms_provider="$(printf '%s' "${MESSAGING_SMS_PROVIDER:-${SMS_PROVIDER:-}}" | tr '[:upper:]' '[:lower:]')"
+sms_from="${MESSAGING_SMS_FROM:-${TWILIO_PHONE_NUMBER:-}}"
+twilio_account_sid="${MESSAGING_TWILIO_ACCOUNT_SID:-${TWILIO_ACCOUNT_SID:-}}"
+twilio_auth_token="${MESSAGING_TWILIO_AUTH_TOKEN:-${TWILIO_AUTH_TOKEN:-}}"
 
-if [ -n "${SES_EMAIL:-}" ] && [ -z "$aws_region" ]; then
-  echo "Environment variable AWS_REGION or REGION is required when SES_EMAIL is set"
+if [ -n "$email_from" ] && [ -z "$aws_region" ]; then
+  echo "Environment variable MESSAGING_AWS_REGION or AWS_REGION is required when MESSAGING_EMAIL_FROM is set"
   exit 1
 fi
 
@@ -69,22 +81,23 @@ case "$sms_provider" in
     ;;
   aws)
     if [ -z "$aws_region" ]; then
-      echo "Environment variable AWS_REGION or REGION is required when SMS_PROVIDER=aws"
+      echo "Environment variable MESSAGING_AWS_REGION or AWS_REGION is required when MESSAGING_SMS_PROVIDER=aws"
       exit 1
     fi
     ;;
   twilio)
-    require_var TWILIO_ACCOUNT_SID
-    require_var TWILIO_AUTH_TOKEN
-    require_var TWILIO_PHONE_NUMBER
+    if [ -z "$twilio_account_sid" ] || [ -z "$twilio_auth_token" ] || [ -z "$sms_from" ]; then
+      echo "MESSAGING_TWILIO_ACCOUNT_SID, MESSAGING_TWILIO_AUTH_TOKEN, and MESSAGING_SMS_FROM are required when MESSAGING_SMS_PROVIDER=twilio"
+      exit 1
+    fi
     ;;
   *)
-    echo "Unsupported SMS_PROVIDER: $sms_provider"
+    echo "Unsupported MESSAGING_SMS_PROVIDER: $sms_provider"
     exit 1
     ;;
 esac
 
-if [ "${NODE_ENV:-development}" = "production" ] && [ -z "${SES_EMAIL:-}" ] && [ -z "$sms_provider" ]; then
+if [ "${NODE_ENV:-development}" = "production" ] && [ -z "$email_from" ] && [ -z "$sms_provider" ]; then
   warn "Direct email/SMS delivery is not configured. This is fine when using external delivery mode via a SeamlessAuth server adapter."
 fi
 
@@ -94,12 +107,12 @@ echo "JWKS keys ready"
 
 echo "Running migrations..."
 
-if ! npx sequelize-cli db:migrate --debug; then
+if ! run_migrations; then
   echo "Initial migration failed. Attempting database creation..."
 
   if npm run db:create; then
     echo "Database created. Retrying migrations..."
-    npx sequelize-cli db:migrate --debug
+    run_migrations
   else
     echo "Database creation failed"
     exit 1

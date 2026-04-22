@@ -10,7 +10,6 @@ import {
   verifyMagicLink,
 } from '../controllers/magicLinks.js';
 import { createRouter } from '../lib/createRouter.js';
-import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { magicLinkEmailLimiter, magicLinkIpLimiter } from '../middleware/rateLimit.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { MagicLinkVerifyParamsSchema } from '../schemas/magiclink.requests.js';
@@ -21,9 +20,10 @@ const magicLinkRouter = createRouter('/magic-link');
 magicLinkRouter.get(
   '',
   {
+    auth: 'ephemeral',
     summary: 'Request a magic login link',
     tags: ['MagicLinks'],
-    middleware: [attachAuthMiddleware('ephemeral'), magicLinkIpLimiter, magicLinkEmailLimiter],
+    middleware: [magicLinkIpLimiter, magicLinkEmailLimiter],
 
     schemas: {
       response: {
@@ -37,9 +37,9 @@ magicLinkRouter.get(
 magicLinkRouter.get(
   '/check',
   {
+    auth: 'ephemeral',
     summary: 'Poll for magic link confirmation',
     tags: ['MagicLinks'],
-    middleware: [attachAuthMiddleware('ephemeral')],
 
     schemas: {
       response: {

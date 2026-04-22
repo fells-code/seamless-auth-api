@@ -35,10 +35,15 @@ export function generateOpenApiDocument() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
       },
-      cookieAuth: {
+      accessCookieAuth: {
         type: 'apiKey',
         in: 'cookie',
-        name: 'access_token',
+        name: 'seamless_access',
+      },
+      ephemeralCookieAuth: {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'seamless_ephemeral',
       },
     },
   };

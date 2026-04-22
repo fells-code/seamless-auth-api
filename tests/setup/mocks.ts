@@ -71,33 +71,39 @@ vi.mock('../../src/services/sessionService.js', () => ({
   hardRevokeSession: vi.fn(),
 }));
 
-vi.mock('../../src/middleware/attachAuthMiddleware.js', () => ({
-  attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
-    // inject fake authenticated user
-    req.user = {
-      id: 'user-1',
-      email: 'test@example.com',
-      phone: '+14155552671',
-      roles: ['user'],
+vi.mock('../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/middleware/attachAuthMiddleware.js')>();
 
-      // required for verification flows
-      emailVerificationToken: '123456',
-      emailVerificationTokenExpiry: new Date(Date.now() + 100000),
+  return {
+    ...actual,
+    attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
+      // inject fake authenticated user
+      req.user = {
+        id: 'user-1',
+        email: 'test@example.com',
+        phone: '+14155552671',
+        roles: ['user'],
 
-      phoneVerificationToken: '123456',
-      phoneVerificationTokenExpiry: new Date(Date.now() + 100000),
+        // required for verification flows
+        emailVerificationToken: '123456',
+        emailVerificationTokenExpiry: new Date(Date.now() + 100000),
 
-      verified: true,
-      emailVerified: true,
-      phoneVerified: true,
+        phoneVerificationToken: '123456',
+        phoneVerificationTokenExpiry: new Date(Date.now() + 100000),
 
-      update: vi.fn(),
-    };
+        verified: true,
+        emailVerified: true,
+        phoneVerified: true,
 
-    req.sessionId = 'session-1';
-    next();
-  },
-}));
+        update: vi.fn(),
+      };
+
+      req.sessionId = 'session-1';
+      next();
+    },
+  };
+});
 
 vi.mock('../../src/middleware/authenticateServiceToken.js', () => ({
   verifyServiceToken: (_req: any, _res: any, next: any) => {

@@ -6,7 +6,6 @@
 
 import { login, logout, refreshSession } from '../controllers/authentication.js';
 import { createRouter } from '../lib/createRouter.js';
-import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { LoginRequestSchema } from '../schemas/auth.requests.js';
 import { LoginSuccessResponseSchema } from '../schemas/auth.responses.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
@@ -37,9 +36,9 @@ authRouter.post(
 authRouter.get(
   '/logout',
   {
+    auth: 'access',
     summary: 'Logout current user',
     tags: ['Authentication'],
-    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       response: {
@@ -53,9 +52,9 @@ authRouter.get(
 authRouter.post(
   '/refresh',
   {
+    auth: 'access',
     summary: 'Refresh access token',
     tags: ['Authentication'],
-    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       response: {

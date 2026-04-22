@@ -13,7 +13,6 @@ import {
 } from '../controllers/internalMetrics.js';
 import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
-import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { MetricsQuerySchema } from '../schemas/internal.query.js';
 
@@ -22,7 +21,8 @@ const internalRouter = createRouter('/internal');
 internalRouter.get(
   '/auth-events/summary',
   {
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    auth: 'access',
+    middleware: [requireAdmin()],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -34,7 +34,8 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/timeseries',
   {
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    auth: 'access',
+    middleware: [requireAdmin()],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -46,7 +47,8 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/login-stats',
   {
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    auth: 'access',
+    middleware: [requireAdmin()],
     tags: ['Internal'],
   },
   getLoginStats,
@@ -55,7 +57,8 @@ internalRouter.get(
 internalRouter.get(
   '/security/anomalies',
   {
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    auth: 'access',
+    middleware: [requireAdmin()],
     summary: 'Detect suspicious activity',
     tags: ['Internal'],
   },
@@ -65,7 +68,8 @@ internalRouter.get(
 internalRouter.get(
   '/metrics/dashboard',
   {
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    auth: 'access',
+    middleware: [requireAdmin()],
     summary: 'Dashboard metrics',
     tags: ['Internal'],
   },
@@ -75,7 +79,8 @@ internalRouter.get(
 internalRouter.get(
   '/auth-events/grouped',
   {
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    auth: 'access',
+    middleware: [requireAdmin()],
     summary: 'Auth Event metrics grouped',
     tags: ['Internal'],
   },

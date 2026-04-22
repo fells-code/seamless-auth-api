@@ -5,7 +5,6 @@
  */
 
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { setBootstrapCookie } from '../lib/bootstrapCookie.js';
@@ -16,7 +15,7 @@ import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
 import getLogger from '../utils/logger.js';
 import { generatePhoneOTP } from '../utils/otp.js';
-import { isValidEmail, isValidPhoneNumber } from '../utils/utils.js';
+import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('registration');
 const AUTH_MODE = process.env.AUTH_MODE;
@@ -29,6 +28,8 @@ function wantsExternalDelivery(req: Request) {
 export const register = async (req: Request, res: Response) => {
   const { email, phone, bootstrapToken } = req.body;
   const useExternalDelivery = wantsExternalDelivery(req);
+  const normalizedEmail = email?.toLowerCase();
+  const normalizedPhone = typeof phone === 'string' ? normalizePhoneNumber(phone) : null;
 
   if (bootstrapToken && bootstrapToken.length > 10) {
     setBootstrapCookie(res, bootstrapToken);
@@ -40,9 +41,9 @@ export const register = async (req: Request, res: Response) => {
   logger.info(`Registering phone and email account`);
 
   try {
-    if (!isValidEmail(email) || !isValidPhoneNumber(phone)) {
+    if (!isValidEmail(email) || !isValidPhoneNumber(phone) || !normalizedPhone) {
       logger.error(`Invalid email or phone provided: ${email} - ${phone}`);
-      AuthEventService.log({
+      await AuthEventService.log({
         userId: null,
         type: 'registration_suspicious',
         req,
@@ -52,14 +53,39 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid data.' });
     }
 
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 5);
+    const [existingEmailUser, existingPhoneUser] = await Promise.all([
+      User.findOne({ where: { email: normalizedEmail } }),
+      User.findOne({ where: { phone: normalizedPhone } }),
+    ]);
 
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [{ email: email.toLowerCase() }, { phone: phone }],
-      },
-    });
+    const hasExactExistingUser =
+      existingEmailUser && existingPhoneUser && existingEmailUser.id === existingPhoneUser.id;
+    const hasIdentifierConflict =
+      (existingEmailUser && !existingPhoneUser) ||
+      (!existingEmailUser && existingPhoneUser) ||
+      (existingEmailUser && existingPhoneUser && existingEmailUser.id !== existingPhoneUser.id);
+
+    if (hasIdentifierConflict) {
+      logger.warn(`Registration conflict for email ${normalizedEmail} and phone ${phone}`);
+      await AuthEventService.log({
+        userId: existingEmailUser?.id ?? existingPhoneUser?.id ?? null,
+        type: 'registration_suspicious',
+        req,
+        metadata: {
+          reason: 'Registration attempted with mismatched existing identifiers.',
+          emailInUse: Boolean(existingEmailUser),
+          phoneInUse: Boolean(existingPhoneUser),
+        },
+      });
+
+      return res.status(409).json({
+        error: 'Registration conflict',
+        message:
+          'The provided email and phone do not belong to the same account. Try signing in with your existing account details or use a different email and phone.',
+      });
+    }
+
+    let user = hasExactExistingUser ? existingEmailUser : null;
 
     let token;
     let phoneOtp: number | null = null;
@@ -67,7 +93,7 @@ export const register = async (req: Request, res: Response) => {
     if (user) {
       logger.info(`Registration attempt for a user that already exisited`);
       logger.info(`Sending OTP`);
-      AuthEventService.log({
+      await AuthEventService.log({
         userId: user.id,
         type: 'informational',
         req,
@@ -83,12 +109,12 @@ export const register = async (req: Request, res: Response) => {
       logger.info(`Creating new user`);
 
       user = await User.create({
-        email: email.toLowerCase(),
-        phone,
+        email: normalizedEmail,
+        phone: normalizedPhone,
         roles: systemConfig.default_roles,
       });
 
-      AuthEventService.log({
+      await AuthEventService.log({
         userId: user.id,
         type: 'user_created',
         req,
@@ -97,16 +123,16 @@ export const register = async (req: Request, res: Response) => {
 
       token = await signEphemeralToken(user.id);
 
-      AuthEventService.notificationSent(user.id, req, {
+      await AuthEventService.notificationSent(user.id, req, {
         reason: 'Owner notified of new user registration',
       });
 
-      logger.info(`Sending phone OTP to ${phone}`);
+      logger.info(`Sending phone OTP to ${normalizedPhone}`);
       phoneOtp = await generatePhoneOTP(user, {
         sendMessage: !useExternalDelivery,
       });
 
-      AuthEventService.log({
+      await AuthEventService.log({
         userId: user.id,
         type: 'registration_success',
         req,
@@ -118,7 +144,7 @@ export const register = async (req: Request, res: Response) => {
       useExternalDelivery && phoneOtp !== null
         ? {
             kind: 'otp_sms',
-            to: user.phone,
+            to: normalizePhoneNumber(user.phone) ?? user.phone,
             token: phoneOtp,
           }
         : undefined;

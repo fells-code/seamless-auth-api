@@ -30,6 +30,7 @@ import {
   computeSessionTimes,
   isValidEmail,
   isValidPhoneNumber,
+  normalizePhoneNumber,
   parseDurationToSeconds,
 } from '../utils/utils.js';
 
@@ -40,6 +41,10 @@ export const login = async (req: Request, res: Response) => {
   // For the initial login step, user either passes in an email or a phone number
   const { identifier, passkeyAvailable } = req.body;
   let user, identifierType;
+  const normalizedIdentifier =
+    typeof identifier === 'string' && isValidPhoneNumber(identifier)
+      ? normalizePhoneNumber(identifier)
+      : null;
 
   if (!identifier) {
     logger.warn('No pre authenticated identifier found');
@@ -73,10 +78,10 @@ export const login = async (req: Request, res: Response) => {
         });
         return res.status(401).json({ message: 'Not allowed' });
       }
-    } else if (isValidPhoneNumber(identifier)) {
+    } else if (isValidPhoneNumber(identifier) && normalizedIdentifier) {
       try {
         user = await User.findOne({
-          where: { phone: identifier },
+          where: { phone: normalizedIdentifier },
         });
         identifierType = 'phone';
       } catch {
