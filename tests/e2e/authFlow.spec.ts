@@ -26,7 +26,10 @@ import {
 
 import { generatePhoneOTP, verifyPhoneOTP } from '../../src/utils/otp.js';
 
-import { findRefreshSessionByToken, validateAccessToken } from '../../src/services/sessionService.js';
+import {
+  findRefreshSessionByToken,
+  validateAccessToken,
+} from '../../src/services/sessionService.js';
 
 import { getSystemConfig } from '../../src/config/getSystemConfig.js';
 
