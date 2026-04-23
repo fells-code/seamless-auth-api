@@ -273,14 +273,29 @@ export const refreshSession = async (req: Request, res: Response) => {
   }
 
   if (!session) {
-    logger.warn('No refresh session found for refresh token');
+    const looksLikeJwt = refreshToken.split('.').length === 3;
+
+    logger.warn(
+      `No refresh session found for refresh token. candidateSessions=${candidateSessions.length} tokenFormat=${
+        looksLikeJwt ? 'jwt_like' : 'opaque'
+      }`,
+    );
+
+    if (looksLikeJwt) {
+      logger.warn(
+        'Refresh endpoint received a JWT-shaped bearer token. Server-mode /refresh expects the raw opaque refresh token, not the access token.',
+      );
+    }
+
     await AuthEventService.serviceTokenInvalid(req);
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
 
   // Reuse detection: if this session was already rotated, it means we’ve seen this token before
   if (session.replacedBySessionId || session.revokedAt) {
-    logger.warn('Token reuse detected');
+    logger.warn(
+      `Token reuse detected for session ${session.id}. replacedBySessionId=${session.replacedBySessionId ?? 'none'} revokedAt=${session.revokedAt ? session.revokedAt.toISOString() : 'null'}. This usually means an already-rotated refresh token was sent again.`,
+    );
     // Reuse -> revoke session chain
     await revokeSessionChain(session);
     // Log security event
@@ -318,6 +333,9 @@ export const refreshSession = async (req: Request, res: Response) => {
   const token = await signAccessToken(newSession.id, user.id, user.roles);
 
   if (token && newRefreshToken) {
+    logger.info(
+      `Refresh token rotated for user ${user.id}. oldSessionId=${session.id} newSessionId=${newSession.id}`,
+    );
     await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
 
     if (AUTH_MODE === 'web') {
@@ -332,6 +350,9 @@ export const refreshSession = async (req: Request, res: Response) => {
       token,
       refreshToken: newRefreshToken,
       sub: user.id,
+      roles: user.roles,
+      email: user.email,
+      phone: user.phone,
       ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
     });

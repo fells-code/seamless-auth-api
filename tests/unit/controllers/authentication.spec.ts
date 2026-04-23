@@ -140,6 +140,9 @@ describe('refreshSession', () => {
       token: 'new-access-token',
       refreshToken: 'new-raw-refresh-token',
       sub: user.id,
+      roles: user.roles,
+      email: user.email,
+      phone: user.phone,
       ttl: 900,
       refreshTtl: 3600,
     });
