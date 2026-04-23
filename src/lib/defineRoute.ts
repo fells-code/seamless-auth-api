@@ -210,12 +210,12 @@ export function defineRoute<S extends RouteSchemas>(
 
   const middlewareStack: RequestHandler[] = [];
 
-  if (options.middleware) {
-    middlewareStack.push(...options.middleware);
-  }
-
   if (auth) {
     middlewareStack.push(attachAuthMiddleware(auth));
+  }
+
+  if (options.middleware) {
+    middlewareStack.push(...options.middleware);
   }
 
   middlewareStack.push(validate);

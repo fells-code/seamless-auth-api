@@ -88,6 +88,9 @@ describe('verifyCookieAuth security - ephemeral', () => {
 
     await middleware(req, res, next);
 
+    expect(clearAuthCookies).toHaveBeenCalledWith(res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
     expect(next).not.toHaveBeenCalled();
   });
 });

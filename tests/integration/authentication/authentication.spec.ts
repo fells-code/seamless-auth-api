@@ -14,7 +14,6 @@ import {
   signEphemeralToken,
 } from '../../../src/lib/token';
 import { compareSync } from 'bcrypt-ts';
-import { getSecret } from '../../../src/utils/secretsStore';
 
 let app: Application;
 
@@ -33,6 +32,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
 });
 
 beforeAll(async () => {
+  vi.stubEnv('AUTH_MODE', 'server');
   app = await createApp();
 });
 
@@ -119,30 +119,14 @@ describe('POST /refresh', () => {
   });
 
   it('rejects invalid session', async () => {
-    const jwt = await import('jsonwebtoken');
-
-    (jwt.default.verify as any).mockReturnValue({
-      refreshToken: 'token',
-    });
-
-    (getSecret as any).mockResolvedValue('secret');
-
     (Session.findAll as any).mockResolvedValue([]);
 
-    const res = await request(app).post('/refresh').set('Authorization', 'Bearer token');
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(401);
   });
 
   it('refreshes session successfully', async () => {
-    const jwt = await import('jsonwebtoken');
-
-    (jwt.default.verify as any).mockReturnValue({
-      refreshToken: 'token',
-    });
-
-    (getSecret as any).mockResolvedValue('secret');
-
     const session = {
       id: 'session-1',
       refreshTokenHash: 'hash',
@@ -172,8 +156,10 @@ describe('POST /refresh', () => {
       refresh_token_ttl: '1h',
     });
 
-    const res = await request(app).post('/refresh').set('Authorization', 'Bearer token');
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(200);
+    expect(signAccessToken).toHaveBeenCalledWith('new-session', expect.any(String), expect.any(Array));
+    expect(res.body.refreshToken).toBe('refresh');
   });
 });

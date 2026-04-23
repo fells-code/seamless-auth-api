@@ -6,7 +6,6 @@
 
 import { compareSync } from 'bcrypt-ts';
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -25,7 +24,6 @@ import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession, revokeSessionChain } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
-import { getSecret } from '../utils/secretsStore.js';
 import {
   computeSessionTimes,
   isValidEmail,
@@ -230,34 +228,29 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 export const refreshSession = async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
-  const authUser = authReq.user;
   logger.info(`Refreshing user token`);
 
   let refreshToken: string | null = null;
 
-  if (req.headers.authorization?.startsWith('Bearer ')) {
+  if (AUTH_MODE === 'server' && req.headers.authorization?.startsWith('Bearer ')) {
     refreshToken = req.headers.authorization.slice('Bearer '.length);
+  }
+
+  if (!refreshToken && AUTH_MODE === 'web') {
+    refreshToken = req.cookies?.seamless_refresh ?? null;
   }
 
   if (!refreshToken) {
     logger.error('Refresh token provided is not of expected type for auth server configurations');
     await AuthEventService.log({
-      userId: authUser.id,
-      type: 'bearer_token_suspicious',
+      userId: null,
+      type: 'refresh_token_failed',
       req,
-      metadata: { reason: 'Missing all required headers and tokens needed to perform a refresh' },
+      metadata: { reason: 'Missing refresh token' },
     });
     res.status(401).json({ error: 'Not allowed' });
     return;
   }
-
-  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
-
-  const payload = jwt.verify(refreshToken, serviceSecret, {
-    issuer: process.env.APP_ORIGINS!.split(',')[0],
-    audience: process.env.ISSUER,
-  }) as jwt.JwtPayload;
 
   const now = new Date();
 
@@ -272,7 +265,7 @@ export const refreshSession = async (req: Request, res: Response) => {
 
   let session: Session | null = null;
   for (const s of candidateSessions) {
-    const match = await compareSync(payload.refreshToken, s.refreshTokenHash);
+    const match = compareSync(refreshToken, s.refreshTokenHash);
     if (match) {
       session = s;
       break;
@@ -322,9 +315,9 @@ export const refreshSession = async (req: Request, res: Response) => {
   session.replacedBySessionId = newSession.id;
   await session.save();
 
-  const token = await signAccessToken(session.id, user.id, user.roles);
+  const token = await signAccessToken(newSession.id, user.id, user.roles);
 
-  if (token && newRefreshTokenHash) {
+  if (token && newRefreshToken) {
     await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
 
     if (AUTH_MODE === 'web') {
@@ -337,10 +330,12 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: 'Success',
       token,
-      refreshToken: newRefreshTokenHash,
+      refreshToken: newRefreshToken,
       sub: user.id,
       ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
     });
   }
+
+  return res.status(500).json({ error: 'Failed to refresh session' });
 };

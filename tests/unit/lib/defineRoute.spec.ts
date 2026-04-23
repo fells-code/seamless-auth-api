@@ -107,4 +107,71 @@ describe('defineRoute', () => {
       }),
     );
   });
+
+  it('runs auth middleware before custom middleware when auth is declared on the route', async () => {
+    const order: string[] = [];
+    const { defineRoute } = await import('../../../src/lib/defineRoute');
+    const { attachAuthMiddleware } = await import('../../../src/middleware/attachAuthMiddleware.js');
+
+    (attachAuthMiddleware as any).mockImplementation((cookieType: 'access' | 'ephemeral') =>
+      Object.assign(
+        (_req: any, _res: any, next: () => void) => {
+          order.push(`auth:${cookieType}`);
+          next();
+        },
+        { seamlessAuthType: cookieType },
+      ),
+    );
+
+    const router = Router();
+
+    defineRoute(router, {
+      method: 'get',
+      path: '/ordered',
+      auth: 'access',
+      middleware: [
+        (_req: any, _res: any, next: () => void) => {
+          order.push('custom');
+          next();
+        },
+      ],
+      schemas: {
+        response: {
+          200: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+      handler: (_req, res) => {
+        order.push('handler');
+        res.status(200).json({ message: 'ok' });
+      },
+    });
+
+    const layer = (router as any).stack.find((entry: any) => entry.route?.path === '/ordered');
+    const handlers = layer.route.stack.map((entry: any) => entry.handle);
+    const req = { params: {}, query: {}, body: {} };
+    const res = {
+      statusCode: 200,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json: vi.fn(),
+    };
+
+    const run = async (index: number): Promise<void> => {
+      const handler = handlers[index];
+
+      if (!handler) {
+        return;
+      }
+
+      await handler(req, res, () => run(index + 1));
+    };
+
+    await run(0);
+
+    expect(order).toEqual(['auth:access', 'custom', 'handler']);
+  });
 });

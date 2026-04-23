@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { verifyCookieAuth } from '../../../src/middleware/verifyCookieAuth.js';
+import { clearAuthCookies } from '../../../src/lib/cookie.js';
 
 import {
   validateAccessToken,
@@ -72,6 +73,23 @@ describe('verifyCookieAuth - ephemeral', () => {
 
     expect(req.user).toBeDefined();
     expect(next).toHaveBeenCalled();
+  });
+
+  it('rejects invalid ephemeral token with 401', async () => {
+    (verifyJwtWithKid as any).mockResolvedValue(null);
+
+    const middleware = verifyCookieAuth('ephemeral');
+
+    const { req, res, next } = mockReqRes({
+      seamless_ephemeral: 'bad-token',
+    });
+
+    await middleware(req, res, next);
+
+    expect(clearAuthCookies).toHaveBeenCalledWith(res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+    expect(next).not.toHaveBeenCalled();
   });
 });
 

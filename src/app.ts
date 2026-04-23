@@ -115,13 +115,17 @@ export async function createApp() {
 
   app.use((req: Request, res: Response) => {
     logger.warn(
-      `[${req.ip}] didn't make it anywhere. Path: ${req.path}. Tracking of suspicous behavior`,
+      `[${req.ip}] ${req.method} ${req.originalUrl} did not match any route. Tracking suspicious behavior`,
     );
     AuthEvent.create({
       type: 'request_suspicous',
       ip_address: req.ip,
       user_agent: req.headers['user-agent'],
-      metadata: { reason: 'Request to an unknown route.' },
+      metadata: {
+        reason: 'Request to an unknown route.',
+        method: req.method,
+        path: req.originalUrl,
+      },
     });
     return res.status(404).json({ error: 'Not Found' });
   });

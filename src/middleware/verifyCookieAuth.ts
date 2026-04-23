@@ -42,7 +42,10 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
         }
 
         const payload = await verifyJwtWithKid(ephemeralCookie, cookieType);
-        if (!payload) return null;
+        if (!payload) {
+          clearAuthCookies(res);
+          return res.status(401).json({ error: 'unauthorized' });
+        }
 
         const user = await User.findOne({
           where: { id: payload.sub, revoked: false },

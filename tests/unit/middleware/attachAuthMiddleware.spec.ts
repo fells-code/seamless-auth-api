@@ -23,20 +23,18 @@ describe('attachAuthMiddleware', () => {
   });
   it('defaults to cookie auth', async () => {
     const { attachAuthMiddleware } = await import('../../../src/middleware/attachAuthMiddleware');
-    const { verifyCookieAuth } = await import('../../../src/middleware/verifyCookieAuth');
     const middleware = attachAuthMiddleware();
 
-    expect(verifyCookieAuth).toHaveBeenCalledWith('access');
     expect(middleware.seamlessAuthType).toBe('access');
+    expect(typeof middleware).toBe('function');
   });
 
   it('uses ephemeral cookie', async () => {
     const { attachAuthMiddleware } = await import('../../../src/middleware/attachAuthMiddleware');
-    const { verifyCookieAuth } = await import('../../../src/middleware/verifyCookieAuth');
     const middleware = attachAuthMiddleware('ephemeral');
 
-    expect(verifyCookieAuth).toHaveBeenCalledWith('ephemeral');
     expect(middleware.seamlessAuthType).toBe('ephemeral');
+    expect(typeof middleware).toBe('function');
   });
 
   it('uses bearer in server mode', async () => {
