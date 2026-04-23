@@ -86,6 +86,26 @@ describe('refreshSession', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
+  it('rejects refresh tokens that do not resolve to a session', async () => {
+    const { refreshSession, AuthEventService, findRefreshSessionByToken } =
+      await loadAuthenticationModule();
+    const { req, res } = mockReqRes('Bearer raw-refresh-token');
+
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: null,
+      legacyFallbackCandidates: 2,
+      usedLegacyFallback: true,
+    });
+    (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
+
+    await refreshSession(req, res);
+
+    expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token', expect.any(Date));
+    expect(AuthEventService.serviceTokenInvalid).toHaveBeenCalledWith(req);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });
+  });
+
   it('rotates the session using the raw bearer refresh token in server mode', async () => {
     const {
       refreshSession,

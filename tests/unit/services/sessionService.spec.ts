@@ -96,17 +96,19 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
-  it.skip('returns parsed access token', async () => {
-    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+  it('returns parsed access token', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
 
-    vi.spyOn(
-      await import('../../../src/services/sessionService'),
-      'verifyJwtWithKid',
-    ).mockResolvedValue({
-      sub: 'user',
-      sid: 'session',
-      roles: ['admin'],
-    } as any);
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: {
+        typ: 'access',
+        sub: 'user',
+        sid: 'session',
+        roles: ['admin'],
+      },
+    });
 
     const { validateAccessToken } = await import('../../../src/services/sessionService');
 
@@ -120,11 +122,16 @@ describe('sessionService', () => {
   });
 
   it('returns null if payload invalid', async () => {
-    const mod = await import('../../../src/services/sessionService');
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { validateAccessToken } = await import('../../../src/services/sessionService');
 
-    vi.spyOn(mod, 'verifyJwtWithKid').mockResolvedValue(null);
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'access', sub: 'user' },
+    });
 
-    const result = await mod.validateAccessToken('token');
+    const result = await validateAccessToken('token');
 
     expect(result).toBeNull();
   });
@@ -223,6 +230,40 @@ describe('sessionService', () => {
       legacyFallbackCandidates: 1,
       usedLegacyFallback: true,
     });
+  });
+
+  it('returns a legacy fallback miss when no legacy session hash matches', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+    const { compareSync } = await import('bcrypt-ts');
+
+    (createRefreshTokenLookup as any).mockReturnValue('lookup');
+    (Session.findOne as any).mockResolvedValue(null);
+    (Session.findAll as any).mockResolvedValue([buildSession({ refreshTokenHash: 'legacy-hash' })]);
+    (compareSync as any).mockReturnValue(false);
+
+    const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
+
+    const result = await findRefreshSessionByToken('refresh-token');
+
+    expect(result).toEqual({
+      session: null,
+      legacyFallbackCandidates: 1,
+      usedLegacyFallback: true,
+    });
+  });
+
+  it('revokes replaced sessions during validateSessionRecord', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const mod = await import('../../../src/services/sessionService');
+
+    const session = buildSession({ replacedBySessionId: 'next-session' });
+    (Session.findByPk as any).mockResolvedValue(session);
+
+    const result = await mod.validateSessionRecord('id');
+
+    expect(session.save).toHaveBeenCalled();
+    expect(result).toBeNull();
   });
 
   it('revokes chain', async () => {

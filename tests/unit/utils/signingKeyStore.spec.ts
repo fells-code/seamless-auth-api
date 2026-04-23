@@ -1,39 +1,50 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-function setupMocks() {
-  vi.mock('fs', async () => {
-    const actual = await vi.importActual<typeof import('fs')>('fs');
-    return {
-      ...actual,
-      existsSync: vi.fn(),
-      readFileSync: vi.fn(),
-      mkdirSync: vi.fn(),
-      writeFileSync: vi.fn(),
-    };
-  });
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn(),
+  },
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  writeFileSync: vi.fn(),
+}));
 
-  vi.mock('crypto', async () => {
-    const actual = await vi.importActual<typeof import('crypto')>('crypto');
-    return {
+vi.mock('crypto', async () => {
+  const actual = await vi.importActual<typeof import('crypto')>('crypto');
+  return {
+    ...actual,
+    default: {
       ...actual,
       generateKeyPairSync: vi.fn(),
-    };
-  });
+    },
+    generateKeyPairSync: vi.fn(),
+  };
+});
 
-  vi.mock('../../../src/utils/secretsStore', () => ({
-    getSecret: vi.fn(),
-  }));
-}
+vi.mock('../../../src/utils/secretsStore.js', () => ({
+  getSecret: vi.fn(),
+}));
+
+vi.mock('../../../src/utils/logger.js', () => ({
+  default: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  })),
+}));
 
 describe('signingKeyStore', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    setupMocks();
   });
 
-  //TODO: Come back and figure out these tests
-  describe.skip('DEV mode', () => {
+  describe('DEV mode', () => {
     it('generates dev key if none exists', async () => {
       process.env.NODE_ENV = 'development';
 
@@ -41,16 +52,22 @@ describe('signingKeyStore', () => {
       const crypto = await import('crypto');
 
       (fs.existsSync as any).mockReturnValue(false);
-
+      (fs.default.existsSync as any).mockReturnValue(false);
       (crypto.generateKeyPairSync as any).mockReturnValue({
         privateKey: 'PRIVATE_KEY',
         publicKey: 'PUBLIC_KEY',
       });
+      (crypto.default.generateKeyPairSync as any).mockReturnValue({
+        privateKey: 'PRIVATE_KEY',
+        publicKey: 'PUBLIC_KEY',
+      });
 
-      const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getSigningKey();
 
+      expect(fs.default.mkdirSync).toHaveBeenCalled();
+      expect(fs.default.writeFileSync).toHaveBeenCalledTimes(2);
       expect(result.privateKeyPem).toBe('PRIVATE_KEY');
     });
 
@@ -59,10 +76,16 @@ describe('signingKeyStore', () => {
 
       const fs = await import('fs');
 
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any)
+        .mockReturnValueOnce(true)
+        .mockReturnValueOnce(true);
+      (fs.default.existsSync as any)
+        .mockReturnValueOnce(true)
+        .mockReturnValueOnce(true);
       (fs.readFileSync as any).mockReturnValue('EXISTING_KEY');
+      (fs.default.readFileSync as any).mockReturnValue('EXISTING_KEY');
 
-      const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getSigningKey();
 
@@ -75,9 +98,11 @@ describe('signingKeyStore', () => {
       const fs = await import('fs');
 
       (fs.existsSync as any).mockReturnValue(true);
+      (fs.default.existsSync as any).mockReturnValue(true);
       (fs.readFileSync as any).mockReturnValue('PUBLIC_KEY');
+      (fs.default.readFileSync as any).mockReturnValue('PUBLIC_KEY');
 
-      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getPublicKeyByKid('dev-main');
 
@@ -89,8 +114,9 @@ describe('signingKeyStore', () => {
 
       const fs = await import('fs');
       (fs.existsSync as any).mockReturnValue(false);
+      (fs.default.existsSync as any).mockReturnValue(false);
 
-      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
       const result = await getPublicKeyByKid('dev-main');
 
       expect(result).toBeNull();
@@ -101,13 +127,13 @@ describe('signingKeyStore', () => {
     it('loads signing key from secrets', async () => {
       process.env.NODE_ENV = 'production';
 
-      const { getSecret } = await import('../../../src/utils/secretsStore');
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
 
       (getSecret as any)
-        .mockResolvedValueOnce('kid-1') // ACTIVE_KID
-        .mockResolvedValueOnce('PRIVATE_KEY'); // private key
+        .mockResolvedValueOnce('kid-1')
+        .mockResolvedValueOnce('PRIVATE_KEY');
 
-      const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getSigningKey();
 
@@ -118,22 +144,22 @@ describe('signingKeyStore', () => {
     it('caches signing key', async () => {
       process.env.NODE_ENV = 'production';
 
-      const { getSecret } = await import('../../../src/utils/secretsStore');
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
 
       (getSecret as any).mockResolvedValueOnce('kid-1').mockResolvedValueOnce('PRIVATE_KEY');
 
-      const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
       await getSigningKey();
       await getSigningKey();
 
-      expect(getSecret).toHaveBeenCalledTimes(2); // only first load
+      expect(getSecret).toHaveBeenCalledTimes(2);
     });
 
     it('loads public keys and retrieves by kid', async () => {
       process.env.NODE_ENV = 'production';
 
-      const { getSecret } = await import('../../../src/utils/secretsStore');
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
 
       (getSecret as any).mockResolvedValue(
         JSON.stringify({
@@ -141,7 +167,7 @@ describe('signingKeyStore', () => {
         }),
       );
 
-      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getPublicKeyByKid('k1');
 
@@ -151,11 +177,11 @@ describe('signingKeyStore', () => {
     it('returns null if public key not found', async () => {
       process.env.NODE_ENV = 'production';
 
-      const { getSecret } = await import('../../../src/utils/secretsStore');
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
 
       (getSecret as any).mockResolvedValue(JSON.stringify({ keys: [] }));
 
-      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getPublicKeyByKid('missing');
 

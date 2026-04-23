@@ -1,12 +1,18 @@
 import { vi } from 'vitest';
 vi.unmock('../../../src/services/authEventService');
-vi.unmock('../../../src/models/authEvents');
-vi.unmock('../../../src/utils/logger');
-
-vi.mock('../../../src/models/authEvents', () => ({
+vi.mock('../../../src/models/authEvents.js', () => ({
   AuthEvent: {
     create: vi.fn(),
   },
+}));
+
+vi.mock('../../../src/utils/logger.js', () => ({
+  default: vi.fn(() => ({
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  })),
 }));
 
 function buildReq(overrides: any = {}) {
@@ -28,8 +34,8 @@ describe('AuthEventService', () => {
   });
 
   it('logs event successfully', async () => {
-    const { AuthEvent } = await import('../../../src/models/authEvents');
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const req = buildReq();
 
@@ -49,8 +55,8 @@ describe('AuthEventService', () => {
   });
 
   it('handles missing ip and user-agent', async () => {
-    const { AuthEvent } = await import('../../../src/models/authEvents');
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const req = { headers: {} } as any;
 
@@ -67,11 +73,11 @@ describe('AuthEventService', () => {
     );
   });
 
-  it.skip('swallows errors and logs failure', async () => {
-    const { AuthEvent } = await import('../../../src/models/authEvents');
-    const getLogger = (await import('../../../src/utils/logger')).default('test');
+  it('swallows errors and logs failure', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const getLogger = (await import('../../../src/utils/logger.js')).default;
 
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     (AuthEvent.create as any).mockRejectedValue(new Error('fail'));
 
@@ -82,11 +88,12 @@ describe('AuthEventService', () => {
       req,
     });
 
-    expect(getLogger.error).toHaveBeenCalled();
+    expect(getLogger).toHaveBeenCalledWith('authEventService');
+    expect(getLogger.mock.results[0]?.value.error).toHaveBeenCalled();
   });
 
   it('loginSuccess calls log', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
@@ -102,7 +109,7 @@ describe('AuthEventService', () => {
   });
 
   it('loginFailed includes reason', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
@@ -119,7 +126,7 @@ describe('AuthEventService', () => {
   });
 
   it('tokenRotated calls log', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
@@ -136,7 +143,7 @@ describe('AuthEventService', () => {
   });
 
   it('authActionTake calls log', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
@@ -153,7 +160,7 @@ describe('AuthEventService', () => {
   });
 
   it('notificationSent calls log', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
@@ -165,7 +172,7 @@ describe('AuthEventService', () => {
   });
 
   it('serviceTokenUsed logs correct metadata', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
@@ -181,7 +188,7 @@ describe('AuthEventService', () => {
   });
 
   it('serviceTokenInvalid logs failure', async () => {
-    const { AuthEventService } = await import('../../../src/services/authEventService');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
     const spy = vi.spyOn(AuthEventService, 'log');
 
