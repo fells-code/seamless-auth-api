@@ -29,17 +29,25 @@ function mockReqRes(authorization?: string) {
 async function loadAuthenticationModule() {
   vi.stubEnv('AUTH_MODE', 'server');
 
-  const [{ refreshSession }, { getSystemConfig }, { Session }, { User }, { AuthEventService }, tokenLib, bcryptLib, cookieLib] =
-    await Promise.all([
-      import('../../../src/controllers/authentication.js'),
-      import('../../../src/config/getSystemConfig.js'),
-      import('../../../src/models/sessions.js'),
-      import('../../../src/models/users.js'),
-      import('../../../src/services/authEventService.js'),
-      import('../../../src/lib/token.js'),
-      import('bcrypt-ts'),
-      import('../../../src/lib/cookie.js'),
-    ]);
+  const [
+    { refreshSession },
+    { getSystemConfig },
+    { Session },
+    { User },
+    { AuthEventService },
+    tokenLib,
+    bcryptLib,
+    cookieLib,
+  ] = await Promise.all([
+    import('../../../src/controllers/authentication.js'),
+    import('../../../src/config/getSystemConfig.js'),
+    import('../../../src/models/sessions.js'),
+    import('../../../src/models/users.js'),
+    import('../../../src/services/authEventService.js'),
+    import('../../../src/lib/token.js'),
+    import('bcrypt-ts'),
+    import('../../../src/lib/cookie.js'),
+  ]);
 
   return {
     refreshSession,

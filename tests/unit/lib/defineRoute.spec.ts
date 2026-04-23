@@ -111,7 +111,8 @@ describe('defineRoute', () => {
   it('runs auth middleware before custom middleware when auth is declared on the route', async () => {
     const order: string[] = [];
     const { defineRoute } = await import('../../../src/lib/defineRoute');
-    const { attachAuthMiddleware } = await import('../../../src/middleware/attachAuthMiddleware.js');
+    const { attachAuthMiddleware } =
+      await import('../../../src/middleware/attachAuthMiddleware.js');
 
     (attachAuthMiddleware as any).mockImplementation((cookieType: 'access' | 'ephemeral') =>
       Object.assign(

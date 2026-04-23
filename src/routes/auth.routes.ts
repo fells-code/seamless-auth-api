@@ -7,7 +7,10 @@
 import { login, logout, refreshSession } from '../controllers/authentication.js';
 import { createRouter } from '../lib/createRouter.js';
 import { LoginRequestSchema } from '../schemas/auth.requests.js';
-import { LoginSuccessResponseSchema, RefreshSuccessResponseSchema } from '../schemas/auth.responses.js';
+import {
+  LoginSuccessResponseSchema,
+  RefreshSuccessResponseSchema,
+} from '../schemas/auth.responses.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 
 const authRouter = createRouter('');

@@ -159,7 +159,11 @@ describe('POST /refresh', () => {
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(200);
-    expect(signAccessToken).toHaveBeenCalledWith('new-session', expect.any(String), expect.any(Array));
+    expect(signAccessToken).toHaveBeenCalledWith(
+      'new-session',
+      expect.any(String),
+      expect.any(Array),
+    );
     expect(res.body.refreshToken).toBe('refresh');
   });
 });
