@@ -4,6 +4,14 @@
  * See LICENSE file in the project root for full license information
  */
 
+function dbLoggingOption() {
+  if (process.env.DB_LOGGING !== 'true') {
+    return false;
+  }
+
+  return (sql) => console.debug(sql);
+}
+
 module.exports = {
   development: {
     username: process.env.DB_USER,
@@ -12,7 +20,7 @@ module.exports = {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: 'postgres',
-    logging: 'false',
+    logging: dbLoggingOption(),
   },
   test: {
     username: process.env.DB_USER,
@@ -29,6 +37,6 @@ module.exports = {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: 'postgres',
-    logging: 'false',
+    logging: dbLoggingOption(),
   },
 };

@@ -9,7 +9,12 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { clearBootstrapCookie } from '../lib/bootstrapCookie.js';
 import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token.js';
+import {
+  createRefreshTokenLookup,
+  generateRefreshToken,
+  hashRefreshToken,
+  signAccessToken,
+} from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 
@@ -32,6 +37,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
 
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = await hashRefreshToken(refreshToken);
+  const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
   const { expiresAt, idleExpiresAt } = computeSessionTimes();
 
   const session = await Session.create({
@@ -39,6 +45,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     infraId: process.env.APP_ID!,
     mode: authMode,
     refreshTokenHash,
+    refreshTokenLookup,
     userAgent: req.get('user-agent'),
     ipAddress: req.ip,
     expiresAt,

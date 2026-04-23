@@ -10,6 +10,10 @@ import getLogger from './logger.js';
 
 const logger = getLogger('utils.otp');
 
+export interface GenerateOtpOptions {
+  sendMessage?: boolean;
+}
+
 export const generateRandomEmailOTP = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let result = '';
@@ -23,7 +27,10 @@ export const generateRandomPhoneOTP = (): number => {
   return Math.floor(Math.random() * 900000) + 100000;
 };
 
-export const generateEmailOTP = async (user: User) => {
+export const generateEmailOTP = async (
+  user: User,
+  options: GenerateOtpOptions = {},
+): Promise<string> => {
   if (!user) {
     throw new Error('Cannot generate email OTP for non-exsistent user');
   }
@@ -41,14 +48,21 @@ export const generateEmailOTP = async (user: User) => {
       emailVerificationTokenExpiry,
     });
 
-    sendOTPEmail(user.email, emailToken);
+    if (options.sendMessage !== false) {
+      await sendOTPEmail(user.email, emailToken);
+    }
+
+    return emailToken;
   } catch (error) {
     logger.error(`Error generate email OTP: ${error}`);
     throw new Error('Failed to set user OTP');
   }
 };
 
-export const generatePhoneOTP = async (user: User) => {
+export const generatePhoneOTP = async (
+  user: User,
+  options: GenerateOtpOptions = {},
+): Promise<number> => {
   if (!user) {
     throw new Error('Cannot generate phone OTP for non-exsistent user');
   }
@@ -66,7 +80,11 @@ export const generatePhoneOTP = async (user: User) => {
       phoneVerificationTokenExpiry,
     });
 
-    sendOTPSMS(user.phone, phoneToken);
+    if (options.sendMessage !== false) {
+      await sendOTPSMS(user.phone, phoneToken);
+    }
+
+    return phoneToken;
   } catch (error) {
     logger.error(`Error generate phone OTP: ${error}`);
     throw new Error('Failed to set user OTP');

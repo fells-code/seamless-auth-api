@@ -6,9 +6,11 @@
 
 import { login, logout, refreshSession } from '../controllers/authentication.js';
 import { createRouter } from '../lib/createRouter.js';
-import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { LoginRequestSchema } from '../schemas/auth.requests.js';
-import { LoginSuccessResponseSchema } from '../schemas/auth.responses.js';
+import {
+  LoginSuccessResponseSchema,
+  RefreshSuccessResponseSchema,
+} from '../schemas/auth.responses.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 
 const authRouter = createRouter('');
@@ -37,9 +39,9 @@ authRouter.post(
 authRouter.get(
   '/logout',
   {
+    auth: 'access',
     summary: 'Logout current user',
     tags: ['Authentication'],
-    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       response: {
@@ -55,11 +57,10 @@ authRouter.post(
   {
     summary: 'Refresh access token',
     tags: ['Authentication'],
-    middleware: [attachAuthMiddleware('access')],
 
     schemas: {
       response: {
-        200: MessageSchema,
+        200: RefreshSuccessResponseSchema,
         401: ErrorSchema,
         500: InternalErrorSchema,
       },
@@ -67,5 +68,10 @@ authRouter.post(
   },
   refreshSession,
 );
+
+authRouter.router.all('/refresh', (_req, res) => {
+  res.setHeader('Allow', 'POST');
+  return res.status(405).json({ error: 'Method Not Allowed' });
+});
 
 export default authRouter.router;

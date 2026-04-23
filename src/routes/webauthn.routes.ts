@@ -11,7 +11,6 @@ import {
   verifyWebAuthnRegistration,
 } from '../controllers/webauthn.js';
 import { createRouter } from '../lib/createRouter.js';
-import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   WebAuthnLoginFinishSchema,
@@ -27,9 +26,9 @@ const webauthnRouter = createRouter('/webauthn');
 webauthnRouter.get(
   '/register/start',
   {
+    auth: 'ephemeral',
     summary: 'Start WebAuthn registration',
     tags: ['WebAuthn'],
-    middleware: [attachAuthMiddleware('ephemeral')],
 
     schemas: {
       response: {
@@ -45,9 +44,9 @@ webauthnRouter.get(
 webauthnRouter.post(
   '/register/finish',
   {
+    auth: 'ephemeral',
     summary: 'Finish WebAuthn registration',
     tags: ['WebAuthn'],
-    middleware: [attachAuthMiddleware('ephemeral')],
 
     schemas: {
       body: WebAuthnRegisterFinishSchema,
@@ -65,9 +64,9 @@ webauthnRouter.post(
 webauthnRouter.post(
   '/login/start',
   {
+    auth: 'ephemeral',
     summary: 'Start WebAuthn login',
     tags: ['WebAuthn'],
-    middleware: [attachAuthMiddleware('ephemeral')],
 
     schemas: {
       response: {
@@ -84,9 +83,9 @@ webauthnRouter.post(
 webauthnRouter.post(
   '/login/finish',
   {
+    auth: 'ephemeral',
     summary: 'Finish WebAuthn login',
     tags: ['WebAuthn'],
-    middleware: [attachAuthMiddleware('ephemeral')],
 
     schemas: {
       body: WebAuthnLoginFinishSchema,

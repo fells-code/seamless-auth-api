@@ -7,10 +7,6 @@ vi.mock('../../src/config/getSystemConfig.js', () => ({
   getSystemConfig: vi.fn(),
 }));
 
-vi.mock('bcrypt-ts', () => ({
-  compareSync: vi.fn(),
-}));
-
 vi.mock('../../../src/services/authEventService.js', () => ({
   AuthEventService: {
     log: vi.fn(),
@@ -30,11 +26,13 @@ import {
 
 import { generatePhoneOTP, verifyPhoneOTP } from '../../src/utils/otp.js';
 
-import { validateAccessToken } from '../../src/services/sessionService.js';
+import {
+  findRefreshSessionByToken,
+  validateAccessToken,
+} from '../../src/services/sessionService.js';
 
 import { getSystemConfig } from '../../src/config/getSystemConfig.js';
 
-import { compareSync } from 'bcrypt-ts';
 import { buildRegistrationRequest } from '../factories/requestFactory.js';
 import { buildUser } from '../factories/userFactory.js';
 import { buildSession } from '../factories/sessionFactory.js';
@@ -57,8 +55,6 @@ beforeEach(() => {
   (generateRefreshToken as any).mockReturnValue('refresh-token');
   (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
-
-  (compareSync as any).mockReturnValue(true);
 });
 
 describe('E2E Auth Flow', () => {
@@ -114,6 +110,11 @@ describe('E2E Auth Flow', () => {
     expect(accessRes.status).toBe(200);
 
     (validateAccessToken as any).mockResolvedValue(null);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: buildSession(),
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
 
     (User.findByPk as any).mockResolvedValue({
       id: 'user-1',

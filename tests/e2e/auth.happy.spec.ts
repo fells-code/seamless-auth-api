@@ -26,8 +26,13 @@ vi.unmock('../../src/utils/secretStore.js');
 vi.unmock('bcrypt-ts');
 
 let app: any;
+const shouldRunE2E = process.env.CI !== 'true' && process.env.TEST_DB === 'postgres';
 
 beforeAll(async () => {
+  if (!shouldRunE2E) {
+    return;
+  }
+
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('AUTH_MODE', 'web');
 
@@ -40,7 +45,6 @@ beforeAll(async () => {
 
   vi.stubEnv('ISSUER', 'test-issuer');
   vi.stubEnv('APP_ID', 'test-app');
-  vi.stubEnv('APP_ORIGIN', 'http://localhost');
 
   vi.stubEnv('JWKS_ACTIVE_KIDe', 'dev-main');
   vi.stubEnv('API_SERVICE_TOKEN', 'service-token');
@@ -71,9 +75,7 @@ afterAll(() => {
   vi.unstubAllEnvs();
 });
 
-const isCI = process.env.CI === 'true';
-
-(isCI ? it.skip : it)('full auth lifecycle works', async () => {
+(shouldRunE2E ? it : it.skip)('full auth lifecycle works', async () => {
   const email = 'test@example.com';
   const phone = '+14155552671';
 

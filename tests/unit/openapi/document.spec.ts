@@ -58,3 +58,22 @@ describe('getPackageVersion', () => {
     expect(result).toBeDefined();
   });
 });
+
+describe('generateOpenApiDocument', () => {
+  it('exposes the correct cookie auth schemes', async () => {
+    const { generateOpenApiDocument } = await import('../../../src/openapi/document');
+
+    const result = generateOpenApiDocument();
+
+    expect(result.components.securitySchemes.accessCookieAuth).toEqual({
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'seamless_access',
+    });
+    expect(result.components.securitySchemes.ephemeralCookieAuth).toEqual({
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'seamless_ephemeral',
+    });
+  });
+});

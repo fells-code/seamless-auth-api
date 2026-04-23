@@ -8,25 +8,32 @@ import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
 import {
+  createRefreshTokenLookup,
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
 } from '../../../src/lib/token';
-import { compareSync } from 'bcrypt-ts';
-import { getSecret } from '../../../src/utils/secretsStore';
+import { findRefreshSessionByToken } from '../../../src/services/sessionService';
 
 let app: Application;
 
-vi.mock('../../../src/middleware/attachAuthMiddleware.js', () => ({
-  attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
-    req.user = buildUser();
-    req.sessionId = 'session-1';
-    next();
-  },
-}));
+vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../src/middleware/attachAuthMiddleware.js')>();
+
+  return {
+    ...actual,
+    attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
+      req.user = buildUser();
+      req.sessionId = 'session-1';
+      next();
+    },
+  };
+});
 
 beforeAll(async () => {
+  vi.stubEnv('AUTH_MODE', 'server');
   app = await createApp();
 });
 
@@ -113,30 +120,18 @@ describe('POST /refresh', () => {
   });
 
   it('rejects invalid session', async () => {
-    const jwt = await import('jsonwebtoken');
-
-    (jwt.default.verify as any).mockReturnValue({
-      refreshToken: 'token',
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: null,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
     });
 
-    (getSecret as any).mockResolvedValue('secret');
-
-    (Session.findAll as any).mockResolvedValue([]);
-
-    const res = await request(app).post('/refresh').set('Authorization', 'Bearer token');
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(401);
   });
 
   it('refreshes session successfully', async () => {
-    const jwt = await import('jsonwebtoken');
-
-    (jwt.default.verify as any).mockReturnValue({
-      refreshToken: 'token',
-    });
-
-    (getSecret as any).mockResolvedValue('secret');
-
     const session = {
       id: 'session-1',
       refreshTokenHash: 'hash',
@@ -149,9 +144,11 @@ describe('POST /refresh', () => {
       save: vi.fn(),
     };
 
-    (Session.findAll as any).mockResolvedValue([session]);
-
-    (compareSync as any).mockReturnValue(true);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
 
     (User.findByPk as any).mockResolvedValue(buildUser());
 
@@ -160,14 +157,24 @@ describe('POST /refresh', () => {
     (signAccessToken as any).mockResolvedValue('access');
     (generateRefreshToken as any).mockReturnValue('refresh');
     (hashRefreshToken as any).mockResolvedValue('hash');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
 
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
       refresh_token_ttl: '1h',
     });
 
-    const res = await request(app).post('/refresh').set('Authorization', 'Bearer token');
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(200);
+    expect(signAccessToken).toHaveBeenCalledWith(
+      'new-session',
+      expect.any(String),
+      expect.any(Array),
+    );
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({ refreshTokenLookup: 'refresh-lookup' }),
+    );
+    expect(res.body.refreshToken).toBe('refresh');
   });
 });

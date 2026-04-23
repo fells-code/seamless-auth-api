@@ -4,14 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { compareSync } from 'bcrypt-ts';
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
 import {
+  createRefreshTokenLookup,
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
@@ -22,14 +20,18 @@ import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { hardRevokeSession, revokeSessionChain } from '../services/sessionService.js';
+import {
+  findRefreshSessionByToken,
+  hardRevokeSession,
+  revokeSessionChain,
+} from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
-import { getSecret } from '../utils/secretsStore.js';
 import {
   computeSessionTimes,
   isValidEmail,
   isValidPhoneNumber,
+  normalizePhoneNumber,
   parseDurationToSeconds,
 } from '../utils/utils.js';
 
@@ -40,6 +42,10 @@ export const login = async (req: Request, res: Response) => {
   // For the initial login step, user either passes in an email or a phone number
   const { identifier, passkeyAvailable } = req.body;
   let user, identifierType;
+  const normalizedIdentifier =
+    typeof identifier === 'string' && isValidPhoneNumber(identifier)
+      ? normalizePhoneNumber(identifier)
+      : null;
 
   if (!identifier) {
     logger.warn('No pre authenticated identifier found');
@@ -73,10 +79,10 @@ export const login = async (req: Request, res: Response) => {
         });
         return res.status(401).json({ message: 'Not allowed' });
       }
-    } else if (isValidPhoneNumber(identifier)) {
+    } else if (isValidPhoneNumber(identifier) && normalizedIdentifier) {
       try {
         user = await User.findOne({
-          where: { phone: identifier },
+          where: { phone: normalizedIdentifier },
         });
         identifierType = 'phone';
       } catch {
@@ -225,64 +231,64 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 export const refreshSession = async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
-  const authUser = authReq.user;
   logger.info(`Refreshing user token`);
 
   let refreshToken: string | null = null;
 
-  if (req.headers.authorization?.startsWith('Bearer ')) {
+  if (AUTH_MODE === 'server' && req.headers.authorization?.startsWith('Bearer ')) {
     refreshToken = req.headers.authorization.slice('Bearer '.length);
+  }
+
+  if (!refreshToken && AUTH_MODE === 'web') {
+    refreshToken = req.cookies?.seamless_refresh ?? null;
   }
 
   if (!refreshToken) {
     logger.error('Refresh token provided is not of expected type for auth server configurations');
     await AuthEventService.log({
-      userId: authUser.id,
-      type: 'bearer_token_suspicious',
+      userId: null,
+      type: 'refresh_token_failed',
       req,
-      metadata: { reason: 'Missing all required headers and tokens needed to perform a refresh' },
+      metadata: { reason: 'Missing refresh token' },
     });
     res.status(401).json({ error: 'Not allowed' });
     return;
   }
 
-  const serviceSecret = await getSecret('API_SERVICE_TOKEN');
-
-  const payload = jwt.verify(refreshToken, serviceSecret, {
-    issuer: process.env.APP_ORIGIN,
-    audience: process.env.ISSUER,
-  }) as jwt.JwtPayload;
-
   const now = new Date();
-
-  // Find session that is not revoked, not replaced, and not expired
-  const candidateSessions = await Session.findAll({
-    where: {
-      revokedAt: null,
-      expiresAt: { [Op.gt]: now },
-      idleExpiresAt: { [Op.gt]: now },
-    },
-  });
-
-  let session: Session | null = null;
-  for (const s of candidateSessions) {
-    const match = await compareSync(payload.refreshToken, s.refreshTokenHash);
-    if (match) {
-      session = s;
-      break;
-    }
-  }
+  const { session, legacyFallbackCandidates, usedLegacyFallback } = await findRefreshSessionByToken(
+    refreshToken,
+    now,
+  );
 
   if (!session) {
-    logger.warn('No refresh session found for refresh token');
+    const looksLikeJwt = refreshToken.split('.').length === 3;
+
+    logger.warn(
+      `No refresh session found for refresh token. legacyFallbackCandidates=${legacyFallbackCandidates} tokenFormat=${looksLikeJwt ? 'jwt_like' : 'opaque'}`,
+    );
+
+    if (looksLikeJwt) {
+      logger.warn(
+        'Refresh endpoint received a JWT-shaped bearer token. Server-mode /refresh expects the raw opaque refresh token, not the access token.',
+      );
+    }
+
     await AuthEventService.serviceTokenInvalid(req);
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
 
+  if (usedLegacyFallback) {
+    logger.info(
+      `Refresh token matched a legacy session without refreshTokenLookup. sessionId=${session.id} fallbackCandidates=${legacyFallbackCandidates}`,
+    );
+  }
+
   // Reuse detection: if this session was already rotated, it means we’ve seen this token before
   if (session.replacedBySessionId || session.revokedAt) {
-    logger.warn('Token reuse detected');
+    logger.warn(
+      `Token reuse detected for session ${session.id}. replacedBySessionId=${session.replacedBySessionId ?? 'none'} revokedAt=${session.revokedAt ? session.revokedAt.toISOString() : 'null'}. This usually means an already-rotated refresh token was sent again.`,
+    );
     // Reuse -> revoke session chain
     await revokeSessionChain(session);
     // Log security event
@@ -302,12 +308,14 @@ export const refreshSession = async (req: Request, res: Response) => {
   const { expiresAt, idleExpiresAt } = computeSessionTimes(now);
   const newRefreshToken = generateRefreshToken();
   const newRefreshTokenHash = await hashRefreshToken(newRefreshToken);
+  const newRefreshTokenLookup = createRefreshTokenLookup(newRefreshToken);
 
   const newSession = await Session.create({
     userId: user.id,
     infraId: session.infraId,
     mode: session.mode,
     refreshTokenHash: newRefreshTokenHash,
+    refreshTokenLookup: newRefreshTokenLookup,
     userAgent: session.userAgent,
     ipAddress: req.ip,
     expiresAt,
@@ -317,9 +325,12 @@ export const refreshSession = async (req: Request, res: Response) => {
   session.replacedBySessionId = newSession.id;
   await session.save();
 
-  const token = await signAccessToken(session.id, user.id, user.roles);
+  const token = await signAccessToken(newSession.id, user.id, user.roles);
 
-  if (token && newRefreshTokenHash) {
+  if (token && newRefreshToken) {
+    logger.info(
+      `Refresh token rotated for user ${user.id}. oldSessionId=${session.id} newSessionId=${newSession.id}`,
+    );
     await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
 
     if (AUTH_MODE === 'web') {
@@ -332,10 +343,15 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: 'Success',
       token,
-      refreshToken: newRefreshTokenHash,
+      refreshToken: newRefreshToken,
       sub: user.id,
+      roles: user.roles,
+      email: user.email,
+      phone: user.phone,
       ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
     });
   }
+
+  return res.status(500).json({ error: 'Failed to refresh session' });
 };

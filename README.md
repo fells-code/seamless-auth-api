@@ -219,6 +219,11 @@ For production deployments:
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+## Maintainer Docs
+
+- [AGENTS.md](./AGENTS.md) for a fast codebase briefing aimed at coding agents and maintainers
+- [docs/architecture.md](./docs/architecture.md) for a deeper walkthrough of runtime flow, auth modes, config, and testing
+
 ## Security
 
 **Do not open public issues for security vulnerabilities.**

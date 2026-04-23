@@ -10,7 +10,6 @@ import {
   updateSystemConfig,
 } from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
-import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
@@ -24,10 +23,11 @@ const systemConfigRouter = createRouter('/system-config');
 systemConfigRouter.get(
   '/roles',
   {
+    auth: 'access',
     summary: 'Get available roles',
     tags: ['SystemConfig'],
 
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    middleware: [requireAdmin()],
   },
   getAvailableRoles,
 );
@@ -35,10 +35,11 @@ systemConfigRouter.get(
 systemConfigRouter.get(
   '/admin',
   {
+    auth: 'access',
     summary: 'Retrieve system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    middleware: [requireAdmin()],
 
     schemas: {
       response: {
@@ -54,10 +55,11 @@ systemConfigRouter.get(
 systemConfigRouter.patch(
   '/admin',
   {
+    auth: 'access',
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [attachAuthMiddleware(), requireAdmin()],
+    middleware: [requireAdmin()],
 
     schemas: {
       response: {

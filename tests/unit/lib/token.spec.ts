@@ -1,14 +1,12 @@
 import { vi } from 'vitest';
 
-vi.unmock('../../../src/config/getSystemConfig');
 vi.unmock('../../../src/lib/token');
-vi.unmock('../../../src/utils/signingKeyStore');
 
-vi.mock('../../../src/utils/signingKeyStore', () => ({
+vi.mock('../../../src/utils/signingKeyStore.js', () => ({
   getSigningKey: vi.fn(),
 }));
 
-vi.mock('../../../src/config/getSystemConfig', () => ({
+vi.mock('../../../src/config/getSystemConfig.js', () => ({
   getSystemConfig: vi.fn(),
 }));
 
@@ -38,6 +36,10 @@ vi.mock('jose', () => {
 });
 
 vi.mock('crypto', () => ({
+  createHmac: vi.fn(() => ({
+    update: vi.fn().mockReturnThis(),
+    digest: vi.fn(() => 'lookup-hash'),
+  })),
   randomBytes: vi.fn(() => ({
     toString: () => 'random-token',
   })),
@@ -54,10 +56,13 @@ describe('token utils', () => {
     vi.resetModules();
     vi.clearAllMocks();
     process.env.ISSUER = 'issuer';
+    delete process.env.REFRESH_TOKEN_LOOKUP_SECRET;
+    delete process.env.API_SERVICE_TOKEN;
+    delete process.env.APP_ID;
+    process.env.NODE_ENV = 'test';
   });
 
-  // TODO: issue when precommit running.
-  it.skip('signs access token', async () => {
+  it('signs access token', async () => {
     const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
 
@@ -77,8 +82,7 @@ describe('token utils', () => {
     expect(result).toBe('mock-jwt');
   });
 
-  // TODO: issue when precommit running.
-  it.skip('signs refresh token', async () => {
+  it('signs refresh token', async () => {
     const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
 
@@ -98,8 +102,7 @@ describe('token utils', () => {
     expect(result).toBe('mock-jwt');
   });
 
-  // TODO: issue when precommit running.
-  it.skip('signs ephemeral token', async () => {
+  it('signs ephemeral token', async () => {
     const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
 
     (getSigningKey as any).mockResolvedValue({
@@ -140,5 +143,41 @@ describe('token utils', () => {
     const result = await hashRefreshToken('token');
 
     expect(result).toBe('hashed-token');
+  });
+
+  it('creates refresh token lookup fingerprints', async () => {
+    process.env.API_SERVICE_TOKEN = 'service-secret';
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    const result = createRefreshTokenLookup('token');
+
+    expect(result).toBe('lookup-hash');
+  });
+
+  it('prefers an explicit refresh token lookup secret when configured', async () => {
+    process.env.REFRESH_TOKEN_LOOKUP_SECRET = 'lookup-secret';
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    const result = createRefreshTokenLookup('token');
+
+    expect(result).toBe('lookup-hash');
+  });
+
+  it('uses the development fallback secret when no configured secret exists', async () => {
+    process.env.APP_ID = 'local-dev';
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    const result = createRefreshTokenLookup('token');
+
+    expect(result).toBe('lookup-hash');
+  });
+
+  it('throws in production when no refresh token lookup secret is available', async () => {
+    process.env.NODE_ENV = 'production';
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    expect(() => createRefreshTokenLookup('token')).toThrow(
+      'REFRESH_TOKEN_LOOKUP_SECRET (or API_SERVICE_TOKEN) must be set',
+    );
   });
 });

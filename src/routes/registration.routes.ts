@@ -24,6 +24,7 @@ registrationRouter.post(
       response: {
         200: RegistrationSuccessSchema,
         400: ErrorSchema,
+        409: ErrorSchema,
         500: ErrorSchema,
       },
     },

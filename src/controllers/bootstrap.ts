@@ -15,6 +15,7 @@ import {
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('bootstrapAdminInvite');
+const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
 
 function getBearerToken(req: Request): string | undefined {
   const auth = req.header('authorization');
@@ -24,6 +25,10 @@ function getBearerToken(req: Request): string | undefined {
   if (scheme?.toLowerCase() !== 'bearer') return undefined;
 
   return token;
+}
+
+function wantsExternalDelivery(req: Request) {
+  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
 }
 
 export async function createAdminBootstrapInviteHandler(req: Request, res: Response) {
@@ -36,11 +41,13 @@ export async function createAdminBootstrapInviteHandler(req: Request, res: Respo
     await assertBootstrapAllowed();
 
     const { email } = req.body;
+    const useExternalDelivery = wantsExternalDelivery(req);
 
     const result = await createAdminBootstrapInvite({
       email,
       createdIp: req.ip ?? null,
       createdUserAgent: req.get('user-agent') ?? null,
+      sendMessage: !useExternalDelivery,
     });
 
     return res.status(201).json({
@@ -49,6 +56,16 @@ export async function createAdminBootstrapInviteHandler(req: Request, res: Respo
         url: result.registrationUrl,
         expiresAt: result.expiresAt.toISOString(),
         token: result.token,
+        ...(useExternalDelivery
+          ? {
+              delivery: {
+                kind: 'bootstrap_invite_email',
+                to: result.email,
+                inviteUrl: result.registrationUrl,
+                token: result.token,
+              },
+            }
+          : {}),
       },
     });
   } catch (error) {

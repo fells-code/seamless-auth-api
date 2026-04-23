@@ -20,6 +20,16 @@ export const isValidPhoneNumber = (phone: string): boolean => {
   return phoneNumber?.isValid() || false;
 };
 
+export const normalizePhoneNumber = (phone: string): string | null => {
+  const phoneNumber = parsePhoneNumberFromString(phone);
+
+  if (!phoneNumber?.isValid()) {
+    return null;
+  }
+
+  return phoneNumber.number;
+};
+
 export function computeSessionTimes(now = new Date()) {
   const expiresAt = new Date(now.getTime() + MAX_SESSION_LIFETIME_DAYS * 24 * 60 * 60 * 1000);
   const idleExpiresAt = new Date(now.getTime() + IDLE_TIMEOUT_DAYS * 24 * 60 * 60 * 1000);

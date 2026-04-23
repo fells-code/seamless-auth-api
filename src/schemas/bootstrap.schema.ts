@@ -6,6 +6,8 @@
 
 import { z } from 'zod';
 
+import { AuthDeliverySchema } from './generic.responses.js';
+
 export const BootstrapAdminInviteBodySchema = z.object({
   email: z.email().max(320),
 });
@@ -16,6 +18,7 @@ export const BootstrapAdminInviteResponseSchema = z.object({
     url: z.url(),
     expiresAt: z.iso.datetime(),
     token: z.string().min(32),
+    delivery: AuthDeliverySchema.optional(),
   }),
 });
 

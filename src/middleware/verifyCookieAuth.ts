@@ -4,17 +4,21 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { compareSync } from 'bcrypt-ts';
 import { NextFunction, Request, Response } from 'express';
-import { Op } from 'sequelize';
 
 import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../lib/token.js';
+import {
+  createRefreshTokenLookup,
+  generateRefreshToken,
+  hashRefreshToken,
+  signAccessToken,
+} from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   CookieType,
+  findRefreshSessionByToken,
   getUserFromSession,
   hardRevokeSession,
   revokeSessionChain,
@@ -42,7 +46,10 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
         }
 
         const payload = await verifyJwtWithKid(ephemeralCookie, cookieType);
-        if (!payload) return null;
+        if (!payload) {
+          clearAuthCookies(res);
+          return res.status(401).json({ error: 'unauthorized' });
+        }
 
         const user = await User.findOne({
           where: { id: payload.sub, revoked: false },
@@ -112,29 +119,23 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
 
   const now = new Date();
   logger.debug(`Validating refresh cookie`);
-
-  const candidateSessions = await Session.findAll({
-    where: {
-      revokedAt: null,
-      expiresAt: { [Op.gt]: now },
-      idleExpiresAt: { [Op.gt]: now },
-    },
-    limit: 50,
-  });
-
-  let session: Session | null = null;
-
-  for (const s of candidateSessions) {
-    if (compareSync(refreshToken, s.refreshTokenHash)) {
-      session = s;
-      break;
-    }
-  }
+  const { session, legacyFallbackCandidates, usedLegacyFallback } = await findRefreshSessionByToken(
+    refreshToken,
+    now,
+  );
 
   if (!session) {
-    logger.warn('No matching session found for refresh token');
+    logger.warn(
+      `No matching session found for refresh token. legacyFallbackCandidates=${legacyFallbackCandidates}`,
+    );
     await AuthEventService.serviceTokenInvalid(req);
     return null;
+  }
+
+  if (usedLegacyFallback) {
+    logger.info(
+      `Silent refresh matched a legacy session without refreshTokenLookup. sessionId=${session.id} fallbackCandidates=${legacyFallbackCandidates}`,
+    );
   }
 
   // Reuse detection
@@ -172,12 +173,14 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
 
   const newRefreshToken = generateRefreshToken();
   const newRefreshTokenHash = await hashRefreshToken(newRefreshToken);
+  const newRefreshTokenLookup = createRefreshTokenLookup(newRefreshToken);
 
   const newSession = await Session.create({
     userId: user.id,
     infraId: session.infraId,
     mode: session.mode,
     refreshTokenHash: newRefreshTokenHash,
+    refreshTokenLookup: newRefreshTokenLookup,
     userAgent: session.userAgent,
     ipAddress: req.ip,
     expiresAt,

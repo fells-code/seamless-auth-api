@@ -12,6 +12,7 @@ export interface SessionAttributes {
   infraId?: string | null;
   mode: 'web' | 'server';
   refreshTokenHash: string;
+  refreshTokenLookup?: string | null;
   userAgent?: string | null;
   ipAddress?: string | null;
   deviceName?: string | null;
@@ -39,6 +40,7 @@ export class Session
   declare infraId: string | null;
   declare mode: 'web' | 'server';
   declare refreshTokenHash: string;
+  declare refreshTokenLookup: string | null;
   declare userAgent: string | null;
   declare ipAddress: string | null;
   declare deviceName: string | null;
@@ -78,6 +80,10 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       refreshTokenHash: {
         type: DataTypes.TEXT,
         allowNull: false,
+      },
+      refreshTokenLookup: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
       },
       userAgent: DataTypes.TEXT,
       ipAddress: DataTypes.STRING,

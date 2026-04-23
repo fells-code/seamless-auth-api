@@ -4,9 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { compareSync } from 'bcrypt-ts';
 import { importSPKI, jwtVerify } from 'jose';
 import jwt from 'jsonwebtoken';
+import { Op } from 'sequelize';
 
+import { createRefreshTokenLookup } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import getLogger from '../utils/logger.js';
@@ -119,6 +122,62 @@ export async function validateAccessToken(token: string) {
   };
 }
 
+export interface RefreshSessionLookupResult {
+  session: Session | null;
+  legacyFallbackCandidates: number;
+  usedLegacyFallback: boolean;
+}
+
+export async function findRefreshSessionByToken(
+  refreshToken: string,
+  now = new Date(),
+): Promise<RefreshSessionLookupResult> {
+  const activeWhere = {
+    revokedAt: null,
+    expiresAt: { [Op.gt]: now },
+    idleExpiresAt: { [Op.gt]: now },
+  };
+
+  const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
+  const session = await Session.findOne({
+    where: {
+      ...activeWhere,
+      refreshTokenLookup,
+    },
+  });
+
+  if (session) {
+    return {
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    };
+  }
+
+  const legacySessions = await Session.findAll({
+    where: {
+      ...activeWhere,
+      refreshTokenLookup: null,
+    },
+  });
+
+  for (const legacySession of legacySessions) {
+    if (compareSync(refreshToken, legacySession.refreshTokenHash)) {
+      return {
+        session: legacySession,
+        legacyFallbackCandidates: legacySessions.length,
+        usedLegacyFallback: true,
+      };
+    }
+  }
+
+  return {
+    session: null,
+    legacyFallbackCandidates: legacySessions.length,
+    usedLegacyFallback: legacySessions.length > 0,
+  };
+}
+
 export async function validateSessionRecord(sessionId: string) {
   const session = await Session.findByPk(sessionId);
   if (!session) return null;
@@ -152,7 +211,7 @@ export async function validateBearerToken(token: string) {
 
   try {
     payload = jwt.verify(token, serviceSecret, {
-      issuer: process.env.APP_ORIGIN,
+      issuer: process.env.APP_ORIGINS!.split(',')[0],
       audience: process.env.ISSUER,
     });
   } catch (err: Error | unknown) {

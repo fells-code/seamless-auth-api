@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { verifyCookieAuth } from '../../../src/middleware/verifyCookieAuth.js';
+import { clearAuthCookies } from '../../../src/lib/cookie.js';
 
 import {
+  findRefreshSessionByToken,
   validateAccessToken,
   validateSessionRecord,
   getUserFromSession,
@@ -14,14 +16,9 @@ vi.mock('../../../src/models/authEvents.js', () => ({
   },
 }));
 
-vi.mock('bcrypt-ts', () => ({
-  compareSync: vi.fn(),
-}));
-
 import { User } from '../../../src/models/users.js';
 import { Session } from '../../../src/models/sessions.js';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token.js';
-import { compareSync } from 'bcrypt-ts';
 
 function mockReqRes(cookies: any = {}) {
   const req: any = {
@@ -73,6 +70,23 @@ describe('verifyCookieAuth - ephemeral', () => {
     expect(req.user).toBeDefined();
     expect(next).toHaveBeenCalled();
   });
+
+  it('rejects invalid ephemeral token with 401', async () => {
+    (verifyJwtWithKid as any).mockResolvedValue(null);
+
+    const middleware = verifyCookieAuth('ephemeral');
+
+    const { req, res, next } = mockReqRes({
+      seamless_ephemeral: 'bad-token',
+    });
+
+    await middleware(req, res, next);
+
+    expect(clearAuthCookies).toHaveBeenCalledWith(res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
 describe('verifyCookieAuth - access token', () => {
@@ -115,11 +129,8 @@ describe('verifyCookieAuth - access token', () => {
 describe('verifyCookieAuth - silent refresh', () => {
   it('refreshes session when access token invalid', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-
-    (compareSync as any).mockReturnValue(true);
-
-    (Session.findAll as any).mockResolvedValue([
-      {
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: {
         id: 'session-1',
         refreshTokenHash: 'hash',
         userId: 'user-1',
@@ -130,7 +141,9 @@ describe('verifyCookieAuth - silent refresh', () => {
         revokedAt: null,
         save: vi.fn(),
       },
-    ]);
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
 
     (User.findByPk as any).mockResolvedValue({
       id: 'user-1',

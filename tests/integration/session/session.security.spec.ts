@@ -14,13 +14,19 @@ let mockUser: any = {
   roles: ['user'],
 };
 
-vi.mock('../../../src/middleware/attachAuthMiddleware.js', () => ({
-  attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
-    req.user = mockUser;
-    req.sessionId = 'session-1';
-    next();
-  },
-}));
+vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../src/middleware/attachAuthMiddleware.js')>();
+
+  return {
+    ...actual,
+    attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
+      req.user = mockUser;
+      req.sessionId = 'session-1';
+      next();
+    },
+  };
+});
 
 let app: Application;
 

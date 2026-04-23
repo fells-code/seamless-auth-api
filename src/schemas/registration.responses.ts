@@ -6,9 +6,12 @@
 
 import { z } from 'zod';
 
+import { AuthDeliverySchema } from './generic.responses.js';
+
 export const RegistrationSuccessSchema = z.object({
   message: z.string(),
   sub: z.string().optional(),
   token: z.string().optional(),
   ttl: z.string().optional(),
+  delivery: AuthDeliverySchema.optional(),
 });

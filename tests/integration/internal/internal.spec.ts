@@ -9,13 +9,19 @@ import { AuthEvent } from '../../../src/models/authEvents';
 
 let app: Application;
 
-vi.mock('../../../src/middleware/attachAuthMiddleware.js', () => ({
-  attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
-    req.user = buildUser();
-    req.sessionId = 'session-1';
-    next();
-  },
-}));
+vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../src/middleware/attachAuthMiddleware.js')>();
+
+  return {
+    ...actual,
+    attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
+      req.user = buildUser();
+      req.sessionId = 'session-1';
+      next();
+    },
+  };
+});
 
 beforeAll(async () => {
   app = await createApp();

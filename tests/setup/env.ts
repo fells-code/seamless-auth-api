@@ -1,6 +1,6 @@
 process.env.NODE_ENV = 'test';
 process.env.AUTH_MODE = 'api';
-process.env.APP_ORIGIN = 'http://localhost:5174';
+process.env.APP_ORIGINS = 'http://localhost:5174';
 
 // Default: use mock DB mode
 process.env.TEST_DB = process.env.TEST_DB || 'mock';
