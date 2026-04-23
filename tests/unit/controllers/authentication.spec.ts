@@ -36,8 +36,8 @@ async function loadAuthenticationModule() {
     { User },
     { AuthEventService },
     tokenLib,
-    bcryptLib,
     cookieLib,
+    sessionService,
   ] = await Promise.all([
     import('../../../src/controllers/authentication.js'),
     import('../../../src/config/getSystemConfig.js'),
@@ -45,8 +45,8 @@ async function loadAuthenticationModule() {
     import('../../../src/models/users.js'),
     import('../../../src/services/authEventService.js'),
     import('../../../src/lib/token.js'),
-    import('bcrypt-ts'),
     import('../../../src/lib/cookie.js'),
+    import('../../../src/services/sessionService.js'),
   ]);
 
   return {
@@ -55,9 +55,10 @@ async function loadAuthenticationModule() {
     Session,
     User,
     AuthEventService,
-    compareSync: bcryptLib.compareSync,
+    findRefreshSessionByToken: sessionService.findRefreshSessionByToken,
     generateRefreshToken: tokenLib.generateRefreshToken,
     hashRefreshToken: tokenLib.hashRefreshToken,
+    createRefreshTokenLookup: tokenLib.createRefreshTokenLookup,
     signAccessToken: tokenLib.signAccessToken,
     setAuthCookies: cookieLib.setAuthCookies,
   };
@@ -91,9 +92,10 @@ describe('refreshSession', () => {
       getSystemConfig,
       Session,
       User,
-      compareSync,
+      findRefreshSessionByToken,
       generateRefreshToken,
       hashRefreshToken,
+      createRefreshTokenLookup,
       signAccessToken,
       setAuthCookies,
     } = await loadAuthenticationModule();
@@ -111,11 +113,15 @@ describe('refreshSession', () => {
       save: vi.fn(),
     };
 
-    (Session.findAll as any).mockResolvedValue([session]);
-    (compareSync as any).mockReturnValue(true);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
     (User.findByPk as any).mockResolvedValue(user);
     (generateRefreshToken as any).mockReturnValue('new-raw-refresh-token');
     (hashRefreshToken as any).mockResolvedValue('new-refresh-hash');
+    (createRefreshTokenLookup as any).mockReturnValue('new-refresh-lookup');
     (Session.create as any).mockResolvedValue({ id: 'session-2' });
     (signAccessToken as any).mockResolvedValue('new-access-token');
     (getSystemConfig as any).mockResolvedValue({
@@ -125,11 +131,12 @@ describe('refreshSession', () => {
 
     await refreshSession(req, res);
 
-    expect(compareSync).toHaveBeenCalledWith('raw-refresh-token', 'stored-refresh-hash');
+    expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token', expect.any(Date));
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: user.id,
         refreshTokenHash: 'new-refresh-hash',
+        refreshTokenLookup: 'new-refresh-lookup',
       }),
     );
     expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles);

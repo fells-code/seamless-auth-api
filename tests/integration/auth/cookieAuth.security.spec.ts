@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { compareSync } from 'bcrypt-ts';
 
 import { verifyCookieAuth } from '../../../src/middleware/verifyCookieAuth.js';
 import { clearAuthCookies, setAuthCookies } from '../../../src/lib/cookie.js';
@@ -7,6 +6,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import {
+  findRefreshSessionByToken,
   getUserFromSession,
   hardRevokeSession,
   revokeSessionChain,
@@ -14,7 +14,12 @@ import {
   validateSessionRecord,
   verifyJwtWithKid,
 } from '../../../src/services/sessionService.js';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token.js';
+import {
+  createRefreshTokenLookup,
+  generateRefreshToken,
+  hashRefreshToken,
+  signAccessToken,
+} from '../../../src/lib/token.js';
 
 function mockReqRes(cookies: Record<string, string> = {}) {
   const req: any = {
@@ -44,6 +49,7 @@ function buildRefreshSession(overrides: Record<string, unknown> = {}) {
     infraId: 'app-1',
     mode: 'web',
     refreshTokenHash: 'hashed-refresh',
+    refreshTokenLookup: 'refresh-lookup',
     userAgent: 'vitest',
     ipAddress: '127.0.0.1',
     replacedBySessionId: null,
@@ -56,10 +62,9 @@ function buildRefreshSession(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  (compareSync as any).mockReturnValue(false);
-
   (generateRefreshToken as any).mockReturnValue('new-refresh-token');
   (hashRefreshToken as any).mockResolvedValue('new-refresh-hash');
+  (createRefreshTokenLookup as any).mockReturnValue('new-refresh-lookup');
   (signAccessToken as any).mockResolvedValue('new-access-token');
 
   (Session.create as any).mockResolvedValue({ id: 'session-2' });
@@ -131,7 +136,11 @@ describe('verifyCookieAuth security - access path', () => {
 describe('verifyCookieAuth security - silent refresh', () => {
   it('returns 401 when refresh cookie is present but no matching session is found', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-    (Session.findAll as any).mockResolvedValue([]);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: null,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
     (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
 
     const middleware = verifyCookieAuth('access');
@@ -148,13 +157,16 @@ describe('verifyCookieAuth security - silent refresh', () => {
 
   it('detects refresh token reuse when session was already replaced', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-    (compareSync as any).mockReturnValue(true);
 
     const reusedSession = buildRefreshSession({
       replacedBySessionId: 'session-2',
     });
 
-    (Session.findAll as any).mockResolvedValue([reusedSession]);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: reusedSession,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
     (revokeSessionChain as any).mockResolvedValue(undefined);
     (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
 
@@ -173,13 +185,16 @@ describe('verifyCookieAuth security - silent refresh', () => {
 
   it('detects refresh token reuse when session is already revoked', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-    (compareSync as any).mockReturnValue(true);
 
     const revokedSession = buildRefreshSession({
       revokedAt: new Date(),
     });
 
-    (Session.findAll as any).mockResolvedValue([revokedSession]);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: revokedSession,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
     (revokeSessionChain as any).mockResolvedValue(undefined);
     (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
 
@@ -197,11 +212,14 @@ describe('verifyCookieAuth security - silent refresh', () => {
 
   it('hard-revokes when refresh session user no longer exists', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-    (compareSync as any).mockReturnValue(true);
 
     const session = buildRefreshSession();
 
-    (Session.findAll as any).mockResolvedValue([session]);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
     (User.findByPk as any).mockResolvedValue(null);
     (hardRevokeSession as any).mockResolvedValue(undefined);
 
@@ -219,11 +237,14 @@ describe('verifyCookieAuth security - silent refresh', () => {
 
   it('rotates session and sets fresh cookies on successful refresh', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-    (compareSync as any).mockReturnValue(true);
 
     const session = buildRefreshSession();
 
-    (Session.findAll as any).mockResolvedValue([session]);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
     (User.findByPk as any).mockResolvedValue({ id: 'user-1' });
 
     const middleware = verifyCookieAuth('access');
@@ -234,6 +255,9 @@ describe('verifyCookieAuth security - silent refresh', () => {
     await middleware(req, res, next);
 
     expect(Session.create).toHaveBeenCalled();
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({ refreshTokenLookup: 'new-refresh-lookup' }),
+    );
     expect(session.save).toHaveBeenCalled();
     expect(setAuthCookies).toHaveBeenCalledWith(
       res,

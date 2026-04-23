@@ -5,6 +5,7 @@ import { issueSessionAndRespond } from '../../../src/services/sessionIssuance.js
 vi.mock('../../../src/lib/token.js', () => ({
   generateRefreshToken: vi.fn(),
   hashRefreshToken: vi.fn(),
+  createRefreshTokenLookup: vi.fn(),
   signAccessToken: vi.fn(),
 }));
 
@@ -34,7 +35,12 @@ vi.mock('../../../src/utils/utils.js', () => ({
 
 // ---- Imports AFTER mocks ----
 
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token.js';
+import {
+  createRefreshTokenLookup,
+  generateRefreshToken,
+  hashRefreshToken,
+  signAccessToken,
+} from '../../../src/lib/token.js';
 
 import { Session } from '../../../src/models/sessions.js';
 import { setAuthCookies, clearAuthCookies } from '../../../src/lib/cookie.js';
@@ -71,6 +77,7 @@ beforeEach(() => {
 
   (generateRefreshToken as any).mockReturnValue('refresh-token');
   (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+  (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
   (signAccessToken as any).mockResolvedValue('access-token');
 
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
@@ -100,6 +107,7 @@ it('issues session in web mode and sets cookies', async () => {
   });
 
   expect(Session.create).toHaveBeenCalled();
+  expect(createRefreshTokenLookup).toHaveBeenCalledWith('refresh-token');
   expect(signAccessToken).toHaveBeenCalled();
 
   expect(setAuthCookies).toHaveBeenCalledWith(res, {

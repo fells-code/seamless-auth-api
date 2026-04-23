@@ -3,6 +3,7 @@ import { verifyCookieAuth } from '../../../src/middleware/verifyCookieAuth.js';
 import { clearAuthCookies } from '../../../src/lib/cookie.js';
 
 import {
+  findRefreshSessionByToken,
   validateAccessToken,
   validateSessionRecord,
   getUserFromSession,
@@ -15,14 +16,9 @@ vi.mock('../../../src/models/authEvents.js', () => ({
   },
 }));
 
-vi.mock('bcrypt-ts', () => ({
-  compareSync: vi.fn(),
-}));
-
 import { User } from '../../../src/models/users.js';
 import { Session } from '../../../src/models/sessions.js';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token.js';
-import { compareSync } from 'bcrypt-ts';
 
 function mockReqRes(cookies: any = {}) {
   const req: any = {
@@ -133,11 +129,8 @@ describe('verifyCookieAuth - access token', () => {
 describe('verifyCookieAuth - silent refresh', () => {
   it('refreshes session when access token invalid', async () => {
     (validateAccessToken as any).mockResolvedValue(null);
-
-    (compareSync as any).mockReturnValue(true);
-
-    (Session.findAll as any).mockResolvedValue([
-      {
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: {
         id: 'session-1',
         refreshTokenHash: 'hash',
         userId: 'user-1',
@@ -148,7 +141,9 @@ describe('verifyCookieAuth - silent refresh', () => {
         revokedAt: null,
         save: vi.fn(),
       },
-    ]);
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
 
     (User.findByPk as any).mockResolvedValue({
       id: 'user-1',

@@ -4,13 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { compareSync } from 'bcrypt-ts';
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
 import {
+  createRefreshTokenLookup,
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
@@ -21,7 +20,11 @@ import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { hardRevokeSession, revokeSessionChain } from '../services/sessionService.js';
+import {
+  findRefreshSessionByToken,
+  hardRevokeSession,
+  revokeSessionChain,
+} from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import {
@@ -253,32 +256,16 @@ export const refreshSession = async (req: Request, res: Response) => {
   }
 
   const now = new Date();
-
-  // Find session that is not revoked, not replaced, and not expired
-  const candidateSessions = await Session.findAll({
-    where: {
-      revokedAt: null,
-      expiresAt: { [Op.gt]: now },
-      idleExpiresAt: { [Op.gt]: now },
-    },
-  });
-
-  let session: Session | null = null;
-  for (const s of candidateSessions) {
-    const match = compareSync(refreshToken, s.refreshTokenHash);
-    if (match) {
-      session = s;
-      break;
-    }
-  }
+  const { session, legacyFallbackCandidates, usedLegacyFallback } = await findRefreshSessionByToken(
+    refreshToken,
+    now,
+  );
 
   if (!session) {
     const looksLikeJwt = refreshToken.split('.').length === 3;
 
     logger.warn(
-      `No refresh session found for refresh token. candidateSessions=${candidateSessions.length} tokenFormat=${
-        looksLikeJwt ? 'jwt_like' : 'opaque'
-      }`,
+      `No refresh session found for refresh token. legacyFallbackCandidates=${legacyFallbackCandidates} tokenFormat=${looksLikeJwt ? 'jwt_like' : 'opaque'}`,
     );
 
     if (looksLikeJwt) {
@@ -289,6 +276,12 @@ export const refreshSession = async (req: Request, res: Response) => {
 
     await AuthEventService.serviceTokenInvalid(req);
     return res.status(401).json({ error: 'invalid_refresh_token' });
+  }
+
+  if (usedLegacyFallback) {
+    logger.info(
+      `Refresh token matched a legacy session without refreshTokenLookup. sessionId=${session.id} fallbackCandidates=${legacyFallbackCandidates}`,
+    );
   }
 
   // Reuse detection: if this session was already rotated, it means we’ve seen this token before
@@ -315,12 +308,14 @@ export const refreshSession = async (req: Request, res: Response) => {
   const { expiresAt, idleExpiresAt } = computeSessionTimes(now);
   const newRefreshToken = generateRefreshToken();
   const newRefreshTokenHash = await hashRefreshToken(newRefreshToken);
+  const newRefreshTokenLookup = createRefreshTokenLookup(newRefreshToken);
 
   const newSession = await Session.create({
     userId: user.id,
     infraId: session.infraId,
     mode: session.mode,
     refreshTokenHash: newRefreshTokenHash,
+    refreshTokenLookup: newRefreshTokenLookup,
     userAgent: session.userAgent,
     ipAddress: req.ip,
     expiresAt,

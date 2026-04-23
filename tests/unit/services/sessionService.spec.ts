@@ -5,6 +5,8 @@ vi.unmock('../../../src/services/sessionService');
 vi.mock('../../../src/models/sessions', () => ({
   Session: {
     findByPk: vi.fn(),
+    findOne: vi.fn(),
+    findAll: vi.fn(),
   },
 }));
 
@@ -22,9 +24,17 @@ vi.mock('../../../src/utils/signingKeyStore', () => ({
   getPublicKeyByKid: vi.fn(),
 }));
 
+vi.mock('../../../src/lib/token', () => ({
+  createRefreshTokenLookup: vi.fn(),
+}));
+
 vi.mock('jose', () => ({
   jwtVerify: vi.fn(),
   importSPKI: vi.fn(),
+}));
+
+vi.mock('bcrypt-ts', () => ({
+  compareSync: vi.fn(),
 }));
 
 vi.mock('jsonwebtoken', () => ({
@@ -155,6 +165,64 @@ describe('sessionService', () => {
     const result = await validateSessionRecord('id');
 
     expect(result).toBe(session);
+  });
+
+  it('finds refresh sessions by indexed lookup before falling back to bcrypt comparison', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    const session = buildSession();
+
+    (createRefreshTokenLookup as any).mockReturnValue('lookup');
+    (Session.findOne as any).mockResolvedValue(session);
+
+    const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
+
+    const result = await findRefreshSessionByToken('refresh-token');
+
+    expect(Session.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          refreshTokenLookup: 'lookup',
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
+  });
+
+  it('falls back to legacy refresh-token hashes for sessions without lookup fingerprints', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+    const { compareSync } = await import('bcrypt-ts');
+
+    const legacySession = buildSession({ refreshTokenHash: 'legacy-hash' });
+
+    (createRefreshTokenLookup as any).mockReturnValue('lookup');
+    (Session.findOne as any).mockResolvedValue(null);
+    (Session.findAll as any).mockResolvedValue([legacySession]);
+    (compareSync as any).mockReturnValue(true);
+
+    const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
+
+    const result = await findRefreshSessionByToken('refresh-token');
+
+    expect(Session.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          refreshTokenLookup: null,
+        }),
+      }),
+    );
+    expect(compareSync).toHaveBeenCalledWith('refresh-token', 'legacy-hash');
+    expect(result).toEqual({
+      session: legacySession,
+      legacyFallbackCandidates: 1,
+      usedLegacyFallback: true,
+    });
   });
 
   it('revokes chain', async () => {

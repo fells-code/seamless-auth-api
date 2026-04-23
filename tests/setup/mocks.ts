@@ -65,6 +65,7 @@ vi.mock('../../src/config/getSystemConfig.js', () => ({
 vi.mock('../../src/services/sessionService.js', () => ({
   validateAccessToken: vi.fn(),
   validateSessionRecord: vi.fn(),
+  findRefreshSessionByToken: vi.fn(),
   getUserFromSession: vi.fn(),
   verifyJwtWithKid: vi.fn(),
   revokeSessionChain: vi.fn(),
@@ -136,6 +137,7 @@ vi.mock('../../src/lib/token.js', () => ({
   signAccessToken: vi.fn(),
   generateRefreshToken: vi.fn(),
   hashRefreshToken: vi.fn(),
+  createRefreshTokenLookup: vi.fn(),
 }));
 
 vi.mock('../../src/lib/cookie.js', () => ({

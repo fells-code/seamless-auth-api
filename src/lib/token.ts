@@ -5,7 +5,7 @@
  */
 
 import { hashSync } from 'bcrypt-ts';
-import { randomBytes } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -15,6 +15,34 @@ import { getSigningKey } from '../utils/signingKeyStore.js';
 const logger = getLogger('tokens');
 
 const ISSUER = process.env.ISSUER!;
+let warnedAboutDevLookupSecret = false;
+
+function getRefreshTokenLookupSecret() {
+  const explicitSecret = process.env.REFRESH_TOKEN_LOOKUP_SECRET?.trim();
+  if (explicitSecret) {
+    return explicitSecret;
+  }
+
+  const apiServiceSecret = process.env.API_SERVICE_TOKEN?.trim();
+  if (apiServiceSecret) {
+    return apiServiceSecret;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (!warnedAboutDevLookupSecret) {
+      logger.warn(
+        'REFRESH_TOKEN_LOOKUP_SECRET is not set. Falling back to a development-only secret for refresh token lookup fingerprints.',
+      );
+      warnedAboutDevLookupSecret = true;
+    }
+
+    return `dev-refresh-lookup:${process.env.APP_ID ?? 'local'}:${ISSUER}`;
+  }
+
+  throw new Error(
+    'REFRESH_TOKEN_LOOKUP_SECRET (or API_SERVICE_TOKEN) must be set to derive refresh token lookup fingerprints in production.',
+  );
+}
 
 export async function signAccessToken(sessionId: string, userId: string, roles?: string[]) {
   const { kid, privateKeyPem } = await getSigningKey();
@@ -90,4 +118,8 @@ export function generateRefreshToken() {
 export async function hashRefreshToken(token: string) {
   const saltRounds = 12;
   return hashSync(token, saltRounds);
+}
+
+export function createRefreshTokenLookup(token: string) {
+  return createHmac('sha256', getRefreshTokenLookupSecret()).update(token).digest('hex');
 }

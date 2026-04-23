@@ -8,12 +8,13 @@ import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
 import {
+  createRefreshTokenLookup,
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
 } from '../../../src/lib/token';
-import { compareSync } from 'bcrypt-ts';
+import { findRefreshSessionByToken } from '../../../src/services/sessionService';
 
 let app: Application;
 
@@ -119,7 +120,11 @@ describe('POST /refresh', () => {
   });
 
   it('rejects invalid session', async () => {
-    (Session.findAll as any).mockResolvedValue([]);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session: null,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
 
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
@@ -139,9 +144,11 @@ describe('POST /refresh', () => {
       save: vi.fn(),
     };
 
-    (Session.findAll as any).mockResolvedValue([session]);
-
-    (compareSync as any).mockReturnValue(true);
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      session,
+      legacyFallbackCandidates: 0,
+      usedLegacyFallback: false,
+    });
 
     (User.findByPk as any).mockResolvedValue(buildUser());
 
@@ -150,6 +157,7 @@ describe('POST /refresh', () => {
     (signAccessToken as any).mockResolvedValue('access');
     (generateRefreshToken as any).mockReturnValue('refresh');
     (hashRefreshToken as any).mockResolvedValue('hash');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
 
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
@@ -163,6 +171,9 @@ describe('POST /refresh', () => {
       'new-session',
       expect.any(String),
       expect.any(Array),
+    );
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({ refreshTokenLookup: 'refresh-lookup' }),
     );
     expect(res.body.refreshToken).toBe('refresh');
   });

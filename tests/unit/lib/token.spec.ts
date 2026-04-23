@@ -38,6 +38,10 @@ vi.mock('jose', () => {
 });
 
 vi.mock('crypto', () => ({
+  createHmac: vi.fn(() => ({
+    update: vi.fn().mockReturnThis(),
+    digest: vi.fn(() => 'lookup-hash'),
+  })),
   randomBytes: vi.fn(() => ({
     toString: () => 'random-token',
   })),
@@ -140,5 +144,14 @@ describe('token utils', () => {
     const result = await hashRefreshToken('token');
 
     expect(result).toBe('hashed-token');
+  });
+
+  it('creates refresh token lookup fingerprints', async () => {
+    process.env.API_SERVICE_TOKEN = 'service-secret';
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    const result = createRefreshTokenLookup('token');
+
+    expect(result).toBe('lookup-hash');
   });
 });
