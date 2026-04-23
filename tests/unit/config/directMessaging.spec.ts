@@ -54,7 +54,8 @@ describe('directMessaging config', () => {
     process.env.AWS_REGION = 'us-east-1';
     process.env.SES_EMAIL = 'noreply@example.com';
 
-    const { createDirectAuthMessagingService } = await import('../../../src/config/directMessaging.js');
+    const { createDirectAuthMessagingService } =
+      await import('../../../src/config/directMessaging.js');
 
     const result = createDirectAuthMessagingService('Test App');
 
@@ -82,7 +83,8 @@ describe('directMessaging config', () => {
     process.env.MESSAGING_TWILIO_AUTH_TOKEN = 'token';
     process.env.MESSAGING_SMS_FROM = '+15555550123';
 
-    const { createDirectAuthMessagingService } = await import('../../../src/config/directMessaging.js');
+    const { createDirectAuthMessagingService } =
+      await import('../../../src/config/directMessaging.js');
 
     createDirectAuthMessagingService('Test App');
 
@@ -103,7 +105,8 @@ describe('directMessaging config', () => {
     process.env.MESSAGING_EMAIL_FROM = 'noreply@example.com';
     process.env.MESSAGING_SMS_PROVIDER = 'postal-pigeon';
 
-    const { createDirectAuthMessagingService } = await import('../../../src/config/directMessaging.js');
+    const { createDirectAuthMessagingService } =
+      await import('../../../src/config/directMessaging.js');
 
     expect(() => createDirectAuthMessagingService('Test App')).toThrow(
       'Unsupported MESSAGING_SMS_PROVIDER "postal-pigeon"',

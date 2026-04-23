@@ -76,12 +76,8 @@ describe('signingKeyStore', () => {
 
       const fs = await import('fs');
 
-      (fs.existsSync as any)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true);
-      (fs.default.existsSync as any)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true);
+      (fs.existsSync as any).mockReturnValueOnce(true).mockReturnValueOnce(true);
+      (fs.default.existsSync as any).mockReturnValueOnce(true).mockReturnValueOnce(true);
       (fs.readFileSync as any).mockReturnValue('EXISTING_KEY');
       (fs.default.readFileSync as any).mockReturnValue('EXISTING_KEY');
 
@@ -129,9 +125,7 @@ describe('signingKeyStore', () => {
 
       const { getSecret } = await import('../../../src/utils/secretsStore.js');
 
-      (getSecret as any)
-        .mockResolvedValueOnce('kid-1')
-        .mockResolvedValueOnce('PRIVATE_KEY');
+      (getSecret as any).mockResolvedValueOnce('kid-1').mockResolvedValueOnce('PRIVATE_KEY');
 
       const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
