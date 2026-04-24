@@ -11,6 +11,11 @@ import getLogger from '../utils/logger.js';
 const logger = getLogger('routeLogger');
 
 export const logRoute = (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === 'GET' && req.path === '/health/status') {
+    next();
+    return;
+  }
+
   logger.info(`Received ${req.method} request for ${req.url}`);
   next();
 };
