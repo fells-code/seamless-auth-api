@@ -32,7 +32,10 @@ function buildDatabaseUrl(): string {
     throw new Error('Missing required DB environment variables.');
   }
 
-  return `postgres://${DB_USER}:${DB_PASSWORD ?? ''}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
+  const encodedDbUser = encodeURIComponent(DB_USER);
+  const encodedDbPassword = encodeURIComponent(DB_PASSWORD ?? '');
+
+  return `postgres://${encodedDbUser}:${encodedDbPassword}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 }
 
 export function getSequelize(): Sequelize {
