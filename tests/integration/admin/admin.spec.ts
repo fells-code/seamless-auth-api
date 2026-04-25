@@ -91,6 +91,22 @@ describe('GET /admin/sessions', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.sessions).toEqual([]);
+    expect(Session.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          revokedAt: null,
+          replacedBySessionId: null,
+        }),
+      }),
+    );
+    expect(Session.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          revokedAt: null,
+          replacedBySessionId: null,
+        }),
+      }),
+    );
   });
 });
 
@@ -102,6 +118,15 @@ describe('GET /admin/sessions/:userId', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.sessions).toHaveLength(1);
+    expect(Session.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: testGuid,
+          revokedAt: null,
+          replacedBySessionId: null,
+        }),
+      }),
+    );
   });
 });
 

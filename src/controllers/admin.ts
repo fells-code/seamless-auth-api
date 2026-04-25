@@ -195,6 +195,7 @@ export const getUserDetail = async (req: ServiceRequest, res: Response) => {
     where: {
       userId,
       revokedAt: null,
+      replacedBySessionId: null,
       expiresAt: {
         [Op.gt]: now,
       },
@@ -268,6 +269,7 @@ export const listUserSessions = async (req: Request, res: Response) => {
       where: {
         userId,
         revokedAt: null,
+        replacedBySessionId: null,
         expiresAt: {
           [Op.gt]: now,
         },
@@ -324,6 +326,7 @@ export const listAllSessions = async (req: Request, res: Response) => {
 
   const where = {
     revokedAt: null,
+    replacedBySessionId: null,
     expiresAt: {
       [Op.gt]: now,
     },
