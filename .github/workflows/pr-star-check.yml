@@ -1,0 +1,75 @@
+name: PR Star Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  require-star:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check contributor has starred repository
+        env:
+          CONTRIBUTOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$CONTRIBUTOR" == *"[bot]" ]]; then
+            echo "Bot pull request detected; skipping star requirement."
+            exit 0
+          fi
+
+          page=1
+          found=0
+
+          while true; do
+            response="$(curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/users/${CONTRIBUTOR}/starred?per_page=100&page=${page}")"
+
+            count="$(node -e '
+              const fs = require("fs");
+              const data = JSON.parse(fs.readFileSync(0, "utf8"));
+              console.log(Array.isArray(data) ? data.length : 0);
+            ' <<<"$response")"
+
+            match="$(node -e '
+              const fs = require("fs");
+              const [owner, repo] = process.argv.slice(1);
+              const data = JSON.parse(fs.readFileSync(0, "utf8"));
+              const found = Array.isArray(data) && data.some((item) =>
+                item?.owner?.login?.toLowerCase() === owner.toLowerCase() &&
+                item?.name?.toLowerCase() === repo.toLowerCase(),
+              );
+              console.log(found ? "1" : "0");
+            ' "$OWNER" "$REPO" <<<"$response")"
+
+            if [[ "$match" == "1" ]]; then
+              found=1
+              break
+            fi
+
+            if [[ "$count" -lt 100 ]]; then
+              break
+            fi
+
+            page=$((page + 1))
+          done
+
+          if [[ "$found" == "1" ]]; then
+            echo "${CONTRIBUTOR} has starred ${OWNER}/${REPO}."
+            exit 0
+          fi
+
+          echo "::error title=Repository star required::Please star ${OWNER}/${REPO} before opening a pull request."
+          exit 1
