@@ -2,11 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.unmock('../../../src/config/getSystemConfig');
 
-// Build a full set of valid `system_config` rows that satisfies
-// `SystemConfigSchema`. The runtime read path now validates against
-// the schema (#13), so partial `{ app_name: ... }` payloads no longer
-// round-trip — every row must be present.
-function validRows(overrides: Record<string, unknown> = {}): Array<{ key: string; value: unknown }> {
+function validRows(
+  overrides: Record<string, unknown> = {},
+): Array<{ key: string; value: unknown }> {
   const base: Record<string, unknown> = {
     app_name: 'TestApp',
     default_roles: ['user'],
@@ -67,10 +65,9 @@ describe('getSystemConfig', () => {
 
     const first = await getSystemConfig();
 
-    // simulate time passing past the cache TTL
     vi.spyOn(Date, 'now')
       .mockReturnValueOnce(Date.now() + 1)
-      .mockReturnValueOnce(Date.now() + 6 * 60 * 1000); // > 5 min TTL
+      .mockReturnValueOnce(Date.now() + 6 * 60 * 1000);
 
     const second = await getSystemConfig();
 
@@ -99,39 +96,58 @@ describe('getSystemConfig', () => {
     expect(SystemConfig.findAll).toHaveBeenCalledTimes(2);
   });
 
-  // Regression for https://github.com/fells-code/seamless-auth-api/issues/13.
-  // The runtime read path must schema-validate the rows it pulls from
-  // the DB and refuse to hand out tainted config. Partial / malformed
-  // rows that previously slipped through the bare cast now throw.
-  it('throws when DB rows fail schema validation', async () => {
-    const { SystemConfig } = await import('../../../src/models/systemConfig');
+  describe('runtime schema validation (#13)', () => {
+    // Drive the validation gate per-field so a future schema change that
+    // weakens any single rule fails an obvious test instead of silently
+    // shipping shape-mismatched config to downstream auth code.
+    it.each<{ key: string; bad: unknown; reason: string }>([
+      { key: 'app_name', bad: 'ab', reason: 'string shorter than min(3)' },
+      { key: 'default_roles', bad: ['has space'], reason: 'role contains whitespace' },
+      { key: 'default_roles', bad: [], reason: 'empty array' },
+      { key: 'available_roles', bad: ['bad/role'], reason: 'role contains slash' },
+      { key: 'access_token_ttl', bad: '15', reason: 'missing unit suffix' },
+      { key: 'refresh_token_ttl', bad: '7days', reason: 'wrong unit format' },
+      { key: 'rate_limit', bad: 0, reason: 'rate_limit must be positive' },
+      { key: 'rate_limit', bad: -1, reason: 'rate_limit cannot be negative' },
+      { key: 'rate_limit', bad: 1.5, reason: 'rate_limit must be int' },
+      { key: 'delay_after', bad: -1, reason: 'delay_after cannot be negative' },
+      { key: 'rpid', bad: '', reason: 'empty rpid' },
+      { key: 'origins', bad: ['test'], reason: 'origins[i] must be a URL' },
+      { key: 'origins', bad: 'https://example.com', reason: 'origins must be an array' },
+      { key: 'origins', bad: [], reason: 'origins must have at least one entry' },
+    ])('rejects $key when $reason', async ({ key, bad }) => {
+      const { SystemConfig } = await import('../../../src/models/systemConfig');
+      const rows = validRows({ [key]: bad });
+      (SystemConfig.findAll as any).mockResolvedValue(rows);
 
-    // Drop a required field — `default_roles` — so schema validation fails.
-    const tainted = validRows().filter((row) => row.key !== 'default_roles');
-    (SystemConfig.findAll as any).mockResolvedValue(tainted);
+      const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+      await expect(getSystemConfig()).rejects.toThrow('System configuration is invalid');
+    });
 
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    it('rejects when a required field row is missing entirely', async () => {
+      const { SystemConfig } = await import('../../../src/models/systemConfig');
+      const tainted = validRows().filter((row) => row.key !== 'default_roles');
+      (SystemConfig.findAll as any).mockResolvedValue(tainted);
 
-    await expect(getSystemConfig()).rejects.toThrow('System configuration is invalid');
-  });
+      const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+      await expect(getSystemConfig()).rejects.toThrow('System configuration is invalid');
+    });
 
-  it('does not cache a tainted result', async () => {
-    const { SystemConfig } = await import('../../../src/models/systemConfig');
+    // After a tainted read the cache must remain empty so the next call
+    // re-hits the DB. Otherwise the operator's recovery fix (correct row
+    // value) wouldn't be picked up until process restart.
+    it('keeps the cache empty after a failed validation so the next call reloads from DB', async () => {
+      const { SystemConfig } = await import('../../../src/models/systemConfig');
+      const tainted = validRows().filter((row) => row.key !== 'app_name');
+      const recovered = validRows({ app_name: 'Recovered' });
+      (SystemConfig.findAll as any).mockResolvedValueOnce(tainted).mockResolvedValueOnce(recovered);
 
-    const tainted = validRows().filter((row) => row.key !== 'app_name');
-    const valid = validRows({ app_name: 'Recovered' });
-    (SystemConfig.findAll as any)
-      .mockResolvedValueOnce(tainted)
-      .mockResolvedValueOnce(valid);
+      const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
 
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-
-    await expect(getSystemConfig()).rejects.toThrow();
-
-    // After the operator fixes the row, the next call must hit the DB
-    // again (no stale "tainted" entry sitting in cache) and succeed.
-    const result = await getSystemConfig();
-    expect(result.app_name).toBe('Recovered');
-    expect(SystemConfig.findAll).toHaveBeenCalledTimes(2);
+      await expect(getSystemConfig()).rejects.toThrow();
+      const result = await getSystemConfig();
+      expect(result.app_name).toBe('Recovered');
+      expect(SystemConfig.findAll).toHaveBeenCalledTimes(2);
+    });
   });
 });
