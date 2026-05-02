@@ -13,8 +13,10 @@ export interface AuthenticatedRequest extends Request {
   user: User;
   sessionId: Session['id'];
   clientId?: string;
+  trustedClientIp?: string;
 }
 export interface ServiceRequest extends Request {
   clientId?: string | (() => string);
   triggeredBy?: string;
+  trustedClientIp?: string;
 }

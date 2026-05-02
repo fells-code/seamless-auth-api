@@ -21,8 +21,22 @@ async function getInternalSecret() {
   return cachedSecret;
 }
 
+export async function validateInternalServiceToken(token: string): Promise<JwtPayload | null> {
+  const internalSecret = await getInternalSecret();
+
+  if (!token || !internalSecret) {
+    return null;
+  }
+
+  try {
+    return jwt.verify(token, internalSecret) as JwtPayload;
+  } catch (error: unknown) {
+    logger.error(`An error occured validating api to api service. ${error}`);
+    return null;
+  }
+}
+
 export async function verifyServiceToken(req: ServiceRequest, res: Response, next: NextFunction) {
-  const JWT_INTERNAL = await getInternalSecret();
   const authHeader = req.headers.authorization || '';
 
   if (!authHeader.startsWith('Bearer ')) {
@@ -36,28 +50,23 @@ export async function verifyServiceToken(req: ServiceRequest, res: Response, nex
     return res.status(401).json({ error: 'No token provided' });
   }
 
-  if (!JWT_INTERNAL) {
+  const decoded = await validateInternalServiceToken(token);
+
+  if (!decoded) {
     logger.error('Call to internal endpoints missing M2M token.');
-    return res.status(401).json({ message: 'Failed to pull api to api token' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_INTERNAL) as JwtPayload;
-
-    if (decoded.iss !== 'seamless-portal-api') {
-      logger.error('Improperly formed token detected.');
-      return res.status(403).json({ error: 'Invalid token issuer' });
-    }
-
-    if (decoded.aud !== 'seamless-auth') {
-      return res.status(403).json({ error: 'Invalid audience' });
-    }
-
-    req.clientId = decoded.sub;
-    req.triggeredBy = req.params.triggeredBy;
-    next();
-  } catch (error: unknown) {
-    logger.error(`An error occured validating api to api service. ${error}`);
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
+
+  if (decoded.iss !== 'seamless-portal-api') {
+    logger.error('Improperly formed token detected.');
+    return res.status(403).json({ error: 'Invalid token issuer' });
+  }
+
+  if (decoded.aud !== 'seamless-auth') {
+    return res.status(403).json({ error: 'Invalid audience' });
+  }
+
+  req.clientId = decoded.sub;
+  req.triggeredBy = req.params.triggeredBy;
+  next();
 }
