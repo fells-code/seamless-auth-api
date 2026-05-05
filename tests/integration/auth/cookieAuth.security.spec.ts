@@ -141,7 +141,7 @@ describe('verifyCookieAuth security - silent refresh', () => {
       legacyFallbackCandidates: 0,
       usedLegacyFallback: false,
     });
-    (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
+    (AuthEventService.refreshTokenFailed as any).mockResolvedValue(undefined);
 
     const middleware = verifyCookieAuth('access');
     const { req, res, next } = mockReqRes({
@@ -150,7 +150,13 @@ describe('verifyCookieAuth security - silent refresh', () => {
 
     await middleware(req, res, next);
 
-    expect(AuthEventService.serviceTokenInvalid).toHaveBeenCalledWith(req);
+    expect(AuthEventService.refreshTokenFailed).toHaveBeenCalledWith(
+      req,
+      expect.objectContaining({
+        reason: 'No matching session found for refresh token',
+        legacyFallbackCandidates: 0,
+      }),
+    );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
@@ -168,7 +174,7 @@ describe('verifyCookieAuth security - silent refresh', () => {
       usedLegacyFallback: false,
     });
     (revokeSessionChain as any).mockResolvedValue(undefined);
-    (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
+    (AuthEventService.log as any).mockResolvedValue(undefined);
 
     const middleware = verifyCookieAuth('access');
     const { req, res, next } = mockReqRes({
@@ -178,7 +184,12 @@ describe('verifyCookieAuth security - silent refresh', () => {
     await middleware(req, res, next);
 
     expect(revokeSessionChain).toHaveBeenCalledWith(reusedSession);
-    expect(AuthEventService.serviceTokenInvalid).toHaveBeenCalledWith(req);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'refresh_token_suspicious',
+      }),
+    );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
@@ -196,7 +207,7 @@ describe('verifyCookieAuth security - silent refresh', () => {
       usedLegacyFallback: false,
     });
     (revokeSessionChain as any).mockResolvedValue(undefined);
-    (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
+    (AuthEventService.log as any).mockResolvedValue(undefined);
 
     const middleware = verifyCookieAuth('access');
     const { req, res, next } = mockReqRes({

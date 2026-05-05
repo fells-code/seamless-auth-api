@@ -168,7 +168,12 @@ describe('AuthEventService', () => {
 
     await AuthEventService.notificationSent('user-1', req);
 
-    expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith({
+      userId: 'user-1',
+      type: 'notification_sent',
+      req,
+      metadata: undefined,
+    });
   });
 
   it('serviceTokenUsed logs correct metadata', async () => {
@@ -200,6 +205,43 @@ describe('AuthEventService', () => {
       type: 'service_token_failed',
       metadata: null,
       req,
+    });
+  });
+
+  it('refreshTokenFailed logs refresh failures', async () => {
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    const spy = vi.spyOn(AuthEventService, 'log');
+
+    const req = buildReq();
+
+    await AuthEventService.refreshTokenFailed(req, { reason: 'Missing refresh token' });
+
+    expect(spy).toHaveBeenCalledWith({
+      type: 'refresh_token_failed',
+      metadata: { reason: 'Missing refresh token' },
+      req,
+    });
+  });
+
+  it('normalizes legacy event type aliases', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    const req = buildReq();
+
+    await AuthEventService.log({
+      type: 'request_suspicous',
+      req,
+      metadata: { reason: 'legacy typo' },
+    });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith({
+      user_id: null,
+      type: 'request_suspicious',
+      ip_address: '127.0.0.1',
+      user_agent: 'agent',
+      metadata: { reason: 'legacy typo' },
     });
   });
 });

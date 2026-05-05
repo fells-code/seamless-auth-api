@@ -156,11 +156,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     const expectedChallenge = user.challenge;
     if (!expectedChallenge) {
       logger.error('Unexpected user challegnge supplied.');
-      await AuthEvent.create({
-        user_id: user.id,
-        type: 'registration_suspicous',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'registration_suspicious',
+        req,
         metadata: { reason: 'Missing challenge for registration' },
       });
       return res.status(403).json({ message: 'Missing challenge' });

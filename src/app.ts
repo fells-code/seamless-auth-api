@@ -15,8 +15,8 @@ import { dynamicRateLimit } from './middleware/rateLimit.js';
 import { logRoute } from './middleware/routeLogger.js';
 import { dynamicSlowDown } from './middleware/slowDown.js';
 import { applyTrustedClientIp } from './middleware/trustedClientIp.js';
-import { AuthEvent } from './models/authEvents.js';
 import { generateOpenApiDocument } from './openapi/document.js';
+import { AuthEventService } from './services/authEventService.js';
 import getLogger from './utils/logger.js';
 
 const logger = getLogger('app');
@@ -35,13 +35,13 @@ const corsOptions: CorsOptions = {
     }
 
     logger.warn(`Unknown CORS origin: ${origin}`);
-    AuthEvent.create({
-      user_id: null,
-      type: 'request_suspicious',
-      ip_address: origin,
-      user_agent: 'unknown',
-      metadata: { reason: 'Unknown origin request' },
-    });
+    void AuthEventService.requestSuspiciousContext(
+      {
+        ipAddress: origin,
+        userAgent: 'unknown',
+      },
+      { reason: 'Unknown origin request' },
+    );
     return callback(null, false);
   },
   credentials: true,
@@ -92,11 +92,8 @@ export async function createApp() {
   await loadRoutes(app);
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     if (err.message === 'Not allowed by CORS') {
-      AuthEvent.create({
-        type: 'request_suspicous',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
-        metadata: { reason: 'Request from an unexpected origin' },
+      void AuthEventService.requestSuspicious(req, {
+        reason: 'Request from an unexpected origin',
       });
       res.setHeader('Access-Control-Allow-Origin', rawOrigin[0]);
       return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
@@ -120,15 +117,10 @@ export async function createApp() {
     logger.warn(
       `[${req.ip}] ${req.method} ${req.originalUrl} did not match any route. Tracking suspicious behavior`,
     );
-    AuthEvent.create({
-      type: 'request_suspicous',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
-      metadata: {
-        reason: 'Request to an unknown route.',
-        method: req.method,
-        path: req.originalUrl,
-      },
+    void AuthEventService.requestSuspicious(req, {
+      reason: 'Request to an unknown route.',
+      method: req.method,
+      path: req.originalUrl,
     });
     return res.status(404).json({ error: 'Not Found' });
   });

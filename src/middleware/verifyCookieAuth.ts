@@ -128,7 +128,10 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
     logger.warn(
       `No matching session found for refresh token. legacyFallbackCandidates=${legacyFallbackCandidates}`,
     );
-    await AuthEventService.serviceTokenInvalid(req);
+    await AuthEventService.refreshTokenFailed(req, {
+      reason: 'No matching session found for refresh token',
+      legacyFallbackCandidates,
+    });
     return null;
   }
 
@@ -142,7 +145,17 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
   if (session.replacedBySessionId || session.revokedAt) {
     logger.warn('Refresh token reuse detected');
     await revokeSessionChain(session);
-    await AuthEventService.serviceTokenInvalid(req);
+    await AuthEventService.log({
+      userId: session.userId,
+      type: 'refresh_token_suspicious',
+      req,
+      metadata: {
+        reason: 'Refresh token reuse detected',
+        sessionId: session.id,
+        replacedBySessionId: session.replacedBySessionId,
+        revokedAt: session.revokedAt?.toISOString() ?? null,
+      },
+    });
     return null;
   }
 

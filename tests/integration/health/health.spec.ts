@@ -1,12 +1,18 @@
 import request from 'supertest';
 import { createApp } from '../../../src/app';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
+
+import { AuthEventService } from '../../../src/services/authEventService.js';
 
 let app: Application;
 
 beforeAll(async () => {
   app = await createApp();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 describe('Health Routes', () => {
@@ -21,5 +27,14 @@ describe('Health Routes', () => {
     const res = await request(app).get('/health/unknown');
 
     expect(res.status).toBe(404);
+    expect(AuthEventService.requestSuspicious).toHaveBeenCalledWith(
+      expect.objectContaining({
+        originalUrl: '/health/unknown',
+      }),
+      expect.objectContaining({
+        reason: 'Request to an unknown route.',
+        path: '/health/unknown',
+      }),
+    );
   });
 });

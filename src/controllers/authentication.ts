@@ -245,12 +245,7 @@ export const refreshSession = async (req: Request, res: Response) => {
 
   if (!refreshToken) {
     logger.error('Refresh token provided is not of expected type for auth server configurations');
-    await AuthEventService.log({
-      userId: null,
-      type: 'refresh_token_failed',
-      req,
-      metadata: { reason: 'Missing refresh token' },
-    });
+    await AuthEventService.refreshTokenFailed(req, { reason: 'Missing refresh token' });
     res.status(401).json({ error: 'Not allowed' });
     return;
   }
@@ -274,7 +269,11 @@ export const refreshSession = async (req: Request, res: Response) => {
       );
     }
 
-    await AuthEventService.serviceTokenInvalid(req);
+    await AuthEventService.refreshTokenFailed(req, {
+      reason: 'No refresh session found for refresh token',
+      legacyFallbackCandidates,
+      tokenFormat: looksLikeJwt ? 'jwt_like' : 'opaque',
+    });
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
 
@@ -291,7 +290,17 @@ export const refreshSession = async (req: Request, res: Response) => {
     );
     // Reuse -> revoke session chain
     await revokeSessionChain(session);
-    // Log security event
+    await AuthEventService.log({
+      userId: session.userId,
+      type: 'refresh_token_suspicious',
+      req,
+      metadata: {
+        reason: 'Refresh token reuse detected',
+        sessionId: session.id,
+        replacedBySessionId: session.replacedBySessionId,
+        revokedAt: session.revokedAt?.toISOString() ?? null,
+      },
+    });
     return res.status(401).json({ error: 'refresh_token_reused' });
   }
 
@@ -301,6 +310,15 @@ export const refreshSession = async (req: Request, res: Response) => {
 
   const user = await User.findByPk(session.userId);
   if (!user) {
+    await AuthEventService.log({
+      userId: session.userId,
+      type: 'refresh_token_suspicious',
+      req,
+      metadata: {
+        reason: 'Refresh session user not found',
+        sessionId: session.id,
+      },
+    });
     await hardRevokeSession(session, 'user_not_found');
     return res.status(401).json({ error: 'invalid_session' });
   }
