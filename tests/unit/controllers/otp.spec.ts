@@ -29,6 +29,9 @@ vi.mock('../../../src/lib/token.js', () => ({
 vi.mock('../../../src/services/authEventService.js', () => ({
   AuthEventService: {
     log: authEventLogMock,
+    refreshTokenFailed: vi.fn(),
+    requestSuspicious: vi.fn(),
+    requestSuspiciousContext: vi.fn(),
   },
 }));
 

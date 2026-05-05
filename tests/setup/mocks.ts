@@ -153,6 +153,9 @@ vi.mock('../../src/services/authEventService.js', () => ({
   AuthEventService: {
     log: vi.fn(),
     notificationSent: vi.fn(),
+    refreshTokenFailed: vi.fn(),
+    requestSuspicious: vi.fn(),
+    requestSuspiciousContext: vi.fn(),
     serviceTokenInvalid: vi.fn(),
     loginSuccess: vi.fn(),
   },

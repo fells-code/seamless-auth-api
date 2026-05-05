@@ -7,19 +7,23 @@
 // src/schemas/authEvent.types.ts
 import { z } from 'zod';
 
-export const AuthEventTypeEnum = z.enum([
+export const AUTH_EVENT_TYPES = [
   'auth_action_incremented',
   'bearer_token_failed',
   'bearer_token_success',
   'bearer_token_suspicious',
+  'bootstrap_admin_check_skipped',
+  'bootstrap_admin_granted',
   'cookie_token_failed',
   'cookie_token_success',
   'cookie_token_suspicious',
+  'credentials_deleted',
   'informational',
   'internal_user_updated_by_owner',
   'jwks_failed',
   'jwks_success',
   'jwks_suspicious',
+  'login_challenge',
   'login_failed',
   'login_success',
   'login_suspicious',
@@ -32,7 +36,7 @@ export const AuthEventTypeEnum = z.enum([
   'mfa_otp_failed',
   'mfa_otp_success',
   'mfa_otp_suspicious',
-  'notication_sent',
+  'notification_sent',
   'otp_failed',
   'otp_success',
   'otp_suspicious',
@@ -45,6 +49,7 @@ export const AuthEventTypeEnum = z.enum([
   'registration_failed',
   'registration_success',
   'registration_suspicious',
+  'request_suspicious',
   'service_token_failed',
   'service_token_rotated',
   'service_token_success',
@@ -56,6 +61,7 @@ export const AuthEventTypeEnum = z.enum([
   'user_data_failed',
   'user_data_success',
   'user_data_suspicious',
+  'user_deleted',
   'verify_otp_failed',
   'verify_otp_success',
   'verify_otp_suspicious',
@@ -65,6 +71,8 @@ export const AuthEventTypeEnum = z.enum([
   'webauthn_registration_failed',
   'webauthn_registration_success',
   'webauthn_registration_suspicious',
-]);
+] as const;
+
+export const AuthEventTypeEnum = z.enum(AUTH_EVENT_TYPES);
 
 export type AuthEventType = z.infer<typeof AuthEventTypeEnum>;

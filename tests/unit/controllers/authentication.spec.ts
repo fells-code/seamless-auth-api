@@ -75,11 +75,10 @@ describe('refreshSession', () => {
 
     await refreshSession(req, res);
 
-    expect(AuthEventService.log).toHaveBeenCalledWith(
+    expect(AuthEventService.refreshTokenFailed).toHaveBeenCalledWith(
+      req,
       expect.objectContaining({
-        userId: null,
-        type: 'refresh_token_failed',
-        metadata: { reason: 'Missing refresh token' },
+        reason: 'Missing refresh token',
       }),
     );
     expect(res.status).toHaveBeenCalledWith(401);
@@ -96,12 +95,19 @@ describe('refreshSession', () => {
       legacyFallbackCandidates: 2,
       usedLegacyFallback: true,
     });
-    (AuthEventService.serviceTokenInvalid as any).mockResolvedValue(undefined);
+    (AuthEventService.refreshTokenFailed as any).mockResolvedValue(undefined);
 
     await refreshSession(req, res);
 
     expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token', expect.any(Date));
-    expect(AuthEventService.serviceTokenInvalid).toHaveBeenCalledWith(req);
+    expect(AuthEventService.refreshTokenFailed).toHaveBeenCalledWith(
+      req,
+      expect.objectContaining({
+        reason: 'No refresh session found for refresh token',
+        legacyFallbackCandidates: 2,
+        tokenFormat: 'opaque',
+      }),
+    );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });
   });
