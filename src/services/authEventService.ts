@@ -12,10 +12,7 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('authEventService');
 
-type DeprecatedAuthEventType =
-  | 'notication_sent'
-  | 'registration_suspicous'
-  | 'request_suspicous';
+type DeprecatedAuthEventType = 'notication_sent' | 'registration_suspicous' | 'request_suspicous';
 
 type LoggableAuthEventType = AuthEventType | DeprecatedAuthEventType;
 
