@@ -19,6 +19,8 @@ export interface SessionAttributes {
   lastUsedAt: Date;
   expiresAt: Date;
   idleExpiresAt: Date;
+  stepUpVerifiedAt?: Date | null;
+  stepUpMethod?: string | null;
   replacedBySessionId?: string | null;
   revokedAt?: Date | null;
   revokedReason?: string | null;
@@ -28,7 +30,14 @@ export interface SessionAttributes {
 
 type SessionCreationAttributes = Optional<
   SessionAttributes,
-  'id' | 'replacedBySessionId' | 'revokedAt' | 'revokedReason' | 'deviceName' | 'lastUsedAt'
+  | 'id'
+  | 'replacedBySessionId'
+  | 'revokedAt'
+  | 'revokedReason'
+  | 'deviceName'
+  | 'lastUsedAt'
+  | 'stepUpVerifiedAt'
+  | 'stepUpMethod'
 >;
 
 export class Session
@@ -47,6 +56,8 @@ export class Session
   declare lastUsedAt: Date;
   declare expiresAt: Date;
   declare idleExpiresAt: Date;
+  declare stepUpVerifiedAt: Date | null;
+  declare stepUpMethod: string | null;
   declare replacedBySessionId: string | null;
   declare revokedAt: Date | null;
   declare revokedReason: string | null;
@@ -100,6 +111,14 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       idleExpiresAt: {
         type: DataTypes.DATE,
         allowNull: false,
+      },
+      stepUpVerifiedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      stepUpMethod: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       replacedBySessionId: {
         type: DataTypes.UUID,
