@@ -91,7 +91,10 @@ function counterBuffer(counter: number) {
   return buffer;
 }
 
-export function getTotpCounter(timestamp = Date.now(), periodSeconds = DEFAULT_TOTP_PERIOD_SECONDS) {
+export function getTotpCounter(
+  timestamp = Date.now(),
+  periodSeconds = DEFAULT_TOTP_PERIOD_SECONDS,
+) {
   return Math.floor(timestamp / 1000 / periodSeconds);
 }
 

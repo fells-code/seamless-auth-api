@@ -20,12 +20,7 @@ const TOTP_CIPHER = 'aes-256-gcm';
 
 type TotpCredentialLike = Pick<
   TotpCredential,
-  | 'secretCiphertext'
-  | 'secretIv'
-  | 'secretTag'
-  | 'lastUsedCounter'
-  | 'update'
-  | 'destroy'
+  'secretCiphertext' | 'secretIv' | 'secretTag' | 'lastUsedCounter' | 'update' | 'destroy'
 >;
 
 function randomBuffer(length: number) {
