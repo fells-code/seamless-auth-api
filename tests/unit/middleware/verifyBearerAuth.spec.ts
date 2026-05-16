@@ -65,11 +65,15 @@ describe('verifyBearerAuth', () => {
 
     const mockUser = { id: 'user-1' };
 
-    (validateBearerToken as any).mockResolvedValue(mockUser);
+    (validateBearerToken as any).mockResolvedValue({
+      user: mockUser,
+      sessionId: 'session-1',
+    });
 
     await verifyBearerAuth(req, res, next);
 
     expect(req.user).toEqual(mockUser);
+    expect(req.sessionId).toBe('session-1');
     expect(next).toHaveBeenCalled();
   });
 

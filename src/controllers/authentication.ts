@@ -363,6 +363,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       token,
       refreshToken: newRefreshToken,
       sub: user.id,
+      sessionId: newSession.id,
       roles: user.roles,
       email: user.email,
       phone: user.phone,
