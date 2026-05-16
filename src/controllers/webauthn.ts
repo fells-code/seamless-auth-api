@@ -16,6 +16,12 @@ import base64url from 'base64url';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import {
+  buildPrfAuthenticationExtensions,
+  buildPrfRegistrationExtensions,
+  containsPrfOutput,
+  getRegistrationPrfCapable,
+} from '../lib/webauthnPrf.js';
 import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
@@ -28,10 +34,47 @@ import getLogger from '../utils/logger.js';
 const logger = getLogger('webauthn');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
 
+function getRegistrationChallengeContext(user: User) {
+  const webauthnRegistration = user.challengeContext?.webauthnRegistration;
+
+  if (typeof webauthnRegistration !== 'object' || webauthnRegistration === null) {
+    return { prfRequested: false, requirePrf: false };
+  }
+
+  const context = webauthnRegistration as Record<string, unknown>;
+
+  return {
+    prfRequested: context.prfRequested === true,
+    requirePrf: context.requirePrf === true,
+  };
+}
+
+function filterAssertionCredentials(
+  credentials: Credential[],
+  options: { credentialId?: string; requiresPrf: boolean },
+) {
+  return credentials.filter((credential) => {
+    if (options.credentialId && credential.id !== options.credentialId) {
+      return false;
+    }
+
+    if (options.requiresPrf && !credential.prfCapable) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 const registerWebAuthn = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const verifiedUser = authReq.user;
+    const { requestPrf = false, requirePrf = false } = req.query as {
+      requestPrf?: boolean;
+      requirePrf?: boolean;
+    };
+    const prfRequested = requestPrf || requirePrf;
     logger.info(`Registering passwordless mechanism for ${authReq.user?.email}`);
 
     if (!verifiedUser) {
@@ -78,10 +121,17 @@ const registerWebAuthn = async (req: Request, res: Response) => {
         residentKey: 'preferred',
         authenticatorAttachment: 'platform',
       },
+      extensions: buildPrfRegistrationExtensions(prfRequested),
     });
 
     await verifiedUser.update({
       challenge: options.challenge,
+      challengeContext: {
+        webauthnRegistration: {
+          prfRequested,
+          requirePrf,
+        },
+      },
     });
 
     logger.info(`Generated registration options for user ${verifiedUser.email}`);
@@ -111,7 +161,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
   logger.info(`Verifiying registration of passwordless mechanism for ${authReq.user?.email}`);
   try {
-    const { attestationResponse, metadata } = req.body;
+    const { attestationResponse, metadata = {} } = req.body;
 
     if (!verifiedUser) {
       logger.warn(`Missing verification token ${req.body}`);
@@ -202,6 +252,18 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     }
 
     const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
+    const challengeContext = getRegistrationChallengeContext(user);
+    const prfCapable = getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
+
+    if (challengeContext.requirePrf && !prfCapable) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_registration_failed',
+        req,
+        metadata: { reason: 'PRF required but credential did not report PRF support' },
+      });
+      return res.status(403).json({ error: 'prf_required' });
+    }
 
     // @ts-expect-error Ignoring for testing.
     const publicKey = base64url.encode(credential.publicKey);
@@ -218,11 +280,13 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       platform: metadata.platform || null,
       browser: metadata.browser || null,
       deviceInfo: metadata.deviceInfo || null,
+      prfCapable,
       lastUsedAt: new Date(),
     });
 
     await user.update({
       challenge: null,
+      challengeContext: null,
       lastLogin: new Date(),
       verified: true,
     });
@@ -272,6 +336,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 const generateWebAuthn = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const verifiedUser = authReq.user;
+  const { credentialId, prf } = req.body ?? {};
 
   logger.info(`Generating passwordless login for ${verifiedUser.email}`);
   const email = verifiedUser.email;
@@ -306,13 +371,18 @@ const generateWebAuthn = async (req: Request, res: Response) => {
   creds = await Credential.findAll({ where: { userId: user.id } });
 
   try {
-    if (!creds || creds.length === 0) {
+    const assertionCredentials = filterAssertionCredentials(creds ?? [], {
+      credentialId,
+      requiresPrf: Boolean(prf),
+    });
+
+    if (!assertionCredentials || assertionCredentials.length === 0) {
       await AuthEvent.create({
         user_id: user.id,
         type: 'login_failed',
         ip_address: req.ip,
         user_agent: req.headers['user-agent'],
-        metadata: { reason: 'No credentials' },
+        metadata: { reason: prf ? 'No PRF-capable credentials' : 'No credentials' },
       });
       logger.error('Valid user with no credentials');
       return res.status(401).send('Credentials not found');
@@ -321,7 +391,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     const { rpid } = await getSystemConfig();
 
     const options: PublicKeyCredentialRequestOptionsJSON = await generateAuthenticationOptions({
-      allowCredentials: creds.map((cred) => {
+      allowCredentials: assertionCredentials.map((cred) => {
         return {
           id: cred.id,
           transports: cred.transports,
@@ -330,6 +400,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       userVerification: 'required',
       timeout: 60000,
       rpID: rpid,
+      extensions: buildPrfAuthenticationExtensions(prf),
     });
 
     await user.update({
@@ -368,6 +439,16 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
   try {
     const { assertionResponse } = req.body;
+
+    if (containsPrfOutput(assertionResponse)) {
+      await AuthEventService.log({
+        userId: verifiedUser.id,
+        type: 'webauthn_login_failed',
+        req,
+        metadata: { reason: 'PRF output was sent to the server' },
+      });
+      return res.status(400).json({ error: 'prf_output_not_allowed' });
+    }
 
     const email = verifiedUser.email;
     const phone = verifiedUser.phone;

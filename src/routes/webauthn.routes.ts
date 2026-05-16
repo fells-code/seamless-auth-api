@@ -13,8 +13,10 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
+  WebAuthnAssertionStartSchema,
   WebAuthnLoginFinishSchema,
   WebAuthnRegisterFinishSchema,
+  WebAuthnRegisterStartQuerySchema,
 } from '../schemas/webauthn.requests.js';
 import {
   WebAuthnChallengeSchema,
@@ -31,6 +33,8 @@ webauthnRouter.get(
     tags: ['WebAuthn'],
 
     schemas: {
+      query: WebAuthnRegisterStartQuerySchema,
+
       response: {
         200: WebAuthnChallengeSchema,
         403: ErrorSchema,
@@ -69,6 +73,8 @@ webauthnRouter.post(
     tags: ['WebAuthn'],
 
     schemas: {
+      body: WebAuthnAssertionStartSchema,
+
       response: {
         200: WebAuthnChallengeSchema,
         401: ErrorSchema,
@@ -92,6 +98,7 @@ webauthnRouter.post(
 
       response: {
         200: WebAuthnTokenSuccessSchema,
+        400: ErrorSchema,
         401: ErrorSchema,
         403: ErrorSchema,
         500: InternalErrorSchema,

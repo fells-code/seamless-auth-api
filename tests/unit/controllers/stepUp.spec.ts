@@ -8,6 +8,10 @@ import { buildCredential } from '../../factories/credentialFactory.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
 
+function prfSalt(byte = 1) {
+  return Buffer.alloc(32, byte).toString('base64url');
+}
+
 function buildReq(overrides: Record<string, unknown> = {}) {
   return {
     body: {},
@@ -54,6 +58,40 @@ describe('step-up controller', () => {
     );
     expect(user.update).toHaveBeenCalledWith({ challenge: 'challenge' });
     expect(res.json).toHaveBeenCalledWith({ challenge: 'challenge' });
+  });
+
+  it('starts a PRF-capable WebAuthn step-up challenge with caller salt', async () => {
+    const user = buildUser();
+    const credential = buildCredential({ id: 'prf-cred', userId: user.id, prfCapable: true });
+    (Credential.findAll as any).mockResolvedValue([
+      buildCredential({ id: 'regular-cred', userId: user.id, prfCapable: false }),
+      credential,
+    ]);
+    (getSystemConfig as any).mockResolvedValue({ rpid: 'localhost' });
+
+    const { generateAuthenticationOptions } = await import('@simplewebauthn/server');
+    (generateAuthenticationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const req = buildReq({
+      user,
+      body: { prf: { salt: prfSalt() } },
+    });
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(generateAuthenticationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowCredentials: [{ id: credential.id, transports: credential.transports }],
+        extensions: {
+          prf: {
+            eval: {
+              first: prfSalt(),
+            },
+          },
+        },
+      }),
+    );
   });
 
   it('finishes WebAuthn step-up and records freshness on the current session', async () => {
@@ -128,5 +166,31 @@ describe('step-up controller', () => {
     expect(credential.update).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
+  });
+
+  it('rejects WebAuthn step-up responses that include PRF output', async () => {
+    const user = buildUser({ challenge: 'challenge' });
+    const req = buildReq({
+      user,
+      body: {
+        assertionResponse: {
+          id: 'cred-1',
+          clientExtensionResults: {
+            prf: {
+              results: {
+                first: 'must-not-reach-server',
+              },
+            },
+          },
+        },
+      },
+    });
+    const res = buildRes();
+
+    await finishWebAuthnStepUp(req, res);
+
+    expect(Credential.findOne).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'prf_output_not_allowed' });
   });
 });

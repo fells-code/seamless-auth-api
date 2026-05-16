@@ -7,6 +7,10 @@
 import { CredentialApiSchema, UserSchema } from '@seamless-auth/types';
 import { z } from 'zod';
 
+const CredentialWithPrfSchema = CredentialApiSchema.extend({
+  prfCapable: z.boolean().optional(),
+});
+
 export const MeResponseSchema = z.object({
   user: UserSchema.pick({
     id: true,
@@ -15,5 +19,5 @@ export const MeResponseSchema = z.object({
     roles: true,
     lastLogin: true,
   }),
-  credentials: z.array(CredentialApiSchema),
+  credentials: z.array(CredentialWithPrfSchema),
 });

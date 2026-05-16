@@ -8,6 +8,8 @@ export function buildCredential(overrides: any = {}) {
     transports: [],
     deviceType: 'platform',
     backedup: false,
+    backedUp: false,
+    prfCapable: false,
     counter: 0,
     lastUsedAt: new Date(),
     platform: 'web',

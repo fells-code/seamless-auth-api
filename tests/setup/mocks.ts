@@ -94,6 +94,8 @@ vi.mock('../../src/middleware/attachAuthMiddleware.js', async (importOriginal) =
         email: 'test@example.com',
         phone: '+14155552671',
         roles: ['user'],
+        challenge: 'challenge',
+        challengeContext: null,
 
         // required for verification flows
         emailVerificationToken: '123456',
