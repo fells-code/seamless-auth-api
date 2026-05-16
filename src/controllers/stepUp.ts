@@ -92,7 +92,9 @@ export const startWebAuthnStepUp = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'step_up_failed',
         req,
-        metadata: { reason: prf ? 'No PRF-capable WebAuthn credentials' : 'No WebAuthn credentials' },
+        metadata: {
+          reason: prf ? 'No PRF-capable WebAuthn credentials' : 'No WebAuthn credentials',
+        },
       });
       return res.status(401).json({ error: 'step_up_unavailable' });
     }

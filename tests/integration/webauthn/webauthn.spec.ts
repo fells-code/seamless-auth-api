@@ -112,14 +112,16 @@ describe('POST /webauthn/register/finish', () => {
     (Credential.create as any).mockResolvedValue({});
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
-    const res = await request(app).post('/webauthn/register/finish').send({
-      attestationResponse: {
-        clientExtensionResults: {
-          prf: { enabled: true },
+    const res = await request(app)
+      .post('/webauthn/register/finish')
+      .send({
+        attestationResponse: {
+          clientExtensionResults: {
+            prf: { enabled: true },
+          },
         },
-      },
-      metadata: {},
-    });
+        metadata: {},
+      });
 
     expect(res.status).toBe(200);
     expect(Credential.create).toHaveBeenCalledWith(
@@ -156,14 +158,16 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    const res = await request(app).post('/webauthn/register/finish').send({
-      attestationResponse: {
-        clientExtensionResults: {
-          prf: { enabled: false },
+    const res = await request(app)
+      .post('/webauthn/register/finish')
+      .send({
+        attestationResponse: {
+          clientExtensionResults: {
+            prf: { enabled: false },
+          },
         },
-      },
-      metadata: {},
-    });
+        metadata: {},
+      });
 
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'prf_required' });

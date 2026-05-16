@@ -253,7 +253,8 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
     const challengeContext = getRegistrationChallengeContext(user);
-    const prfCapable = getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
+    const prfCapable =
+      getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
 
     if (challengeContext.requirePrf && !prfCapable) {
       await AuthEventService.log({
