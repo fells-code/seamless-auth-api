@@ -73,9 +73,7 @@ export function resolveAvailableLoginMethods({
   passkeyAvailable?: boolean;
 }) {
   const passkeyUsable =
-    passkeyAvailable !== false &&
-    hasPasskeyCredential &&
-    isLoginMethodEnabled(policy, 'passkey');
+    passkeyAvailable !== false && hasPasskeyCredential && isLoginMethodEnabled(policy, 'passkey');
 
   if (passkeyUsable && !policy.passkeyFallbackEnabled) {
     return ['passkey'] satisfies LoginMethod[];

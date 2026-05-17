@@ -16,10 +16,7 @@ describe('parseSystemConfigEnvValue', () => {
     });
 
     it('parses login methods', () => {
-      const result = parseSystemConfigEnvValue(
-        'login_methods',
-        'passkey, magic_link, email_otp',
-      );
+      const result = parseSystemConfigEnvValue('login_methods', 'passkey, magic_link, email_otp');
 
       expect(result).toEqual(['passkey', 'magic_link', 'email_otp']);
     });

@@ -20,10 +20,7 @@ import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import {
-  getLoginPolicy,
-  resolveAvailableLoginMethods,
-} from '../services/loginPolicyService.js';
+import { getLoginPolicy, resolveAvailableLoginMethods } from '../services/loginPolicyService.js';
 import {
   findRefreshSessionByToken,
   hardRevokeSession,
