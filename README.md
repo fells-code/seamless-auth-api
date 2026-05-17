@@ -21,6 +21,7 @@ This repository intentionally focuses on **authentication only**.
 - Secure session and token handling
 - User registration and authentication APIs
 - WebAuthn / Passkeys support
+- WebAuthn PRF-capable passkey primitives for browser-local key derivation
 - JWKS and token verification endpoints
 - Database models and migrations required for auth
 - Local development and self-hosting support
@@ -58,6 +59,7 @@ This repository does **not** assume any specific cloud provider, billing system,
 - Passwordless-first design (no passwords to steal)
 - Modern session handling using secure, HTTP-only cookies
 - WebAuthn / passkeys support
+- Optional WebAuthn PRF support for products that need browser-local key material
 - Token and JWKS support for service-to-service auth
 - Built for inspection, auditability, and self-hosting
 
@@ -93,6 +95,12 @@ If you want hosted auth with a full control plane and operational support, use t
 Copy the `.env.example` to an `.env` file and populate empty values.
 
 Never commit real secrets. Use `.env.example` for documentation.
+
+### WebAuthn PRF
+
+SeamlessAuth can request PRF-capable passkeys and PRF assertions without ever receiving PRF output.
+See [docs/webauthn-prf.md](./docs/webauthn-prf.md) for API usage, browser limitations, SDK
+contract guidance, and Seamless Secrets consumption rules.
 
 ### Install & run
 

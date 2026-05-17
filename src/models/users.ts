@@ -23,6 +23,7 @@ export interface UserAttributes {
   phoneVerified?: boolean;
   verified?: boolean;
   challenge?: string | null;
+  challengeContext?: Record<string, unknown> | null;
   lastLogin?: Date;
   createdAt?: Date;
   updatedAt?: Date;
@@ -43,6 +44,7 @@ export class User extends Model<UserAttributes> implements UserAttributes {
   declare phoneVerified: boolean;
   declare verified: boolean;
   declare challenge: string | null;
+  declare challengeContext: Record<string, unknown> | null;
   declare roles?: string[];
   declare lastLogin?: Date;
   declare readonly createdAt: Date;
@@ -132,6 +134,10 @@ const initializeUserModel = (sequelize: Sequelize) => {
       },
       challenge: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      challengeContext: {
+        type: DataTypes.JSON,
         allowNull: true,
       },
       lastLogin: {

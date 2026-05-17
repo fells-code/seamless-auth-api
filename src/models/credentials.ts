@@ -17,6 +17,7 @@ export class Credential extends Model {
   declare transports?: AuthenticatorTransportFuture[];
   declare deviceType: CredentialDeviceType;
   declare backedup: boolean;
+  declare prfCapable: boolean;
 
   declare friendlyName: string | null;
   declare lastUsedAt: Date | null;
@@ -61,6 +62,11 @@ export default (sequelize: Sequelize) => {
         type: DataTypes.JSON,
       },
       backedup: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      prfCapable: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,

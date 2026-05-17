@@ -31,6 +31,7 @@ export const getUser = async (req: Request, res: Response) => {
           'deviceType',
           'backedup',
           'counter',
+          'prfCapable',
           'friendlyName',
           'lastUsedAt',
           'platform',

@@ -12,7 +12,10 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import { StepUpStatusSchema, StepUpSuccessSchema } from '../schemas/stepUp.responses.js';
-import { WebAuthnLoginFinishSchema } from '../schemas/webauthn.requests.js';
+import {
+  WebAuthnAssertionStartSchema,
+  WebAuthnLoginFinishSchema,
+} from '../schemas/webauthn.requests.js';
 import { WebAuthnChallengeSchema } from '../schemas/webauthn.responses.js';
 
 const stepUpRouter = createRouter('/step-up');
@@ -42,6 +45,8 @@ stepUpRouter.post(
     tags: ['Step-Up'],
 
     schemas: {
+      body: WebAuthnAssertionStartSchema,
+
       response: {
         200: WebAuthnChallengeSchema,
         401: ErrorSchema,
@@ -64,6 +69,7 @@ stepUpRouter.post(
 
       response: {
         200: StepUpSuccessSchema,
+        400: ErrorSchema,
         401: ErrorSchema,
         500: InternalErrorSchema,
       },

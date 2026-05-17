@@ -14,6 +14,7 @@ import base64url from 'base64url';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { buildPrfAuthenticationExtensions, containsPrfOutput } from '../lib/webauthnPrf.js';
 import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
@@ -25,6 +26,23 @@ import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('step-up');
+
+function filterAssertionCredentials(
+  credentials: Credential[],
+  options: { credentialId?: string; requiresPrf: boolean },
+) {
+  return credentials.filter((credential) => {
+    if (options.credentialId && credential.id !== options.credentialId) {
+      return false;
+    }
+
+    if (options.requiresPrf && !credential.prfCapable) {
+      return false;
+    }
+
+    return true;
+  });
+}
 
 export const getStepUpStatus = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
@@ -49,6 +67,7 @@ export const getStepUpStatus = async (req: Request, res: Response) => {
 export const startWebAuthnStepUp = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
+  const { credentialId, prf } = req.body ?? {};
 
   if (!user?.id) {
     await AuthEventService.log({
@@ -63,25 +82,33 @@ export const startWebAuthnStepUp = async (req: Request, res: Response) => {
   try {
     const credentials = await Credential.findAll({ where: { userId: user.id } });
 
-    if (!credentials || credentials.length === 0) {
+    const assertionCredentials = filterAssertionCredentials(credentials ?? [], {
+      credentialId,
+      requiresPrf: Boolean(prf),
+    });
+
+    if (!assertionCredentials || assertionCredentials.length === 0) {
       await AuthEventService.log({
         userId: user.id,
         type: 'step_up_failed',
         req,
-        metadata: { reason: 'No WebAuthn credentials' },
+        metadata: {
+          reason: prf ? 'No PRF-capable WebAuthn credentials' : 'No WebAuthn credentials',
+        },
       });
       return res.status(401).json({ error: 'step_up_unavailable' });
     }
 
     const { rpid } = await getSystemConfig();
     const options: PublicKeyCredentialRequestOptionsJSON = await generateAuthenticationOptions({
-      allowCredentials: credentials.map((credential) => ({
+      allowCredentials: assertionCredentials.map((credential) => ({
         id: credential.id,
         transports: credential.transports,
       })),
       userVerification: 'required',
       timeout: 60000,
       rpID: rpid,
+      extensions: buildPrfAuthenticationExtensions(prf),
     });
 
     await user.update({
@@ -124,6 +151,16 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
 
   const { assertionResponse } = req.body;
   const assertionId = assertionResponse?.id;
+
+  if (containsPrfOutput(assertionResponse)) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'step_up_failed',
+      req,
+      metadata: { reason: 'PRF output was sent to the server' },
+    });
+    return res.status(400).json({ error: 'prf_output_not_allowed' });
+  }
 
   if (!user.challenge || typeof assertionId !== 'string') {
     await AuthEventService.log({
