@@ -174,6 +174,7 @@ describe('refreshSession', () => {
       refreshToken: 'new-raw-refresh-token',
       sub: user.id,
       roles: user.roles,
+      sessionId: 'session-2',
       email: user.email,
       phone: user.phone,
       ttl: 900,

@@ -21,12 +21,15 @@ export async function verifyBearerAuth(req: Request, res: Response, next: NextFu
 
   const token = auth.slice(7);
   try {
-    const user = await validateBearerToken(token);
-    if (!user) {
+    const result = await validateBearerToken(token);
+    if (!result) {
       logger.error('No user found for service bearer token');
       return res.status(401).json({ error: 'unauthorized' });
     }
-    (req as AuthenticatedRequest).user = user;
+    (req as AuthenticatedRequest).user = result.user;
+    if (result.sessionId !== undefined) {
+      (req as AuthenticatedRequest).sessionId = result.sessionId;
+    }
     next();
   } catch (err) {
     console.error('verifyBearerAuth failed:', err);

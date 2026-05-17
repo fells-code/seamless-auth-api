@@ -325,15 +325,20 @@ describe('sessionService', () => {
 
     (jwt.default.verify as any).mockReturnValue({
       sub: 'user',
+      sid: 'session-1',
     });
 
-    (User.findOne as any).mockResolvedValue({ id: 'user' });
+    const user = { id: 'user' };
+    (User.findOne as any).mockResolvedValue(user);
 
     const { validateBearerToken } = await import('../../../src/services/sessionService');
 
     const result = await validateBearerToken('token');
 
-    expect(result).toBeTruthy();
+    expect(result).toEqual({
+      user,
+      sessionId: 'session-1',
+    });
   });
 
   it('returns null if jwt fails', async () => {

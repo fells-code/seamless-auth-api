@@ -205,6 +205,11 @@ export async function getUserFromSession(session: Session) {
   return user ?? null;
 }
 
+export interface ValidatedBearerToken {
+  user: User;
+  sessionId?: string;
+}
+
 export async function validateBearerToken(token: string) {
   const serviceSecret = await getInternalSecret();
   let payload;
@@ -223,9 +228,14 @@ export async function validateBearerToken(token: string) {
     return null;
   }
 
+  if (typeof payload === 'string' || typeof payload.sub !== 'string') {
+    return null;
+  }
+
+  const sessionId = typeof payload.sid === 'string' ? payload.sid : undefined;
   const user = await User.findOne({
-    where: { id: payload.sub as string, revoked: false },
+    where: { id: payload.sub, revoked: false },
   });
 
-  return user ?? null;
+  return user ? { user, sessionId } : null;
 }
