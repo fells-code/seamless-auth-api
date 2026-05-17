@@ -5,6 +5,7 @@ vi.unmock('../../../src/models/sessions.js');
 vi.unmock('../../../src/models/users.js');
 vi.unmock('../../../src/models/systemConfig.js');
 vi.unmock('../../../src/models/credentials.js');
+vi.unmock('../../../src/models/totpCredentials.js');
 vi.unmock('../../../src/models/magicLinks.js');
 
 describe('models initialization', () => {

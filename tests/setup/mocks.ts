@@ -37,6 +37,15 @@ vi.mock('../../src/models/credentials.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/totpCredentials.js', () => ({
+  TotpCredential: {
+    create: vi.fn(),
+    findOne: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),

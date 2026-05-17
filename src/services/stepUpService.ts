@@ -8,7 +8,7 @@ import { Session } from '../models/sessions.js';
 
 export const DEFAULT_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 
-export type StepUpMethod = 'webauthn';
+export type StepUpMethod = 'webauthn' | 'totp';
 
 export interface StepUpStatus {
   sessionFound: boolean;
@@ -45,7 +45,10 @@ export function getStepUpStatusFromSession(
   }
 
   const verifiedAt = session.stepUpVerifiedAt ?? null;
-  const method = session.stepUpMethod === 'webauthn' ? session.stepUpMethod : null;
+  const method =
+    session.stepUpMethod === 'webauthn' || session.stepUpMethod === 'totp'
+      ? session.stepUpMethod
+      : null;
   const stepUpExpiresAt = verifiedAt ? expiresAt(verifiedAt, maxAgeSeconds) : null;
 
   return {

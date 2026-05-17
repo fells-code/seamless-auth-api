@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 export const StepUpStatusSchema = z.object({
   fresh: z.boolean(),
-  method: z.literal('webauthn').nullable(),
+  method: z.enum(['webauthn', 'totp']).nullable(),
   verifiedAt: z.string().nullable(),
   expiresAt: z.string().nullable(),
   maxAgeSeconds: z.number(),
@@ -17,7 +17,7 @@ export const StepUpStatusSchema = z.object({
 export const StepUpSuccessSchema = z.object({
   message: z.string(),
   fresh: z.boolean(),
-  method: z.literal('webauthn'),
+  method: z.enum(['webauthn', 'totp']),
   verifiedAt: z.string(),
   expiresAt: z.string(),
   maxAgeSeconds: z.number(),

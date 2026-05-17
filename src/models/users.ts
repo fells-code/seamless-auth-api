@@ -7,6 +7,7 @@
 import { Association, DataTypes, Model, Sequelize } from 'sequelize';
 
 import type { Credential } from './credentials.js';
+import type { TotpCredential } from './totpCredentials.js';
 
 export interface UserAttributes {
   id?: string;
@@ -26,6 +27,7 @@ export interface UserAttributes {
   createdAt?: Date;
   updatedAt?: Date;
   credentials?: Credential[];
+  totpCredentials?: TotpCredential[];
 }
 
 export class User extends Model<UserAttributes> implements UserAttributes {
@@ -46,9 +48,11 @@ export class User extends Model<UserAttributes> implements UserAttributes {
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
   declare readonly credentials?: Credential[];
+  declare readonly totpCredentials?: TotpCredential[];
 
   public static associations: {
     credentials: Association<User, Credential>;
+    totpCredentials: Association<User, TotpCredential>;
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,6 +61,11 @@ export class User extends Model<UserAttributes> implements UserAttributes {
       foreignKey: 'userId',
       onDelete: 'CASCADE',
       as: 'credentials',
+    });
+    User.hasMany(models.TotpCredential, {
+      foreignKey: 'userId',
+      onDelete: 'CASCADE',
+      as: 'totpCredentials',
     });
   }
 }
