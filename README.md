@@ -102,6 +102,16 @@ SeamlessAuth can request PRF-capable passkeys and PRF assertions without ever re
 See [docs/webauthn-prf.md](./docs/webauthn-prf.md) for API usage, browser limitations, SDK
 contract guidance, and Seamless Secrets consumption rules.
 
+### Login Method Policy
+
+Administrators can control which methods may continue after `/login` creates a pre-authenticated
+session. Configure `LOGIN_METHODS` with any of `passkey`, `magic_link`, `email_otp`, or
+`phone_otp`. The default is `passkey,magic_link`.
+
+Set `PASSKEY_LOGIN_FALLBACK_ENABLED=false` when passkey-capable sessions should continue with
+passkeys only. When fallback is enabled, `/login` returns `loginMethods` so clients can show only
+the allowed continuations for that user and device.
+
 ### Install & run
 
 ```

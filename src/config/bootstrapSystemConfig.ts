@@ -7,6 +7,7 @@
 import { SystemConfig } from '../models/systemConfig.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 import { parseSystemConfigEnvValue } from '../utils/parseEnvConfigs.js';
+import { SYSTEM_CONFIG_DEFAULTS } from './systemConfig.defaults.js';
 import { SYSTEM_CONFIG_ENV_MAP } from './systemConfig.envMap.js';
 
 export async function bootstrapSystemConfig() {
@@ -22,10 +23,23 @@ export async function bootstrapSystemConfig() {
 
     const envValue = process.env[envVar];
     if (!envValue) {
-      throw new Error(
-        `Missing required system config "${key}". ` +
-          `Provide ENV ${envVar} or seed system_config.`,
-      );
+      const defaultValue = SYSTEM_CONFIG_DEFAULTS[key as keyof typeof SYSTEM_CONFIG_DEFAULTS];
+
+      if (defaultValue === undefined) {
+        throw new Error(
+          `Missing required system config "${key}". ` +
+            `Provide ENV ${envVar} or seed system_config.`,
+        );
+      }
+
+      await SystemConfig.create({
+        key,
+        value: defaultValue,
+        updatedBy: null,
+      });
+
+      resolvedConfig[key] = defaultValue;
+      continue;
     }
 
     const parsed = parseSystemConfigEnvValue(key as keyof typeof SYSTEM_CONFIG_ENV_MAP, envValue);

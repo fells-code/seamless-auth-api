@@ -3,6 +3,8 @@ export function buildSystemConfig(overrides: any = {}) {
     app_name: 'SeamlessAuth',
     default_roles: ['user'],
     available_roles: ['user', 'admin'],
+    login_methods: ['passkey', 'magic_link'],
+    passkey_login_fallback_enabled: true,
     access_token_ttl: '15m',
     refresh_token_ttl: '7d',
     rate_limit: 100,

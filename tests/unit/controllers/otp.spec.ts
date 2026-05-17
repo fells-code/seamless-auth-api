@@ -8,6 +8,7 @@ const generateEmailOTPMock = vi.fn();
 const generatePhoneOTPMock = vi.fn();
 const verifyEmailOTPMock = vi.fn();
 const verifyPhoneOTPMock = vi.fn();
+const getSystemConfigMock = vi.fn();
 const isValidEmailMock = vi.fn();
 const isValidPhoneNumberMock = vi.fn();
 const normalizePhoneNumberMock = vi.fn();
@@ -37,6 +38,10 @@ vi.mock('../../../src/services/authEventService.js', () => ({
 
 vi.mock('../../../src/services/sessionIssuance.js', () => ({
   issueSessionAndRespond: issueSessionAndRespondMock,
+}));
+
+vi.mock('../../../src/config/getSystemConfig.js', () => ({
+  getSystemConfig: getSystemConfigMock,
 }));
 
 vi.mock('../../../src/utils/otp.js', () => ({
@@ -123,6 +128,10 @@ beforeEach(() => {
   signEphemeralTokenMock.mockResolvedValue('ephemeral-token');
   generatePhoneOTPMock.mockResolvedValue('654321');
   generateEmailOTPMock.mockResolvedValue('ABCDEF');
+  getSystemConfigMock.mockResolvedValue({
+    login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp'],
+    passkey_login_fallback_enabled: true,
+  });
   isValidPhoneNumberMock.mockReturnValue(true);
   normalizePhoneNumberMock.mockReturnValue('+14155552671');
   isValidEmailMock.mockReturnValue(true);
@@ -209,6 +218,24 @@ describe('otp controller', () => {
     });
   });
 
+  it('rejects disabled login email OTP generation', async () => {
+    const { sendLoginEmailOTP } = await loadOtpController('server');
+    const user = buildUser();
+    const req = buildReq(user);
+    const res = buildRes();
+
+    getSystemConfigMock.mockResolvedValue({
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    await sendLoginEmailOTP(req, res);
+
+    expect(generateEmailOTPMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
+  });
+
   it('returns 401 when phone verification data is missing', async () => {
     const { verifyPhoneNumber } = await loadOtpController('server');
     const user = buildUser({
@@ -278,6 +305,25 @@ describe('otp controller', () => {
     expect(verifiedUser.update).toHaveBeenCalledWith({
       lastLogin: expect.any(Date),
     });
+  });
+
+  it('rejects disabled login phone OTP verification', async () => {
+    const { verifyLoginPhoneNumber } = await loadOtpController('server');
+    const req = buildReq(buildUser(), {
+      body: { verificationToken: '123456' },
+    });
+    const res = buildRes();
+
+    getSystemConfigMock.mockResolvedValue({
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    await verifyLoginPhoneNumber(req, res);
+
+    expect(verifyPhoneOTPMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
   });
 
   it('returns 401 when login phone verification fails', async () => {

@@ -6,6 +6,8 @@
 
 import {
   sendEmailOTP,
+  sendLoginEmailOTP,
+  sendLoginPhoneOTP,
   sendPhoneOTP,
   verifyEmail,
   verifyLoginEmail,
@@ -65,10 +67,11 @@ otpRouter.get(
     schemas: {
       response: {
         200: MessageSchema,
+        403: ErrorSchema,
       },
     },
   },
-  sendEmailOTP,
+  sendLoginEmailOTP,
 );
 
 otpRouter.get(
@@ -81,10 +84,11 @@ otpRouter.get(
     schemas: {
       response: {
         200: MessageSchema,
+        403: ErrorSchema,
       },
     },
   },
-  sendPhoneOTP,
+  sendLoginPhoneOTP,
 );
 
 otpRouter.post(
@@ -99,6 +103,7 @@ otpRouter.post(
 
       response: {
         200: OTPVerifyTokenSuccessSchema,
+        403: ErrorSchema,
         401: ErrorSchema,
         500: ErrorSchema,
       },
@@ -119,6 +124,7 @@ otpRouter.post(
 
       response: {
         200: OTPVerifyTokenSuccessSchema,
+        403: ErrorSchema,
         401: ErrorSchema,
         500: ErrorSchema,
       },

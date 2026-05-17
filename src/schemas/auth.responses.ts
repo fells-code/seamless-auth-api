@@ -6,11 +6,14 @@
 
 import { z } from 'zod';
 
+import { LoginMethodSchema } from './systemConfig.schema.js';
+
 export const LoginSuccessResponseSchema = z.object({
   message: z.string(),
   token: z.string().optional(),
   sub: z.string().optional(),
   identifierType: z.enum(['email', 'phone']).optional(),
+  loginMethods: z.array(LoginMethodSchema).optional(),
   ttl: z.number().optional(),
 });
 

@@ -14,6 +14,15 @@ describe('parseSystemConfigEnvValue', () => {
 
       expect(result).toEqual(['http://a.com', 'http://b.com']);
     });
+
+    it('parses login methods', () => {
+      const result = parseSystemConfigEnvValue(
+        'login_methods',
+        'passkey, magic_link, email_otp',
+      );
+
+      expect(result).toEqual(['passkey', 'magic_link', 'email_otp']);
+    });
   });
 
   describe('number parsing', () => {
@@ -47,6 +56,13 @@ describe('parseSystemConfigEnvValue', () => {
       const result = parseSystemConfigEnvValue('app_name', 'SeamlessAuth');
 
       expect(result).toBe('SeamlessAuth');
+    });
+  });
+
+  describe('boolean parsing', () => {
+    it('parses passkey_login_fallback_enabled', () => {
+      expect(parseSystemConfigEnvValue('passkey_login_fallback_enabled', 'true')).toBe(true);
+      expect(parseSystemConfigEnvValue('passkey_login_fallback_enabled', 'false')).toBe(false);
     });
   });
 

@@ -28,6 +28,7 @@ magicLinkRouter.get(
     schemas: {
       response: {
         200: MessageSchema,
+        403: ErrorSchema,
       },
     },
   },
@@ -45,6 +46,7 @@ magicLinkRouter.get(
       response: {
         200: MagicLinkPollSuccessSchema,
         204: MessageSchema,
+        403: ErrorSchema,
         404: ErrorSchema,
         500: InternalErrorSchema,
       },
@@ -64,6 +66,7 @@ magicLinkRouter.get(
 
       response: {
         200: MessageSchema,
+        403: ErrorSchema,
         400: ErrorSchema,
         500: InternalErrorSchema,
       },

@@ -7,6 +7,8 @@
 export const SYSTEM_CONFIG_ENV_MAP = {
   default_roles: 'DEFAULT_ROLES',
   available_roles: 'AVAILABLE_ROLES',
+  login_methods: 'LOGIN_METHODS',
+  passkey_login_fallback_enabled: 'PASSKEY_LOGIN_FALLBACK_ENABLED',
   access_token_ttl: 'ACCESS_TOKEN_TTL',
   refresh_token_ttl: 'REFRESH_TOKEN_TTL',
   rate_limit: 'RATE_LIMIT',

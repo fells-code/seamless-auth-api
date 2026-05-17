@@ -31,3 +31,4 @@ docker-data/
 
 # Lint / tooling cache
 .eslintcache
+docs/

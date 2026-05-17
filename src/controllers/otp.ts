@@ -9,6 +9,11 @@ import { Request, Response } from 'express';
 import { setAuthCookies } from '../lib/cookie.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
+import {
+  getLoginPolicy,
+  isLoginMethodEnabled,
+  type LoginMethod,
+} from '../services/loginPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -26,6 +31,30 @@ const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
 
 function wantsExternalDelivery(req: Request) {
   return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
+}
+
+async function rejectDisabledLoginMethod(
+  method: LoginMethod,
+  req: Request,
+  res: Response,
+): Promise<boolean> {
+  const policy = await getLoginPolicy();
+
+  if (isLoginMethodEnabled(policy, method)) {
+    return false;
+  }
+
+  const user = (req as AuthenticatedRequest).user;
+
+  await AuthEventService.log({
+    userId: user?.id ?? null,
+    type: 'login_failed',
+    req,
+    metadata: { reason: 'Login method disabled', method },
+  });
+
+  res.status(403).json({ error: 'login_method_disabled' });
+  return true;
 }
 
 export const sendPhoneOTP = async (req: Request, res: Response) => {
@@ -218,6 +247,22 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
   }
 };
 
+export const sendLoginPhoneOTP = async (req: Request, res: Response) => {
+  if (await rejectDisabledLoginMethod('phone_otp', req, res)) {
+    return;
+  }
+
+  return sendPhoneOTP(req, res);
+};
+
+export const sendLoginEmailOTP = async (req: Request, res: Response) => {
+  if (await rejectDisabledLoginMethod('email_otp', req, res)) {
+    return;
+  }
+
+  return sendEmailOTP(req, res);
+};
+
 export const verifyPhoneNumber = async (req: Request, res: Response) => {
   const { verificationToken } = req.body;
 
@@ -396,6 +441,10 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
   const email = user.email;
   const phone = user.phone;
 
+  if (await rejectDisabledLoginMethod('phone_otp', req, res)) {
+    return;
+  }
+
   logger.info(`Verifying login phone number: ${phone}`);
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
@@ -489,6 +538,10 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
   let user = authReq.user;
   const email = user.email;
   const phone = user.phone;
+
+  if (await rejectDisabledLoginMethod('email_otp', req, res)) {
+    return;
+  }
 
   logger.info(`Verifying login email: ${email}`);
 

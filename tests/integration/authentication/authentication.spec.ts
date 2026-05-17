@@ -72,8 +72,13 @@ describe('POST /login', () => {
   });
 
   it('rejects passkey required but missing credential', async () => {
-    (User.findOne as any).mockResolvedValue(buildUser());
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue(null);
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: false,
+    });
 
     const res = await request(app).post('/login').send({
       identifier: 'test@example.com',
@@ -81,6 +86,7 @@ describe('POST /login', () => {
     });
 
     expect(res.status).toBe(401);
+    expect(res.body.error).toBe('No available login methods');
   });
 
   it('logs in successfully', async () => {
@@ -98,6 +104,49 @@ describe('POST /login', () => {
     });
 
     expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey', 'magic_link']);
+  });
+
+  it('returns administrator-enabled OTP login methods', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue(null);
+
+    (signEphemeralToken as any).mockResolvedValue('token');
+
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['email_otp', 'phone_otp'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res = await request(app).post('/login').send({
+      identifier: 'test@example.com',
+      passkeyAvailable: true,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['email_otp', 'phone_otp']);
+  });
+
+  it('hides fallback methods when passkey fallback is disabled and passkey is available', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue({});
+
+    (signEphemeralToken as any).mockResolvedValue('token');
+
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp'],
+      passkey_login_fallback_enabled: false,
+    });
+
+    const res = await request(app).post('/login').send({
+      identifier: 'test@example.com',
+      passkeyAvailable: true,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey']);
   });
 });
 
