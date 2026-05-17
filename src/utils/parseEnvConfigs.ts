@@ -10,6 +10,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
   switch (key) {
     case 'default_roles':
     case 'available_roles':
+    case 'login_methods':
     case 'origins':
       return raw
         .split(',')
@@ -19,6 +20,9 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     case 'rate_limit':
     case 'delay_after':
       return Number(raw);
+
+    case 'passkey_login_fallback_enabled':
+      return raw.trim().toLowerCase() === 'true';
 
     case 'access_token_ttl':
     case 'refresh_token_ttl':

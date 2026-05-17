@@ -30,6 +30,8 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
+
   (User.findOne as any).mockResolvedValue({
     id: 'user-1',
     email: 'test@example.com',
@@ -41,6 +43,8 @@ beforeEach(() => {
     access_token_ttl: '15m',
     refresh_token_ttl: '1h',
     origins: ['http://localhost:5174'],
+    login_methods: ['passkey', 'magic_link'],
+    passkey_login_fallback_enabled: true,
   });
 });
 
@@ -67,6 +71,20 @@ describe('GET /magic-link', () => {
 
     expect(res.status).toBe(200);
     expect(MagicLinkToken.create).toHaveBeenCalled();
+  });
+
+  it('rejects magic link requests when the method is disabled', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      origins: ['http://localhost:5174'],
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res = await request(app).get('/magic-link');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('login_method_disabled');
+    expect(MagicLinkToken.create).not.toHaveBeenCalled();
   });
 });
 
@@ -111,6 +129,19 @@ describe('GET /magic-link/verify/:token', () => {
     const res = await request(app).get('/magic-link/verify/token');
 
     expect(res.status).toBe(200);
+  });
+
+  it('rejects token verification when magic links are disabled', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res = await request(app).get('/magic-link/verify/token');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('login_method_disabled');
+    expect(MagicLinkToken.findOne).not.toHaveBeenCalled();
   });
 });
 

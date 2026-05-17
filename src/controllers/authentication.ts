@@ -20,6 +20,7 @@ import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { getLoginPolicy, resolveAvailableLoginMethods } from '../services/loginPolicyService.js';
 import {
   findRefreshSessionByToken,
   hardRevokeSession,
@@ -148,18 +149,27 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Login failed. Need to verify.' });
     }
 
-    const credential = await Credential.findOne({ where: { userId: user.id } });
+    const [credential, loginPolicy] = await Promise.all([
+      Credential.findOne({ where: { userId: user.id } }),
+      getLoginPolicy(),
+    ]);
+    const loginMethods = resolveAvailableLoginMethods({
+      policy: loginPolicy,
+      user,
+      hasPasskeyCredential: Boolean(credential),
+      passkeyAvailable,
+    });
 
-    if (passkeyAvailable && !credential) {
-      logger.error(`Login attempt for a verified users, but no passkey. ${identifier}`);
+    if (loginMethods.length === 0) {
+      logger.error(`Login attempt had no allowed continuation methods. ${identifier}`);
       await AuthEvent.create({
         user_id: user.id,
         type: 'login_failed',
         ip_address: req.ip,
         user_agent: req.headers['user-agent'],
-        metadata: { reason: `No credentials ${identifier}` },
+        metadata: { reason: 'No allowed login methods available' },
       });
-      return res.status(401).json({ error: 'Need to re-register and create passkey' });
+      return res.status(401).json({ error: 'No available login methods' });
     }
 
     if (token) {
@@ -173,7 +183,7 @@ export const login = async (req: Request, res: Response) => {
 
       if (AUTH_MODE === 'web') {
         await setAuthCookies(res, { ephemeralToken: token });
-        res.status(200).json({ message: 'Success' });
+        res.status(200).json({ message: 'Success', loginMethods });
         return;
       }
 
@@ -183,6 +193,7 @@ export const login = async (req: Request, res: Response) => {
         sub: user.id,
         token,
         identifierType,
+        loginMethods,
         ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       });
     }

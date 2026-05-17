@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 export const LoginRequestSchema = z.object({
   identifier: z.string(),
+  passkeyAvailable: z.boolean().optional(),
 });
 
 export const RefreshRequestSchema = z.object({});

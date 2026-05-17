@@ -14,6 +14,7 @@ import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { maybePromoteBootstrapAdmin } from '../services/bootstrapPromotionService.js';
+import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicyService.js';
 import { sendMagicLinkEmail } from '../services/messagingService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -30,10 +31,32 @@ function wantsExternalDelivery(req: Request) {
   return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
 }
 
+async function rejectDisabledMagicLink(req: Request, res: Response, userId?: string | null) {
+  const policy = await getLoginPolicy();
+
+  if (isLoginMethodEnabled(policy, 'magic_link')) {
+    return false;
+  }
+
+  await AuthEventService.log({
+    userId: userId ?? null,
+    type: 'login_failed',
+    req,
+    metadata: { reason: 'Login method disabled', method: 'magic_link' },
+  });
+
+  res.status(403).json({ error: 'login_method_disabled' });
+  return true;
+}
+
 export async function requestMagicLink(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
   const useExternalDelivery = wantsExternalDelivery(req);
+
+  if (await rejectDisabledMagicLink(req, res, preAuthUser?.id)) {
+    return;
+  }
 
   const user = await User.findOne({ where: { email: preAuthUser.email } });
 
@@ -103,6 +126,10 @@ export async function verifyMagicLink(req: Request, res: Response) {
   logger.debug('Verifying magic link');
   const { token } = req.params;
 
+  if (await rejectDisabledMagicLink(req, res)) {
+    return;
+  }
+
   if (!token) {
     return res.status(400).json({ error: 'Missing verification token' });
   }
@@ -169,6 +196,10 @@ export async function verifyMagicLink(req: Request, res: Response) {
 export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
+
+  if (await rejectDisabledMagicLink(req, res, preAuthUser?.id)) {
+    return;
+  }
 
   const user = await User.findOne({ where: { email: preAuthUser.email } });
 
