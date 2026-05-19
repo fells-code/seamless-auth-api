@@ -172,9 +172,7 @@ export async function findMembership(userId: string, organizationId: string) {
 
 export function isOrganizationManager(user: User, membership?: OrganizationMembership | null) {
   if (user.roles?.includes('admin')) return true;
-  return Boolean(
-    membership?.roles?.some((role) => role === 'owner' || role === 'admin'),
-  );
+  return Boolean(membership?.roles?.some((role) => role === 'owner' || role === 'admin'));
 }
 
 export async function requireOrganizationAccess(user: User, organizationId: string) {
@@ -267,7 +265,9 @@ export async function listOrganizationMembers(organizationId: string) {
   });
   const usersById = new Map(users.map((user) => [user.id, user]));
 
-  return memberships.map((membership) => serializeMembership(membership, usersById.get(membership.userId)));
+  return memberships.map((membership) =>
+    serializeMembership(membership, usersById.get(membership.userId)),
+  );
 }
 
 export async function countOwners(organizationId: string) {

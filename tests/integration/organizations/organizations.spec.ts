@@ -29,31 +29,22 @@ beforeEach(() => {
 
 describe('organizations', () => {
   it('lists organizations for the authenticated user', async () => {
-    (OrganizationMembership.findAll as any).mockResolvedValue([
-      buildOrganizationMembership(),
-    ]);
+    (OrganizationMembership.findAll as any).mockResolvedValue([buildOrganizationMembership()]);
     (Organization.findAll as any).mockResolvedValue([buildOrganization()]);
 
     const res = await request(app).get('/organizations');
 
     expect(res.status).toBe(200);
     expect(res.body.organizations).toHaveLength(1);
-    expect(res.body.organizations[0].membership.roles).toEqual([
-      'owner',
-      'admin',
-    ]);
+    expect(res.body.organizations[0].membership.roles).toEqual(['owner', 'admin']);
   });
 
   it('creates an organization with an owner membership', async () => {
     (Organization.findOne as any).mockResolvedValue(null);
     (Organization.create as any).mockResolvedValue(buildOrganization());
-    (OrganizationMembership.create as any).mockResolvedValue(
-      buildOrganizationMembership(),
-    );
+    (OrganizationMembership.create as any).mockResolvedValue(buildOrganizationMembership());
 
-    const res = await request(app)
-      .post('/organizations')
-      .send({ name: 'Acme, Inc.' });
+    const res = await request(app).post('/organizations').send({ name: 'Acme, Inc.' });
 
     expect(res.status).toBe(201);
     expect(Organization.create).toHaveBeenCalledWith(
@@ -113,16 +104,12 @@ describe('organizations', () => {
     const session = buildSession({ id: 'session-1', userId: 'user-1' });
 
     (Organization.findByPk as any).mockResolvedValue(buildOrganization());
-    (OrganizationMembership.findOne as any).mockResolvedValue(
-      buildOrganizationMembership(),
-    );
+    (OrganizationMembership.findOne as any).mockResolvedValue(buildOrganizationMembership());
     (Session.findOne as any).mockResolvedValue(session);
     (signAccessToken as any).mockResolvedValue('organization-access-token');
     (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
 
-    const res = await request(app).post(
-      `/organizations/${testOrganizationId}/switch`,
-    );
+    const res = await request(app).post(`/organizations/${testOrganizationId}/switch`);
 
     expect(res.status).toBe(200);
     expect(session.update).toHaveBeenCalledWith({
