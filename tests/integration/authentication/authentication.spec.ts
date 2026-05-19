@@ -220,6 +220,7 @@ describe('POST /refresh', () => {
       'new-session',
       expect.any(String),
       expect.any(Array),
+      undefined,
     );
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({ refreshTokenLookup: 'refresh-lookup' }),

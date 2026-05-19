@@ -12,6 +12,7 @@ import { User } from '../models/users.js';
 export interface AuthenticatedRequest extends Request {
   user: User;
   sessionId: Session['id'];
+  organizationId?: string | null;
   clientId?: string;
   trustedClientIp?: string;
 }

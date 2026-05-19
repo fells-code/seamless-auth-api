@@ -118,6 +118,7 @@ describe('sessionService', () => {
       userId: 'user',
       sessionId: 'session',
       roles: ['admin'],
+      organizationId: null,
     });
   });
 
@@ -338,6 +339,7 @@ describe('sessionService', () => {
     expect(result).toEqual({
       user,
       sessionId: 'session-1',
+      organizationId: null,
     });
   });
 

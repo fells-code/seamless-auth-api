@@ -17,6 +17,7 @@ import {
 } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
+import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 type IssueSessionParams = {
   user: {
@@ -39,10 +40,12 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const refreshTokenHash = await hashRefreshToken(refreshToken);
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
   const { expiresAt, idleExpiresAt } = computeSessionTimes();
+  const organizationId = await getDefaultOrganizationIdForUser(user.id);
 
   const session = await Session.create({
     userId: user.id,
     infraId: process.env.APP_ID!,
+    organizationId,
     mode: authMode,
     refreshTokenHash,
     refreshTokenLookup,
@@ -53,7 +56,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     lastUsedAt: undefined,
   });
 
-  const token = await signAccessToken(session.id, user.id, user.roles);
+  const token = await signAccessToken(session.id, user.id, user.roles, organizationId);
 
   if (!token || !refreshToken) {
     throw new Error('Failed to issue session tokens');
@@ -80,6 +83,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     token,
     refreshToken,
     sub: user.id,
+    organizationId,
     roles: user.roles,
     email: user.email,
     phone: user.phone,

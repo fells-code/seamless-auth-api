@@ -11,6 +11,7 @@ import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { listOrganizationsForUser } from '../services/organizationService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -23,23 +24,27 @@ export const getUser = async (req: Request, res: Response) => {
 
   try {
     if (authUser) {
-      const credentials = await Credential.findAll({
-        where: { userId: authUser.id },
-        attributes: [
-          'id',
-          'transports',
-          'deviceType',
-          'backedup',
-          'counter',
-          'prfCapable',
-          'friendlyName',
-          'lastUsedAt',
-          'platform',
-          'browser',
-          'deviceInfo',
-          'createdAt',
-        ],
-      });
+      const [credentials, organizations] = await Promise.all([
+        Credential.findAll({
+          where: { userId: authUser.id },
+          attributes: [
+            'id',
+            'transports',
+            'deviceType',
+            'backedup',
+            'counter',
+            'prfCapable',
+            'friendlyName',
+            'lastUsedAt',
+            'platform',
+            'browser',
+            'deviceInfo',
+            'createdAt',
+          ],
+        }),
+        listOrganizationsForUser(authUser.id),
+      ]);
+      const activeOrganizationId = authReq.organizationId ?? null;
 
       return res.json({
         user: {
@@ -48,8 +53,12 @@ export const getUser = async (req: Request, res: Response) => {
           phone: authUser.phone,
           roles: authUser.roles,
           lastLogin: authUser.lastLogin,
+          activeOrganizationId,
         },
         credentials,
+        organizations,
+        activeOrganization:
+          organizations.find((organization) => organization.id === activeOrganizationId) ?? null,
       });
     } else {
       return res.status(404).json({ message: 'User not found' });

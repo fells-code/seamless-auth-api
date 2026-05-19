@@ -119,6 +119,7 @@ export async function validateAccessToken(token: string) {
     userId,
     sessionId,
     roles: payload.roles || [],
+    organizationId: typeof payload.org_id === 'string' ? payload.org_id : null,
   };
 }
 
@@ -208,6 +209,7 @@ export async function getUserFromSession(session: Session) {
 export interface ValidatedBearerToken {
   user: User;
   sessionId?: string;
+  organizationId?: string | null;
 }
 
 export async function validateBearerToken(token: string) {
@@ -233,9 +235,10 @@ export async function validateBearerToken(token: string) {
   }
 
   const sessionId = typeof payload.sid === 'string' ? payload.sid : undefined;
+  const organizationId = typeof payload.org_id === 'string' ? payload.org_id : null;
   const user = await User.findOne({
     where: { id: payload.sub, revoked: false },
   });
 
-  return user ? { user, sessionId } : null;
+  return user ? { user, sessionId, organizationId } : null;
 }

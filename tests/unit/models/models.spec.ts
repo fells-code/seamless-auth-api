@@ -7,6 +7,8 @@ vi.unmock('../../../src/models/systemConfig.js');
 vi.unmock('../../../src/models/credentials.js');
 vi.unmock('../../../src/models/totpCredentials.js');
 vi.unmock('../../../src/models/magicLinks.js');
+vi.unmock('../../../src/models/organizations.js');
+vi.unmock('../../../src/models/organizationMemberships.js');
 
 describe('models initialization', () => {
   beforeEach(() => {

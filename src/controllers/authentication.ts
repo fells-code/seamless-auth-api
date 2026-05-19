@@ -343,6 +343,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     userId: user.id,
     infraId: session.infraId,
     mode: session.mode,
+    organizationId: session.organizationId,
     refreshTokenHash: newRefreshTokenHash,
     refreshTokenLookup: newRefreshTokenLookup,
     userAgent: session.userAgent,
@@ -354,7 +355,7 @@ export const refreshSession = async (req: Request, res: Response) => {
   session.replacedBySessionId = newSession.id;
   await session.save();
 
-  const token = await signAccessToken(newSession.id, user.id, user.roles);
+  const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId);
 
   if (token && newRefreshToken) {
     logger.info(
@@ -375,6 +376,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       refreshToken: newRefreshToken,
       sub: user.id,
       sessionId: newSession.id,
+      organizationId: session.organizationId,
       roles: user.roles,
       email: user.email,
       phone: user.phone,

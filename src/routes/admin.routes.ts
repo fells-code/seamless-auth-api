@@ -19,6 +19,16 @@ import {
   revokeAllUserSessions,
   updateUser,
 } from '../controllers/admin.js';
+import {
+  addMember,
+  createOrganization,
+  getOrganization,
+  listAdminOrganizations,
+  listMembers,
+  removeMember,
+  updateMember,
+  updateOrganization,
+} from '../controllers/organizations.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { UserIdParamSchema } from '../schemas/admin.query.js';
@@ -30,9 +40,132 @@ import {
   CredentialCountSchema,
   UsersListResponseSchema,
 } from '../schemas/internal.responses.js';
+import {
+  AddOrganizationMemberRequestSchema,
+  CreateOrganizationRequestSchema,
+  OrganizationIdParamSchema,
+  OrganizationMemberParamSchema,
+  UpdateOrganizationMemberRequestSchema,
+  UpdateOrganizationRequestSchema,
+} from '../schemas/organization.requests.js';
 import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
 const adminRouter = createRouter('/admin');
+
+adminRouter.get(
+  '/organizations',
+  {
+    auth: 'access',
+    summary: 'List organizations',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+  },
+  listAdminOrganizations,
+);
+
+adminRouter.post(
+  '/organizations',
+  {
+    auth: 'access',
+    summary: 'Create organization',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      body: CreateOrganizationRequestSchema,
+    },
+  },
+  createOrganization,
+);
+
+adminRouter.get(
+  '/organizations/:organizationId',
+  {
+    auth: 'access',
+    summary: 'Get organization',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      params: OrganizationIdParamSchema,
+    },
+  },
+  getOrganization,
+);
+
+adminRouter.patch(
+  '/organizations/:organizationId',
+  {
+    auth: 'access',
+    summary: 'Update organization',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      params: OrganizationIdParamSchema,
+      body: UpdateOrganizationRequestSchema,
+    },
+  },
+  updateOrganization,
+);
+
+adminRouter.get(
+  '/organizations/:organizationId/members',
+  {
+    auth: 'access',
+    summary: 'List organization members',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      params: OrganizationIdParamSchema,
+    },
+  },
+  listMembers,
+);
+
+adminRouter.post(
+  '/organizations/:organizationId/members',
+  {
+    auth: 'access',
+    summary: 'Add organization member',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      params: OrganizationIdParamSchema,
+      body: AddOrganizationMemberRequestSchema,
+    },
+  },
+  addMember,
+);
+
+adminRouter.patch(
+  '/organizations/:organizationId/members/:userId',
+  {
+    auth: 'access',
+    summary: 'Update organization member',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      params: OrganizationMemberParamSchema,
+      body: UpdateOrganizationMemberRequestSchema,
+    },
+  },
+  updateMember,
+);
+
+adminRouter.delete(
+  '/organizations/:organizationId/members/:userId',
+  {
+    auth: 'access',
+    summary: 'Remove organization member',
+    tags: ['Admin'],
+    middleware: [requireAdmin()],
+    schemas: {
+      params: OrganizationMemberParamSchema,
+      response: {
+        200: MessageSchema,
+      },
+    },
+  },
+  removeMember,
+);
 
 adminRouter.get(
   '/users',

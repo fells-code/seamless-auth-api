@@ -11,6 +11,28 @@ const CredentialWithPrfSchema = CredentialApiSchema.extend({
   prfCapable: z.boolean().optional(),
 });
 
+const OrganizationMembershipSchema = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  userId: z.string(),
+  roles: z.array(z.string()),
+  scopes: z.array(z.string()),
+  createdAt: z.any(),
+  updatedAt: z.any(),
+});
+
+const OrganizationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  createdByUserId: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.any(),
+  updatedAt: z.any(),
+  membership: OrganizationMembershipSchema.optional(),
+  memberCount: z.number().optional(),
+});
+
 export const MeResponseSchema = z.object({
   user: UserSchema.pick({
     id: true,
@@ -18,6 +40,10 @@ export const MeResponseSchema = z.object({
     phone: true,
     roles: true,
     lastLogin: true,
+  }).extend({
+    activeOrganizationId: z.string().nullable().optional(),
   }),
   credentials: z.array(CredentialWithPrfSchema),
+  organizations: z.array(OrganizationSchema).optional(),
+  activeOrganization: OrganizationSchema.nullable().optional(),
 });
