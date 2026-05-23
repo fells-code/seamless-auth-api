@@ -4,11 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import {
-  finishOAuthLogin,
-  listOAuthProviders,
-  startOAuthLogin,
-} from '../controllers/oauth.js';
+import { finishOAuthLogin, listOAuthProviders, startOAuthLogin } from '../controllers/oauth.js';
 import { createRouter } from '../lib/createRouter.js';
 import {
   FinishOAuthLoginRequestSchema,
