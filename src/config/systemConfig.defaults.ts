@@ -8,5 +8,6 @@ import type { SystemConfig } from '../schemas/systemConfig.schema.js';
 
 export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   login_methods: ['passkey', 'magic_link'],
+  oauth_providers: [],
   passkey_login_fallback_enabled: true,
 };

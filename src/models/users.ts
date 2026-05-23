@@ -7,6 +7,7 @@
 import { Association, DataTypes, Model, Sequelize } from 'sequelize';
 
 import type { Credential } from './credentials.js';
+import type { OAuthIdentity } from './oauthIdentities.js';
 import type { OrganizationMembership } from './organizationMemberships.js';
 import type { TotpCredential } from './totpCredentials.js';
 
@@ -29,6 +30,7 @@ export interface UserAttributes {
   createdAt?: Date;
   updatedAt?: Date;
   credentials?: Credential[];
+  oauthIdentities?: OAuthIdentity[];
   organizationMemberships?: OrganizationMembership[];
   totpCredentials?: TotpCredential[];
 }
@@ -52,11 +54,13 @@ export class User extends Model<UserAttributes> implements UserAttributes {
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
   declare readonly credentials?: Credential[];
+  declare readonly oauthIdentities?: OAuthIdentity[];
   declare readonly organizationMemberships?: OrganizationMembership[];
   declare readonly totpCredentials?: TotpCredential[];
 
   public static associations: {
     credentials: Association<User, Credential>;
+    oauthIdentities: Association<User, OAuthIdentity>;
     organizationMemberships: Association<User, OrganizationMembership>;
     totpCredentials: Association<User, TotpCredential>;
   };
@@ -67,6 +71,11 @@ export class User extends Model<UserAttributes> implements UserAttributes {
       foreignKey: 'userId',
       onDelete: 'CASCADE',
       as: 'credentials',
+    });
+    User.hasMany(models.OAuthIdentity, {
+      foreignKey: 'userId',
+      onDelete: 'CASCADE',
+      as: 'oauthIdentities',
     });
     User.hasMany(models.TotpCredential, {
       foreignKey: 'userId',

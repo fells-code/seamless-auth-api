@@ -4,6 +4,7 @@ export function buildSystemConfig(overrides: any = {}) {
     default_roles: ['user'],
     available_roles: ['user', 'admin'],
     login_methods: ['passkey', 'magic_link'],
+    oauth_providers: [],
     passkey_login_fallback_enabled: true,
     access_token_ttl: '15m',
     refresh_token_ttl: '7d',

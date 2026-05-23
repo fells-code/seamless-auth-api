@@ -17,6 +17,9 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
         .map((v) => v.trim())
         .filter(Boolean);
 
+    case 'oauth_providers':
+      return JSON.parse(raw);
+
     case 'rate_limit':
     case 'delay_after':
       return Number(raw);
