@@ -44,7 +44,12 @@ function getRefreshTokenLookupSecret() {
   );
 }
 
-export async function signAccessToken(sessionId: string, userId: string, roles?: string[]) {
+export async function signAccessToken(
+  sessionId: string,
+  userId: string,
+  roles?: string[],
+  organizationId?: string | null,
+) {
   const { kid, privateKeyPem } = await getSigningKey();
 
   const privateKey = await importPKCS8(privateKeyPem, 'RS256');
@@ -56,6 +61,7 @@ export async function signAccessToken(sessionId: string, userId: string, roles?:
     iss: process.env.ISSUER,
     typ: 'access',
     roles,
+    ...(organizationId ? { org_id: organizationId } : {}),
   })
     .setProtectedHeader({ alg: 'RS256', kid })
     .setIssuedAt()

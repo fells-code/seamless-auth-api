@@ -28,6 +28,10 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
   getSystemConfig: vi.fn(),
 }));
 
+vi.mock('../../../src/services/organizationService.js', () => ({
+  getDefaultOrganizationIdForUser: vi.fn(),
+}));
+
 vi.mock('../../../src/utils/utils.js', () => ({
   computeSessionTimes: vi.fn(),
   parseDurationToSeconds: vi.fn(),
@@ -46,6 +50,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { setAuthCookies, clearAuthCookies } from '../../../src/lib/cookie.js';
 import { clearBootstrapCookie } from '../../../src/lib/bootstrapCookie.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { getDefaultOrganizationIdForUser } from '../../../src/services/organizationService.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../../../src/utils/utils.js';
 
 // ---- Helpers ----
@@ -93,6 +98,7 @@ beforeEach(() => {
   });
 
   (parseDurationToSeconds as any).mockImplementation((v: string) => (v === '15m' ? 900 : 3600));
+  (getDefaultOrganizationIdForUser as any).mockResolvedValue(null);
 });
 
 it('issues session in web mode and sets cookies', async () => {
@@ -137,6 +143,7 @@ it('issues session in server mode and returns JSON payload', async () => {
     token: 'access-token',
     refreshToken: 'refresh-token',
     sub: mockUser.id,
+    organizationId: null,
     roles: mockUser.roles,
     email: mockUser.email,
     phone: mockUser.phone,
@@ -206,8 +213,30 @@ it('passes request metadata into session creation', async () => {
     expect.objectContaining({
       userAgent: 'test-agent',
       ipAddress: '127.0.0.1',
+      organizationId: null,
     }),
   );
+});
+
+it('stores the default organization when one exists', async () => {
+  const req = mockReq();
+  const res = mockRes();
+
+  (getDefaultOrganizationIdForUser as any).mockResolvedValue('org-1');
+
+  await issueSessionAndRespond({
+    user: mockUser,
+    req,
+    res,
+    authMode: 'server',
+  });
+
+  expect(Session.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      organizationId: 'org-1',
+    }),
+  );
+  expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, 'org-1');
 });
 
 it('uses default TTL values when config missing', async () => {

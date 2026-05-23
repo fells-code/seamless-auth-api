@@ -165,7 +165,7 @@ describe('refreshSession', () => {
         refreshTokenLookup: 'new-refresh-lookup',
       }),
     );
-    expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles);
+    expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, undefined);
     expect(setAuthCookies).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -174,6 +174,7 @@ describe('refreshSession', () => {
       refreshToken: 'new-raw-refresh-token',
       sub: user.id,
       roles: user.roles,
+      organizationId: undefined,
       sessionId: 'session-2',
       email: user.email,
       phone: user.phone,

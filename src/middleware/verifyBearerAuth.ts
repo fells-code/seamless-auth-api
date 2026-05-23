@@ -30,6 +30,9 @@ export async function verifyBearerAuth(req: Request, res: Response, next: NextFu
     if (result.sessionId !== undefined) {
       (req as AuthenticatedRequest).sessionId = result.sessionId;
     }
+    if (result.organizationId !== undefined) {
+      (req as AuthenticatedRequest).organizationId = result.organizationId;
+    }
     next();
   } catch (err) {
     console.error('verifyBearerAuth failed:', err);

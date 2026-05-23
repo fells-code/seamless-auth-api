@@ -22,6 +22,8 @@ export const RefreshSuccessResponseSchema = z.object({
   token: z.string().optional(),
   refreshToken: z.string().optional(),
   sub: z.string().optional(),
+  sessionId: z.string().optional(),
+  organizationId: z.string().nullable().optional(),
   roles: z.array(z.string()).optional(),
   email: z.string().optional(),
   phone: z.string().nullable().optional(),

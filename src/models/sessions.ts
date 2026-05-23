@@ -10,6 +10,7 @@ export interface SessionAttributes {
   id: string;
   userId: string;
   infraId?: string | null;
+  organizationId?: string | null;
   mode: 'web' | 'server';
   refreshTokenHash: string;
   refreshTokenLookup?: string | null;
@@ -47,6 +48,7 @@ export class Session
   declare id: string;
   declare userId: string;
   declare infraId: string | null;
+  declare organizationId: string | null;
   declare mode: 'web' | 'server';
   declare refreshTokenHash: string;
   declare refreshTokenLookup: string | null;
@@ -79,6 +81,10 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       },
       infraId: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      organizationId: {
+        type: DataTypes.UUID,
         allowNull: true,
       },
       mode: {

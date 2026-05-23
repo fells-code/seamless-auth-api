@@ -46,6 +46,25 @@ vi.mock('../../src/models/totpCredentials.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/organizations.js', () => ({
+  Organization: {
+    create: vi.fn(),
+    findAll: vi.fn(),
+    findOne: vi.fn(),
+    findByPk: vi.fn(),
+    count: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/models/organizationMemberships.js', () => ({
+  OrganizationMembership: {
+    create: vi.fn(),
+    findAll: vi.fn().mockResolvedValue([]),
+    findOne: vi.fn(),
+    count: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),

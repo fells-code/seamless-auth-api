@@ -82,6 +82,8 @@ export function verifyCookieAuth(cookieType: CookieType = 'access') {
 
               if (user) {
                 (req as AuthenticatedRequest).user = user;
+                (req as AuthenticatedRequest).sessionId = session.id;
+                (req as AuthenticatedRequest).organizationId = tokenData.organizationId;
                 return next();
               }
             }
@@ -192,6 +194,7 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
     userId: user.id,
     infraId: session.infraId,
     mode: session.mode,
+    organizationId: session.organizationId,
     refreshTokenHash: newRefreshTokenHash,
     refreshTokenLookup: newRefreshTokenLookup,
     userAgent: session.userAgent,
@@ -204,7 +207,12 @@ async function performSilentRefresh(req: Request, res: Response): Promise<User |
   session.lastUsedAt = now;
   await session.save();
 
-  const accessToken = await signAccessToken(newSession.id, user.id);
+  const accessToken = await signAccessToken(
+    newSession.id,
+    user.id,
+    user.roles,
+    session.organizationId,
+  );
 
   await setAuthCookies(res, {
     accessToken,
