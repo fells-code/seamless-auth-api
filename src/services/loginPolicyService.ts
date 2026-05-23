@@ -8,7 +8,7 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import { SYSTEM_CONFIG_DEFAULTS } from '../config/systemConfig.defaults.js';
 import { LoginMethodSchema } from '../schemas/systemConfig.schema.js';
 
-export type LoginMethod = 'passkey' | 'magic_link' | 'email_otp' | 'phone_otp';
+export type LoginMethod = 'passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth';
 
 export interface LoginPolicy {
   loginMethods: LoginMethod[];
@@ -20,7 +20,13 @@ type LoginMethodUser = {
   phone?: string | null;
 };
 
-const LOGIN_METHOD_ORDER: LoginMethod[] = ['passkey', 'magic_link', 'email_otp', 'phone_otp'];
+const LOGIN_METHOD_ORDER: LoginMethod[] = [
+  'passkey',
+  'magic_link',
+  'email_otp',
+  'phone_otp',
+  'oauth',
+];
 
 function hasValue(value: string | null | undefined) {
   return typeof value === 'string' && value.trim().length > 0;
@@ -90,6 +96,10 @@ export function resolveAvailableLoginMethods({
 
     if (method === 'magic_link' || method === 'email_otp') {
       return hasValue(user.email);
+    }
+
+    if (method === 'oauth') {
+      return false;
     }
 
     return hasValue(user.phone);

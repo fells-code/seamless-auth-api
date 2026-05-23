@@ -18,6 +18,7 @@ This repository intentionally focuses on **authentication only**.
 ### What this repository includes
 
 - Passwordless authentication flows (e.g. passkeys, OTP where configured)
+- Optional OAuth login through configured external identity providers
 - Secure session and token handling
 - User registration and authentication APIs
 - WebAuthn / Passkeys support
@@ -105,12 +106,87 @@ contract guidance, and Seamless Secrets consumption rules.
 ### Login Method Policy
 
 Administrators can control which methods may continue after `/login` creates a pre-authenticated
-session. Configure `LOGIN_METHODS` with any of `passkey`, `magic_link`, `email_otp`, or
-`phone_otp`. The default is `passkey,magic_link`.
+session. Configure `LOGIN_METHODS` with any of `passkey`, `magic_link`, `email_otp`, `phone_otp`,
+or `oauth`. The default is `passkey,magic_link`.
 
 Set `PASSKEY_LOGIN_FALLBACK_ENABLED=false` when passkey-capable sessions should continue with
 passkeys only. When fallback is enabled, `/login` returns `loginMethods` so clients can show only
 the allowed continuations for that user and device.
+
+### OAuth Login
+
+OAuth support lets adopters offer login with external providers such as Google, GitHub, Facebook,
+or any compatible provider that supports an authorization-code exchange and a userinfo endpoint.
+Seamless Auth still issues the final SeamlessAuth session. Provider access tokens are used only
+during the callback to fetch the profile; they are not logged, stored, returned to clients, or
+included in API responses.
+
+Enable OAuth by adding `oauth` to `LOGIN_METHODS` and configuring `oauth_providers` in
+`system_config` or the `OAUTH_PROVIDERS` environment variable. `OAUTH_PROVIDERS` is JSON. Secrets
+are referenced by environment variable name through `clientSecretEnv`; do not put client secrets in
+system config.
+
+```json
+[
+  {
+    "id": "google",
+    "name": "Google",
+    "enabled": true,
+    "clientId": "google-oauth-client-id",
+    "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
+    "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+    "tokenUrl": "https://oauth2.googleapis.com/token",
+    "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
+    "scopes": ["openid", "email", "profile"],
+    "redirectUri": "https://app.example.com/oauth/callback",
+    "subjectJsonPath": "sub",
+    "emailJsonPath": "email",
+    "nameJsonPath": "name",
+    "allowSignup": true
+  }
+]
+```
+
+The browser/client flow is:
+
+1. `GET /oauth/providers` returns enabled public provider metadata.
+2. `POST /oauth/:providerId/start` returns a signed `state` and provider `authorizationUrl`.
+3. The browser redirects to `authorizationUrl`.
+4. The provider redirects back to your `redirectUri` with `code` and `state`.
+5. The client posts `{ code, state }` to `POST /oauth/:providerId/callback`.
+6. Seamless Auth validates state, exchanges the code, fetches userinfo, links or creates the local
+   user, and issues the normal SeamlessAuth access/refresh session.
+
+Example direct API start request:
+
+```bash
+curl -X POST http://localhost:5312/oauth/google/start \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "redirectUri": "http://localhost:5173/oauth/callback",
+    "returnTo": "http://localhost:5173/dashboard"
+  }'
+```
+
+Example callback request after the provider redirects back:
+
+```bash
+curl -X POST http://localhost:5312/oauth/google/callback \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "code": "provider-authorization-code",
+    "state": "signed-state-from-start"
+  }'
+```
+
+Security notes:
+
+- OAuth `state` is signed and expires after a short window.
+- `redirectUri` and `returnTo` must match configured `origins`.
+- Provider access tokens are never persisted.
+- OAuth identities are stored as provider id + provider subject in `oauth_identities`.
+- Existing users are linked by verified email; new users are created only when `allowSignup` is
+  enabled for that provider.
 
 ### Install & run
 

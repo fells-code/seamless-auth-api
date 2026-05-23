@@ -46,6 +46,16 @@ vi.mock('../../src/models/totpCredentials.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/oauthIdentities.js', () => ({
+  OAuthIdentity: {
+    create: vi.fn(),
+    findAll: vi.fn(),
+    findOne: vi.fn(),
+    findOrCreate: vi.fn(),
+    count: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/organizations.js', () => ({
   Organization: {
     create: vi.fn(),
