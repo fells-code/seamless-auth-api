@@ -6,6 +6,8 @@
 
 import { z } from 'zod';
 
+import { RoleNameSchema } from './roles.schema.js';
+
 export const LoginMethodSchema = z.enum([
   'passkey',
   'magic_link',
@@ -33,8 +35,8 @@ export const OAuthProviderConfigSchema = z.object({
 
 export const SystemConfigSchema = z.object({
   app_name: z.string().min(3),
-  default_roles: z.array(z.string().regex(/^(?!.*[_/\\\s])[A-Za-z0-9-]{1,31}$/)).min(1),
-  available_roles: z.array(z.string().regex(/^(?!.*[_/\\\s])[A-Za-z0-9-]{1,31}$/)).min(1),
+  default_roles: z.array(RoleNameSchema).min(1),
+  available_roles: z.array(RoleNameSchema).min(1),
   login_methods: z.array(LoginMethodSchema).min(1),
   passkey_login_fallback_enabled: z.boolean(),
   oauth_providers: z.array(OAuthProviderConfigSchema),

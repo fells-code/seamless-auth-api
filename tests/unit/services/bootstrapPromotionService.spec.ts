@@ -105,6 +105,22 @@ it('skips if user already admin', async () => {
   });
 });
 
+it('skips if user already has admin write scope', async () => {
+  const user = baseUser();
+  user.roles = ['admin:write'];
+
+  const result = await maybePromoteBootstrapAdmin({
+    user,
+    req: mockReq,
+    completionMethod: 'webauthn_registration',
+  });
+
+  expect(result).toEqual({
+    promoted: false,
+    reason: 'already_admin',
+  });
+});
+
 it('returns missing_token when no cookie', async () => {
   (getBootstrapCookie as any).mockReturnValue(null);
 

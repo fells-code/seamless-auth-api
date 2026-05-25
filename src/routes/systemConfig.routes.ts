@@ -27,7 +27,7 @@ systemConfigRouter.get(
     summary: 'Get available roles',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
   },
   getAvailableRoles,
 );
@@ -39,7 +39,7 @@ systemConfigRouter.get(
     summary: 'Retrieve system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
 
     schemas: {
       response: {
@@ -59,7 +59,7 @@ systemConfigRouter.patch(
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
 
     schemas: {
       response: {

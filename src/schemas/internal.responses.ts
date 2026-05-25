@@ -4,11 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthEventSchema, UserSchema } from '@seamless-auth/types';
+import { AuthEventSchema } from '@seamless-auth/types';
 import { z } from 'zod';
 
+import { ApiUserSchema } from './user.schema.js';
+
 export const UsersListResponseSchema = z.object({
-  users: z.array(UserSchema),
+  users: z.array(ApiUserSchema),
   total: z.number(),
 });
 

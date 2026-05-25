@@ -4,7 +4,6 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { CreateUserSchema, UpdateUserSchema } from '@seamless-auth/types';
 import { Request, Response } from 'express';
 import { Op, WhereOptions } from 'sequelize';
 
@@ -13,6 +12,7 @@ import { Credential } from '../models/credentials.js';
 import { getSequelize } from '../models/index.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
+import { CreateUserSchema, UpdateUserSchema } from '../schemas/admin.requests.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';

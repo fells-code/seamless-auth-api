@@ -6,12 +6,17 @@
 
 import { NextFunction, Response } from 'express';
 
+import { hasScopedRole } from '../lib/scopedRoles.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('requireAdmin');
 
-export function requireAdmin() {
+export type AdminAccessLevel = 'read' | 'write';
+
+export function requireAdmin(accessLevel?: AdminAccessLevel) {
+  const requiredRole = accessLevel ? `admin:${accessLevel}` : 'admin';
+
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -19,8 +24,8 @@ export function requireAdmin() {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      if (!req.user.roles?.includes('admin')) {
-        logger.warn(`User ${req.user.id} attempted admin access without admin role`);
+      if (!hasScopedRole(req.user.roles, requiredRole)) {
+        logger.warn(`User ${req.user.id} attempted admin access without ${requiredRole} role`);
         return res.status(403).json({ error: 'Forbidden' });
       }
 

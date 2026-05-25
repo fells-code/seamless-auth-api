@@ -186,6 +186,44 @@ describe('POST /admin/users', () => {
     expect(res.body.user).toBeDefined();
   });
 
+  it('creates user with scoped roles', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+
+    (User.create as any).mockResolvedValue({
+      id: 'user-1',
+      email: 'test@example.com',
+      phone: '+14155552671',
+      roles: ['admin:read'],
+    });
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({
+        email: 'test@example.com',
+        phone: '+14155552671',
+        roles: ['admin:read'],
+      });
+
+    expect(res.status).toBe(201);
+    expect(User.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roles: ['admin:read'],
+      }),
+    );
+  });
+
+  it('rejects scoped roles with invalid separators', async () => {
+    const res = await request(app)
+      .post('/admin/users')
+      .send({
+        email: 'test@example.com',
+        phone: '+14155552671',
+        roles: ['admin/read'],
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 409 if user already exists', async () => {
     (User.findOne as any).mockResolvedValue(buildUser());
 
@@ -219,6 +257,19 @@ describe('PATCH /admin/users/:userId', () => {
 
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalled();
+  });
+
+  it('updates scoped roles successfully', async () => {
+    const user = buildUser();
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ roles: ['admin:write'] });
+
+    expect(res.status).toBe(200);
+    expect(user.update).toHaveBeenCalledWith({ roles: ['admin:write'] });
   });
 
   it('returns 404 if user not found', async () => {

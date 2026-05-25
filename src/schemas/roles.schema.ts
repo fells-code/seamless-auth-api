@@ -6,8 +6,6 @@
 
 import { z } from 'zod';
 
-import { ApiUserSchema } from './user.schema.js';
+import { ROLE_NAME_PATTERN } from '../lib/scopedRoles.js';
 
-export const UserResponseSchema = z.object({
-  user: ApiUserSchema,
-});
+export const RoleNameSchema = z.string().trim().regex(ROLE_NAME_PATTERN);

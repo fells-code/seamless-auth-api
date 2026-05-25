@@ -6,6 +6,7 @@
 
 import { Op } from 'sequelize';
 
+import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
 import { User } from '../models/users.js';
@@ -171,7 +172,7 @@ export async function findMembership(userId: string, organizationId: string) {
 }
 
 export function isOrganizationManager(user: User, membership?: OrganizationMembership | null) {
-  if (user.roles?.includes('admin')) return true;
+  if (hasScopedRole(user.roles, 'admin:write')) return true;
   return Boolean(membership?.roles?.some((role) => role === 'owner' || role === 'admin'));
 }
 
@@ -184,7 +185,7 @@ export async function requireOrganizationAccess(user: User, organizationId: stri
 
   const membership = await findMembership(user.id, organizationId);
 
-  if (!membership && !user.roles?.includes('admin')) {
+  if (!membership && !hasScopedRole(user.roles, 'admin:read')) {
     return { organization: null, membership: null };
   }
 
