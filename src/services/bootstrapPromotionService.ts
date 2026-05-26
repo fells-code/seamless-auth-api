@@ -9,6 +9,7 @@ import { Request } from 'express';
 import { literal, Transaction } from 'sequelize';
 
 import { getBootstrapCookie } from '../lib/bootstrapCookie.js';
+import { hasScopedRole } from '../lib/scopedRoles.js';
 import { BootstrapInvite } from '../models/bootstrapInvites.js';
 import { getSequelize } from '../models/index.js';
 import { User } from '../models/users.js';
@@ -47,7 +48,7 @@ function isBootstrapEnabled(): boolean {
 }
 
 function userHasAdminRole(user: User): boolean {
-  return Array.isArray(user.roles) && user.roles.includes('admin');
+  return hasScopedRole(user.roles, 'admin:write');
 }
 
 function addAdminRole(user: User): void {
@@ -120,7 +121,7 @@ export async function maybePromoteBootstrapAdmin(params: {
 
   return getSequelize().transaction(async (transaction: Transaction) => {
     const adminCount = await User.count({
-      where: literal(`'admin' = ANY("roles")`),
+      where: literal(`"roles" && ARRAY['admin','admin:write']::varchar[]`),
       transaction,
     });
 

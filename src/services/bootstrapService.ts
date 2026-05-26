@@ -68,7 +68,7 @@ export async function assertBootstrapAllowed(): Promise<void> {
   }
 
   const adminCount = await User.count({
-    where: literal(`'admin' = ANY("roles")`),
+    where: literal(`"roles" && ARRAY['admin','admin:write']::varchar[]`),
   });
 
   if (adminCount > 0) {

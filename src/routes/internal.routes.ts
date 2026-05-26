@@ -22,7 +22,7 @@ internalRouter.get(
   '/auth-events/summary',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -35,7 +35,7 @@ internalRouter.get(
   '/auth-events/timeseries',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     tags: ['Internal'],
     schemas: {
       query: MetricsQuerySchema,
@@ -48,7 +48,7 @@ internalRouter.get(
   '/auth-events/login-stats',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     tags: ['Internal'],
   },
   getLoginStats,
@@ -58,7 +58,7 @@ internalRouter.get(
   '/security/anomalies',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     summary: 'Detect suspicious activity',
     tags: ['Internal'],
   },
@@ -69,7 +69,7 @@ internalRouter.get(
   '/metrics/dashboard',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     summary: 'Dashboard metrics',
     tags: ['Internal'],
   },
@@ -80,7 +80,7 @@ internalRouter.get(
   '/auth-events/grouped',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     summary: 'Auth Event metrics grouped',
     tags: ['Internal'],
   },

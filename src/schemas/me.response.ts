@@ -4,11 +4,22 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { CredentialApiSchema, UserSchema } from '@seamless-auth/types';
+import { CredentialApiSchema } from '@seamless-auth/types';
 import { z } from 'zod';
+
+import { RoleNameSchema } from './roles.schema.js';
 
 const CredentialWithPrfSchema = CredentialApiSchema.extend({
   prfCapable: z.boolean().optional(),
+});
+
+const MeUserSchema = z.object({
+  id: z.string(),
+  email: z.email(),
+  phone: z.string(),
+  roles: z.array(RoleNameSchema),
+  lastLogin: z.any().optional(),
+  activeOrganizationId: z.string().nullable().optional(),
 });
 
 const OrganizationMembershipSchema = z.object({
@@ -34,15 +45,7 @@ const OrganizationSchema = z.object({
 });
 
 export const MeResponseSchema = z.object({
-  user: UserSchema.pick({
-    id: true,
-    email: true,
-    phone: true,
-    roles: true,
-    lastLogin: true,
-  }).extend({
-    activeOrganizationId: z.string().nullable().optional(),
-  }),
+  user: MeUserSchema,
   credentials: z.array(CredentialWithPrfSchema),
   organizations: z.array(OrganizationSchema).optional(),
   activeOrganization: OrganizationSchema.nullable().optional(),

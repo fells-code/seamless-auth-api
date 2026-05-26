@@ -77,6 +77,18 @@ describe('PATCH /system-config/admin', () => {
     expect(invalidateSystemConfigCache).toHaveBeenCalled();
   });
 
+  it('accepts scoped role names', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['user', 'admin:read', 'admin:write'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
   it('rejects invalid payload', async () => {
     const res = await request(app).patch('/system-config/admin').send({ invalid: true });
 

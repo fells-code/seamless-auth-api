@@ -4,8 +4,6 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { CreateUserSchema, UpdateUserSchema } from '@seamless-auth/types';
-
 import {
   createUser,
   deleteUser,
@@ -32,6 +30,7 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { UserIdParamSchema } from '../schemas/admin.query.js';
+import { CreateUserSchema, UpdateUserSchema } from '../schemas/admin.requests.js';
 import { UserResponseSchema } from '../schemas/admin.responses.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { AuthEventQuerySchema, PaginationQuerySchema } from '../schemas/internal.query.js';
@@ -58,7 +57,7 @@ adminRouter.get(
     auth: 'access',
     summary: 'List organizations',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
   },
   listAdminOrganizations,
 );
@@ -69,7 +68,7 @@ adminRouter.post(
     auth: 'access',
     summary: 'Create organization',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     schemas: {
       body: CreateOrganizationRequestSchema,
     },
@@ -83,7 +82,7 @@ adminRouter.get(
     auth: 'access',
     summary: 'Get organization',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     schemas: {
       params: OrganizationIdParamSchema,
     },
@@ -97,7 +96,7 @@ adminRouter.patch(
     auth: 'access',
     summary: 'Update organization',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     schemas: {
       params: OrganizationIdParamSchema,
       body: UpdateOrganizationRequestSchema,
@@ -112,7 +111,7 @@ adminRouter.get(
     auth: 'access',
     summary: 'List organization members',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     schemas: {
       params: OrganizationIdParamSchema,
     },
@@ -126,7 +125,7 @@ adminRouter.post(
     auth: 'access',
     summary: 'Add organization member',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
@@ -141,7 +140,7 @@ adminRouter.patch(
     auth: 'access',
     summary: 'Update organization member',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     schemas: {
       params: OrganizationMemberParamSchema,
       body: UpdateOrganizationMemberRequestSchema,
@@ -156,7 +155,7 @@ adminRouter.delete(
     auth: 'access',
     summary: 'Remove organization member',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     schemas: {
       params: OrganizationMemberParamSchema,
       response: {
@@ -173,7 +172,7 @@ adminRouter.get(
     auth: 'access',
     summary: 'List users (internal)',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
 
     schemas: {
       response: {
@@ -189,7 +188,7 @@ adminRouter.get(
   '/auth-events',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     tags: ['Admin'],
     schemas: {
       query: AuthEventQuerySchema,
@@ -207,7 +206,7 @@ adminRouter.get(
     auth: 'access',
     summary: 'Get credential count',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
 
     schemas: {
       response: {
@@ -224,7 +223,7 @@ adminRouter.post(
   {
     auth: 'access',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     schemas: {
       body: CreateUserSchema,
     },
@@ -238,7 +237,7 @@ adminRouter.delete(
     auth: 'access',
     summary: 'Delete user',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
 
     schemas: {
       response: {
@@ -256,7 +255,7 @@ adminRouter.patch(
     auth: 'access',
     summary: 'Update user',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
 
     schemas: {
       body: UpdateUserSchema,
@@ -276,7 +275,7 @@ adminRouter.get(
   {
     auth: 'access',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
   },
   getUserDetail,
 );
@@ -286,7 +285,7 @@ adminRouter.get(
   {
     auth: 'access',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
   },
   getUserAnomalies,
 );
@@ -296,7 +295,7 @@ adminRouter.get(
   {
     auth: 'access',
     tags: ['Admin'],
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     schemas: {
       query: PaginationQuerySchema,
     },
@@ -308,7 +307,7 @@ adminRouter.get(
   '/sessions/:userId',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('read')],
     tags: ['Admin'],
     schemas: {
       params: UserIdParamSchema,
@@ -325,7 +324,7 @@ adminRouter.delete(
   '/sessions/:userId/revoke-all',
   {
     auth: 'access',
-    middleware: [requireAdmin()],
+    middleware: [requireAdmin('write')],
     tags: ['Admin'],
     schemas: {
       params: UserIdParamSchema,

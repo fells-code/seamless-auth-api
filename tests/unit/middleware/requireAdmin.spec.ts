@@ -81,6 +81,55 @@ describe('requireAdmin', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('calls next for admin read user on read routes', async () => {
+    const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
+
+    const middleware = requireAdmin('read');
+
+    req.clientId = 'client-1';
+    req.user = {
+      id: 'user-1',
+      roles: ['admin:read'],
+    };
+
+    await middleware(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('allows admin write users on read routes', async () => {
+    const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
+
+    const middleware = requireAdmin('read');
+
+    req.clientId = 'client-1';
+    req.user = {
+      id: 'user-1',
+      roles: ['admin:write'],
+    };
+
+    await middleware(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('rejects admin read users on write routes', async () => {
+    const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
+
+    const middleware = requireAdmin('write');
+
+    req.clientId = 'client-1';
+    req.user = {
+      id: 'user-1',
+      roles: ['admin:read'],
+    };
+
+    await middleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('returns 500 if unexpected error occurs', async () => {
     const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
 

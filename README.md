@@ -188,6 +188,22 @@ Security notes:
 - Existing users are linked by verified email; new users are created only when `allowSignup` is
   enabled for that provider.
 
+### Scoped Roles
+
+Global roles may be plain names such as `admin` or scoped names such as `admin:read` and
+`admin:write`. The legacy `admin` role remains a broad administrator role and grants both scoped
+admin checks. `admin:write` also satisfies `admin:read`; `admin:read` does not satisfy write checks.
+
+Use `available_roles` to publish the assignable role catalog and `default_roles` for new users.
+Role names may contain letters, numbers, and hyphens, with optional colon-separated scope segments.
+Whitespace, underscores, slashes, and backslashes are rejected.
+
+Admin routes are split by intent:
+
+- read routes accept `admin`, `admin:read`, or `admin:write`
+- write routes accept `admin` or `admin:write`
+- plain `admin` checks remain exact for backwards compatibility
+
 ### Install & run
 
 ```
