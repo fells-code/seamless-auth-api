@@ -24,7 +24,7 @@ async function getMessagingService() {
 }
 
 export const sendOTPEmail = async (to: string, token: string) => {
-  logger.debug(`Sending verification email to: ${to} with ${token}`);
+  logger.debug(`Sending verification email to: ${to}`);
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct email delivery in development');
@@ -46,7 +46,7 @@ export const sendOTPEmail = async (to: string, token: string) => {
 };
 
 export const sendOTPSMS = async (to: string, token: number) => {
-  logger.debug(`Sending verification SMS: ${to} with ${token}`);
+  logger.debug(`Sending verification SMS to: ${to}`);
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct SMS delivery in development');
@@ -71,7 +71,7 @@ export const sendOTPSMS = async (to: string, token: number) => {
 };
 
 export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect: string) => {
-  logger.debug(`Sending magic link to: ${to}. URL: ${safeRedirect}`);
+  logger.debug(`Sending magic link to: ${to}`);
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct magic link delivery in development');
@@ -92,7 +92,7 @@ export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect
 };
 
 export const sendBootstrapEmail = async (to: string, url: string) => {
-  logger.debug(`Sending bootsrap invitation email to: ${to}. URL: ${url}`);
+  logger.debug(`Sending bootstrap invitation email to: ${to}`);
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct bootstrap delivery in development');

@@ -173,7 +173,7 @@ export const updateCredential = async (req: Request, res: Response) => {
 
     return res.json({ message: 'Credential updated', credential: cred });
   } catch (err) {
-    logger.error(err);
+    logger.error(`Failed to update credential: ${err}`);
     return res.status(500).json({ error: 'Failed to update credential' });
   }
 };
@@ -210,7 +210,7 @@ export const deleteCredential = async (req: Request, res: Response) => {
 
     return res.json({ message: 'Credential deleted' });
   } catch (err) {
-    console.error(err);
+    logger.error(`Failed to delete credential: ${err}`);
     return res.status(500).json({ error: 'Failed to delete credential' });
   }
 };

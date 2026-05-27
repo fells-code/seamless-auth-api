@@ -14,10 +14,12 @@ import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { CreateUserSchema, UpdateUserSchema } from '../schemas/admin.requests.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
+import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
+import { redactMetadata } from '../utils/redaction.js';
 
 const logger = getLogger('admin');
 
@@ -138,7 +140,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
   const parsed = UpdateUserSchema.safeParse(req.body);
 
   if (!parsed.success || Object.keys(parsed.data).length === 0) {
-    logger.error(`Failed to parse update user body. ${JSON.stringify(req.body)}`);
+    logger.error(`Failed to parse update user body. ${JSON.stringify(redactMetadata(req.body))}`);
     return res.status(400).json({
       error: 'Invalid update payload',
       details: parsed.error,
@@ -216,7 +218,7 @@ export const getUserDetail = async (req: ServiceRequest, res: Response) => {
     user,
     sessions,
     credentials,
-    events,
+    events: serializeAuthEvents(events),
   });
 };
 
@@ -249,7 +251,7 @@ export const getUserAnomalies = async (req: Request, res: Response) => {
     });
 
     return res.json({
-      suspiciousEvents: suspiciousEvents,
+      suspiciousEvents: serializeAuthEvents(suspiciousEvents),
       relatedIps: Array.from(ips),
       relatedAgents: Array.from(agents),
     });
@@ -431,7 +433,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
       }),
     ]);
 
-    return res.json({ events, total });
+    return res.json({ events: serializeAuthEvents(events), total });
   } catch (err) {
     logger.error(`Failed to fetch auth events: ${err}`);
     res.status(500).json({ error: 'Failed to fetch events' });

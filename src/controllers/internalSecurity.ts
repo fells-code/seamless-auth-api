@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { AuthEvent } from '../models/authEvents.js';
+import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internalSecurity');
@@ -55,7 +56,7 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
     });
 
     return res.json({
-      suspiciousEvents: events,
+      suspiciousEvents: serializeAuthEvents(events),
       total: events.length,
     });
   } catch {

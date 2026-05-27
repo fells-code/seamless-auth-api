@@ -7,6 +7,10 @@
 import { Request, Response } from 'express';
 
 import {
+  canReturnExternalDelivery,
+  canReturnSensitiveDevelopmentDetails,
+} from '../lib/externalDelivery.js';
+import {
   assertBootstrapAllowed,
   assertBootstrapSecret,
   BootstrapError,
@@ -15,7 +19,6 @@ import {
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('bootstrapAdminInvite');
-const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
 
 function getBearerToken(req: Request): string | undefined {
   const auth = req.header('authorization');
@@ -25,10 +28,6 @@ function getBearerToken(req: Request): string | undefined {
   if (scheme?.toLowerCase() !== 'bearer') return undefined;
 
   return token;
-}
-
-function wantsExternalDelivery(req: Request) {
-  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
 }
 
 export async function createAdminBootstrapInviteHandler(req: Request, res: Response) {
@@ -41,7 +40,9 @@ export async function createAdminBootstrapInviteHandler(req: Request, res: Respo
     await assertBootstrapAllowed();
 
     const { email } = req.body;
-    const useExternalDelivery = wantsExternalDelivery(req);
+    const useExternalDelivery = await canReturnExternalDelivery(req);
+    const includeSensitiveDetails =
+      useExternalDelivery || canReturnSensitiveDevelopmentDetails(req);
 
     const result = await createAdminBootstrapInvite({
       email,
@@ -53,9 +54,13 @@ export async function createAdminBootstrapInviteHandler(req: Request, res: Respo
     return res.status(201).json({
       success: true,
       data: {
-        url: result.registrationUrl,
         expiresAt: result.expiresAt.toISOString(),
-        token: result.token,
+        ...(includeSensitiveDetails
+          ? {
+              url: result.registrationUrl,
+              token: result.token,
+            }
+          : {}),
         ...(useExternalDelivery
           ? {
               delivery: {

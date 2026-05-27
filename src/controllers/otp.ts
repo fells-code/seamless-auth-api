@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 
 import { setAuthCookies } from '../lib/cookie.js';
+import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
@@ -27,11 +28,6 @@ import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils
 
 const logger = getLogger('otp');
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
-const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
-
-function wantsExternalDelivery(req: Request) {
-  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
-}
 
 async function rejectDisabledLoginMethod(
   method: LoginMethod,
@@ -62,7 +58,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
   const user = authReq.user;
   const phone = user.phone;
   const normalizedPhone = normalizePhoneNumber(phone);
-  const useExternalDelivery = wantsExternalDelivery(req);
+  const useExternalDelivery = await canReturnExternalDelivery(req);
 
   if (!phone) {
     logger.warn(`Missing phone`);
@@ -157,7 +153,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
   const email = user.email;
-  const useExternalDelivery = wantsExternalDelivery(req);
+  const useExternalDelivery = await canReturnExternalDelivery(req);
 
   try {
     if (!user) {
@@ -274,7 +270,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
   logger.info(`Verifying phone number: ${phone}`);
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
-    logger.warn(`Failed to find a user for this phone verification token - ${verificationToken}`);
+    logger.warn('Failed to find a user for this phone verification token');
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -323,11 +319,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       }
       res.json({ message: 'Success' });
     } else {
-      logger.warn(
-        `Verfication tokens did not match ${verificationToken} vs ${
-          user.phoneVerificationToken
-        } or ${user.phoneVerificationTokenExpiry} is less than ${new Date().getTime()}`,
-      );
+      logger.warn(`Verification tokens did not match or expired for phone verification`);
       return res.status(401).json({ error: 'Not allowed' });
     }
   } catch (error) {
@@ -346,9 +338,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   logger.info(`Verifying email: ${email}`);
 
   if (!user || !user.emailVerificationTokenExpiry || !user.emailVerificationToken) {
-    logger.warn(
-      `Failed to find a user for this email verification token - ${verificationToken}:${email}:${phone}`,
-    );
+    logger.warn(`Failed to find a user for this email verification token`);
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -359,7 +349,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   }
 
   if (!verificationToken) {
-    logger.warn(`Missing verification token ${req.body}`);
+    logger.warn('Missing verification token');
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -424,11 +414,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     }
     return res.json({ message: 'Success' });
   } else {
-    logger.error(
-      `Verfication tokens did not match ${verificationToken} vs ${user.emailVerificationToken} or ${
-        user.emailVerificationTokenExpiry
-      } is less than ${new Date().getTime()}`,
-    );
+    logger.error(`Verification tokens did not match or expired for email verification`);
   }
 
   return res.status(500).json({ error: 'Internal server error' });
@@ -448,7 +434,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
   logger.info(`Verifying login phone number: ${phone}`);
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
-    logger.warn(`Failed to find a user for this phone verification token - ${verificationToken}`);
+    logger.warn('Failed to find a user for this phone verification token');
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -513,11 +499,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
       }
       return res.json({ message: 'Success' });
     } else {
-      logger.warn(
-        `Verfication tokens did not match ${verificationToken} vs ${
-          user.phoneVerificationToken
-        } or ${user.phoneVerificationTokenExpiry} is less than ${new Date().getTime()}`,
-      );
+      logger.warn(`Verification tokens did not match or expired for login phone verification`);
       await AuthEventService.log({
         userId: user.id,
         type: 'verify_otp_failed',
@@ -546,9 +528,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
   logger.info(`Verifying login email: ${email}`);
 
   if (!user || !user.emailVerificationTokenExpiry || !user.emailVerificationToken) {
-    logger.warn(
-      `Failed to find a user for this email verification token - ${verificationToken}:${email}:${phone}`,
-    );
+    logger.warn(`Failed to find a user for this email verification token`);
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -559,7 +539,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
   }
 
   if (!verificationToken) {
-    logger.warn(`Missing verification token ${req.body}`);
+    logger.warn('Missing verification token');
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -623,11 +603,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
     }
     return res.json({ message: 'Success' });
   } else {
-    logger.error(
-      `Verfication tokens did not match ${verificationToken} vs ${user.emailVerificationToken} or ${
-        user.emailVerificationTokenExpiry
-      } is less than ${new Date().getTime()}`,
-    );
+    logger.error(`Verification tokens did not match or expired for login email verification`);
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_failed',

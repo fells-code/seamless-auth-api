@@ -62,7 +62,29 @@ it('creates bootstrap invite successfully', async () => {
   );
 
   expect(res.body.success).toBe(true);
+  expect(res.body.data.expiresAt).toBeDefined();
+  expect(res.body.data.url).toBeUndefined();
+  expect(res.body.data.token).toBeUndefined();
+});
+
+it('returns bootstrap invite token details only when explicitly requested in non-production', async () => {
+  (createAdminBootstrapInvite as any).mockResolvedValue({
+    registrationUrl:
+      'http://localhost:3000/register?bootstrapToken=test-secret-that-is-very-long-very-very-very-long',
+    expiresAt: new Date(),
+    token: 'test-secret-that-is-very-long-very-very-very-long',
+  });
+
+  const res = await request(app)
+    .post('/internal/bootstrap/admin-invite')
+    .set('Authorization', 'Bearer test-secret-that-is-very-long-very-very-very-long')
+    .set('x-seamless-auth-include-sensitive', 'true')
+    .send({ email: 'test@example.com' });
+
+  expect(res.status).toBe(201);
+  expect(res.body.success).toBe(true);
   expect(res.body.data.url).toContain('bootstrapToken');
+  expect(res.body.data.token).toBe('test-secret-that-is-very-long-very-very-very-long');
 });
 
 it('fails when missing bearer token', async () => {

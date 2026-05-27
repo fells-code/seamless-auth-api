@@ -15,9 +15,9 @@ export const BootstrapAdminInviteBodySchema = z.object({
 export const BootstrapAdminInviteResponseSchema = z.object({
   success: z.literal(true),
   data: z.object({
-    url: z.url(),
+    url: z.url().optional(),
     expiresAt: z.iso.datetime(),
-    token: z.string().min(32),
+    token: z.string().min(32).optional(),
     delivery: AuthDeliverySchema.optional(),
   }),
 });

@@ -70,7 +70,7 @@ export async function startOAuthLogin(req: Request, res: Response) {
         state,
       }),
     });
-  } catch (error) {
+  } catch {
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,
@@ -78,7 +78,7 @@ export async function startOAuthLogin(req: Request, res: Response) {
     });
 
     return res.status(400).json({
-      error: error instanceof Error ? error.message : 'OAuth start failed',
+      error: 'OAuth start failed',
     });
   }
 }
@@ -140,7 +140,7 @@ export async function finishOAuthLogin(req: Request, res: Response) {
       authMode: AUTH_MODE,
       clearExistingCookies: true,
     });
-  } catch (error) {
+  } catch {
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,
@@ -148,7 +148,7 @@ export async function finishOAuthLogin(req: Request, res: Response) {
     });
 
     return res.status(400).json({
-      error: error instanceof Error ? error.message : 'OAuth login failed',
+      error: 'OAuth login failed',
     });
   }
 }
