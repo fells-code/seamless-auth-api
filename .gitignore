@@ -32,5 +32,8 @@ docker-data/
 # Lint / tooling cache
 .eslintcache
 docs/*
+!docs/admin-operations.md
+!docs/architecture.md
+!docs/oauth.md
 !docs/production-operations.md
-!docs/v1-hardening-milestone.md
+!docs/webauthn-prf.md

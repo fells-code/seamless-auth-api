@@ -101,7 +101,7 @@ Never commit real secrets. Use `.env.example` for documentation.
 
 SeamlessAuth can request PRF-capable passkeys and PRF assertions without ever receiving PRF output.
 See [docs/webauthn-prf.md](./docs/webauthn-prf.md) for API usage, browser limitations, SDK
-contract guidance, and Seamless Secrets consumption rules.
+contract guidance, and local key-material handling rules.
 
 ### Login Method Policy
 
@@ -359,8 +359,8 @@ For production deployments:
 - Back up your database
 - Monitor authentication failures
 
-See [docs/production-operations.md](./docs/production-operations.md) for the v1 key, secret,
-rotation, lockout, and recovery checklist.
+See [docs/production-operations.md](./docs/production-operations.md) for key, secret, rotation,
+lockout, and deployment guidance.
 
 ## Prefer not to self-host?
 
@@ -383,12 +383,14 @@ For production deployments:
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-## Maintainer Docs
+## Public Docs
 
 - [AGENTS.md](./AGENTS.md) for a fast codebase briefing aimed at coding agents and maintainers
-- [docs/architecture.md](./docs/architecture.md) for a deeper walkthrough of runtime flow, auth modes, config, and testing
-- [docs/v1-hardening-milestone.md](./docs/v1-hardening-milestone.md) for the release-candidate hardening checklist
-- [docs/production-operations.md](./docs/production-operations.md) for production key and secret management
+- [docs/architecture.md](./docs/architecture.md) for runtime structure and request flow
+- [docs/oauth.md](./docs/oauth.md) for OAuth provider setup and security behavior
+- [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
+- [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin and recovery operations
+- [docs/production-operations.md](./docs/production-operations.md) for production deployment guidance
 
 ## Security
 
