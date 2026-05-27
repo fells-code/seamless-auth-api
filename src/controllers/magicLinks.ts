@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { AuthEvent } from '../models/authEvents.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
@@ -25,11 +26,6 @@ const logger = getLogger('magic-links');
 
 const TTL_MINUTES = 15;
 const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
-const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
-
-function wantsExternalDelivery(req: Request) {
-  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
-}
 
 async function rejectDisabledMagicLink(req: Request, res: Response, userId?: string | null) {
   const policy = await getLoginPolicy();
@@ -52,7 +48,7 @@ async function rejectDisabledMagicLink(req: Request, res: Response, userId?: str
 export async function requestMagicLink(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
-  const useExternalDelivery = wantsExternalDelivery(req);
+  const useExternalDelivery = await canReturnExternalDelivery(req);
 
   if (await rejectDisabledMagicLink(req, res, preAuthUser?.id)) {
     return;
@@ -140,22 +136,22 @@ export async function verifyMagicLink(req: Request, res: Response) {
   });
 
   if (!record) {
-    logger.warn(`No magic link found for token: ${token}`);
+    logger.warn('No magic link found for supplied token');
     return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   if (record.used_at) {
-    logger.warn(`Magic link token is already used ${token}`);
+    logger.warn('Magic link token is already used');
     return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   if (record.expires_at < new Date()) {
-    logger.warn(`Magic link token expired: ${token}`);
+    logger.warn('Magic link token expired');
     return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   // Atomic consume
-  logger.info(`Magic link being consumed ${token}`);
+  logger.info('Magic link being consumed');
 
   const [updated] = await MagicLinkToken.update(
     { used_at: new Date() },
@@ -168,7 +164,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
   );
 
   if (!updated) {
-    logger.error(`Magic link token was not consumted: ${token}`);
+    logger.error('Magic link token was not consumed');
     return res.status(500).json({ error: 'Failed to use token' });
   }
 
@@ -176,7 +172,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
     userId: record.user_id,
     type: 'magic_link_success',
     req,
-    metadata: { message: `Token: ${token}` },
+    metadata: { reason: 'Magic link token consumed' },
   });
 
   // Device binding check

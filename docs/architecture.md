@@ -190,6 +190,9 @@ Supported direct transports:
 - Twilio SMS
 
 Flows can opt out of direct sending and instead return delivery payloads by sending `x-seamless-auth-delivery-mode: external`.
+Because delivery payloads contain OTPs or one-time links, production external delivery also requires
+a valid `x-seamless-service-token` from a trusted server adapter. Non-production development and test
+flows may request external delivery explicitly without a service token.
 
 This split is important when writing tests or integrating with an upstream orchestration service.
 

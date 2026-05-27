@@ -35,7 +35,7 @@ export async function verifyBearerAuth(req: Request, res: Response, next: NextFu
     }
     next();
   } catch (err) {
-    console.error('verifyBearerAuth failed:', err);
+    logger.error(`verifyBearerAuth failed: ${err}`);
     res.status(401).json({ error: 'unauthorized' });
   }
 }

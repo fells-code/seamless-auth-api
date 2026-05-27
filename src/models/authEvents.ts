@@ -7,6 +7,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
 
+import { redactMetadata } from '../utils/redaction.js';
+
 export interface AuthEventAttributes {
   id: string;
   user_id?: string | null;
@@ -85,6 +87,16 @@ const initializeAuthEventModel = (sequelize: Sequelize) => {
       modelName: 'AuthEvent',
       tableName: 'auth_events',
       underscored: true,
+      hooks: {
+        beforeValidate(event) {
+          event.metadata = redactMetadata(event.metadata);
+        },
+        beforeBulkCreate(events) {
+          for (const event of events) {
+            event.metadata = redactMetadata(event.metadata);
+          }
+        },
+      },
     },
   );
 

@@ -135,7 +135,10 @@ export async function createAdminBootstrapInvite(params: {
   const { origins } = await getSystemConfig();
 
   const registrationUrl = `${origins[0]}/login?bootstrapToken=${rawToken}`;
-  if (process.env.NODE_ENV === 'development') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.SEAMLESS_AUTH_DEBUG_SECRETS === 'true'
+  ) {
     logger.info('invite link: ', registrationUrl);
   }
 

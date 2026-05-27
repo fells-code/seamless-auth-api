@@ -244,4 +244,53 @@ describe('AuthEventService', () => {
       metadata: { reason: 'legacy typo' },
     });
   });
+
+  it('redacts sensitive metadata before writing events', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    const req = buildReq();
+
+    await AuthEventService.log({
+      type: 'system_config_updated',
+      req,
+      metadata: {
+        before: {
+          email: 'user@example.com',
+          phone: '+15555550123',
+          emailVerificationToken: '111111',
+          oauth: {
+            clientSecret: 'oauth-secret',
+            clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
+          },
+        },
+        after: {
+          prf: { salt: 'salt-value', output: 'derived-secret' },
+          scopes: ['admin:read'],
+        },
+        message: 'Token: abc123 user@example.com',
+      },
+    });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          before: {
+            email: '[REDACTED]',
+            phone: '[REDACTED]',
+            emailVerificationToken: '[REDACTED]',
+            oauth: {
+              clientSecret: '[REDACTED]',
+              clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
+            },
+          },
+          after: {
+            prf: '[REDACTED]',
+            scopes: ['admin:read'],
+          },
+          message: 'Token: [REDACTED] [REDACTED]',
+        },
+      }),
+    );
+  });
 });

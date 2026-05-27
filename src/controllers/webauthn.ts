@@ -78,7 +78,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
     logger.info(`Registering passwordless mechanism for ${authReq.user?.email}`);
 
     if (!verifiedUser) {
-      logger.error(`Invalid registration user attempt ${JSON.stringify(req)}`);
+      logger.error('Invalid registration user attempt');
       await AuthEventService.log({
         userId: null,
         type: 'webauthn_registration_suspicious',
@@ -164,7 +164,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     const { attestationResponse, metadata = {} } = req.body;
 
     if (!verifiedUser) {
-      logger.warn(`Missing verification token ${req.body}`);
+      logger.warn('Missing attestation response for WebAuthn registration');
       await AuthEvent.create({
         user_id: null,
         type: 'registration_failed',
@@ -418,9 +418,8 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     return res.json(options);
   } catch (error) {
     if (error instanceof Error) {
-      logger.error(`stack ${error.stack}`);
+      logger.error('Failed to generate options for login stack trace redacted');
     }
-    logger.error(`Failed to generate options for login: ${error}.`);
     await AuthEvent.create({
       user_id: null,
       type: 'login_failed',

@@ -188,6 +188,19 @@ Security notes:
 - Existing users are linked by verified email; new users are created only when `allowSignup` is
   enabled for that provider.
 
+### Sensitive Data Redaction
+
+SeamlessAuth redacts sensitive data from logs and auth-event metadata by default. This includes
+tokens, OTPs, magic-link URLs, PRF salts and outputs, OAuth codes/state, bearer credentials,
+configured secrets, email/phone fields inside audit snapshots, and legacy event metadata returned
+through admin endpoints.
+
+Delivery payloads that contain OTPs or magic-link/bootstrap tokens are returned only when callers
+explicitly request external delivery with `x-seamless-auth-delivery-mode: external`. In production,
+external delivery also requires a valid `x-seamless-service-token` from a trusted server adapter.
+Development-only bootstrap token details require `x-seamless-auth-include-sensitive: true` and are
+never enabled in production.
+
 ### Scoped Roles
 
 Global roles may be plain names such as `admin` or scoped names such as `admin:read` and

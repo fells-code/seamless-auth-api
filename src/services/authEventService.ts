@@ -9,6 +9,7 @@ import { Request } from 'express';
 import { AuthEvent } from '../models/authEvents.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
 import getLogger from '../utils/logger.js';
+import { redactMetadata } from '../utils/redaction.js';
 
 const logger = getLogger('authEventService');
 
@@ -55,7 +56,7 @@ export class AuthEventService {
         type: normalizeAuthEventType(type),
         ip_address: ipAddress || 'unknown',
         user_agent: userAgent || 'unknown',
-        metadata,
+        metadata: redactMetadata(metadata),
       });
     } catch (err) {
       logger.error('Failed to write AuthEvent:', err);

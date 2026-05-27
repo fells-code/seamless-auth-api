@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { setBootstrapCookie } from '../lib/bootstrapCookie.js';
 import { setAuthCookies } from '../lib/cookie.js';
+import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEvent } from '../models/authEvents.js';
 import { User } from '../models/users.js';
@@ -19,15 +20,10 @@ import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils
 
 const logger = getLogger('registration');
 const AUTH_MODE = process.env.AUTH_MODE;
-const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
-
-function wantsExternalDelivery(req: Request) {
-  return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
-}
 
 export const register = async (req: Request, res: Response) => {
   const { email, phone, bootstrapToken } = req.body;
-  const useExternalDelivery = wantsExternalDelivery(req);
+  const useExternalDelivery = await canReturnExternalDelivery(req);
   const normalizedEmail = email?.toLowerCase();
   const normalizedPhone = typeof phone === 'string' ? normalizePhoneNumber(phone) : null;
 
