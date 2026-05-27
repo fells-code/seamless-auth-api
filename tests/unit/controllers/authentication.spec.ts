@@ -27,8 +27,6 @@ function mockReqRes(authorization?: string) {
 }
 
 async function loadAuthenticationModule() {
-  vi.stubEnv('AUTH_MODE', 'server');
-
   const [
     { refreshSession },
     { getSystemConfig },
@@ -36,7 +34,6 @@ async function loadAuthenticationModule() {
     { User },
     { AuthEventService },
     tokenLib,
-    cookieLib,
     sessionService,
   ] = await Promise.all([
     import('../../../src/controllers/authentication.js'),
@@ -45,7 +42,6 @@ async function loadAuthenticationModule() {
     import('../../../src/models/users.js'),
     import('../../../src/services/authEventService.js'),
     import('../../../src/lib/token.js'),
-    import('../../../src/lib/cookie.js'),
     import('../../../src/services/sessionService.js'),
   ]);
 
@@ -60,7 +56,6 @@ async function loadAuthenticationModule() {
     hashRefreshToken: tokenLib.hashRefreshToken,
     createRefreshTokenLookup: tokenLib.createRefreshTokenLookup,
     signAccessToken: tokenLib.signAccessToken,
-    setAuthCookies: cookieLib.setAuthCookies,
   };
 }
 
@@ -69,7 +64,7 @@ beforeEach(() => {
 });
 
 describe('refreshSession', () => {
-  it('rejects missing refresh token in server mode', async () => {
+  it('rejects missing refresh token', async () => {
     const { refreshSession, AuthEventService } = await loadAuthenticationModule();
     const { req, res } = mockReqRes();
 
@@ -112,7 +107,7 @@ describe('refreshSession', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });
   });
 
-  it('rotates the session using the raw bearer refresh token in server mode', async () => {
+  it('rotates the session using the raw bearer refresh token', async () => {
     const {
       refreshSession,
       getSystemConfig,
@@ -123,7 +118,6 @@ describe('refreshSession', () => {
       hashRefreshToken,
       createRefreshTokenLookup,
       signAccessToken,
-      setAuthCookies,
     } = await loadAuthenticationModule();
     const { req, res } = mockReqRes('Bearer raw-refresh-token');
     const user = buildUser({ id: 'user-1', roles: ['admin'] });
@@ -166,7 +160,6 @@ describe('refreshSession', () => {
       }),
     );
     expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, undefined);
-    expect(setAuthCookies).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'Success',

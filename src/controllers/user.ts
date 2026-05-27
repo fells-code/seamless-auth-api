@@ -6,7 +6,6 @@
 
 import { Request, Response } from 'express';
 
-import { clearAuthCookies } from '../lib/cookie.js';
 import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
@@ -71,7 +70,6 @@ export const getUser = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Error occured' },
     });
-    clearAuthCookies(res);
     res.status(500).json({ message: 'Internal server error' });
     return;
   }
@@ -87,7 +85,6 @@ export const deleteUser = async (req: Request, res: Response) => {
     }
 
     logger.info(`${authUser.email} trigger the deletion of their account`);
-    clearAuthCookies(res);
 
     try {
       const user = await User.findOne({
@@ -136,13 +133,6 @@ export const deleteUser = async (req: Request, res: Response) => {
     }
   } catch (error) {
     logger.error(`Error occured deleting a user: ${error}`);
-    try {
-      clearAuthCookies(res);
-      return res.json({ message: 'Success' });
-    } catch (error) {
-      logger.error(`Couldn't delete all cookies. ${error}`);
-    }
-
     return res.status(500).json({ message: `Failed` });
   }
 };

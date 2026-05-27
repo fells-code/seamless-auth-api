@@ -13,7 +13,7 @@ import {
   getSecuritySchemeName,
 } from '../middleware/attachAuthMiddleware.js';
 import { registry } from '../openapi/registry.js';
-import { CookieType } from '../services/sessionService.js';
+import { AuthTokenType } from '../services/sessionService.js';
 import getLogger from '../utils/logger.js';
 import { expressToOpenAPI } from './convertPath.js';
 import { InferRequest, RouteSchemas } from './routeTypes.js';
@@ -31,7 +31,7 @@ interface DefineRouteOptions<S extends RouteSchemas> {
   description?: string;
   tags?: string[];
 
-  auth?: CookieType | undefined;
+  auth?: AuthTokenType | undefined;
 
   schemas?: S;
 
@@ -95,9 +95,9 @@ function buildResponses(
 }
 
 function resolveAuthType(
-  auth: CookieType | undefined,
+  auth: AuthTokenType | undefined,
   middleware: RequestHandler[] | undefined,
-): CookieType | undefined {
+): AuthTokenType | undefined {
   if (auth) {
     return auth;
   }

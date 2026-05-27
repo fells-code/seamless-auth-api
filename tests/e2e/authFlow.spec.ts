@@ -74,7 +74,7 @@ describe('E2E Auth Flow', () => {
 
     const otpRes = await request(app)
       .get('/otp/generate-phone-otp')
-      .set('Cookie', [`seamless_ephemeral=ephemeral-token`]);
+      .set('Authorization', 'Bearer ephemeral-token');
 
     expect(otpRes.status).toBe(200);
     expect(generatePhoneOTP).toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe('E2E Auth Flow', () => {
 
     const verifyRes = await request(app)
       .post('/otp/verify-phone-otp')
-      .set('Cookie', [`seamless_ephemeral=ephemeral-token`])
+      .set('Authorization', 'Bearer ephemeral-token')
       .send({ verificationToken: '123456' });
 
     expect(verifyRes.status).toBe(200);
@@ -108,7 +108,7 @@ describe('E2E Auth Flow', () => {
     (Session.findAll as any).mockResolvedValue([buildSession()]);
     const accessRes = await request(app)
       .get('/sessions')
-      .set('Cookie', [`seamless_access=access-token`]);
+      .set('Authorization', 'Bearer access-token');
 
     expect(accessRes.status).toBe(200);
 
@@ -127,7 +127,7 @@ describe('E2E Auth Flow', () => {
 
     const refreshRes = await request(app)
       .get('/sessions')
-      .set('Cookie', [`seamless_refresh=refresh-token`]);
+      .set('Authorization', 'Bearer access-token');
 
     expect(refreshRes.status).toBe(200);
   });

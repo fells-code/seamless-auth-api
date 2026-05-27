@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const setAuthCookiesMock = vi.fn();
 const signEphemeralTokenMock = vi.fn();
 const authEventLogMock = vi.fn();
 const issueSessionAndRespondMock = vi.fn();
@@ -18,10 +17,6 @@ const loggerMock = {
   error: vi.fn(),
   debug: vi.fn(),
 };
-
-vi.mock('../../../src/lib/cookie.js', () => ({
-  setAuthCookies: setAuthCookiesMock,
-}));
 
 vi.mock('../../../src/lib/token.js', () => ({
   signEphemeralToken: signEphemeralTokenMock,
@@ -115,9 +110,8 @@ function buildRes() {
   return res;
 }
 
-async function loadOtpController(authMode: 'web' | 'server' = 'server') {
+async function loadOtpController() {
   vi.resetModules();
-  vi.stubEnv('AUTH_MODE', authMode);
   return import('../../../src/controllers/otp.js');
 }
 
@@ -138,8 +132,8 @@ beforeEach(() => {
 });
 
 describe('otp controller', () => {
-  it('returns external phone OTP delivery payload in server mode', async () => {
-    const { sendPhoneOTP } = await loadOtpController('server');
+  it('returns external phone OTP delivery payload', async () => {
+    const { sendPhoneOTP } = await loadOtpController();
     const user = buildUser();
     const req = buildReq(user, {
       headers: { 'x-seamless-auth-delivery-mode': 'external' },
@@ -150,7 +144,6 @@ describe('otp controller', () => {
 
     expect(generatePhoneOTPMock).toHaveBeenCalledWith(user, { sendMessage: false });
     expect(signEphemeralTokenMock).toHaveBeenCalledWith(user.id);
-    expect(setAuthCookiesMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'success',
@@ -164,7 +157,7 @@ describe('otp controller', () => {
   });
 
   it('rejects phone OTP requests when the user phone is missing', async () => {
-    const { sendPhoneOTP } = await loadOtpController('server');
+    const { sendPhoneOTP } = await loadOtpController();
     const user = buildUser({ phone: null });
     const req = buildReq(user);
     const res = buildRes();
@@ -182,7 +175,7 @@ describe('otp controller', () => {
   });
 
   it('rejects email OTP requests when the email is invalid', async () => {
-    const { sendEmailOTP } = await loadOtpController('server');
+    const { sendEmailOTP } = await loadOtpController();
     const user = buildUser({ email: 'bad-email' });
     const req = buildReq(user);
     const res = buildRes();
@@ -195,8 +188,8 @@ describe('otp controller', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'Invalid data.' });
   });
 
-  it('sets cookies and returns external email delivery payload in web mode', async () => {
-    const { sendEmailOTP } = await loadOtpController('web');
+  it('returns external email OTP delivery payload', async () => {
+    const { sendEmailOTP } = await loadOtpController();
     const user = buildUser();
     const req = buildReq(user, {
       headers: { 'x-seamless-auth-delivery-mode': 'external' },
@@ -206,10 +199,10 @@ describe('otp controller', () => {
     await sendEmailOTP(req, res);
 
     expect(generateEmailOTPMock).toHaveBeenCalledWith(user, { sendMessage: false });
-    expect(setAuthCookiesMock).toHaveBeenCalledWith(res, { ephemeralToken: 'ephemeral-token' });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'success',
+      token: 'ephemeral-token',
       delivery: {
         kind: 'otp_email',
         to: user.email,
@@ -219,7 +212,7 @@ describe('otp controller', () => {
   });
 
   it('rejects disabled login email OTP generation', async () => {
-    const { sendLoginEmailOTP } = await loadOtpController('server');
+    const { sendLoginEmailOTP } = await loadOtpController();
     const user = buildUser();
     const req = buildReq(user);
     const res = buildRes();
@@ -237,7 +230,7 @@ describe('otp controller', () => {
   });
 
   it('returns 401 when phone verification data is missing', async () => {
-    const { verifyPhoneNumber } = await loadOtpController('server');
+    const { verifyPhoneNumber } = await loadOtpController();
     const user = buildUser({
       phoneVerificationToken: undefined,
       phoneVerificationTokenExpiry: null,
@@ -254,7 +247,7 @@ describe('otp controller', () => {
   });
 
   it('returns success without issuing a session when phone verification is partial', async () => {
-    const { verifyPhoneNumber } = await loadOtpController('server');
+    const { verifyPhoneNumber } = await loadOtpController();
     const verifiedUser = buildUser({
       phoneVerified: true,
       emailVerified: false,
@@ -277,7 +270,7 @@ describe('otp controller', () => {
   });
 
   it('issues a session when login phone verification fully verifies the user', async () => {
-    const { verifyLoginPhoneNumber } = await loadOtpController('server');
+    const { verifyLoginPhoneNumber } = await loadOtpController();
     const verifiedUser = buildUser();
     const req = buildReq(buildUser(), {
       body: { verificationToken: '123456' },
@@ -300,7 +293,6 @@ describe('otp controller', () => {
       },
       req,
       res,
-      authMode: 'server',
     });
     expect(verifiedUser.update).toHaveBeenCalledWith({
       lastLogin: expect.any(Date),
@@ -308,7 +300,7 @@ describe('otp controller', () => {
   });
 
   it('rejects disabled login phone OTP verification', async () => {
-    const { verifyLoginPhoneNumber } = await loadOtpController('server');
+    const { verifyLoginPhoneNumber } = await loadOtpController();
     const req = buildReq(buildUser(), {
       body: { verificationToken: '123456' },
     });
@@ -327,7 +319,7 @@ describe('otp controller', () => {
   });
 
   it('returns 401 when login phone verification fails', async () => {
-    const { verifyLoginPhoneNumber } = await loadOtpController('server');
+    const { verifyLoginPhoneNumber } = await loadOtpController();
     const failingUser = buildUser();
     const req = buildReq(buildUser(), {
       body: { verificationToken: '123456' },
@@ -352,7 +344,7 @@ describe('otp controller', () => {
   });
 
   it('issues a session when email verification fully verifies the user', async () => {
-    const { verifyEmail } = await loadOtpController('server');
+    const { verifyEmail } = await loadOtpController();
     const verifiedUser = buildUser();
     const req = buildReq(buildUser(), {
       body: { verificationToken: 'EMAILOTP' },
@@ -375,7 +367,6 @@ describe('otp controller', () => {
       },
       req,
       res,
-      authMode: 'server',
     });
     expect(verifiedUser.update).toHaveBeenCalledWith({
       lastLogin: expect.any(Date),
@@ -383,7 +374,7 @@ describe('otp controller', () => {
   });
 
   it('returns 500 when login email verification fails after lookup succeeds', async () => {
-    const { verifyLoginEmail } = await loadOtpController('server');
+    const { verifyLoginEmail } = await loadOtpController();
     const failingUser = buildUser();
     const req = buildReq(buildUser(), {
       body: { verificationToken: 'EMAILOTP' },

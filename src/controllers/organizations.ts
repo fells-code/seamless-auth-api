@@ -7,7 +7,6 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { setAuthCookies } from '../lib/cookie.js';
 import { signAccessToken } from '../lib/token.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
@@ -144,14 +143,6 @@ export async function switchOrganization(req: Request, res: Response) {
 
   await session.update({ organizationId: organization.id });
   const token = await signAccessToken(session.id, user.id, user.roles, organization.id);
-
-  if (process.env.AUTH_MODE === 'web') {
-    await setAuthCookies(res, { accessToken: token });
-    return res.json({
-      message: 'Success',
-      organization: serializeOrganization(organization, membership),
-    });
-  }
 
   const { access_token_ttl } = await getSystemConfig();
   return res.json({

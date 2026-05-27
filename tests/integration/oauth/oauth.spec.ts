@@ -41,7 +41,6 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv('AUTH_MODE', 'server');
   vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret');
   (getSystemConfig as any).mockResolvedValue(
     buildSystemConfig({

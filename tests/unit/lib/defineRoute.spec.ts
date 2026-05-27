@@ -3,16 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 vi.mock('../../../src/middleware/attachAuthMiddleware.js', () => ({
-  attachAuthMiddleware: vi.fn((cookieType: 'access' | 'ephemeral' = 'access') =>
-    Object.assign(vi.fn(), { seamlessAuthType: cookieType }),
+  attachAuthMiddleware: vi.fn((authType: 'access' | 'ephemeral' = 'access') =>
+    Object.assign(vi.fn(), { seamlessAuthType: authType }),
   ),
-  getSecuritySchemeName: vi.fn((cookieType: 'access' | 'ephemeral') => {
-    if (process.env.AUTH_MODE === 'server') {
-      return 'bearerAuth';
-    }
-
-    return cookieType === 'ephemeral' ? 'ephemeralCookieAuth' : 'accessCookieAuth';
-  }),
+  getSecuritySchemeName: vi.fn(() => 'bearerAuth'),
 }));
 
 vi.mock('../../../src/openapi/registry', () => ({
@@ -25,10 +19,9 @@ describe('defineRoute', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    delete process.env.AUTH_MODE;
   });
 
-  it('adds access cookie security when auth is inferred from middleware in web mode', async () => {
+  it('adds bearer security when auth is inferred from access middleware', async () => {
     const { defineRoute } = await import('../../../src/lib/defineRoute');
     const { registry } = await import('../../../src/openapi/registry');
     const middleware = Object.assign(vi.fn(), { seamlessAuthType: 'access' as const });
@@ -49,12 +42,12 @@ describe('defineRoute', () => {
 
     expect(registry.registerPath).toHaveBeenCalledWith(
       expect.objectContaining({
-        security: [{ accessCookieAuth: [] }],
+        security: [{ bearerAuth: [] }],
       }),
     );
   });
 
-  it('adds ephemeral cookie security when auth is inferred from middleware in web mode', async () => {
+  it('adds bearer security when auth is inferred from ephemeral middleware', async () => {
     const { defineRoute } = await import('../../../src/lib/defineRoute');
     const { registry } = await import('../../../src/openapi/registry');
     const middleware = Object.assign(vi.fn(), { seamlessAuthType: 'ephemeral' as const });
@@ -62,34 +55,6 @@ describe('defineRoute', () => {
     defineRoute(Router(), {
       method: 'get',
       path: '/ephemeral',
-      middleware: [middleware],
-      schemas: {
-        response: {
-          200: z.object({
-            message: z.string(),
-          }),
-        },
-      },
-      handler: vi.fn(),
-    });
-
-    expect(registry.registerPath).toHaveBeenCalledWith(
-      expect.objectContaining({
-        security: [{ ephemeralCookieAuth: [] }],
-      }),
-    );
-  });
-
-  it('adds bearer security in server mode even when auth comes from middleware', async () => {
-    process.env.AUTH_MODE = 'server';
-
-    const { defineRoute } = await import('../../../src/lib/defineRoute');
-    const { registry } = await import('../../../src/openapi/registry');
-    const middleware = Object.assign(vi.fn(), { seamlessAuthType: 'access' as const });
-
-    defineRoute(Router(), {
-      method: 'get',
-      path: '/server-secure',
       middleware: [middleware],
       schemas: {
         response: {
@@ -114,13 +79,13 @@ describe('defineRoute', () => {
     const { attachAuthMiddleware } =
       await import('../../../src/middleware/attachAuthMiddleware.js');
 
-    (attachAuthMiddleware as any).mockImplementation((cookieType: 'access' | 'ephemeral') =>
+    (attachAuthMiddleware as any).mockImplementation((authType: 'access' | 'ephemeral') =>
       Object.assign(
         (_req: any, _res: any, next: () => void) => {
-          order.push(`auth:${cookieType}`);
+          order.push(`auth:${authType}`);
           next();
         },
-        { seamlessAuthType: cookieType },
+        { seamlessAuthType: authType },
       ),
     );
 

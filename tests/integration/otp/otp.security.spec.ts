@@ -20,7 +20,7 @@ describe('OTP Security - Phone Verification', () => {
   it('rejects missing verification token', async () => {
     const res = await request(app)
       .post('/otp/verify-phone-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({});
 
     expect(res.status).toBe(400);
@@ -34,7 +34,7 @@ describe('OTP Security - Phone Verification', () => {
 
     const res = await request(app)
       .post('/otp/verify-phone-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({ verificationToken: 'bad-token' });
 
     expect(res.status).toBe(401);
@@ -59,7 +59,7 @@ describe('OTP Security - Phone Verification', () => {
 
     const res = await request(app)
       .post('/otp/verify-phone-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({ verificationToken: '123456' });
 
     expect(res.status).toBe(401);
@@ -84,7 +84,7 @@ describe('OTP Security - Phone Verification', () => {
 
     const res = await request(app)
       .post('/otp/verify-phone-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({ verificationToken: '123456' });
 
     expect(res.status).toBe(401);
@@ -95,7 +95,7 @@ describe('OTP Security - Email Verification', () => {
   it('rejects missing verification token', async () => {
     const res = await request(app)
       .post('/otp/verify-email-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({});
 
     expect(res.status).toBe(400);
@@ -109,7 +109,7 @@ describe('OTP Security - Email Verification', () => {
 
     const res = await request(app)
       .post('/otp/verify-email-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({ verificationToken: 'bad' });
 
     // ⚠️ matches your current controller behavior
@@ -135,7 +135,7 @@ describe('OTP Security - Email Verification', () => {
 
     const res = await request(app)
       .post('/otp/verify-email-otp')
-      .set('Cookie', ['seamless_ephemeral=token'])
+      .set('Authorization', 'Bearer token')
       .send({ verificationToken: '123456' });
 
     expect(res.status).toBe(500);

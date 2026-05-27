@@ -11,7 +11,7 @@ export interface SessionAttributes {
   userId: string;
   infraId?: string | null;
   organizationId?: string | null;
-  mode: 'web' | 'server';
+  mode: 'server';
   refreshTokenHash: string;
   refreshTokenLookup?: string | null;
   userAgent?: string | null;
@@ -49,7 +49,7 @@ export class Session
   declare userId: string;
   declare infraId: string | null;
   declare organizationId: string | null;
-  declare mode: 'web' | 'server';
+  declare mode: 'server';
   declare refreshTokenHash: string;
   declare refreshTokenLookup: string | null;
   declare userAgent: string | null;
@@ -91,7 +91,7 @@ const initializeSessionModel = (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-          isIn: [['web', 'server']],
+          isIn: [['server']],
         },
       },
       refreshTokenHash: {

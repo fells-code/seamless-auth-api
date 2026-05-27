@@ -8,7 +8,6 @@ import crypto from 'crypto';
 import { Request } from 'express';
 import { literal, Transaction } from 'sequelize';
 
-import { getBootstrapCookie } from '../lib/bootstrapCookie.js';
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { BootstrapInvite } from '../models/bootstrapInvites.js';
 import { getSequelize } from '../models/index.js';
@@ -17,6 +16,8 @@ import getLogger from '../utils/logger.js';
 import { AuthEventService } from './authEventService.js';
 
 type CompletionMethod = 'webauthn_registration' | 'magic_link_fallback' | 'email_otp' | 'phone_otp';
+
+export const BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY = 'bootstrapInviteTokenHash';
 
 type PromotionResult =
   | { promoted: true; reason: 'success' }
@@ -43,6 +44,15 @@ function hashBootstrapToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+export function createBootstrapInviteTokenHash(token: string): string {
+  return hashBootstrapToken(token);
+}
+
+export function getBootstrapInviteTokenHash(user: User): string | null {
+  const value = user.challengeContext?.[BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY];
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
 function isBootstrapEnabled(): boolean {
   return process.env.SEAMLESS_BOOTSTRAP_ENABLED === 'true';
 }
@@ -62,6 +72,7 @@ export async function maybePromoteBootstrapAdmin(params: {
   user: User;
   req: Request;
   completionMethod: CompletionMethod;
+  bootstrapInviteTokenHash?: string | null;
 }): Promise<PromotionResult> {
   const { user, req, completionMethod } = params;
   logger.debug('checking for promotion');
@@ -86,13 +97,12 @@ export async function maybePromoteBootstrapAdmin(params: {
     return { promoted: false, reason: 'already_admin' };
   }
 
-  const rawToken = getBootstrapCookie(req);
-  if (!rawToken) {
+  const tokenHash = params.bootstrapInviteTokenHash ?? getBootstrapInviteTokenHash(user);
+  if (!tokenHash) {
     logSkip('Missing token');
     return { promoted: false, reason: 'missing_token' };
   }
 
-  const tokenHash = hashBootstrapToken(rawToken);
   const now = new Date();
 
   const invite = await BootstrapInvite.findOne({

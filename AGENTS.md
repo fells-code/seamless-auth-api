@@ -43,10 +43,11 @@ There are three token states worth keeping straight:
 - Access token: signed JWT used for authenticated application access.
 - Refresh token: opaque random token stored hashed in the `sessions` table.
 
-Auth behavior depends on `AUTH_MODE`:
+The API exposes a single bearer/JSON auth contract:
 
-- `web`: access/refresh/ephemeral tokens are primarily stored in cookies.
-- `server`: endpoints expect bearer tokens more often and return token payloads in JSON.
+- Ephemeral, access, and refresh tokens are returned in JSON response payloads.
+- Protected routes expect bearer credentials from a trusted server adapter or backend.
+- The API does not set or read browser auth cookies.
 
 Auth middleware is chosen centrally by [src/middleware/attachAuthMiddleware.ts](/Users/brandoncorbett/git/seamless-auth-api/src/middleware/attachAuthMiddleware.ts).
 
@@ -74,7 +75,7 @@ Direct provider wiring currently lives in [src/config/directMessaging.ts](/Users
 - When adding or updating routes, use `schemas`, not `schema`, so request parsing and OpenAPI generation both work.
 - If a route requires auth, prefer the `auth` option in `createRouter` definitions. That keeps middleware wiring and OpenAPI security metadata aligned.
 - If a route also needs admin checks or rate limiting, combine `auth` with extra `middleware`.
-- Be careful around cookie names and auth mode branching. Several flows have separate `web` and `server` response shapes.
+- Be careful around token response shapes and bearer auth. Browser-cookie auth mode has been removed.
 - Preserve existing local worktree changes unless the user explicitly asks you to clean them up.
 
 ## Before You Finish A Change

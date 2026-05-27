@@ -6,7 +6,6 @@
 
 import { Request, Response } from 'express';
 
-import { setAuthCookies } from '../lib/cookie.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -27,7 +26,6 @@ import {
 import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('otp');
-const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
 
 async function rejectDisabledLoginMethod(
   method: LoginMethod,
@@ -109,22 +107,6 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
 
     const token = await signEphemeralToken(user.id);
 
-    if (AUTH_MODE === 'web') {
-      await setAuthCookies(res, { ephemeralToken: token });
-      return res.status(200).json({
-        message: 'success',
-        ...(useExternalDelivery
-          ? {
-              delivery: {
-                kind: 'otp_sms',
-                to: normalizedPhone,
-                token: generatedToken,
-              },
-            }
-          : {}),
-      });
-    }
-
     return res.status(200).json({
       message: 'success',
       token,
@@ -202,22 +184,6 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
     });
 
     const token = await signEphemeralToken(user.id);
-
-    if (AUTH_MODE === 'web') {
-      await setAuthCookies(res, { ephemeralToken: token });
-      return res.status(200).json({
-        message: 'success',
-        ...(useExternalDelivery
-          ? {
-              delivery: {
-                kind: 'otp_email',
-                to: email,
-                token: generatedToken,
-              },
-            }
-          : {}),
-      });
-    }
 
     return res.status(200).json({
       message: 'success',
@@ -403,7 +369,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
         },
         req,
         res,
-        authMode: AUTH_MODE,
       });
 
       user.update({
@@ -488,7 +453,6 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           },
           req,
           res,
-          authMode: AUTH_MODE,
         });
 
         user.update({
@@ -592,7 +556,6 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         },
         req,
         res,
-        authMode: AUTH_MODE,
       });
 
       user.update({

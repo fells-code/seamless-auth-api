@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { issueSessionAndRespond } from '../../../src/services/sessionIssuance.js';
 
@@ -15,15 +15,6 @@ vi.mock('../../../src/models/sessions.js', () => ({
   },
 }));
 
-vi.mock('../../../src/lib/cookie.js', () => ({
-  setAuthCookies: vi.fn(),
-  clearAuthCookies: vi.fn(),
-}));
-
-vi.mock('../../../src/lib/bootstrapCookie.js', () => ({
-  clearBootstrapCookie: vi.fn(),
-}));
-
 vi.mock('../../../src/config/getSystemConfig.js', () => ({
   getSystemConfig: vi.fn(),
 }));
@@ -37,23 +28,16 @@ vi.mock('../../../src/utils/utils.js', () => ({
   parseDurationToSeconds: vi.fn(),
 }));
 
-// ---- Imports AFTER mocks ----
-
+import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
   hashRefreshToken,
   signAccessToken,
 } from '../../../src/lib/token.js';
-
 import { Session } from '../../../src/models/sessions.js';
-import { setAuthCookies, clearAuthCookies } from '../../../src/lib/cookie.js';
-import { clearBootstrapCookie } from '../../../src/lib/bootstrapCookie.js';
-import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { getDefaultOrganizationIdForUser } from '../../../src/services/organizationService.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../../../src/utils/utils.js';
-
-// ---- Helpers ----
 
 const mockReq = () =>
   ({
@@ -74,8 +58,6 @@ const mockUser = {
   phone: '+1234567890',
   roles: ['user'],
 };
-
-// ---- Setup ----
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -101,157 +83,107 @@ beforeEach(() => {
   (getDefaultOrganizationIdForUser as any).mockResolvedValue(null);
 });
 
-it('issues session in web mode and sets cookies', async () => {
-  const req = mockReq();
-  const res = mockRes();
+describe('issueSessionAndRespond', () => {
+  it('issues a bearer/json session response', async () => {
+    const req = mockReq();
+    const res = mockRes();
 
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'web',
-  });
-
-  expect(Session.create).toHaveBeenCalled();
-  expect(createRefreshTokenLookup).toHaveBeenCalledWith('refresh-token');
-  expect(signAccessToken).toHaveBeenCalled();
-
-  expect(setAuthCookies).toHaveBeenCalledWith(res, {
-    accessToken: 'access-token',
-    refreshToken: 'refresh-token',
-  });
-
-  expect(res.status).toHaveBeenCalledWith(200);
-  expect(res.json).toHaveBeenCalledWith({ message: 'Success' });
-});
-
-it('issues session in server mode and returns JSON payload', async () => {
-  const req = mockReq();
-  const res = mockRes();
-
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'server',
-  });
-
-  expect(res.status).toHaveBeenCalledWith(200);
-
-  expect(res.json).toHaveBeenCalledWith({
-    message: 'Success',
-    token: 'access-token',
-    refreshToken: 'refresh-token',
-    sub: mockUser.id,
-    organizationId: null,
-    roles: mockUser.roles,
-    email: mockUser.email,
-    phone: mockUser.phone,
-    ttl: 900,
-    refreshTtl: 3600,
-  });
-});
-
-it('clears existing auth cookies when flag set', async () => {
-  const req = mockReq();
-  const res = mockRes();
-
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'web',
-    clearExistingCookies: true,
-  });
-
-  expect(clearAuthCookies).toHaveBeenCalledWith(res);
-});
-
-it('clears bootstrap cookie when flag set', async () => {
-  const req = mockReq();
-  const res = mockRes();
-
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'web',
-    clearBootstrap: true,
-  });
-
-  expect(clearBootstrapCookie).toHaveBeenCalledWith(res);
-});
-
-it('throws if token generation fails', async () => {
-  const req = mockReq();
-  const res = mockRes();
-
-  (signAccessToken as any).mockResolvedValue(null);
-
-  await expect(
-    issueSessionAndRespond({
+    await issueSessionAndRespond({
       user: mockUser,
       req,
       res,
-      authMode: 'web',
-    }),
-  ).rejects.toThrow('Failed to issue session tokens');
-});
+    });
 
-it('passes request metadata into session creation', async () => {
-  const req = mockReq();
-  const res = mockRes();
-
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'web',
-  });
-
-  expect(Session.create).toHaveBeenCalledWith(
-    expect.objectContaining({
-      userAgent: 'test-agent',
-      ipAddress: '127.0.0.1',
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'server',
+        refreshTokenHash: 'hashed-refresh',
+        refreshTokenLookup: 'refresh-lookup',
+      }),
+    );
+    expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Success',
+      token: 'access-token',
+      refreshToken: 'refresh-token',
+      sub: mockUser.id,
       organizationId: null,
-    }),
-  );
-});
-
-it('stores the default organization when one exists', async () => {
-  const req = mockReq();
-  const res = mockRes();
-
-  (getDefaultOrganizationIdForUser as any).mockResolvedValue('org-1');
-
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'server',
+      roles: mockUser.roles,
+      email: mockUser.email,
+      phone: mockUser.phone,
+      ttl: 900,
+      refreshTtl: 3600,
+    });
   });
 
-  expect(Session.create).toHaveBeenCalledWith(
-    expect.objectContaining({
-      organizationId: 'org-1',
-    }),
-  );
-  expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, 'org-1');
-});
+  it('throws if token generation fails', async () => {
+    const req = mockReq();
+    const res = mockRes();
 
-it('uses default TTL values when config missing', async () => {
-  const req = mockReq();
-  const res = mockRes();
+    (signAccessToken as any).mockResolvedValue(null);
 
-  (getSystemConfig as any).mockResolvedValue({});
-
-  await issueSessionAndRespond({
-    user: mockUser,
-    req,
-    res,
-    authMode: 'server',
+    await expect(
+      issueSessionAndRespond({
+        user: mockUser,
+        req,
+        res,
+      }),
+    ).rejects.toThrow('Failed to issue session tokens');
   });
 
-  expect(parseDurationToSeconds).toHaveBeenCalledWith('15m');
-  expect(parseDurationToSeconds).toHaveBeenCalledWith('1h');
+  it('passes request metadata into session creation', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req,
+      res,
+    });
+
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: 'test-agent',
+        ipAddress: '127.0.0.1',
+        organizationId: null,
+      }),
+    );
+  });
+
+  it('stores the default organization when one exists', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    (getDefaultOrganizationIdForUser as any).mockResolvedValue('org-1');
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req,
+      res,
+    });
+
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+      }),
+    );
+    expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, 'org-1');
+  });
+
+  it('uses default TTL values when config missing', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    (getSystemConfig as any).mockResolvedValue({});
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req,
+      res,
+    });
+
+    expect(parseDurationToSeconds).toHaveBeenCalledWith('15m');
+    expect(parseDurationToSeconds).toHaveBeenCalledWith('1h');
+  });
 });

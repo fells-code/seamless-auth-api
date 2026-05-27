@@ -20,7 +20,6 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
   try {
     const FAILURE_TYPES = [
       'login_failed',
-      'cookie_token_failed',
       'bearer_token_failed',
       'jwks_failed',
       'mfa_otp_failed',

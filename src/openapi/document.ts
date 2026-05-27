@@ -35,16 +35,6 @@ export function generateOpenApiDocument() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
       },
-      accessCookieAuth: {
-        type: 'apiKey',
-        in: 'cookie',
-        name: 'seamless_access',
-      },
-      ephemeralCookieAuth: {
-        type: 'apiKey',
-        in: 'cookie',
-        name: 'seamless_ephemeral',
-      },
     },
   };
 

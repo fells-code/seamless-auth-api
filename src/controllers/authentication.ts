@@ -7,7 +7,6 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -37,7 +36,6 @@ import {
 } from '../utils/utils.js';
 
 const logger = getLogger('authentication');
-const AUTH_MODE = process.env.AUTH_MODE;
 
 export const login = async (req: Request, res: Response) => {
   // For the initial login step, user either passes in an email or a phone number
@@ -181,12 +179,6 @@ export const login = async (req: Request, res: Response) => {
         metadata: {},
       });
 
-      if (AUTH_MODE === 'web') {
-        await setAuthCookies(res, { ephemeralToken: token });
-        res.status(200).json({ message: 'Success', loginMethods });
-        return;
-      }
-
       const { access_token_ttl } = await getSystemConfig();
       return res.status(200).json({
         message: 'Success',
@@ -234,8 +226,6 @@ export const logout = async (req: Request, res: Response) => {
   } catch (error) {
     logger.error(`Error during logout: ${error}`);
     await AuthEventService.log({ userId: authUser.id, type: 'logout_failed', req });
-  } finally {
-    clearAuthCookies(res);
   }
 
   return res.json({ message: 'Success' });
@@ -246,12 +236,8 @@ export const refreshSession = async (req: Request, res: Response) => {
 
   let refreshToken: string | null = null;
 
-  if (AUTH_MODE === 'server' && req.headers.authorization?.startsWith('Bearer ')) {
+  if (req.headers.authorization?.startsWith('Bearer ')) {
     refreshToken = req.headers.authorization.slice('Bearer '.length);
-  }
-
-  if (!refreshToken && AUTH_MODE === 'web') {
-    refreshToken = req.cookies?.seamless_refresh ?? null;
   }
 
   if (!refreshToken) {
@@ -342,7 +328,7 @@ export const refreshSession = async (req: Request, res: Response) => {
   const newSession = await Session.create({
     userId: user.id,
     infraId: session.infraId,
-    mode: session.mode,
+    mode: 'server',
     organizationId: session.organizationId,
     refreshTokenHash: newRefreshTokenHash,
     refreshTokenLookup: newRefreshTokenLookup,
@@ -362,12 +348,6 @@ export const refreshSession = async (req: Request, res: Response) => {
       `Refresh token rotated for user ${user.id}. oldSessionId=${session.id} newSessionId=${newSession.id}`,
     );
     await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
-
-    if (AUTH_MODE === 'web') {
-      await setAuthCookies(res, { accessToken: token, refreshToken: newRefreshToken });
-      res.status(200).json({ message: 'Success' });
-      return;
-    }
 
     const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
     return res.status(200).json({

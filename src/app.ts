@@ -4,7 +4,6 @@
  * See LICENSE file in the project root for full license information
  */
 
-import cookieParser from 'cookie-parser';
 import cors, { CorsOptions } from 'cors';
 import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
@@ -84,7 +83,6 @@ if (process.env.NODE_ENV !== 'test') {
 
 app.use(express.json());
 app.use(cors(corsOptions));
-app.use(cookieParser());
 
 app.use(logRoute);
 
