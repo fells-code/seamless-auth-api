@@ -8,6 +8,9 @@ import { User } from '../../../src/models/users.js';
 import { buildUser, testGuid } from '../../factories/userFactory';
 import { AuthEvent } from '../../../src/models/authEvents.js';
 import { Session } from '../../../src/models/sessions.js';
+import { TotpCredential } from '../../../src/models/totpCredentials.js';
+import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { buildCredential } from '../../factories/credentialFactory.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
@@ -130,6 +133,26 @@ describe('GET /admin/sessions/:userId', () => {
   });
 });
 
+describe('DELETE /admin/sessions/by-id/:id', () => {
+  it('revokes a single admin-managed session', async () => {
+    const session = buildSession({ id: 'session-to-revoke', userId: testGuid });
+    (Session.findOne as any).mockResolvedValue(session);
+
+    const res = await request(app).delete('/admin/sessions/by-id/session-to-revoke');
+
+    expect(res.status).toBe(200);
+    expect(hardRevokeSession).toHaveBeenCalledWith(session, 'admin_revoke');
+  });
+
+  it('returns 404 when a single admin-managed session is missing', async () => {
+    (Session.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app).delete('/admin/sessions/by-id/missing-session');
+
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('DELETE /admin/sessions/:userId/revoke-all', () => {
   it('revokes all sessions', async () => {
     (Session.findAll as any).mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
@@ -137,6 +160,56 @@ describe('DELETE /admin/sessions/:userId/revoke-all', () => {
     const res = await request(app).delete(`/admin/sessions/${testGuid}/revoke-all`);
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe('POST /admin/users/:userId/recovery/device-replacement', () => {
+  it('revokes sessions, removes passkeys, and disables TOTP for device replacement', async () => {
+    const sessions = [buildSession({ id: 's1' }), buildSession({ id: 's2' })];
+    const credentials = [buildCredential({ id: 'cred-1' }), buildCredential({ id: 'cred-2' })];
+
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
+    );
+    (User.findByPk as any).mockResolvedValue(buildUser({ id: testGuid }));
+    (Session.findAll as any).mockResolvedValue(sessions);
+    (Credential.findAll as any).mockResolvedValue(credentials);
+    (TotpCredential.update as any).mockResolvedValue([1]);
+
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
+    expect(credentials[0].destroy).toHaveBeenCalled();
+    expect(credentials[1].destroy).toHaveBeenCalled();
+    expect(TotpCredential.update).toHaveBeenCalledWith(
+      { enabled: false },
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: testGuid, enabled: true }),
+      }),
+    );
+    expect(res.body).toEqual({
+      userId: testGuid,
+      revokedSessions: 2,
+      removedCredentials: 2,
+      disabledTotpCredentials: 1,
+    });
+  });
+
+  it('requires a fresh step-up verification', async () => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: null, stepUpMethod: null }),
+    );
+
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('step_up_required');
+    expect(User.findByPk).not.toHaveBeenCalled();
   });
 });
 

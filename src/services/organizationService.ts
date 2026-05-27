@@ -176,6 +176,17 @@ export function isOrganizationManager(user: User, membership?: OrganizationMembe
   return Boolean(membership?.roles?.some((role) => role === 'owner' || role === 'admin'));
 }
 
+export function hasOrganizationScope(
+  user: User,
+  membership: OrganizationMembership | null | undefined,
+  requiredScope: string,
+) {
+  const requiredAdminScope = requiredScope.endsWith(':write') ? 'admin:write' : 'admin:read';
+  if (hasScopedRole(user.roles, requiredAdminScope)) return true;
+  if (isOrganizationManager(user, membership)) return true;
+  return hasScopedRole(membership?.scopes, requiredScope);
+}
+
 export async function requireOrganizationAccess(user: User, organizationId: string) {
   const organization = await Organization.findByPk(organizationId);
 
@@ -186,6 +197,10 @@ export async function requireOrganizationAccess(user: User, organizationId: stri
   const membership = await findMembership(user.id, organizationId);
 
   if (!membership && !hasScopedRole(user.roles, 'admin:read')) {
+    return { organization: null, membership: null };
+  }
+
+  if (membership && !hasOrganizationScope(user, membership, 'organization:read')) {
     return { organization: null, membership: null };
   }
 

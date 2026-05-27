@@ -23,3 +23,11 @@ export const UpdateUserSchema = z
     roles: z.array(RoleNameSchema).min(1).optional(),
   })
   .strict();
+
+export const DeviceReplacementRecoverySchema = z
+  .object({
+    revokeSessions: z.boolean().default(true),
+    removePasskeys: z.boolean().default(true),
+    disableTotp: z.boolean().default(true),
+  })
+  .strict();

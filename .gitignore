@@ -31,4 +31,6 @@ docker-data/
 
 # Lint / tooling cache
 .eslintcache
-docs/
+docs/*
+!docs/production-operations.md
+!docs/v1-hardening-milestone.md

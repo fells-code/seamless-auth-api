@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { recordStepUpVerification, serializeStepUpStatus } from '../services/stepUpService.js';
 import {
@@ -159,6 +160,10 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
       metadata: { reason: 'Missing pre-authenticated user' },
     });
     return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  if (await rejectIfUserLocked({ userId: user.id, req, res })) {
+    return;
   }
 
   const result = await verifyEnabledTotp(user.id, code);

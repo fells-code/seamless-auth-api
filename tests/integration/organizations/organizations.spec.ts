@@ -100,6 +100,34 @@ describe('organizations', () => {
     );
   });
 
+  it('does not expose another organization to a non-member', async () => {
+    (Organization.findByPk as any).mockResolvedValue(
+      buildOrganization({
+        id: '9c793c14-7009-4524-b889-23284c6999c2',
+      }),
+    );
+    (OrganizationMembership.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app).get('/organizations/9c793c14-7009-4524-b889-23284c6999c2');
+
+    expect(res.status).toBe(404);
+  });
+
+  it('requires members:read access before listing organization members', async () => {
+    (Organization.findByPk as any).mockResolvedValue(buildOrganization());
+    (OrganizationMembership.findOne as any).mockResolvedValue(
+      buildOrganizationMembership({
+        roles: ['member'],
+        scopes: ['organization:read'],
+      }),
+    );
+
+    const res = await request(app).get(`/organizations/${testOrganizationId}/members`);
+
+    expect(res.status).toBe(404);
+    expect(OrganizationMembership.findAll).not.toHaveBeenCalled();
+  });
+
   it('switches the current session organization', async () => {
     const session = buildSession({ id: 'session-1', userId: 'user-1' });
 

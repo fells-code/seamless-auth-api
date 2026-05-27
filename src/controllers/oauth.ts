@@ -24,7 +24,13 @@ import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 
 function allowedReturnTo(value: string | undefined, origins: string[]) {
   if (!value) return undefined;
-  return origins.some((origin) => value.startsWith(origin)) ? value : undefined;
+
+  try {
+    const url = new URL(value);
+    return origins.some((origin) => url.origin === new URL(origin).origin) ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function listOAuthProviders(_req: Request, res: Response) {
@@ -52,6 +58,7 @@ export async function startOAuthLogin(req: Request, res: Response) {
       redirectUri,
       ...(returnTo ? { returnTo } : {}),
     });
+    const statePayload = verifyOAuthState(state, provider.id);
 
     await AuthEventService.log({
       type: 'oauth_login_started',
@@ -66,6 +73,7 @@ export async function startOAuthLogin(req: Request, res: Response) {
         provider,
         redirectUri,
         state,
+        ...(statePayload?.nonce ? { nonce: statePayload.nonce } : {}),
       }),
     });
   } catch {

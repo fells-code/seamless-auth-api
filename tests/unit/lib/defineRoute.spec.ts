@@ -117,13 +117,14 @@ describe('defineRoute', () => {
     const layer = (router as any).stack.find((entry: any) => entry.route?.path === '/ordered');
     const handlers = layer.route.stack.map((entry: any) => entry.handle);
     const req = { params: {}, query: {}, body: {} };
+    const json = vi.fn();
     const res = {
       statusCode: 200,
       status(code: number) {
         this.statusCode = code;
         return this;
       },
-      json: vi.fn(),
+      json,
     };
 
     const run = async (index: number): Promise<void> => {
@@ -139,5 +140,67 @@ describe('defineRoute', () => {
     await run(0);
 
     expect(order).toEqual(['auth:access', 'custom', 'handler']);
+  });
+
+  it('documents and validates a direct Zod response schema as HTTP 200', async () => {
+    const { defineRoute } = await import('../../../src/lib/defineRoute');
+    const { registry } = await import('../../../src/openapi/registry');
+    const router = Router();
+
+    defineRoute(router, {
+      method: 'get',
+      path: '/direct-schema',
+      schemas: {
+        response: z.object({
+          message: z.string(),
+        }),
+      },
+      handler: (_req, res) => {
+        res.status(200).json({ message: 'ok', extra: 'removed' });
+      },
+    });
+
+    expect(registry.registerPath).toHaveBeenCalledWith(
+      expect.objectContaining({
+        responses: expect.objectContaining({
+          '200': expect.objectContaining({
+            content: expect.objectContaining({
+              'application/json': expect.objectContaining({
+                schema: expect.any(Object),
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
+
+    const layer = (router as any).stack.find(
+      (entry: any) => entry.route?.path === '/direct-schema',
+    );
+    const handlers = layer.route.stack.map((entry: any) => entry.handle);
+    const req = { params: {}, query: {}, body: {} };
+    const json = vi.fn();
+    const res = {
+      statusCode: 200,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json,
+    };
+
+    const run = async (index: number): Promise<void> => {
+      const handler = handlers[index];
+
+      if (!handler) {
+        return;
+      }
+
+      await handler(req, res, () => run(index + 1));
+    };
+
+    await run(0);
+
+    expect(json).toHaveBeenCalledWith({ message: 'ok' });
   });
 });

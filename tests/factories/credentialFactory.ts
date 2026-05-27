@@ -6,7 +6,7 @@ export function buildCredential(overrides: any = {}) {
     userId: 'user-1',
     friendlyName: 'My Device',
     transports: [],
-    deviceType: 'platform',
+    deviceType: 'singleDevice',
     backedup: false,
     backedUp: false,
     prfCapable: false,

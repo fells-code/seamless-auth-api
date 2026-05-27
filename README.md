@@ -139,10 +139,14 @@ system config.
     "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
     "scopes": ["openid", "email", "profile"],
     "redirectUri": "https://app.example.com/oauth/callback",
+    "redirectUris": ["https://app.example.com/oauth/callback"],
     "subjectJsonPath": "sub",
     "emailJsonPath": "email",
+    "emailVerifiedJsonPath": "email_verified",
     "nameJsonPath": "name",
-    "allowSignup": true
+    "allowSignup": true,
+    "accountLinking": "email",
+    "requireEmailVerified": true
   }
 ]
 ```
@@ -182,11 +186,45 @@ curl -X POST http://localhost:5312/oauth/google/callback \
 Security notes:
 
 - OAuth `state` is signed and expires after a short window.
-- `redirectUri` and `returnTo` must match configured `origins`.
+- `redirectUri` must exactly match a provider `redirectUris` entry when configured. Providers
+  without a redirect allowlist fall back to trusted configured origins.
+- `returnTo` must match configured `origins`.
+- OIDC providers that request the `openid` scope receive a nonce bound into the signed state.
 - Provider access tokens are never persisted.
 - OAuth identities are stored as provider id + provider subject in `oauth_identities`.
-- Existing users are linked by verified email; new users are created only when `allowSignup` is
-  enabled for that provider.
+- Existing users are linked by email only when `accountLinking` is `email`; set
+  `accountLinking: "disabled"` to require an existing provider identity.
+- New users are created only when `allowSignup` is enabled for that provider.
+- Set `requireEmailVerified: true` for providers that expose a reliable email verification claim.
+
+### Lockout Policy
+
+`LOCKOUT_POLICY` configures account lockout for identified users after repeated failed login
+attempts. The value is JSON and is also manageable through `system_config`:
+
+```json
+{
+  "enabled": true,
+  "maxFailures": 10,
+  "windowSeconds": 900,
+  "lockoutSeconds": 900
+}
+```
+
+Lockout is checked after Seamless Auth has identified the target user. Keep route-level rate limits
+enabled for unknown identifiers, OTP delivery abuse, and broad IP pressure.
+
+### Admin-Assisted Device Replacement
+
+Administrators with write access can prepare an account for device replacement with:
+
+```http
+POST /admin/users/:userId/recovery/device-replacement
+```
+
+The endpoint requires a fresh step-up session and can revoke active sessions, remove registered
+passkeys, and disable enabled TOTP credentials. It returns counts only; it never returns secrets,
+credential private material, TOTP secrets, or recovery codes.
 
 ### Sensitive Data Redaction
 
@@ -321,6 +359,9 @@ For production deployments:
 - Back up your database
 - Monitor authentication failures
 
+See [docs/production-operations.md](./docs/production-operations.md) for the v1 key, secret,
+rotation, lockout, and recovery checklist.
+
 ## Prefer not to self-host?
 
 SeamlessAuth managed services provides a fully managed experience built on top of this same open-source core, including hosting, upgrades, dashboards, backups, and SLAs.
@@ -346,6 +387,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 - [AGENTS.md](./AGENTS.md) for a fast codebase briefing aimed at coding agents and maintainers
 - [docs/architecture.md](./docs/architecture.md) for a deeper walkthrough of runtime flow, auth modes, config, and testing
+- [docs/v1-hardening-milestone.md](./docs/v1-hardening-milestone.md) for the release-candidate hardening checklist
+- [docs/production-operations.md](./docs/production-operations.md) for production key and secret management
 
 ## Security
 

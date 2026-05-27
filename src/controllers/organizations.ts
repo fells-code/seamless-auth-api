@@ -16,6 +16,7 @@ import {
   countOwners,
   createOrganizationForUser,
   findMembership,
+  hasOrganizationScope,
   listAllOrganizations,
   listOrganizationMembers,
   listOrganizationsForUser,
@@ -159,9 +160,9 @@ export async function switchOrganization(req: Request, res: Response) {
 export async function listMembers(req: Request, res: Response) {
   const user = authUser(req);
   const { organizationId } = req.params;
-  const { organization } = await requireOrganizationAccess(user, organizationId);
+  const { organization, membership } = await requireOrganizationAccess(user, organizationId);
 
-  if (!organization) {
+  if (!organization || !hasOrganizationScope(user, membership, 'members:read')) {
     return res.status(404).json({ error: 'Organization not found' });
   }
 

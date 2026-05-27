@@ -30,6 +30,7 @@ import {
   getBootstrapInviteTokenHash,
   maybePromoteBootstrapAdmin,
 } from '../services/bootstrapPromotionService.js';
+import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -455,6 +456,10 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     const email = verifiedUser.email;
     const phone = verifiedUser.phone;
     let user = verifiedUser;
+
+    if (await rejectIfUserLocked({ userId: user.id, req, res })) {
+      return;
+    }
 
     if (!phone && !email) {
       logger.error('No pre authenticated Identifier found');
