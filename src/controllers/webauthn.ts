@@ -26,14 +26,15 @@ import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { maybePromoteBootstrapAdmin } from '../services/bootstrapPromotionService.js';
+import {
+  getBootstrapInviteTokenHash,
+  maybePromoteBootstrapAdmin,
+} from '../services/bootstrapPromotionService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('webauthn');
-const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
-
 function getRegistrationChallengeContext(user: User) {
   const webauthnRegistration = user.challengeContext?.webauthnRegistration;
 
@@ -127,6 +128,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
     await verifiedUser.update({
       challenge: options.challenge,
       challengeContext: {
+        ...(verifiedUser.challengeContext ?? {}),
         webauthnRegistration: {
           prfRequested,
           requirePrf,
@@ -253,6 +255,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
     const challengeContext = getRegistrationChallengeContext(user);
+    const bootstrapInviteTokenHash = getBootstrapInviteTokenHash(user);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
 
@@ -296,6 +299,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       user,
       req,
       completionMethod: 'webauthn_registration',
+      bootstrapInviteTokenHash,
     });
 
     if (bootstrapResult.promoted) {
@@ -319,8 +323,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       },
       req,
       res,
-      authMode: AUTH_MODE,
-      clearBootstrap: true,
     });
 
     user.update({
@@ -551,8 +553,6 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         },
         req,
         res,
-        authMode: AUTH_MODE,
-        clearExistingCookies: true,
       });
 
       user.update({

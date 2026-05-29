@@ -22,8 +22,6 @@ import {
 } from '../services/oauthService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 
-const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
-
 function allowedReturnTo(value: string | undefined, origins: string[]) {
   if (!value) return undefined;
   return origins.some((origin) => value.startsWith(origin)) ? value : undefined;
@@ -137,8 +135,6 @@ export async function finishOAuthLogin(req: Request, res: Response) {
       },
       req,
       res,
-      authMode: AUTH_MODE,
-      clearExistingCookies: true,
     });
   } catch {
     await AuthEventService.log({

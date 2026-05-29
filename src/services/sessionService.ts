@@ -18,7 +18,7 @@ import { getPublicKeyByKid } from '../utils/signingKeyStore.js';
 
 const logger = getLogger('sessionService');
 
-export type CookieType = 'ephemeral' | 'access';
+export type AuthTokenType = 'ephemeral' | 'access';
 
 let cachedSecret: string | null = null;
 
@@ -26,12 +26,6 @@ async function getInternalSecret() {
   if (cachedSecret) return cachedSecret;
   cachedSecret = await getSecret('API_SERVICE_TOKEN');
   return cachedSecret;
-}
-
-export interface ValidateSessionInput {
-  type: 'cookie' | 'bearer';
-  value: string;
-  cookieType?: CookieType;
 }
 
 const ISSUER = process.env.ISSUER!;

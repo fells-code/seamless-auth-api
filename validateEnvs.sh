@@ -27,7 +27,6 @@ require_var APP_NAME
 require_var APP_ID
 require_var APP_ORIGINS
 require_var ISSUER
-require_var AUTH_MODE
 require_var DEFAULT_ROLES
 require_var AVAILABLE_ROLES
 require_var DB_LOGGING
@@ -47,9 +46,7 @@ else
   require_var DB_NAME
 fi
 
-if [ "${AUTH_MODE:-}" = "server" ]; then
-  require_var API_SERVICE_TOKEN
-fi
+require_var API_SERVICE_TOKEN
 
 if [ "${SEAMLESS_BOOTSTRAP_ENABLED:-false}" = "true" ]; then
   require_var SEAMLESS_BOOTSTRAP_SECRET

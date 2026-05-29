@@ -28,7 +28,6 @@ async function startServer() {
 
     app.listen(PORT as number, HOST, () => {
       logger.info(`Server online.`);
-      logger.info(`Running in ${process.env.AUTH_MODE} auth mode`);
     });
   } catch (err) {
     logger.error('Failed to start server:', err);

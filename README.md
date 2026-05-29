@@ -58,7 +58,7 @@ This repository does **not** assume any specific cloud provider, billing system,
 ## Why Seamless Auth API
 
 - Passwordless-first design (no passwords to steal)
-- Modern session handling using secure, HTTP-only cookies
+- Bearer/JSON auth API with opaque refresh tokens and signed access tokens
 - WebAuthn / passkeys support
 - Optional WebAuthn PRF support for products that need browser-local key material
 - Token and JWKS support for service-to-service auth
@@ -155,7 +155,7 @@ The browser/client flow is:
 4. The provider redirects back to your `redirectUri` with `code` and `state`.
 5. The client posts `{ code, state }` to `POST /oauth/:providerId/callback`.
 6. Seamless Auth validates state, exchanges the code, fetches userinfo, links or creates the local
-   user, and issues the normal SeamlessAuth access/refresh session.
+   user, and issues the normal SeamlessAuth access/refresh JSON payload.
 
 Example direct API start request:
 
@@ -316,7 +316,7 @@ You should receive a healthy response.
 For production deployments:
 
 - Use HTTPS
-- Configure secure cookies
+- Use a trusted server adapter or backend when exposing auth flows to browsers
 - Rotate signing keys
 - Back up your database
 - Monitor authentication failures
@@ -332,7 +332,7 @@ Authentication infrastructure is security-sensitive.
 For production deployments:
 
 - Use HTTPS end-to-end
-- Enable secure cookies (`Secure`, correct `SameSite`)
+- Keep access and refresh tokens out of browser-readable storage
 - Restrict CORS origins
 - Rotate signing keys and secrets regularly
 - Enable database backups and test restores

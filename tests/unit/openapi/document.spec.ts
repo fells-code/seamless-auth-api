@@ -1,4 +1,3 @@
-import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { vi } from 'vitest';
 
 vi.mock('fs', async () => {
@@ -60,20 +59,17 @@ describe('getPackageVersion', () => {
 });
 
 describe('generateOpenApiDocument', () => {
-  it('exposes the correct cookie auth schemes', async () => {
+  it('exposes bearer auth only', async () => {
     const { generateOpenApiDocument } = await import('../../../src/openapi/document');
 
     const result = generateOpenApiDocument();
 
-    expect(result.components.securitySchemes.accessCookieAuth).toEqual({
-      type: 'apiKey',
-      in: 'cookie',
-      name: 'seamless_access',
-    });
-    expect(result.components.securitySchemes.ephemeralCookieAuth).toEqual({
-      type: 'apiKey',
-      in: 'cookie',
-      name: 'seamless_ephemeral',
+    expect(result.components.securitySchemes).toEqual({
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
     });
   });
 });

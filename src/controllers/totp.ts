@@ -21,7 +21,6 @@ import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('totp');
-const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
 
 function serializeDate(value: Date | null) {
   return value?.toISOString() ?? null;
@@ -190,8 +189,6 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
     },
     req,
     res,
-    authMode: AUTH_MODE,
-    clearExistingCookies: true,
   });
 
   await user.update({

@@ -7,31 +7,30 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { setBootstrapCookie } from '../lib/bootstrapCookie.js';
-import { setAuthCookies } from '../lib/cookie.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEvent } from '../models/authEvents.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import {
+  BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY,
+  createBootstrapInviteTokenHash,
+} from '../services/bootstrapPromotionService.js';
 import getLogger from '../utils/logger.js';
 import { generatePhoneOTP } from '../utils/otp.js';
 import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('registration');
-const AUTH_MODE = process.env.AUTH_MODE;
 
 export const register = async (req: Request, res: Response) => {
   const { email, phone, bootstrapToken } = req.body;
   const useExternalDelivery = await canReturnExternalDelivery(req);
   const normalizedEmail = email?.toLowerCase();
   const normalizedPhone = typeof phone === 'string' ? normalizePhoneNumber(phone) : null;
-
-  if (bootstrapToken && bootstrapToken.length > 10) {
-    setBootstrapCookie(res, bootstrapToken);
-
-    logger.info('Bootstrap token stored in cookie for registration flow');
-  }
+  const bootstrapInviteTokenHash =
+    typeof bootstrapToken === 'string' && bootstrapToken.length > 10
+      ? createBootstrapInviteTokenHash(bootstrapToken)
+      : null;
 
   const systemConfig = await getSystemConfig();
   logger.info(`Registering phone and email account`);
@@ -98,6 +97,16 @@ export const register = async (req: Request, res: Response) => {
 
       token = await signEphemeralToken(user.id);
 
+      if (bootstrapInviteTokenHash) {
+        await user.update({
+          challengeContext: {
+            ...(user.challengeContext ?? {}),
+            [BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY]: bootstrapInviteTokenHash,
+          },
+        });
+        logger.info('Bootstrap token hash stored for registration flow');
+      }
+
       phoneOtp = await generatePhoneOTP(user, {
         sendMessage: !useExternalDelivery,
       });
@@ -108,6 +117,13 @@ export const register = async (req: Request, res: Response) => {
         email: normalizedEmail,
         phone: normalizedPhone,
         roles: systemConfig.default_roles,
+        ...(bootstrapInviteTokenHash
+          ? {
+              challengeContext: {
+                [BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY]: bootstrapInviteTokenHash,
+              },
+            }
+          : {}),
       });
 
       await AuthEventService.log({
@@ -144,15 +160,6 @@ export const register = async (req: Request, res: Response) => {
             token: phoneOtp,
           }
         : undefined;
-
-    if (AUTH_MODE === 'web') {
-      await setAuthCookies(res, { ephemeralToken: token });
-      res.status(200).json({
-        message: 'Success',
-        ...(delivery ? { delivery } : {}),
-      });
-      return;
-    }
 
     return res.status(200).json({
       message: 'Success',

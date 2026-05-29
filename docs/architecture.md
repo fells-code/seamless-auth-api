@@ -26,7 +26,6 @@ Global behavior is configured in [src/app.ts](/Users/brandoncorbett/git/seamless
 - `helmet`
 - JSON body parsing
 - CORS
-- cookie parsing
 - request logging
 - rate limiting and slow-down outside test mode
 - development-only OpenAPI and Swagger UI
@@ -56,7 +55,7 @@ Behavior:
 - finds or creates the user
 - issues an ephemeral token
 - optionally sends or returns phone OTP delivery info
-- stores bootstrap token in a cookie when present
+- stores bootstrap invite token hashes in challenge context when present
 
 Registration does not itself create the long-lived session. It prepares the user for OTP, magic link, or WebAuthn completion.
 
@@ -115,28 +114,22 @@ Key concepts:
 
 - refresh tokens are opaque random values stored only as bcrypt hashes
 - access tokens are signed JWTs using the JWKS-managed signing key
-- cookie auth can silently refresh sessions
+- protected API routes require bearer authentication from a trusted server adapter
 - session reuse detection revokes the replacement chain
 
 When debugging auth bugs, inspect both the token code and the `sessions` table behavior. The middleware validates both JWT claims and backing session state.
 
-## 4. Auth Modes
+## 4. Auth Contract
 
-`AUTH_MODE` changes the public contract of several endpoints.
+The API exposes a single bearer/JSON auth contract.
 
-### `web`
+- login and registration continuation endpoints return ephemeral tokens in JSON
+- session completion returns access and refresh tokens in JSON
+- protected routes accept `Authorization: Bearer ...`
+- refresh endpoints expect the raw opaque refresh token as bearer credentials
 
-- tokens are primarily communicated via cookies
-- cookie middleware is the normal auth path
-- session issuance writes `seamless_access`, `seamless_refresh`, and `seamless_ephemeral`
-
-### `server`
-
-- more endpoints return token material in JSON
-- bearer validation is used more heavily
-- refresh endpoints expect bearer credentials rather than browser cookies
-
-When modifying a controller that returns auth state, verify both branches. Many regressions in this codebase would only show up in one mode.
+Browser-facing integrations should use a trusted server adapter that can translate application
+sessions into SeamlessAuth bearer calls. The API no longer sets or reads browser auth cookies.
 
 ## 5. Config And Secrets
 
@@ -234,9 +227,8 @@ Practical guidance:
 
 - Some routes declare auth through `middleware: [attachAuthMiddleware(...)]` instead of the `auth` field. That works at runtime, but OpenAPI security metadata is only added by the `auth` field today.
 - `defineRoute` expects `schemas`, plural. Using `schema` silently skips request parsing and docs wiring.
-- Cookie names in runtime code are `seamless_access`, `seamless_refresh`, and `seamless_ephemeral`. Confirm docs and tests against those exact names.
 - `system_config` can mask env changes after first bootstrap because the DB value becomes authoritative.
-- Silent refresh and refresh-token matching depend on scanning active sessions and comparing bcrypt hashes, so session-heavy scenarios are worth extra care.
+- Refresh-token matching depends on indexed lookup fingerprints with a legacy bcrypt fallback, so session-heavy scenarios are worth extra care.
 
 ## 10. Suggested Workflow For Agents
 

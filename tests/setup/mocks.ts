@@ -180,11 +180,6 @@ vi.mock('../../src/lib/token.js', () => ({
   createRefreshTokenLookup: vi.fn(),
 }));
 
-vi.mock('../../src/lib/cookie.js', () => ({
-  setAuthCookies: vi.fn(),
-  clearAuthCookies: vi.fn(),
-}));
-
 vi.mock('bcrypt-ts', () => ({
   compareSync: vi.fn(),
 }));

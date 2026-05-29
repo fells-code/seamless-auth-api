@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { maybePromoteBootstrapAdmin } from '../../../src/services/bootstrapPromotionService.js';
+import {
+  createBootstrapInviteTokenHash,
+  maybePromoteBootstrapAdmin,
+} from '../../../src/services/bootstrapPromotionService.js';
 
 // ---- mocks ----
-
-vi.mock('../../../src/lib/bootstrapCookie.js', () => ({
-  getBootstrapCookie: vi.fn(),
-}));
 
 vi.mock('../../../src/models/bootstrapInvites.js', () => ({
   BootstrapInvite: {
@@ -36,7 +35,6 @@ vi.mock('../../../src/services/authEventService.js', () => ({
 
 // ---- imports AFTER mocks ----
 
-import { getBootstrapCookie } from '../../../src/lib/bootstrapCookie.js';
 import { BootstrapInvite } from '../../../src/models/bootstrapInvites.js';
 import { User } from '../../../src/models/users.js';
 import { getSequelize } from '../../../src/models/index.js';
@@ -45,6 +43,7 @@ import { AuthEventService } from '../../../src/services/authEventService.js';
 // ---- helpers ----
 
 const mockReq = {} as any;
+const inviteTokenHash = createBootstrapInviteTokenHash('token');
 
 const baseUser = () =>
   ({
@@ -121,9 +120,7 @@ it('skips if user already has admin write scope', async () => {
   });
 });
 
-it('returns missing_token when no cookie', async () => {
-  (getBootstrapCookie as any).mockReturnValue(null);
-
+it('returns missing_token when no invite token hash is present', async () => {
   const result = await maybePromoteBootstrapAdmin({
     user: baseUser(),
     req: mockReq,
@@ -137,20 +134,19 @@ it('returns missing_token when no cookie', async () => {
 });
 
 it('returns invalid_token when invite not found', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue(null);
 
   const result = await maybePromoteBootstrapAdmin({
     user: baseUser(),
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result.reason).toBe('invalid_token');
 });
 
 it('returns invite_consumed when already used', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue({
     ...validInvite(),
     consumedAt: new Date(),
@@ -160,13 +156,13 @@ it('returns invite_consumed when already used', async () => {
     user: baseUser(),
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result.reason).toBe('invite_consumed');
 });
 
 it('returns invite_expired when expired', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue({
     ...validInvite(),
     expiresAt: new Date(Date.now() - 1000),
@@ -176,13 +172,13 @@ it('returns invite_expired when expired', async () => {
     user: baseUser(),
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result.reason).toBe('invite_expired');
 });
 
 it('returns email_mismatch when emails differ', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue({
     ...validInvite(),
     email: 'other@example.com',
@@ -192,13 +188,13 @@ it('returns email_mismatch when emails differ', async () => {
     user: baseUser(),
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result.reason).toBe('email_mismatch');
 });
 
 it('returns admin_exists when admin already present', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue(validInvite());
 
   (User.count as any).mockResolvedValue(1);
@@ -207,13 +203,13 @@ it('returns admin_exists when admin already present', async () => {
     user: baseUser(),
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result.reason).toBe('admin_exists');
 });
 
 it('returns invite_consumed if update fails (race condition)', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue(validInvite());
 
   (BootstrapInvite.update as any).mockResolvedValue([0]);
@@ -224,13 +220,13 @@ it('returns invite_consumed if update fails (race condition)', async () => {
     user,
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result.reason).toBe('invite_consumed');
 });
 
 it('promotes user to admin successfully', async () => {
-  (getBootstrapCookie as any).mockReturnValue('token');
   (BootstrapInvite.findOne as any).mockResolvedValue(validInvite());
 
   const user = baseUser();
@@ -239,6 +235,7 @@ it('promotes user to admin successfully', async () => {
     user,
     req: mockReq,
     completionMethod: 'webauthn_registration',
+    bootstrapInviteTokenHash: inviteTokenHash,
   });
 
   expect(result).toEqual({

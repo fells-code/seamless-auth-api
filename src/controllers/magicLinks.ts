@@ -25,7 +25,6 @@ import { hashDeviceFingerprint, hashSha256 } from '../utils/utils.js';
 const logger = getLogger('magic-links');
 
 const TTL_MINUTES = 15;
-const AUTH_MODE: 'web' | 'server' = process.env.AUTH_MODE! as 'web' | 'server';
 
 async function rejectDisabledMagicLink(req: Request, res: Response, userId?: string | null) {
   const policy = await getLoginPolicy();
@@ -264,12 +263,11 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       },
       req,
       res,
-      authMode: AUTH_MODE,
-      clearBootstrap: true,
     });
 
     user.update({
       lastLogin: new Date(),
+      challengeContext: null,
     });
 
     return;

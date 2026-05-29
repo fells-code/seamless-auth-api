@@ -7,8 +7,6 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { clearBootstrapCookie } from '../lib/bootstrapCookie.js';
-import { clearAuthCookies, setAuthCookies } from '../lib/cookie.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -28,13 +26,10 @@ type IssueSessionParams = {
   };
   req: Request;
   res: Response;
-  authMode: 'web' | 'server';
-  clearBootstrap?: boolean;
-  clearExistingCookies?: boolean;
 };
 
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
-  const { user, req, res, authMode, clearBootstrap = false, clearExistingCookies = false } = params;
+  const { user, req, res } = params;
 
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = await hashRefreshToken(refreshToken);
@@ -46,7 +41,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     userId: user.id,
     infraId: process.env.APP_ID!,
     organizationId,
-    mode: authMode,
+    mode: 'server',
     refreshTokenHash,
     refreshTokenLookup,
     userAgent: req.get('user-agent'),
@@ -60,20 +55,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
 
   if (!token || !refreshToken) {
     throw new Error('Failed to issue session tokens');
-  }
-
-  if (clearExistingCookies) {
-    clearAuthCookies(res);
-  }
-
-  if (clearBootstrap) {
-    clearBootstrapCookie(res);
-  }
-
-  if (authMode === 'web') {
-    await setAuthCookies(res, { accessToken: token, refreshToken });
-    res.status(200).json({ message: 'Success' });
-    return;
   }
 
   const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();

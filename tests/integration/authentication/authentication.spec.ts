@@ -33,7 +33,6 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
 });
 
 beforeAll(async () => {
-  vi.stubEnv('AUTH_MODE', 'server');
   app = await createApp();
 });
 
@@ -188,7 +187,7 @@ describe('POST /refresh', () => {
       revokedAt: null,
       userId: 'user-1',
       infraId: 'app',
-      mode: 'web',
+      mode: 'server',
       userAgent: 'agent',
       save: vi.fn(),
     };

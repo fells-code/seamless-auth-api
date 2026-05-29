@@ -33,6 +33,7 @@ export const AuthDeliverySchema = z.discriminatedUnion('kind', [
 
 export const MessageSchema = z.object({
   message: z.string(),
+  token: z.string().optional(),
   delivery: AuthDeliverySchema.optional(),
 });
 

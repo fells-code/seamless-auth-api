@@ -82,9 +82,9 @@ describe('TOTP routes', () => {
     expect(issueSessionAndRespondMock).toHaveBeenCalledWith(
       expect.objectContaining({
         user: expect.objectContaining({ id: 'user-1' }),
-        clearExistingCookies: true,
       }),
     );
+    expect(issueSessionAndRespondMock.mock.calls[0][0]).not.toHaveProperty('clearExistingCookies');
   });
 
   it('verifies TOTP as MFA and records step-up freshness', async () => {
