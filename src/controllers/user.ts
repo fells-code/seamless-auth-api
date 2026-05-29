@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
+import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { listOrganizationsForUser } from '../services/organizationService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -54,7 +55,7 @@ export const getUser = async (req: Request, res: Response) => {
           lastLogin: authUser.lastLogin,
           activeOrganizationId,
         },
-        credentials,
+        credentials: credentials.map(serializeCredential),
         organizations,
         activeOrganization:
           organizations.find((organization) => organization.id === activeOrganizationId) ?? null,
@@ -161,7 +162,7 @@ export const updateCredential = async (req: Request, res: Response) => {
       friendlyName: friendlyName ?? cred.friendlyName,
     });
 
-    return res.json({ message: 'Credential updated', credential: cred });
+    return res.json({ message: 'Credential updated', credential: serializeCredential(cred) });
   } catch (err) {
     logger.error(`Failed to update credential: ${err}`);
     return res.status(500).json({ error: 'Failed to update credential' });

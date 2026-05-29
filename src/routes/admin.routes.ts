@@ -39,6 +39,7 @@ import {
   UpdateUserSchema,
 } from '../schemas/admin.requests.js';
 import {
+  AdminUserDetailResponseSchema,
   DeviceReplacementRecoveryResponseSchema,
   UserResponseSchema,
 } from '../schemas/admin.responses.js';
@@ -237,6 +238,9 @@ adminRouter.post(
     middleware: [requireAdmin('write')],
     schemas: {
       body: CreateUserSchema,
+      response: {
+        201: UserResponseSchema,
+      },
     },
   },
   createUser,
@@ -310,6 +314,13 @@ adminRouter.get(
     auth: 'access',
     tags: ['Admin'],
     middleware: [requireAdmin('read')],
+    schemas: {
+      params: UserIdParamSchema,
+      response: {
+        200: AdminUserDetailResponseSchema,
+        404: InternalErrorSchema,
+      },
+    },
   },
   getUserDetail,
 );
@@ -332,6 +343,9 @@ adminRouter.get(
     middleware: [requireAdmin('read')],
     schemas: {
       query: PaginationQuerySchema,
+      response: {
+        200: SessionListResponseSchema,
+      },
     },
   },
   listAllSessions,

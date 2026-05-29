@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 
 import { Session } from '../models/sessions.js';
+import { serializeSession } from '../services/apiResponseSerializers.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -30,15 +31,7 @@ export const listSessions = async (req: Request, res: Response) => {
 
   const currentSessionId = authReq.sessionId;
 
-  const response = sessions.map((session) => ({
-    id: session.id,
-    deviceName: session.deviceName,
-    ipAddress: session.ipAddress,
-    userAgent: session.userAgent,
-    lastUsedAt: session.lastUsedAt.toISOString(),
-    expiresAt: session.expiresAt.toISOString(),
-    current: session.id === currentSessionId,
-  }));
+  const response = sessions.map((session) => serializeSession(session, currentSessionId));
 
   return res.json({ sessions: response, total: response.length });
 };
