@@ -102,6 +102,7 @@ vi.mock('../../src/config/getSystemConfig.js', () => ({
 
 vi.mock('../../src/services/sessionService.js', () => ({
   validateAccessToken: vi.fn(),
+  validateBearerToken: vi.fn(),
   validateSessionRecord: vi.fn(),
   findRefreshSessionByToken: vi.fn(),
   getUserFromSession: vi.fn(),

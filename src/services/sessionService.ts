@@ -6,29 +6,26 @@
 
 import { compareSync } from 'bcrypt-ts';
 import { importSPKI, jwtVerify } from 'jose';
-import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 
 import { createRefreshTokenLookup } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import getLogger from '../utils/logger.js';
-import { getSecret } from '../utils/secretsStore.js';
 import { getPublicKeyByKid } from '../utils/signingKeyStore.js';
 
 const logger = getLogger('sessionService');
 
 export type AuthTokenType = 'ephemeral' | 'access';
 
-let cachedSecret: string | null = null;
-
-async function getInternalSecret() {
-  if (cachedSecret) return cachedSecret;
-  cachedSecret = await getSecret('API_SERVICE_TOKEN');
-  return cachedSecret;
-}
-
 const ISSUER = process.env.ISSUER!;
+
+export interface ValidatedAccessToken {
+  userId: string;
+  sessionId: string;
+  roles: string[];
+  organizationId: string | null;
+}
 
 export async function verifyJwtWithKid(token: string, expectedType?: 'access' | 'ephemeral') {
   try {
@@ -101,18 +98,20 @@ export async function hardRevokeSession(session: Session, reason = 'manual_revok
   await session.save();
 }
 
-export async function validateAccessToken(token: string) {
+export async function validateAccessToken(token: string): Promise<ValidatedAccessToken | null> {
   const payload = await verifyJwtWithKid(token, 'access');
   if (!payload) return null;
 
   const { sub: userId, sid: sessionId } = payload;
 
-  if (!userId || !sessionId) return null;
+  if (typeof userId !== 'string' || typeof sessionId !== 'string') return null;
 
   return {
     userId,
     sessionId,
-    roles: payload.roles || [],
+    roles: Array.isArray(payload.roles)
+      ? payload.roles.filter((role): role is string => typeof role === 'string')
+      : [],
     organizationId: typeof payload.org_id === 'string' ? payload.org_id : null,
   };
 }
@@ -206,33 +205,52 @@ export interface ValidatedBearerToken {
   organizationId?: string | null;
 }
 
-export async function validateBearerToken(token: string) {
-  const serviceSecret = await getInternalSecret();
-  let payload;
+export async function validateEphemeralToken(token: string): Promise<ValidatedBearerToken | null> {
+  const payload = await verifyJwtWithKid(token, 'ephemeral');
 
-  try {
-    payload = jwt.verify(token, serviceSecret, {
-      issuer: process.env.APP_ORIGINS!.split(',')[0],
-      audience: process.env.ISSUER,
-    });
-  } catch (err: Error | unknown) {
-    if (err instanceof Error && err.name === 'TokenExpiredError') {
-      logger.info(`Expired bearer token`);
-    } else {
-      logger.error(`Bearer token verification error: ${err}`);
-    }
+  if (!payload || typeof payload.sub !== 'string') {
     return null;
   }
 
-  if (typeof payload === 'string' || typeof payload.sub !== 'string') {
-    return null;
-  }
-
-  const sessionId = typeof payload.sid === 'string' ? payload.sid : undefined;
-  const organizationId = typeof payload.org_id === 'string' ? payload.org_id : null;
   const user = await User.findOne({
     where: { id: payload.sub, revoked: false },
   });
 
-  return user ? { user, sessionId, organizationId } : null;
+  return user ? { user } : null;
+}
+
+export async function validateBearerToken(
+  token: string,
+  expectedType: AuthTokenType = 'access',
+): Promise<ValidatedBearerToken | null> {
+  if (expectedType === 'ephemeral') {
+    return validateEphemeralToken(token);
+  }
+
+  const accessToken = await validateAccessToken(token);
+
+  if (!accessToken) {
+    return null;
+  }
+
+  const session = await validateSessionRecord(accessToken.sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  if (session.userId !== accessToken.userId) {
+    logger.warn('Access token subject did not match the session owner');
+    return null;
+  }
+
+  const user = await getUserFromSession(session);
+
+  return user
+    ? {
+        user,
+        sessionId: accessToken.sessionId,
+        organizationId: accessToken.organizationId,
+      }
+    : null;
 }

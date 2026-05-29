@@ -30,6 +30,10 @@ Seamless Auth API uses three token states:
 
 Access tokens are signed with configured JWKS signing keys. Refresh tokens are rotated and stored in the `sessions` table as non-raw values.
 
+Routes that declare access or ephemeral auth validate SeamlessAuth-issued bearer JWTs. Internal
+service tokens are intentionally separate and are accepted only by service-token-specific middleware
+or headers.
+
 ## Authentication Methods
 
 Supported login methods are controlled by `login_methods` system config:

@@ -82,6 +82,18 @@ If you want hosted auth with a full control plane and operational support, use t
   - SeamlessAuth server SDK (recommended)
   - Direct HTTP APIs (advanced)
 
+## Bearer Token Contract
+
+Seamless Auth API returns JSON tokens instead of browser auth cookies.
+
+- Pre-auth flows return an ephemeral `token`; send it as `Authorization: Bearer <token>` to routes
+  marked as ephemeral-authenticated, such as OTP, magic-link, and WebAuthn continuation routes.
+- Completed login, registration, OAuth, TOTP, passkey, and refresh flows return an access `token`;
+  send it as `Authorization: Bearer <token>` to access-authenticated routes.
+- Refresh uses the opaque `refreshToken` value, not the access token.
+- Internal service tokens remain separate. They are used only by explicitly service-token-protected
+  paths or headers such as external delivery support, not as user access or ephemeral bearer tokens.
+
 ---
 
 ## Local development quickstart
