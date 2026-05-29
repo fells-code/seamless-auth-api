@@ -48,6 +48,12 @@ type OpenApiResponse = {
   };
 };
 
+function isZodSchema(value: unknown): value is ZodTypeAny {
+  return Boolean(
+    value && typeof value === 'object' && typeof (value as ZodTypeAny).safeParse === 'function',
+  );
+}
+
 function buildResponses(
   response?: ZodTypeAny | Record<number, ZodTypeAny>,
 ): Record<string, OpenApiResponse> {
@@ -57,16 +63,14 @@ function buildResponses(
     };
   }
 
-  if (!(response instanceof Object)) {
-    const schema = response as ZodTypeAny;
-
+  if (isZodSchema(response)) {
     return {
       '200': {
         description: 'Success',
         content: {
           'application/json': {
-            schema,
-            example: generateExample(schema),
+            schema: response,
+            example: generateExample(response),
           },
         },
       },
@@ -179,10 +183,10 @@ export function defineRoute<S extends RouteSchemas>(
 
             let schema: ZodTypeAny | undefined;
 
-            if (typeof response === 'object') {
-              schema = (response as Record<number, ZodTypeAny>)[status];
-            } else {
+            if (isZodSchema(response)) {
               schema = response;
+            } else {
+              schema = (response as Record<number, ZodTypeAny>)[status];
             }
 
             if (schema) {

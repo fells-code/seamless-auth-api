@@ -11,8 +11,13 @@ import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { getSequelize } from '../models/index.js';
 import { Session } from '../models/sessions.js';
+import { TotpCredential } from '../models/totpCredentials.js';
 import { User } from '../models/users.js';
-import { CreateUserSchema, UpdateUserSchema } from '../schemas/admin.requests.js';
+import {
+  CreateUserSchema,
+  DeviceReplacementRecoverySchema,
+  UpdateUserSchema,
+} from '../schemas/admin.requests.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -318,6 +323,126 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
     logger.error(`Failed to revoke sessions: ${err}`);
     return res.status(500).json({ error: 'Failed to revoke sessions' });
   }
+};
+
+export const revokeUserSessionById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const session = await Session.findOne({
+      where: {
+        id,
+        revokedAt: null,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    await hardRevokeSession(session, 'admin_revoke');
+
+    await AuthEventService.log({
+      userId: session.userId,
+      type: 'admin_session_revoked',
+      req,
+      metadata: {
+        targetUser: session.userId,
+        sessionId: session.id,
+      },
+    });
+
+    return res.json({ message: 'Success' });
+  } catch (err) {
+    logger.error(`Failed to revoke session: ${err}`);
+    return res.status(500).json({ error: 'Failed to revoke session' });
+  }
+};
+
+export const recoverUserForDeviceReplacement = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const parsed = DeviceReplacementRecoverySchema.safeParse(req.body ?? {});
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Invalid recovery payload',
+      details: parsed.error,
+    });
+  }
+
+  const user = await User.findByPk(userId);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const { revokeSessions, removePasskeys, disableTotp } = parsed.data;
+  let revokedSessions = 0;
+  let removedCredentials = 0;
+  let disabledTotpCredentials = 0;
+
+  if (revokeSessions) {
+    const sessions = await Session.findAll({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+    });
+
+    for (const session of sessions) {
+      await hardRevokeSession(session, 'admin_device_replacement');
+    }
+
+    revokedSessions = sessions.length;
+  }
+
+  if (removePasskeys) {
+    const credentials = await Credential.findAll({ where: { userId } });
+
+    for (const credential of credentials) {
+      await credential.destroy();
+    }
+
+    removedCredentials = credentials.length;
+  }
+
+  if (disableTotp) {
+    const [count] = await TotpCredential.update(
+      { enabled: false },
+      {
+        where: {
+          userId,
+          enabled: true,
+        },
+      },
+    );
+
+    disabledTotpCredentials = count;
+  }
+
+  await AuthEventService.log({
+    userId,
+    type: 'admin_device_replacement_recovery',
+    req,
+    metadata: {
+      targetUser: userId,
+      actions: {
+        revokeSessions,
+        removePasskeys,
+        disableTotp,
+      },
+      revokedSessions,
+      removedCredentials,
+      disabledTotpCredentials,
+    },
+  });
+
+  return res.json({
+    userId,
+    revokedSessions,
+    removedCredentials,
+    disabledTotpCredentials,
+  });
 };
 
 // TODO: Need a public session return type for sessions

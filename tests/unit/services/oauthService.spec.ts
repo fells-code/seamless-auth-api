@@ -26,10 +26,14 @@ const provider = {
   tokenUrl: 'https://oauth2.googleapis.com/token',
   userInfoUrl: 'https://openidconnect.googleapis.com/v1/userinfo',
   scopes: ['openid', 'email', 'profile'],
+  redirectUris: [],
   subjectJsonPath: 'sub',
   emailJsonPath: 'email',
+  emailVerifiedJsonPath: 'email_verified',
   nameJsonPath: 'name',
   allowSignup: true,
+  accountLinking: 'email' as const,
+  requireEmailVerified: false,
 };
 
 describe('oauthService', () => {
@@ -77,11 +81,29 @@ describe('oauthService', () => {
     expect(url).toContain('response_type=code');
     expect(url).toContain('scope=openid+email+profile');
     expect(url).toContain('state=state');
+    expect(url).not.toContain('nonce=');
+  });
+
+  it('adds an OIDC nonce when one is supplied for openid scopes', () => {
+    const url = buildOAuthAuthorizationUrl({
+      provider,
+      redirectUri: 'https://app.example.com/oauth/callback',
+      state: 'state',
+      nonce: 'nonce-value',
+    });
+
+    expect(url).toContain('nonce=nonce-value');
   });
 
   it('rejects redirect URIs outside configured origins', async () => {
     await expect(
       resolveOAuthRedirectUri(provider, 'https://evil.example.com/oauth/callback'),
+    ).rejects.toThrow('OAuth redirect URI is not allowed');
+  });
+
+  it('rejects redirect URI prefix lookalikes', async () => {
+    await expect(
+      resolveOAuthRedirectUri(provider, 'https://app.example.com.evil.test/oauth/callback'),
     ).rejects.toThrow('OAuth redirect URI is not allowed');
   });
 
@@ -99,6 +121,7 @@ describe('oauthService', () => {
         json: async () => ({
           sub: 'provider-user',
           email: 'Person@Example.com',
+          email_verified: true,
           name: 'Person Example',
         }),
       });
@@ -114,13 +137,33 @@ describe('oauthService', () => {
     expect(profile).toEqual({
       subject: 'provider-user',
       email: 'person@example.com',
+      emailVerified: true,
       name: 'Person Example',
       raw: {
         sub: 'provider-user',
         email: 'Person@Example.com',
+        email_verified: true,
         name: 'Person Example',
       },
     });
+  });
+
+  it('rejects provider profiles with explicitly unverified email addresses', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        sub: 'provider-user',
+        email: 'person@example.com',
+        email_verified: false,
+      }),
+    });
+
+    await expect(fetchOAuthProfile(provider, 'provider-token')).rejects.toThrow(
+      'OAuth profile email is not verified',
+    );
   });
 
   it('links an OAuth profile to an existing user', async () => {
@@ -151,5 +194,29 @@ describe('oauthService', () => {
         }),
       }),
     );
+  });
+
+  it('does not link an OAuth profile to an existing user when account linking is disabled', async () => {
+    const user = buildUser({ id: 'user-1', email: 'person@example.com' });
+
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (User.findOne as any).mockResolvedValue(user);
+
+    await expect(
+      resolveOAuthUser(
+        {
+          ...provider,
+          accountLinking: 'disabled',
+        },
+        {
+          subject: 'provider-user',
+          email: 'person@example.com',
+          emailVerified: true,
+          raw: {},
+        },
+      ),
+    ).resolves.toBeNull();
+
+    expect(OAuthIdentity.findOrCreate).not.toHaveBeenCalled();
   });
 });

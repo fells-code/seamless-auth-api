@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import {
   getLoginPolicy,
   isLoginMethodEnabled,
@@ -396,6 +397,10 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
     return;
   }
 
+  if (await rejectIfUserLocked({ userId: user.id, req, res })) {
+    return;
+  }
+
   logger.info(`Verifying login phone number: ${phone}`);
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
@@ -486,6 +491,10 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
   const phone = user.phone;
 
   if (await rejectDisabledLoginMethod('email_otp', req, res)) {
+    return;
+  }
+
+  if (await rejectIfUserLocked({ userId: user.id, req, res })) {
     return;
   }
 

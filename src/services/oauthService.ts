@@ -30,6 +30,7 @@ export type OAuthStatePayload = {
 export type OAuthProfile = {
   subject: string;
   email: string;
+  emailVerified?: boolean;
   name?: string;
   raw: Record<string, unknown>;
 };
@@ -82,8 +83,41 @@ function normalizeEmail(value: unknown) {
   return typeof value === 'string' && value.includes('@') ? value.toLowerCase() : null;
 }
 
-function allowedRedirect(value: string, origins: string[]) {
-  return origins.some((origin) => value.startsWith(origin));
+function parseUrl(value: string) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function sameOrigin(value: string, allowedOrigin: string) {
+  const parsedValue = parseUrl(value);
+  const parsedAllowedOrigin = parseUrl(allowedOrigin);
+
+  if (!parsedValue || !parsedAllowedOrigin) return false;
+
+  return parsedValue.origin === parsedAllowedOrigin.origin;
+}
+
+function allowedRedirect(value: string, allowedValues: string[], fallbackOrigins: string[]) {
+  const parsedValue = parseUrl(value);
+  if (!parsedValue) return false;
+
+  if (allowedValues.length > 0) {
+    return allowedValues.some((allowedValue) => value === allowedValue);
+  }
+
+  return fallbackOrigins.some((origin) => sameOrigin(value, origin));
+}
+
+function providerRedirectAllowlist(provider: OAuthProviderConfig) {
+  return Array.from(
+    new Set([
+      ...(provider.redirectUris ?? []),
+      ...(provider.redirectUri ? [provider.redirectUri] : []),
+    ]),
+  );
 }
 
 export async function getEnabledOAuthProviders() {
@@ -114,9 +148,10 @@ export async function resolveOAuthRedirectUri(
   requestedRedirectUri?: string,
 ) {
   const config = await getSystemConfig();
+  const providerAllowlist = providerRedirectAllowlist(provider);
 
   if (requestedRedirectUri) {
-    if (!allowedRedirect(requestedRedirectUri, config.origins)) {
+    if (!allowedRedirect(requestedRedirectUri, providerAllowlist, config.origins)) {
       throw new Error('OAuth redirect URI is not allowed');
     }
 
@@ -148,9 +183,17 @@ export function verifyOAuthState(state: string, providerId: string): OAuthStateP
   if (!encodedPayload || !signature) return null;
   if (!safeEqual(signPayload(encodedPayload), signature)) return null;
 
-  const payload = JSON.parse(base64UrlDecode(encodedPayload)) as OAuthStatePayload;
+  let payload: OAuthStatePayload;
+
+  try {
+    payload = JSON.parse(base64UrlDecode(encodedPayload)) as OAuthStatePayload;
+  } catch {
+    return null;
+  }
 
   if (payload.providerId !== providerId) return null;
+  if (typeof payload.redirectUri !== 'string') return null;
+  if (typeof payload.createdAt !== 'number') return null;
   if (Date.now() - payload.createdAt > STATE_TTL_MS) return null;
 
   return payload;
@@ -160,10 +203,12 @@ export function buildOAuthAuthorizationUrl({
   provider,
   redirectUri,
   state,
+  nonce,
 }: {
   provider: OAuthProviderConfig;
   redirectUri: string;
   state: string;
+  nonce?: string;
 }) {
   const url = new URL(provider.authorizationUrl);
 
@@ -174,6 +219,10 @@ export function buildOAuthAuthorizationUrl({
 
   if (provider.scopes.length) {
     url.searchParams.set('scope', provider.scopes.join(' '));
+  }
+
+  if (nonce && provider.scopes.includes('openid')) {
+    url.searchParams.set('nonce', nonce);
   }
 
   return url.toString();
@@ -241,6 +290,7 @@ export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessTok
   const raw = (await response.json()) as Record<string, unknown>;
   const subject = getJsonPathValue(raw, provider.subjectJsonPath);
   const email = normalizeEmail(getJsonPathValue(raw, provider.emailJsonPath));
+  const emailVerifiedValue = getJsonPathValue(raw, provider.emailVerifiedJsonPath);
   const name = getJsonPathValue(raw, provider.nameJsonPath);
 
   if (typeof subject !== 'string' && typeof subject !== 'number') {
@@ -251,9 +301,21 @@ export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessTok
     throw new Error('OAuth profile did not include an email address');
   }
 
+  const emailVerified =
+    typeof emailVerifiedValue === 'boolean'
+      ? emailVerifiedValue
+      : typeof emailVerifiedValue === 'string'
+        ? emailVerifiedValue.toLowerCase() === 'true'
+        : undefined;
+
+  if (emailVerified === false || (provider.requireEmailVerified && emailVerified !== true)) {
+    throw new Error('OAuth profile email is not verified');
+  }
+
   return {
     subject: String(subject),
     email,
+    ...(emailVerified === undefined ? {} : { emailVerified }),
     ...(typeof name === 'string' ? { name } : {}),
     raw,
   } satisfies OAuthProfile;
@@ -272,7 +334,12 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
     if (user) return user;
   }
 
-  let user = await User.findOne({ where: { email: profile.email } });
+  const emailUser = await User.findOne({ where: { email: profile.email } });
+  let user = emailUser;
+
+  if (emailUser && provider.accountLinking === 'disabled') {
+    return null;
+  }
 
   if (!user) {
     if (!provider.allowSignup) {
@@ -286,7 +353,7 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
       phone: `oauth:${provider.id}:${profile.subject}`.slice(0, 255),
       roles: config.default_roles ?? [],
       verified: true,
-      emailVerified: true,
+      emailVerified: profile.emailVerified ?? true,
       phoneVerified: false,
     });
   }

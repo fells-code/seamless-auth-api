@@ -14,7 +14,9 @@ import {
   getUsers,
   listAllSessions,
   listUserSessions,
+  recoverUserForDeviceReplacement,
   revokeAllUserSessions,
+  revokeUserSessionById,
   updateUser,
 } from '../controllers/admin.js';
 import {
@@ -29,9 +31,17 @@ import {
 } from '../controllers/organizations.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requireStepUp } from '../middleware/requireStepUp.js';
 import { UserIdParamSchema } from '../schemas/admin.query.js';
-import { CreateUserSchema, UpdateUserSchema } from '../schemas/admin.requests.js';
-import { UserResponseSchema } from '../schemas/admin.responses.js';
+import {
+  CreateUserSchema,
+  DeviceReplacementRecoverySchema,
+  UpdateUserSchema,
+} from '../schemas/admin.requests.js';
+import {
+  DeviceReplacementRecoveryResponseSchema,
+  UserResponseSchema,
+} from '../schemas/admin.responses.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { AuthEventQuerySchema, PaginationQuerySchema } from '../schemas/internal.query.js';
 import {
@@ -47,6 +57,7 @@ import {
   UpdateOrganizationMemberRequestSchema,
   UpdateOrganizationRequestSchema,
 } from '../schemas/organization.requests.js';
+import { SessionIdParamsSchema } from '../schemas/session.params.js';
 import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
 const adminRouter = createRouter('/admin');
@@ -270,6 +281,29 @@ adminRouter.patch(
   updateUser,
 );
 
+adminRouter.post(
+  '/users/:userId/recovery/device-replacement',
+  {
+    auth: 'access',
+    summary: 'Prepare a user for admin-assisted device replacement',
+    tags: ['Admin'],
+    middleware: [requireAdmin('write'), requireStepUp()],
+
+    schemas: {
+      params: UserIdParamSchema,
+      body: DeviceReplacementRecoverySchema,
+      response: {
+        200: DeviceReplacementRecoveryResponseSchema,
+        400: InternalErrorSchema,
+        401: InternalErrorSchema,
+        403: InternalErrorSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  recoverUserForDeviceReplacement,
+);
+
 adminRouter.get(
   '/users/:userId',
   {
@@ -318,6 +352,24 @@ adminRouter.get(
     },
   },
   listUserSessions,
+);
+
+adminRouter.delete(
+  '/sessions/by-id/:id',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write')],
+    tags: ['Admin'],
+    schemas: {
+      params: SessionIdParamsSchema,
+      response: {
+        200: MessageSchema,
+        404: InternalErrorSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  revokeUserSessionById,
 );
 
 adminRouter.delete(

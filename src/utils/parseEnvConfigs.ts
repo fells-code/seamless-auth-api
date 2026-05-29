@@ -18,6 +18,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
         .filter(Boolean);
 
     case 'oauth_providers':
+    case 'lockout_policy':
       return JSON.parse(raw);
 
     case 'rate_limit':

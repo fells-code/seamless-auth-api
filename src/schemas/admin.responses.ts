@@ -11,3 +11,10 @@ import { ApiUserSchema } from './user.schema.js';
 export const UserResponseSchema = z.object({
   user: ApiUserSchema,
 });
+
+export const DeviceReplacementRecoveryResponseSchema = z.object({
+  userId: z.string(),
+  revokedSessions: z.number().int().nonnegative(),
+  removedCredentials: z.number().int().nonnegative(),
+  disabledTotpCredentials: z.number().int().nonnegative(),
+});

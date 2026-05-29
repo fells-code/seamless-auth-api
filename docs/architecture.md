@@ -1,240 +1,53 @@
-# Seamless Auth API Architecture
+# Architecture
 
-This document is the deeper companion to [AGENTS.md](/Users/brandoncorbett/git/seamless-auth-api/AGENTS.md). It explains how the service boots, how authentication flows move through the codebase, and which pieces tend to matter during maintenance.
+Seamless Auth API is an Express and TypeScript authentication service backed by Postgres. It provides passwordless authentication primitives, session issuance, JWKS publication, runtime system configuration, and administrative API endpoints for operators.
 
-## 1. Boot Sequence
+## Runtime Components
 
-Request handling is assembled in this order:
+- Express app: global middleware, CORS, rate limits, OpenAPI metadata, and route loading.
+- Routes: thin endpoint declarations with request/response schemas.
+- Controllers: request handling and response shaping.
+- Services: reusable auth, session, messaging, organization, OAuth, lockout, redaction, and step-up logic.
+- Models: Sequelize models for users, credentials, sessions, system config, auth events, organizations, TOTP credentials, and OAuth identities.
+- Postgres: source of truth for users, credentials, sessions, config, and audit records.
 
-1. [src/server.ts](/Users/brandoncorbett/git/seamless-auth-api/src/server.ts)
-2. [src/models/index.ts](/Users/brandoncorbett/git/seamless-auth-api/src/models/index.ts)
-3. [src/db.ts](/Users/brandoncorbett/git/seamless-auth-api/src/db.ts)
-4. [src/config/bootstrapSystemConfig.ts](/Users/brandoncorbett/git/seamless-auth-api/src/config/bootstrapSystemConfig.ts)
-5. [src/app.ts](/Users/brandoncorbett/git/seamless-auth-api/src/app.ts)
-6. [src/lib/loadRoutes.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/loadRoutes.ts)
+## Request Flow
 
-Important implications:
+1. Express receives a request and applies global middleware.
+2. Route declarations validate params, query, and body schemas.
+3. Auth middleware validates access or ephemeral tokens where required.
+4. Controllers call service/model layers.
+5. Response schemas validate JSON responses when configured.
+6. Auth events are logged with sensitive metadata redacted.
 
-- Models must initialize before route handlers run.
-- The process will fail fast on missing database or required system configuration.
-- Route registration is file-system driven, so every `*.routes.ts` file in `src/routes` is mounted automatically.
+## Token Model
 
-## 2. Request Pipeline
+Seamless Auth API uses three token states:
 
-Global behavior is configured in [src/app.ts](/Users/brandoncorbett/git/seamless-auth-api/src/app.ts):
+- Ephemeral token: short-lived pre-auth token used to continue registration or login flows.
+- Access token: signed JWT for authenticated API access.
+- Refresh token: opaque token stored only as a hash plus lookup fingerprint.
 
-- `helmet`
-- JSON body parsing
-- CORS
-- request logging
-- rate limiting and slow-down outside test mode
-- development-only OpenAPI and Swagger UI
-- generic error and 404 handlers
+Access tokens are signed with configured JWKS signing keys. Refresh tokens are rotated and stored in the `sessions` table as non-raw values.
 
-Route modules use [src/lib/createRouter.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/createRouter.ts) and [src/lib/defineRoute.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/defineRoute.ts). `defineRoute` is more than syntactic sugar:
+## Authentication Methods
 
-- parses params/query/body with Zod
-- registers OpenAPI metadata
-- can validate JSON responses against Zod schemas
-- optionally attaches auth middleware through the `auth` property
+Supported login methods are controlled by `login_methods` system config:
 
-If request parsing or OpenAPI output looks wrong, inspect the route definition before the controller.
+- `passkey`
+- `magic_link`
+- `email_otp`
+- `phone_otp`
+- `oauth`
 
-## 3. Main Auth Flows
+Passkey-capable sessions can be restricted to passkey-only continuation by disabling `passkey_login_fallback_enabled`.
 
-### Registration
+## System Configuration
 
-Primary files:
+Runtime configuration lives in the `system_config` table and is bootstrapped from environment variables when missing. Configuration includes token TTLs, allowed origins, WebAuthn relying-party settings, roles, OAuth providers, login methods, and lockout policy.
 
-- [src/routes/registration.routes.ts](/Users/brandoncorbett/git/seamless-auth-api/src/routes/registration.routes.ts)
-- [src/controllers/registration.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/registration.ts)
+Use environment variables for raw secrets. Do not store raw secrets in `system_config`.
 
-Behavior:
+## Operational Boundaries
 
-- validates email/phone
-- finds or creates the user
-- issues an ephemeral token
-- optionally sends or returns phone OTP delivery info
-- stores bootstrap invite token hashes in challenge context when present
-
-Registration does not itself create the long-lived session. It prepares the user for OTP, magic link, or WebAuthn completion.
-
-### OTP
-
-Primary files:
-
-- [src/routes/otp.routes.ts](/Users/brandoncorbett/git/seamless-auth-api/src/routes/otp.routes.ts)
-- [src/controllers/otp.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/otp.ts)
-- [src/utils/otp.ts](/Users/brandoncorbett/git/seamless-auth-api/src/utils/otp.ts)
-
-Behavior:
-
-- requires ephemeral auth for generation and verification endpoints
-- supports both registration verification and login verification
-- can either send messages directly or return delivery payloads to an external caller
-
-### Magic Link
-
-Primary files:
-
-- [src/routes/magicLink.routes.ts](/Users/brandoncorbett/git/seamless-auth-api/src/routes/magicLink.routes.ts)
-- [src/controllers/magicLinks.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/magicLinks.ts)
-
-Behavior:
-
-- requires ephemeral auth to request the link
-- stores hashed token plus device fingerprint data
-- verification endpoint marks the token used
-- polling endpoint finalizes the login/session if the same device later confirms it
-
-### WebAuthn / Passkeys
-
-Primary files:
-
-- [src/routes/webauthn.routes.ts](/Users/brandoncorbett/git/seamless-auth-api/src/routes/webauthn.routes.ts)
-- [src/controllers/webauthn.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/webauthn.ts)
-
-Behavior:
-
-- start endpoints generate registration/authentication challenges
-- finish endpoints verify browser responses with `@simplewebauthn/server`
-- successful completion issues a real session
-- registration/login completion can also trigger bootstrap admin promotion
-
-### Session Management
-
-Primary files:
-
-- [src/services/sessionIssuance.ts](/Users/brandoncorbett/git/seamless-auth-api/src/services/sessionIssuance.ts)
-- [src/services/sessionService.ts](/Users/brandoncorbett/git/seamless-auth-api/src/services/sessionService.ts)
-- [src/controllers/authentication.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/authentication.ts)
-- [src/controllers/sessions.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/sessions.ts)
-
-Key concepts:
-
-- refresh tokens are opaque random values stored only as bcrypt hashes
-- access tokens are signed JWTs using the JWKS-managed signing key
-- protected API routes require bearer authentication from a trusted server adapter
-- session reuse detection revokes the replacement chain
-
-When debugging auth bugs, inspect both the token code and the `sessions` table behavior. The middleware validates both JWT claims and backing session state.
-
-## 4. Auth Contract
-
-The API exposes a single bearer/JSON auth contract.
-
-- login and registration continuation endpoints return ephemeral tokens in JSON
-- session completion returns access and refresh tokens in JSON
-- protected routes accept `Authorization: Bearer ...`
-- refresh endpoints expect the raw opaque refresh token as bearer credentials
-
-Browser-facing integrations should use a trusted server adapter that can translate application
-sessions into SeamlessAuth bearer calls. The API no longer sets or reads browser auth cookies.
-
-## 5. Config And Secrets
-
-### Environment variables
-
-The process relies on `.env` or runtime env vars for:
-
-- database connection
-- issuer/origin metadata
-- bootstrap toggles
-- service token secrets
-- production signing/JWKS material
-- optional direct messaging provider credentials
-
-Reference points:
-
-- [.env.example](/Users/brandoncorbett/git/seamless-auth-api/.env.example)
-- [validateEnvs.sh](/Users/brandoncorbett/git/seamless-auth-api/validateEnvs.sh)
-
-### `system_config`
-
-Bootstrapped runtime values include:
-
-- `app_name`
-- `default_roles`
-- `available_roles`
-- token TTLs
-- rate limiting config
-- WebAuthn RP ID
-- allowed origins
-
-Reference points:
-
-- [src/config/systemConfig.envMap.ts](/Users/brandoncorbett/git/seamless-auth-api/src/config/systemConfig.envMap.ts)
-- [src/schemas/systemConfig.schema.ts](/Users/brandoncorbett/git/seamless-auth-api/src/schemas/systemConfig.schema.ts)
-- [src/controllers/systemConfig.ts](/Users/brandoncorbett/git/seamless-auth-api/src/controllers/systemConfig.ts)
-
-The cache in `getSystemConfig()` is process-local. Any write path should invalidate it.
-
-## 6. Messaging
-
-Direct delivery lives in:
-
-- [src/services/messagingService.ts](/Users/brandoncorbett/git/seamless-auth-api/src/services/messagingService.ts)
-- [src/config/directMessaging.ts](/Users/brandoncorbett/git/seamless-auth-api/src/config/directMessaging.ts)
-
-Supported direct transports:
-
-- AWS email
-- AWS SMS
-- Twilio SMS
-
-Flows can opt out of direct sending and instead return delivery payloads by sending `x-seamless-auth-delivery-mode: external`.
-Because delivery payloads contain OTPs or one-time links, production external delivery also requires
-a valid `x-seamless-service-token` from a trusted server adapter. Non-production development and test
-flows may request external delivery explicitly without a service token.
-
-This split is important when writing tests or integrating with an upstream orchestration service.
-
-## 7. Data Model Highlights
-
-Useful tables/models to understand early:
-
-- `users`
-- `credentials`
-- `sessions`
-- `auth_events`
-- `magic_links`
-- `system_config`
-- `bootstrap_invites`
-
-Model definitions live in [src/models](/Users/brandoncorbett/git/seamless-auth-api/src/models). Migrations live in [src/migrations](/Users/brandoncorbett/git/seamless-auth-api/src/migrations).
-
-## 8. Testing Strategy
-
-The test suite uses Vitest with:
-
-- unit tests for utilities, middleware, services, config, and OpenAPI generation
-- integration tests for route/controller behavior
-- e2e and smoke tests for higher-level flow coverage
-
-Reference points:
-
-- [vitest.config.ts](/Users/brandoncorbett/git/seamless-auth-api/vitest.config.ts)
-- [tests/setup/env.ts](/Users/brandoncorbett/git/seamless-auth-api/tests/setup/env.ts)
-- [tests/setup/globalSetup.ts](/Users/brandoncorbett/git/seamless-auth-api/tests/setup/globalSetup.ts)
-
-Practical guidance:
-
-- use unit tests for small auth helper changes
-- use integration tests when touching controllers or middleware
-- update OpenAPI tests if you change route schemas or docs generation
-
-## 9. Maintenance Notes And Sharp Edges
-
-- Some routes declare auth through `middleware: [attachAuthMiddleware(...)]` instead of the `auth` field. That works at runtime, but OpenAPI security metadata is only added by the `auth` field today.
-- `defineRoute` expects `schemas`, plural. Using `schema` silently skips request parsing and docs wiring.
-- `system_config` can mask env changes after first bootstrap because the DB value becomes authoritative.
-- Refresh-token matching depends on indexed lookup fingerprints with a legacy bcrypt fallback, so session-heavy scenarios are worth extra care.
-
-## 10. Suggested Workflow For Agents
-
-1. Read the relevant route file.
-2. Read the controller.
-3. Read the service/helper/model touched by the controller.
-4. Check the corresponding test file before editing.
-5. If changing auth or schema behavior, inspect OpenAPI impact too.
-6. Run `npm run build`, `npm run lint`, and targeted tests before wrapping up.
+This repository contains the auth server only. It does not include billing, hosted tenant lifecycle, managed observability, managed secret storage, or the hosted control plane. Self-hosted deployments can integrate their own infrastructure for those responsibilities.

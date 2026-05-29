@@ -29,10 +29,14 @@ const provider = {
   userInfoUrl: 'https://openidconnect.googleapis.com/v1/userinfo',
   scopes: ['openid', 'email'],
   redirectUri: 'http://localhost:5174/oauth/callback',
+  redirectUris: ['http://localhost:5174/oauth/callback'],
   subjectJsonPath: 'sub',
   emailJsonPath: 'email',
+  emailVerifiedJsonPath: 'email_verified',
   nameJsonPath: 'name',
   allowSignup: true,
+  accountLinking: 'email' as const,
+  requireEmailVerified: false,
 };
 
 beforeAll(async () => {
@@ -76,6 +80,15 @@ describe('OAuth routes', () => {
     expect(res.body.state).toMatch(/\./);
     expect(res.body.authorizationUrl).toContain('client_id=client-id');
     expect(res.body.authorizationUrl).toContain('state=');
+    expect(res.body.authorizationUrl).toContain('nonce=');
+  });
+
+  it('rejects redirect URI prefix lookalikes', async () => {
+    const res = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174.evil.test/oauth/callback',
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it('finishes OAuth login and issues a SeamlessAuth session', async () => {
@@ -102,6 +115,7 @@ describe('OAuth routes', () => {
         json: async () => ({
           sub: 'provider-user',
           email: 'person@example.com',
+          email_verified: true,
           name: 'Person Example',
         }),
       });
