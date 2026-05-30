@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.unmock('../../../src/middleware/verifyBearerAuth');
 vi.unmock('../../../src/middleware/attachAuthMiddleware');
 
 vi.mock('../../../src/middleware/verifyBearerAuth', () => ({

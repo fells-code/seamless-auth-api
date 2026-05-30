@@ -39,6 +39,7 @@ import {
   UpdateUserSchema,
 } from '../schemas/admin.requests.js';
 import {
+  AdminUserAnomaliesResponseSchema,
   AdminUserDetailResponseSchema,
   DeviceReplacementRecoveryResponseSchema,
   UserResponseSchema,
@@ -58,6 +59,12 @@ import {
   UpdateOrganizationMemberRequestSchema,
   UpdateOrganizationRequestSchema,
 } from '../schemas/organization.requests.js';
+import {
+  AdminOrganizationListResponseSchema,
+  OrganizationEnvelopeResponseSchema,
+  OrganizationMembershipEnvelopeResponseSchema,
+  OrganizationMembersResponseSchema,
+} from '../schemas/organization.responses.js';
 import { SessionIdParamsSchema } from '../schemas/session.params.js';
 import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
@@ -70,6 +77,11 @@ adminRouter.get(
     summary: 'List organizations',
     tags: ['Admin'],
     middleware: [requireAdmin('read')],
+    schemas: {
+      response: {
+        200: AdminOrganizationListResponseSchema,
+      },
+    },
   },
   listAdminOrganizations,
 );
@@ -83,6 +95,9 @@ adminRouter.post(
     middleware: [requireAdmin('write')],
     schemas: {
       body: CreateOrganizationRequestSchema,
+      response: {
+        201: OrganizationEnvelopeResponseSchema,
+      },
     },
   },
   createOrganization,
@@ -97,6 +112,10 @@ adminRouter.get(
     middleware: [requireAdmin('read')],
     schemas: {
       params: OrganizationIdParamSchema,
+      response: {
+        200: OrganizationEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   getOrganization,
@@ -112,6 +131,10 @@ adminRouter.patch(
     schemas: {
       params: OrganizationIdParamSchema,
       body: UpdateOrganizationRequestSchema,
+      response: {
+        200: OrganizationEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   updateOrganization,
@@ -126,6 +149,10 @@ adminRouter.get(
     middleware: [requireAdmin('read')],
     schemas: {
       params: OrganizationIdParamSchema,
+      response: {
+        200: OrganizationMembersResponseSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   listMembers,
@@ -141,6 +168,11 @@ adminRouter.post(
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
+      response: {
+        201: OrganizationMembershipEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+        409: InternalErrorSchema,
+      },
     },
   },
   addMember,
@@ -156,6 +188,11 @@ adminRouter.patch(
     schemas: {
       params: OrganizationMemberParamSchema,
       body: UpdateOrganizationMemberRequestSchema,
+      response: {
+        200: OrganizationMembershipEnvelopeResponseSchema,
+        400: InternalErrorSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   updateMember,
@@ -172,6 +209,8 @@ adminRouter.delete(
       params: OrganizationMemberParamSchema,
       response: {
         200: MessageSchema,
+        400: InternalErrorSchema,
+        404: InternalErrorSchema,
       },
     },
   },
@@ -331,6 +370,13 @@ adminRouter.get(
     auth: 'access',
     tags: ['Admin'],
     middleware: [requireAdmin('read')],
+    schemas: {
+      params: UserIdParamSchema,
+      response: {
+        200: AdminUserAnomaliesResponseSchema,
+        500: InternalErrorSchema,
+      },
+    },
   },
   getUserAnomalies,
 );

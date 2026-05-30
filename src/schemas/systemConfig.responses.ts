@@ -13,6 +13,10 @@ export const UpdateSystemConfigResponseSchema = z.object({
   updatedKeys: z.array(z.string()),
 });
 
+export const AvailableRolesResponseSchema = z.object({
+  roles: z.array(z.string()),
+});
+
 export const UnauthorizedSchema = z.object({
   error: z.string(),
 });

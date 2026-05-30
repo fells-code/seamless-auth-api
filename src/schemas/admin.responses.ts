@@ -27,3 +27,9 @@ export const AdminUserDetailResponseSchema = z.object({
   credentials: z.array(CredentialResponseSchema),
   events: z.array(AuthEventSchema),
 });
+
+export const AdminUserAnomaliesResponseSchema = z.object({
+  suspiciousEvents: z.array(AuthEventSchema),
+  relatedIps: z.array(z.string()),
+  relatedAgents: z.array(z.string()),
+});

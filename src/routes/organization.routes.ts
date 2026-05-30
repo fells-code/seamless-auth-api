@@ -16,7 +16,7 @@ import {
   updateOrganization,
 } from '../controllers/organizations.js';
 import { createRouter } from '../lib/createRouter.js';
-import { MessageSchema } from '../schemas/generic.responses.js';
+import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import {
   AddOrganizationMemberRequestSchema,
   CreateOrganizationRequestSchema,
@@ -25,6 +25,13 @@ import {
   UpdateOrganizationMemberRequestSchema,
   UpdateOrganizationRequestSchema,
 } from '../schemas/organization.requests.js';
+import {
+  OrganizationEnvelopeResponseSchema,
+  OrganizationListResponseSchema,
+  OrganizationMembershipEnvelopeResponseSchema,
+  OrganizationMembersResponseSchema,
+  OrganizationSwitchResponseSchema,
+} from '../schemas/organization.responses.js';
 
 const organizationRouter = createRouter('/organizations');
 
@@ -34,6 +41,11 @@ organizationRouter.get(
     auth: 'access',
     tags: ['Organizations'],
     summary: 'List organizations for the authenticated user',
+    schemas: {
+      response: {
+        200: OrganizationListResponseSchema,
+      },
+    },
   },
   listOrganizations,
 );
@@ -46,6 +58,9 @@ organizationRouter.post(
     summary: 'Create organization',
     schemas: {
       body: CreateOrganizationRequestSchema,
+      response: {
+        201: OrganizationEnvelopeResponseSchema,
+      },
     },
   },
   createOrganization,
@@ -59,6 +74,10 @@ organizationRouter.get(
     summary: 'Get organization',
     schemas: {
       params: OrganizationIdParamSchema,
+      response: {
+        200: OrganizationEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   getOrganization,
@@ -73,6 +92,10 @@ organizationRouter.patch(
     schemas: {
       params: OrganizationIdParamSchema,
       body: UpdateOrganizationRequestSchema,
+      response: {
+        200: OrganizationEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   updateOrganization,
@@ -86,6 +109,11 @@ organizationRouter.post(
     summary: 'Switch active organization for the current session',
     schemas: {
       params: OrganizationIdParamSchema,
+      response: {
+        200: OrganizationSwitchResponseSchema,
+        400: InternalErrorSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   switchOrganization,
@@ -99,6 +127,10 @@ organizationRouter.get(
     summary: 'List organization members',
     schemas: {
       params: OrganizationIdParamSchema,
+      response: {
+        200: OrganizationMembersResponseSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   listMembers,
@@ -113,6 +145,11 @@ organizationRouter.post(
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
+      response: {
+        201: OrganizationMembershipEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+        409: InternalErrorSchema,
+      },
     },
   },
   addMember,
@@ -127,6 +164,11 @@ organizationRouter.patch(
     schemas: {
       params: OrganizationMemberParamSchema,
       body: UpdateOrganizationMemberRequestSchema,
+      response: {
+        200: OrganizationMembershipEnvelopeResponseSchema,
+        400: InternalErrorSchema,
+        404: InternalErrorSchema,
+      },
     },
   },
   updateMember,
@@ -142,6 +184,8 @@ organizationRouter.delete(
       params: OrganizationMemberParamSchema,
       response: {
         200: MessageSchema,
+        400: InternalErrorSchema,
+        404: InternalErrorSchema,
       },
     },
   },

@@ -13,6 +13,7 @@ import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
+  AvailableRolesResponseSchema,
   GetSystemConfigResponseSchema,
   InvalidPayloadSchema,
   UpdateSystemConfigResponseSchema,
@@ -28,6 +29,11 @@ systemConfigRouter.get(
     tags: ['SystemConfig'],
 
     middleware: [requireAdmin('read')],
+    schemas: {
+      response: {
+        200: AvailableRolesResponseSchema,
+      },
+    },
   },
   getAvailableRoles,
 );
