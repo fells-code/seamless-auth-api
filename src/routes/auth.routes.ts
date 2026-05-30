@@ -4,7 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { login, logout, refreshSession } from '../controllers/authentication.js';
+import {
+  login,
+  logout,
+  logoutAllSessions,
+  logoutCurrentSession,
+  refreshSession,
+} from '../controllers/authentication.js';
 import { createRouter } from '../lib/createRouter.js';
 import { LoginRequestSchema } from '../schemas/auth.requests.js';
 import {
@@ -40,7 +46,7 @@ authRouter.get(
   '/logout',
   {
     auth: 'access',
-    summary: 'Logout current user',
+    summary: 'Logout all sessions for the current user (deprecated; use DELETE /logout/all)',
     tags: ['Authentication'],
 
     schemas: {
@@ -50,6 +56,39 @@ authRouter.get(
     },
   },
   logout,
+);
+
+authRouter.delete(
+  '/logout',
+  {
+    auth: 'access',
+    summary: 'Logout current session',
+    tags: ['Authentication'],
+
+    schemas: {
+      response: {
+        200: MessageSchema,
+        401: ErrorSchema,
+      },
+    },
+  },
+  logoutCurrentSession,
+);
+
+authRouter.delete(
+  '/logout/all',
+  {
+    auth: 'access',
+    summary: 'Logout all sessions for the current user',
+    tags: ['Authentication'],
+
+    schemas: {
+      response: {
+        200: MessageSchema,
+      },
+    },
+  },
+  logoutAllSessions,
 );
 
 authRouter.post(

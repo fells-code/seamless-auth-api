@@ -44,7 +44,9 @@ The following are **intentionally out of scope** and are part of the managed Sea
 - Hosted metrics, analytics, or usage dashboards
 - Managed secrets storage or key rotation services
 - Automated upgrades, backups, or restore tooling
-- Email or SMS services to service the OTP requests
+- Managed email or SMS services. The API can send directly through configured provider adapters or
+  return external-delivery payloads to a trusted server adapter, but SeamlessAuth Managed handles the
+  operated delivery service.
 - Support SLAs or operational monitoring
 
 Self-hosted users are free to implement any of the above on their own, but they are not required to use SeamlessAuth Managed Service.
@@ -61,7 +63,8 @@ This repository does **not** assume any specific cloud provider, billing system,
 - Bearer/JSON auth API with opaque refresh tokens and signed access tokens
 - WebAuthn / passkeys support
 - Optional WebAuthn PRF support for products that need browser-local key material
-- Token and JWKS support for service-to-service auth
+- JWKS publication for access-token verification and separate service-token guards for trusted
+  server adapters
 - Built for inspection, auditability, and self-hosting
 
 This repository contains **only the auth server**. The admin portal, billing system, and hosted control plane are proprietary and offered as a managed service.
@@ -96,7 +99,7 @@ Seamless Auth API returns JSON tokens instead of browser auth cookies.
 
 ---
 
-## Local development quickstart
+## Local Development Quickstart
 
 ### Prerequisites
 
@@ -105,9 +108,38 @@ Seamless Auth API returns JSON tokens instead of browser auth cookies.
 
 ### Configuration
 
-Copy the `.env.example` to an `.env` file and populate empty values.
+Copy the `.env.example` to an `.env` file and populate values for your local environment.
 
 Never commit real secrets. Use `.env.example` for documentation.
+
+For a default local Postgres instance, `.env.example` expects:
+
+```text
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=seamless_auth
+DB_USER=myuser
+DB_PASSWORD=mypassword
+```
+
+### Run Locally
+
+```bash
+npm install
+npm run migrate:up
+npm run dev
+```
+
+The server starts on `http://localhost:5312` by default.
+
+Verify it:
+
+```bash
+curl http://localhost:5312/health
+```
+
+In development, OpenAPI is available at `http://localhost:5312/openapi.json` and Swagger UI is
+available at `http://localhost:5312/docs`.
 
 ### WebAuthn PRF
 
@@ -251,6 +283,10 @@ external delivery also requires a valid `x-seamless-service-token` from a truste
 Development-only bootstrap token details require `x-seamless-auth-include-sensitive: true` and are
 never enabled in production.
 
+Admin and user endpoints use explicit minimized response schemas. They do not return WebAuthn
+public keys, refresh-token hashes/lookups, challenge context, verification tokens, PRF output, TOTP
+secrets, or provider tokens.
+
 ### Scoped Roles
 
 Global roles may be plain names such as `admin` or scoped names such as `admin:read` and
@@ -267,18 +303,9 @@ Admin routes are split by intent:
 - write routes accept `admin` or `admin:write`
 - plain `admin` checks remain exact for backwards compatibility
 
-### Install & run
-
-```
-npm install
-npm run dev
-```
-
-The server should start on `http://localhost:5312` (or your configured port).
-
 ---
 
-# Docker Quickstart (5 minutes)
+# Docker Quickstart
 
 This is the fastest way to run **Seamless Auth API** locally using Docker.
 
@@ -322,8 +349,11 @@ cp .env.example .env
 If you do not already have Postgres running:
 
 ```bash
+docker network create seamless-auth-local
+
 docker run -d \
   --name seamless-auth-postgres \
+  --network seamless-auth-local \
   -e POSTGRES_USER=myuser \
   -e POSTGRES_PASSWORD=mypassword \
   -e POSTGRES_DB=seamless_auth \
@@ -331,13 +361,28 @@ docker run -d \
   postgres:16
 ```
 
-Update DB env values accordingly.
+The one-off migration command and API container below override `DB_HOST` to the Docker network name.
 
-## 4. Run Seamless Auth Server
+## 4. Run database migrations
+
+Run migrations before the first boot and after upgrades that include migrations:
 
 ```bash
 docker run --rm \
   --env-file .env \
+  --network seamless-auth-local \
+  -e DB_HOST=seamless-auth-postgres \
+  ghcr.io/fells-code/seamless-auth-api:latest \
+  npm run migrate:up
+```
+
+## 5. Run Seamless Auth Server
+
+```bash
+docker run --rm \
+  --env-file .env \
+  --network seamless-auth-local \
+  -e DB_HOST=seamless-auth-postgres \
   -p 5312:5312 \
   ghcr.io/fells-code/seamless-auth-api:latest
 ```
@@ -348,7 +393,7 @@ The server will:
 - Start on port `5312`
 - Expose health and authentication endpoints
 
-## 5. Verify it is running
+## 6. Verify it is running
 
 ```bash
 curl http://localhost:5312/health
@@ -359,7 +404,8 @@ You should receive a healthy response.
 ## Notes for self-hosting
 
 - Secrets are provided via environment variables
-- Keys are generated or mounted at runtime as needed
+- Development keys can be generated automatically; production signing keys should be generated,
+  rotated, and mounted or provided through environment-backed secret management
 - This image contains only the open-source authentication server
 - No admin portal, billing, or managed infrastructure is included
 
@@ -370,6 +416,7 @@ For production deployments:
 - Rotate signing keys
 - Back up your database
 - Monitor authentication failures
+- Treat `system_config` values as runtime configuration, not a secret store
 
 See [docs/production-operations.md](./docs/production-operations.md) for key, secret, rotation,
 lockout, and deployment guidance.
@@ -385,11 +432,14 @@ Authentication infrastructure is security-sensitive.
 For production deployments:
 
 - Use HTTPS end-to-end
-- Keep access and refresh tokens out of browser-readable storage
+- Keep access and refresh tokens out of browser-readable storage. This API does not set or read
+  browser auth cookies; browser-facing apps should integrate through a trusted server adapter or
+  backend.
 - Restrict CORS origins
 - Rotate signing keys and secrets regularly
 - Enable database backups and test restores
 - Monitor auth failures and suspicious behavior
+- Treat `system_config` values as runtime configuration, not a secret store
 
 ## Contributing
 

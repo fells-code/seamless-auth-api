@@ -6,7 +6,6 @@
 
 import { Request, Response } from 'express';
 
-import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import { serializeCredential } from '../services/apiResponseSerializers.js';
@@ -85,7 +84,7 @@ export const deleteUser = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    logger.info(`${authUser.email} trigger the deletion of their account`);
+    logger.info('Authenticated user triggered account deletion');
 
     try {
       const user = await User.findOne({
@@ -96,40 +95,38 @@ export const deleteUser = async (req: Request, res: Response) => {
       });
 
       if (user) {
-        logger.info(`Deleting all users credentials for ${user.email}.`);
+        logger.info('Deleting all user credentials');
         const creds = await Credential.findAll({ where: { userId: user.id } });
 
         creds.forEach((cred) => {
           cred.destroy();
         });
 
-        await AuthEvent.create({
-          user_id: user.id || null,
+        await AuthEventService.log({
+          userId: user.id || null,
           type: 'credentials_deleted',
-          ip_address: req.ip,
-          user_agent: req.headers['user-agent'],
+          req,
           metadata: { reason: 'User deleted account' },
         });
 
         logger.info(`All credentials deleted for ${user.id}.`);
 
         user.destroy();
-        logger.info(`User ${user.email} deleted.`);
+        logger.info('User deleted');
 
-        await AuthEvent.create({
-          user_id: user?.id || null,
+        await AuthEventService.log({
+          userId: user?.id || null,
           type: 'user_deleted',
-          ip_address: req.ip,
-          user_agent: req.headers['user-agent'],
+          req,
           metadata: { reason: 'User deleted account' },
         });
       } else {
-        logger.error(`Failed to destory a seemingly valid user ${authUser.email}`);
+        logger.error('Failed to destroy a seemingly valid user');
       }
 
       return res.status(200).json({ message: 'Success' });
     } catch (error: unknown) {
-      logger.error(`Failed to delete user: ${authUser.email}${error}`);
+      logger.error(`Failed to delete user: ${error}`);
       return res.status(500).json({ message: 'Failed' });
     }
   } catch (error) {

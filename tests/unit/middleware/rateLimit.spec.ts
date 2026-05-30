@@ -17,6 +17,11 @@ vi.mock('express-slow-down', () => {
   };
 });
 
+beforeEach(() => {
+  vi.resetModules();
+  vi.clearAllMocks();
+});
+
 describe('dynamicSlowDown', () => {
   let req: any, res: any, next: any;
 
@@ -144,7 +149,7 @@ describe('magicLinkIpLimiter', () => {
 });
 
 describe('magicLinkEmailLimiter', () => {
-  it('uses email or ip as key', async () => {
+  it('uses authenticated email or ip as key', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
     const rateLimit = await import('express-rate-limit');
 
@@ -153,7 +158,7 @@ describe('magicLinkEmailLimiter', () => {
     const { magicLinkEmailLimiter } = await import('../../../src/middleware/rateLimit');
 
     const req: any = {
-      body: { email: 'test@example.com' },
+      user: { email: 'Test@Example.com' },
       ip: '127.0.0.1',
     };
 
@@ -164,12 +169,43 @@ describe('magicLinkEmailLimiter', () => {
 
     expect(rateLimit.default).toHaveBeenCalledWith(
       expect.objectContaining({
+        keyGenerator: expect.any(Function),
         legacyHeaders: false,
-        max: 100,
-        message: 'Too many requests, please try again later',
+        max: 5,
         standardHeaders: true,
-        windowMs: 60000,
+        windowMs: 15 * 60 * 1000,
       }),
     );
+
+    const options = (rateLimit.default as any).mock.calls[0][0];
+
+    expect(options.keyGenerator(req)).toBe('email:test@example.com');
+    expect(options.keyGenerator({ ip: '127.0.0.1' })).toBe('ip:127.0.0.1');
+  });
+});
+
+describe('rate limiter caches', () => {
+  it('keeps dynamic and magic link limiter instances isolated', async () => {
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    const rateLimit = await import('express-rate-limit');
+
+    (getSystemConfig as any).mockResolvedValue({ rate_limit: 100 });
+
+    const { dynamicRateLimit, magicLinkEmailLimiter, magicLinkIpLimiter } =
+      await import('../../../src/middleware/rateLimit');
+
+    const next = vi.fn();
+
+    // @ts-ignore
+    await dynamicRateLimit({}, {}, next);
+    // @ts-ignore
+    await magicLinkIpLimiter({}, {}, next);
+    // @ts-ignore
+    await magicLinkEmailLimiter({}, {}, next);
+
+    expect(rateLimit.default).toHaveBeenCalledTimes(3);
+    expect((rateLimit.default as any).mock.calls.map(([options]: any[]) => options.max)).toEqual([
+      100, 20, 5,
+    ]);
   });
 });

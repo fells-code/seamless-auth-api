@@ -12,6 +12,7 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
+import { SystemConfigPatchSchema } from '../schemas/systemConfig.patch.schema.js';
 import {
   AvailableRolesResponseSchema,
   GetSystemConfigResponseSchema,
@@ -68,6 +69,7 @@ systemConfigRouter.patch(
     middleware: [requireAdmin('write')],
 
     schemas: {
+      body: SystemConfigPatchSchema,
       response: {
         200: UpdateSystemConfigResponseSchema,
         400: InvalidPayloadSchema,

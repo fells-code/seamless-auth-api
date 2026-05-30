@@ -49,4 +49,12 @@ describe('redaction utilities', () => {
       'Bearer [REDACTED] /magic-link/verify/[REDACTED] token=[REDACTED] code=[REDACTED] salt=[REDACTED] [REDACTED]',
     );
   });
+
+  it('redacts phone and labeled identifier values embedded in text', () => {
+    expect(
+      redactSensitiveText(
+        'phone number: +15555550123 email address: user@example.com identifier: +15555550124',
+      ),
+    ).toBe('phone number: [REDACTED] email address: [REDACTED] identifier: [REDACTED]');
+  });
 });

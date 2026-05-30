@@ -70,11 +70,11 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid data' });
   }
 
-  logger.info(`Sending OTP to phone number: ${phone}`);
+  logger.info('Sending phone OTP');
 
   try {
     if (!isValidPhoneNumber(phone) || !normalizedPhone) {
-      logger.warn(`Invalid phone provided: ${phone}`);
+      logger.warn('Invalid phone provided');
       AuthEventService.log({
         userId: null,
         type: 'otp_suspicious',
@@ -85,7 +85,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
     }
 
     if (!user) {
-      logger.error(`Attempted to send OTP to an unknown user: ${phone}`);
+      logger.error('Attempted to send OTP to an unknown user');
       AuthEventService.log({
         userId: null,
         type: 'otp_suspicious',
@@ -95,7 +95,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid data' });
     }
 
-    logger.info(`${phone} requested a phone OTP`);
+    logger.info('User requested a phone OTP');
     const generatedToken = await generatePhoneOTP(user, {
       sendMessage: !useExternalDelivery,
     });
@@ -140,7 +140,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
 
   try {
     if (!user) {
-      logger.warn(`Attempted to send OTP to an unknown user: ${email}`);
+      logger.warn('Attempted to send OTP to an unknown user');
       AuthEventService.log({
         userId: null,
         type: 'otp_suspicious',
@@ -161,10 +161,10 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid data.' });
     }
 
-    logger.info(`Sending OTP to email: ${email}`);
+    logger.info('Sending email OTP');
 
     if (!isValidEmail(email)) {
-      logger.error(`Invalid email provided: ${email}`);
+      logger.error('Invalid email provided');
       AuthEventService.log({
         userId: null,
         type: 'otp_suspicious',
@@ -174,7 +174,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid data.' });
     }
 
-    logger.info(`${email} requested an email OTP`);
+    logger.info('User requested an email OTP');
     const generatedToken = await generateEmailOTP(user, {
       sendMessage: !useExternalDelivery,
     });
@@ -234,7 +234,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
   const email = user.email;
   const phone = user.phone;
 
-  logger.info(`Verifying phone number: ${phone}`);
+  logger.info('Verifying phone number');
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
     logger.warn('Failed to find a user for this phone verification token');
@@ -265,7 +265,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
     const verified = verificationResult.verified;
 
     if (verified) {
-      logger.info(`${phone} verifed their phone number`);
+      logger.info('User verified their phone number');
       await AuthEventService.log({
         userId: user.id,
         type: 'verify_otp_success',
@@ -274,7 +274,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       });
 
       if (user.phoneVerified && user.emailVerified && user.verified) {
-        logger.info(`${phone} is fully verified. Logging in...`);
+        logger.info('User is fully verified. Logging in...');
         await AuthEventService.log({
           userId: user.id,
           type: 'verify_otp_success',
@@ -302,7 +302,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   const email = user.email;
   const phone = user.phone;
 
-  logger.info(`Verifying email: ${email}`);
+  logger.info('Verifying email');
 
   if (!user || !user.emailVerificationTokenExpiry || !user.emailVerificationToken) {
     logger.warn(`Failed to find a user for this email verification token`);
@@ -343,7 +343,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   const verified = verificationResult.verified;
 
   if (verified) {
-    logger.info(`${email} verifed their email`);
+    logger.info('User verified their email');
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_success',
@@ -352,7 +352,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     });
 
     if (user.phoneVerified && user.emailVerified && user.verified) {
-      logger.info(`${email} is fully verified. Logging in...`);
+      logger.info('User is fully verified. Logging in...');
 
       await AuthEventService.log({
         userId: user.id,
@@ -401,7 +401,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
     return;
   }
 
-  logger.info(`Verifying login phone number: ${phone}`);
+  logger.info('Verifying login phone number');
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
     logger.warn('Failed to find a user for this phone verification token');
@@ -432,7 +432,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
     const verified = verificationResult.verified;
 
     if (verified) {
-      logger.info(`${phone} is verified for login.`);
+      logger.info('User phone is verified for login.');
       await AuthEventService.log({
         userId: user.id,
         type: 'verify_otp_success',
@@ -440,7 +440,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
       });
 
       if (user.phoneVerified && user.emailVerified && user.verified) {
-        logger.info(`${email} is fully verified. Logging in...`);
+        logger.info('User is fully verified. Logging in...');
 
         await AuthEventService.log({
           userId: user.id,
@@ -498,7 +498,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
     return;
   }
 
-  logger.info(`Verifying login email: ${email}`);
+  logger.info('Verifying login email');
 
   if (!user || !user.emailVerificationTokenExpiry || !user.emailVerificationToken) {
     logger.warn(`Failed to find a user for this email verification token`);
@@ -539,7 +539,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
   const verified = verificationResult.verified;
 
   if (verified) {
-    logger.info(`${email} is verified for login.`);
+    logger.info('User email is verified for login.');
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_success',
@@ -547,7 +547,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
     });
 
     if (user.phoneVerified && user.emailVerified && user.verified) {
-      logger.info(`${email} is fully verified. Logging in...`);
+      logger.info('User is fully verified. Logging in...');
 
       await AuthEventService.log({
         userId: user.id,

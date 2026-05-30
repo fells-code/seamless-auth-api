@@ -14,7 +14,7 @@ import {
   signAccessToken,
   signEphemeralToken,
 } from '../../../src/lib/token';
-import { findRefreshSessionByToken } from '../../../src/services/sessionService';
+import { findRefreshSessionByToken, hardRevokeSession } from '../../../src/services/sessionService';
 
 let app: Application;
 
@@ -150,13 +150,49 @@ describe('POST /login', () => {
 });
 
 describe('GET /logout', () => {
-  it('logs out user', async () => {
-    (Session.findAll as any).mockResolvedValue([{ revokedAt: null }]);
+  it('logs out all user sessions for backward compatibility', async () => {
+    const sessions = [{ id: 'session-1' }, { id: 'session-2' }];
+    (Session.findAll as any).mockResolvedValue(sessions);
 
     const res = await request(app).get('/logout');
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('Success');
+    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
+    expect(hardRevokeSession).toHaveBeenNthCalledWith(1, sessions[0], 'user_logout_all');
+    expect(hardRevokeSession).toHaveBeenNthCalledWith(2, sessions[1], 'user_logout_all');
+  });
+});
+
+describe('DELETE /logout', () => {
+  it('logs out only the current session', async () => {
+    const session = { id: 'session-1', userId: 'user-1' };
+    (Session.findOne as any).mockResolvedValue(session);
+
+    const res = await request(app).delete('/logout');
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Success');
+    expect(Session.findOne).toHaveBeenCalledWith({
+      where: { id: 'session-1', userId: expect.any(String), revokedAt: null },
+    });
+    expect(hardRevokeSession).toHaveBeenCalledWith(session, 'user_logout');
+  });
+});
+
+describe('DELETE /logout/all', () => {
+  it('logs out all user sessions', async () => {
+    const sessions = [{ id: 'session-1' }, { id: 'session-2' }];
+    (Session.findAll as any).mockResolvedValue(sessions);
+
+    const res = await request(app).delete('/logout/all');
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Success');
+    expect(Session.findAll).toHaveBeenCalledWith({
+      where: { userId: expect.any(String), revokedAt: null },
+    });
+    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
   });
 });
 

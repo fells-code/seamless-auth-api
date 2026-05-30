@@ -59,7 +59,7 @@ export class AuthEventService {
         metadata: redactMetadata(metadata),
       });
     } catch (err) {
-      logger.error('Failed to write AuthEvent:', err);
+      logger.error(`Failed to write AuthEvent: ${err}`);
     }
   }
 

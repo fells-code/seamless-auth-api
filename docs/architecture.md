@@ -5,7 +5,7 @@ Seamless Auth API is an Express and TypeScript authentication service backed by 
 ## Runtime Components
 
 - Express app: global middleware, CORS, rate limits, OpenAPI metadata, and route loading.
-- Routes: thin endpoint declarations with request/response schemas.
+- Routes: thin endpoint declarations with request and response schemas.
 - Controllers: request handling and response shaping.
 - Services: reusable auth, session, messaging, organization, OAuth, lockout, redaction, and step-up logic.
 - Models: Sequelize models for users, credentials, sessions, system config, auth events, organizations, TOTP credentials, and OAuth identities.
@@ -17,7 +17,7 @@ Seamless Auth API is an Express and TypeScript authentication service backed by 
 2. Route declarations validate params, query, and body schemas.
 3. Auth middleware validates access or ephemeral tokens where required.
 4. Controllers call service/model layers.
-5. Response schemas validate JSON responses when configured.
+5. Response schemas validate JSON responses and strip undocumented fields from successful payloads.
 6. Auth events are logged with sensitive metadata redacted.
 
 ## Token Model
@@ -33,6 +33,10 @@ Access tokens are signed with configured JWKS signing keys. Refresh tokens are r
 Routes that declare access or ephemeral auth validate SeamlessAuth-issued bearer JWTs. Internal
 service tokens are intentionally separate and are accepted only by service-token-specific middleware
 or headers.
+
+The API does not set or read browser auth cookies. Browser-facing applications should keep token
+custody in a trusted server adapter or backend and forward bearer tokens to the API from that trusted
+layer.
 
 ## Authentication Methods
 
@@ -51,6 +55,12 @@ Passkey-capable sessions can be restricted to passkey-only continuation by disab
 Runtime configuration lives in the `system_config` table and is bootstrapped from environment variables when missing. Configuration includes token TTLs, allowed origins, WebAuthn relying-party settings, roles, OAuth providers, login methods, and lockout policy.
 
 Use environment variables for raw secrets. Do not store raw secrets in `system_config`.
+
+## OpenAPI and Response Contracts
+
+Route modules use the `schemas` option so request validation, runtime response validation, and
+OpenAPI generation stay aligned. Every route should declare an explicit response schema. Admin/user
+responses are intentionally minimized and should return only fields the route contract names.
 
 ## Operational Boundaries
 

@@ -123,14 +123,14 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
 
       if (user) {
         user.destroy();
-        logger.info(`User ${user.email} deleted from database through the seamless auth portal.`);
+        logger.info('User deleted from database through the seamless auth portal.');
       } else {
         logger.error(`Failed to destory a seemingly valid user via the portal`);
       }
 
       return res.status(200).json({ message: 'Success' });
     } catch (error: unknown) {
-      logger.error(`Failed to delete user: ${userId}. Error: ${error}`);
+      logger.error(`Failed to delete user. Error: ${error}`);
       return res.status(500).json({ error: 'Failed' });
     }
   } catch (error) {
@@ -313,7 +313,7 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
       await hardRevokeSession(session, 'admin_revoke_all');
     }
 
-    logger.info(`All sessions revoked for user ${userId}`);
+    logger.info('All sessions revoked for user');
 
     return res.json({ message: 'Success' });
   } catch (err) {
