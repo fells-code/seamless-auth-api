@@ -1,4 +1,12 @@
 tests
 src
+coverage
+logs
+keys
+.github
+.husky
+.env
+.env.*
+!.env.example
 vitest.config.ts
 tsconfig.json

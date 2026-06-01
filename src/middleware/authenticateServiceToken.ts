@@ -46,7 +46,7 @@ export async function verifyServiceToken(req: ServiceRequest, res: Response, nex
   const token = authHeader.replace('Bearer ', '');
 
   if (!token) {
-    logger.error(`Call to internal endpoints missing bearer token. Headers: ${req.headers}`);
+    logger.error('Call to internal endpoints missing bearer token.');
     return res.status(401).json({ error: 'No token provided' });
   }
 

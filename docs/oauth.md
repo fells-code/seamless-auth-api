@@ -9,6 +9,8 @@ Provider access tokens are used only during callback handling to fetch profile d
 1. Add `oauth` to `LOGIN_METHODS`.
 2. Configure one or more providers in `oauth_providers` system config or the `OAUTH_PROVIDERS` environment variable.
 3. Store provider client secrets in environment variables referenced by `clientSecretEnv`.
+4. Set `OAUTH_STATE_SECRET` in production, or ensure `API_SERVICE_TOKEN` is stable and secret so it
+   can be used as the OAuth state-signing fallback.
 
 Example provider:
 
@@ -62,3 +64,6 @@ Use `requireEmailVerified: true` for providers that expose a reliable email veri
 ## OIDC Notes
 
 When provider scopes include `openid`, Seamless Auth includes a nonce bound into signed state. PKCE support depends on provider and client flow requirements; keep provider callback handling server-side and avoid exposing provider tokens to browsers.
+
+OAuth callback responses return the normal Seamless Auth JSON token payload. Provider tokens remain
+server-side and must not be forwarded to browser clients.

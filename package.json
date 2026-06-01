@@ -2,8 +2,17 @@
   "name": "seamless-auth-api",
   "version": "0.2.0",
   "description": "Seamless Auth API - A web application server for supporting a Seamless Auth server instance.",
-  "main": "index.js",
+  "main": "dist/server.js",
   "type": "module",
+  "files": [
+    "dist",
+    "src/migrations",
+    ".sequelizerc",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",
     "start": "node dist/server.js",
@@ -17,6 +26,10 @@
     "test:e2e": "CI=false vitest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release:stable": "npm run build && changeset publish",
+    "check-npm-build": "npm pack --dry-run --ignore-scripts",
     "db:create": "env-cmd -f .env sequelize-cli db:create || sequelize-cli db:create",
     "db:drop": "env-cmd -f .env sequelize-cli db:drop || sequelize-cli db:drop",
     "db:refresh": "env-cmd -f .env sequelize-cli db:drop && sequelize-cli db:create",
@@ -36,6 +49,11 @@
     "url": "https://github.com/fells-code/seamless-auth-api/issues"
   },
   "homepage": "https://github.com/fells-code/seamless-auth-api#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.4.3",
     "@seamless-auth/messaging": "^0.1.0",
@@ -65,6 +83,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^9.25.1",

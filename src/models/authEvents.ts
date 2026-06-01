@@ -45,6 +45,10 @@ export class AuthEvent
   }
 }
 
+function redactAuthEventMetadata(event: AuthEvent) {
+  event.metadata = redactMetadata(event.metadata);
+}
+
 const initializeAuthEventModel = (sequelize: Sequelize) => {
   AuthEvent.init(
     {
@@ -88,12 +92,13 @@ const initializeAuthEventModel = (sequelize: Sequelize) => {
       tableName: 'auth_events',
       underscored: true,
       hooks: {
-        beforeValidate(event) {
-          event.metadata = redactMetadata(event.metadata);
-        },
+        beforeValidate: redactAuthEventMetadata,
+        beforeCreate: redactAuthEventMetadata,
+        beforeUpdate: redactAuthEventMetadata,
+        beforeSave: redactAuthEventMetadata,
         beforeBulkCreate(events) {
           for (const event of events) {
-            event.metadata = redactMetadata(event.metadata);
+            redactAuthEventMetadata(event);
           }
         },
       },

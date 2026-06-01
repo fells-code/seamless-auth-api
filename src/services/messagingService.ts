@@ -24,7 +24,7 @@ async function getMessagingService() {
 }
 
 export const sendOTPEmail = async (to: string, token: string) => {
-  logger.debug(`Sending verification email to: ${to}`);
+  logger.debug('Sending verification email');
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct email delivery in development');
@@ -46,7 +46,7 @@ export const sendOTPEmail = async (to: string, token: string) => {
 };
 
 export const sendOTPSMS = async (to: string, token: number) => {
-  logger.debug(`Sending verification SMS to: ${to}`);
+  logger.debug('Sending verification SMS');
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct SMS delivery in development');
@@ -58,7 +58,7 @@ export const sendOTPSMS = async (to: string, token: number) => {
     const normalizedPhone = normalizePhoneNumber(to);
 
     if (!normalizedPhone) {
-      throw new Error(`Invalid phone number for direct SMS delivery: ${to}`);
+      throw new Error('Invalid phone number for direct SMS delivery');
     }
 
     await messaging.sendOtpSms({
@@ -71,7 +71,7 @@ export const sendOTPSMS = async (to: string, token: number) => {
 };
 
 export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect: string) => {
-  logger.debug(`Sending magic link to: ${to}`);
+  logger.debug('Sending magic link');
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct magic link delivery in development');
@@ -92,7 +92,7 @@ export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect
 };
 
 export const sendBootstrapEmail = async (to: string, url: string) => {
-  logger.debug(`Sending bootstrap invitation email to: ${to}`);
+  logger.debug('Sending bootstrap invitation email');
 
   if (shouldBypassDirectMessaging()) {
     logger.debug('Skipping direct bootstrap delivery in development');

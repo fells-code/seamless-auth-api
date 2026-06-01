@@ -57,6 +57,7 @@ describe('verifyBearerAuth', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'unauthorized',
     });
+    expect(validateBearerToken).toHaveBeenCalledWith('token', 'access');
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -72,8 +73,26 @@ describe('verifyBearerAuth', () => {
 
     await verifyBearerAuth(req, res, next);
 
+    expect(validateBearerToken).toHaveBeenCalledWith('token', 'access');
     expect(req.user).toEqual(mockUser);
     expect(req.sessionId).toBe('session-1');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('validates with the requested auth token type', async () => {
+    req.headers.authorization = 'Bearer token';
+
+    const mockUser = { id: 'user-1' };
+
+    (validateBearerToken as any).mockResolvedValue({
+      user: mockUser,
+    });
+
+    await verifyBearerAuth(req, res, next, 'ephemeral');
+
+    expect(validateBearerToken).toHaveBeenCalledWith('token', 'ephemeral');
+    expect(req.user).toEqual(mockUser);
+    expect(req.sessionId).toBeUndefined();
     expect(next).toHaveBeenCalled();
   });
 

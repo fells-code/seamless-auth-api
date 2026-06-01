@@ -19,6 +19,11 @@ import {
   UpdateUserSchema,
 } from '../schemas/admin.requests.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
+import {
+  serializeApiUser,
+  serializeCredential,
+  serializeSession,
+} from '../services/apiResponseSerializers.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
@@ -63,7 +68,7 @@ export const getUsers = async (req: ServiceRequest, res: Response) => {
   ]);
 
   return res.json({
-    users: users ?? [],
+    users: (users ?? []).map(serializeApiUser),
     total,
   });
 };
@@ -93,7 +98,7 @@ export const createUser = async (req: Request, res: Response) => {
       roles: roles ?? [],
     });
 
-    return res.status(201).json({ user });
+    return res.status(201).json({ user: serializeApiUser(user) });
   } catch (err) {
     logger.error(`Failed to create user. Reason: ${err}`);
     return res.status(500).json({ error: 'Failed to create user' });
@@ -118,14 +123,14 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
 
       if (user) {
         user.destroy();
-        logger.info(`User ${user.email} deleted from database through the seamless auth portal.`);
+        logger.info('User deleted from database through the seamless auth portal.');
       } else {
         logger.error(`Failed to destory a seemingly valid user via the portal`);
       }
 
       return res.status(200).json({ message: 'Success' });
     } catch (error: unknown) {
-      logger.error(`Failed to delete user: ${userId}. Error: ${error}`);
+      logger.error(`Failed to delete user. Error: ${error}`);
       return res.status(500).json({ error: 'Failed' });
     }
   } catch (error) {
@@ -179,7 +184,7 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
       return;
     }
 
-    res.status(200).json({ user });
+    res.status(200).json({ user: serializeApiUser(user) });
     return;
   } catch {
     logger.error('Failed to find user');
@@ -220,9 +225,9 @@ export const getUserDetail = async (req: ServiceRequest, res: Response) => {
   });
 
   return res.json({
-    user,
-    sessions,
-    credentials,
+    user: serializeApiUser(user),
+    sessions: sessions.map((session) => serializeSession(session)),
+    credentials: credentials.map(serializeCredential),
     events: serializeAuthEvents(events),
   });
 };
@@ -284,15 +289,7 @@ export const listUserSessions = async (req: Request, res: Response) => {
     });
 
     return res.json({
-      sessions: sessions.map((s) => ({
-        id: s.id,
-        deviceName: s.deviceName,
-        ipAddress: s.ipAddress,
-        userAgent: s.userAgent,
-        lastUsedAt: s.lastUsedAt.toISOString(),
-        expiresAt: s.expiresAt.toISOString(),
-        current: false,
-      })),
+      sessions: sessions.map((session) => serializeSession(session)),
       total: sessions.length,
     });
   } catch (err) {
@@ -316,7 +313,7 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
       await hardRevokeSession(session, 'admin_revoke_all');
     }
 
-    logger.info(`All sessions revoked for user ${userId}`);
+    logger.info('All sessions revoked for user');
 
     return res.json({ message: 'Success' });
   } catch (err) {
@@ -468,15 +465,7 @@ export const listAllSessions = async (req: Request, res: Response) => {
     Session.count({ where }),
   ]);
 
-  const response = sessions.map((session) => ({
-    id: session.id,
-    deviceName: session.deviceName,
-    ipAddress: session.ipAddress,
-    userAgent: session.userAgent,
-    lastUsedAt: session.lastUsedAt.toISOString(),
-    expiresAt: session.expiresAt.toISOString(),
-    current: false,
-  }));
+  const response = sessions.map((session) => serializeSession(session));
 
   return res.json({ sessions: response, total });
 };

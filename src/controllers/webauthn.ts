@@ -22,7 +22,6 @@ import {
   containsPrfOutput,
   getRegistrationPrfCapable,
 } from '../lib/webauthnPrf.js';
-import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -77,7 +76,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       requirePrf?: boolean;
     };
     const prfRequested = requestPrf || requirePrf;
-    logger.info(`Registering passwordless mechanism for ${authReq.user?.email}`);
+    logger.info('Registering passwordless mechanism');
 
     if (!verifiedUser) {
       logger.error('Invalid registration user attempt');
@@ -92,7 +91,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
     }
 
     if (!verifiedUser.id || !verifiedUser.email) {
-      logger.error(`Invalid registration user attempt ${verifiedUser}`);
+      logger.error('Invalid registration user attempt');
       await AuthEventService.log({
         userId: null,
         type: 'webauthn_registration_suspicious',
@@ -137,7 +136,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       },
     });
 
-    logger.info(`Generated registration options for user ${verifiedUser.email}`);
+    logger.info('Generated registration options for user');
 
     await AuthEventService.log({
       userId: verifiedUser.id,
@@ -162,17 +161,16 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const verifiedUser = authReq.user;
 
-  logger.info(`Verifiying registration of passwordless mechanism for ${authReq.user?.email}`);
+  logger.info('Verifying registration of passwordless mechanism');
   try {
     const { attestationResponse, metadata = {} } = req.body;
 
     if (!verifiedUser) {
       logger.warn('Missing attestation response for WebAuthn registration');
-      await AuthEvent.create({
-        user_id: null,
+      await AuthEventService.log({
+        userId: null,
         type: 'registration_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'No verified user' },
       });
       return res.status(403).json({ message: 'Not allowed' });
@@ -180,11 +178,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     if (!verifiedUser.email || !attestationResponse) {
       logger.warn('Missing verified user email or attestation response');
-      await AuthEvent.create({
-        user_id: null,
+      await AuthEventService.log({
+        userId: null,
         type: 'registration_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'No verified user' },
       });
       return res.status(403).json({ message: 'Not allowed' });
@@ -195,12 +192,11 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      logger.error(`Verification attempt for unknown user: ${verifiedUser.email}`);
-      await AuthEvent.create({
-        user_id: null,
+      logger.error('Verification attempt for unknown user');
+      await AuthEventService.log({
+        userId: null,
         type: 'registration_suspicious',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'Verified user with no user record' },
       });
       return res.status(403).json({ message: 'Not allowed' });
@@ -230,11 +226,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       });
     } catch (error) {
       logger.error(`Error perfroming webAuthn verification ${error}`);
-      await AuthEvent.create({
-        user_id: user.id,
+      await AuthEventService.log({
+        userId: user.id,
         type: 'registration_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'Verification failed' },
       });
       return res.status(500).json({ message: 'An error occured will verifying. Try again' });
@@ -243,12 +238,11 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     const { verified, registrationInfo } = verification;
 
     if (!verified || !registrationInfo) {
-      logger.error(`Failed registration verification for user: ${verifiedUser.email}`);
-      await AuthEvent.create({
-        user_id: user.id,
+      logger.error('Failed registration verification for user');
+      await AuthEventService.log({
+        userId: user.id,
         type: 'registration_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'Verification failed' },
       });
       return res.status(403).json({ message: 'Registration failed verification' });
@@ -304,14 +298,13 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     });
 
     if (bootstrapResult.promoted) {
-      logger.info(`Bootstrap admin granted to ${user.email}`);
+      logger.info('Bootstrap admin granted');
     }
 
-    await AuthEvent.create({
-      user_id: user.id,
+    await AuthEventService.log({
+      userId: user.id,
       type: 'registration_success',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: {},
     });
 
@@ -342,7 +335,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
   const verifiedUser = authReq.user;
   const { credentialId, prf } = req.body ?? {};
 
-  logger.info(`Generating passwordless login for ${verifiedUser.email}`);
+  logger.info('Generating passwordless login');
   const email = verifiedUser.email;
   const phone = verifiedUser.phone;
   let user = verifiedUser;
@@ -350,11 +343,10 @@ const generateWebAuthn = async (req: Request, res: Response) => {
 
   if (!phone && !email) {
     logger.warn('No pre authenticated identifier found');
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'No identifier' },
     });
     return res.status(403).json({ message: 'Not allowed' });
@@ -362,11 +354,10 @@ const generateWebAuthn = async (req: Request, res: Response) => {
 
   if (!user) {
     logger.warn('Failed to find a user for generating passkey challenge during auth');
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'No user' },
     });
     return res.status(401).send('Not allowed');
@@ -381,11 +372,10 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     });
 
     if (!assertionCredentials || assertionCredentials.length === 0) {
-      await AuthEvent.create({
-        user_id: user.id,
+      await AuthEventService.log({
+        userId: user.id,
         type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: prf ? 'No PRF-capable credentials' : 'No credentials' },
       });
       logger.error('Valid user with no credentials');
@@ -411,11 +401,10 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       challenge: options.challenge,
     });
 
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_challenge',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: '' },
     });
     return res.json(options);
@@ -423,11 +412,10 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     if (error instanceof Error) {
       logger.error('Failed to generate options for login stack trace redacted');
     }
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'Catch all error' },
     });
     return res.status(500).json({ message: 'Internal server error' });
@@ -438,7 +426,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const verifiedUser = authReq.user;
 
-  logger.info(`Verifying passwordless login for ${verifiedUser.email}`);
+  logger.info('Verifying passwordless login');
 
   try {
     const { assertionResponse } = req.body;
@@ -463,11 +451,10 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
     if (!phone && !email) {
       logger.error('No pre authenticated Identifier found');
-      await AuthEvent.create({
-        user_id: null,
+      await AuthEventService.log({
+        userId: null,
         type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'No identifier' },
       });
       return res.status(403).json({ message: 'Not allowed' });
@@ -490,7 +477,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     });
 
     if (!cred) {
-      logger.error(`Failed to find the credental for the user ${assertionResponse.id}`);
+      logger.error('Failed to find the credential for the user');
 
       await AuthEventService.log({
         userId: user.id,
@@ -522,10 +509,6 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       });
     } catch (error) {
       logger.error(`Verification failed in webAuthn for login: ${error}`);
-
-      if (error instanceof Error) {
-        logger.error(`Verification failed error stack: ${error.stack}`);
-      }
       await AuthEventService.log({
         userId: user.id,
         type: 'webauthn_login_failed',
@@ -568,11 +551,10 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     }
   } catch (error) {
     logger.error(`Error occured validating passkey on login: ${error}`);
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'Catch all error' },
     });
     res.status(500).json({ error: 'Internal Server error' });

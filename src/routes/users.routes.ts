@@ -8,6 +8,7 @@ import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@s
 
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
+import { CredentialUpdateResponseSchema } from '../schemas/credential.responses.js';
 import { MessageSchema } from '../schemas/generic.responses.js';
 import { MeResponseSchema } from '../schemas/me.response.js';
 
@@ -35,6 +36,9 @@ usersRouter.post(
 
     schemas: {
       body: UpdateCredentialRequestSchema,
+      response: {
+        200: CredentialUpdateResponseSchema,
+      },
     },
   },
   updateCredential,
@@ -63,6 +67,9 @@ usersRouter.delete(
 
     schemas: {
       body: DeleteCredentialRequestSchema,
+      response: {
+        200: MessageSchema,
+      },
     },
   },
   deleteCredential,

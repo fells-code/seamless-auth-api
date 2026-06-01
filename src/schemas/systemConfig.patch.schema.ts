@@ -14,7 +14,7 @@ import {
   SystemConfigSchema,
 } from './systemConfig.schema.js';
 
-const SystemConfigPatchSchema = z
+export const SystemConfigPatchSchema = z
   .object({
     app_name: SystemConfigSchema.shape.app_name.optional(),
     default_roles: SystemConfigSchema.shape.default_roles.optional(),

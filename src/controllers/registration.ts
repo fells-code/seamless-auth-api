@@ -9,7 +9,6 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
-import { AuthEvent } from '../models/authEvents.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
@@ -37,7 +36,7 @@ export const register = async (req: Request, res: Response) => {
 
   try {
     if (!isValidEmail(email) || !isValidPhoneNumber(phone) || !normalizedPhone) {
-      logger.error(`Invalid email or phone provided: ${email} - ${phone}`);
+      logger.error('Invalid email or phone provided during registration');
       await AuthEventService.log({
         userId: null,
         type: 'registration_suspicious',
@@ -61,7 +60,7 @@ export const register = async (req: Request, res: Response) => {
       (existingEmailUser && existingPhoneUser && existingEmailUser.id !== existingPhoneUser.id);
 
     if (hasIdentifierConflict) {
-      logger.warn(`Registration conflict for email ${normalizedEmail} and phone ${phone}`);
+      logger.warn('Registration conflict for supplied identifiers');
       await AuthEventService.log({
         userId: existingEmailUser?.id ?? existingPhoneUser?.id ?? null,
         type: 'registration_suspicious',
@@ -139,7 +138,7 @@ export const register = async (req: Request, res: Response) => {
         reason: 'Owner notified of new user registration',
       });
 
-      logger.info(`Sending phone OTP to ${normalizedPhone}`);
+      logger.info('Sending phone OTP for registration');
       phoneOtp = await generatePhoneOTP(user, {
         sendMessage: !useExternalDelivery,
       });
@@ -170,16 +169,15 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      logger.error(`Error during registration for email ${email}: ${error}`);
+      logger.error(`Error during registration: ${error}`);
     } else {
       logger.error(`Error during registration: ${String(error)}`);
     }
 
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'registration_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'Catch all error' },
     });
     return res.status(500).json({ error: 'Internal server error' });

@@ -26,6 +26,9 @@ describe('GET /users/me', () => {
     expect(res.status).toBe(200);
     expect(res.body.user.id).toBe('user-1');
     expect(res.body.credentials).toHaveLength(1);
+    expect(res.body.credentials[0]).not.toHaveProperty('publicKey');
+    expect(res.body.credentials[0]).not.toHaveProperty('userId');
+    expect(JSON.stringify(res.body.user)).not.toContain('challenge');
   });
 
   it('returns 404 when no user', async () => {
@@ -59,6 +62,8 @@ describe('POST /users/credentials', () => {
 
     expect(res.status).toBe(200);
     expect(cred.update).toHaveBeenCalled();
+    expect(res.body.credential).not.toHaveProperty('publicKey');
+    expect(res.body.credential).not.toHaveProperty('userId');
   });
 
   it('returns 404 when credential not found', async () => {

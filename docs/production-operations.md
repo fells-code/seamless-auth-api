@@ -7,6 +7,8 @@ Authentication infrastructure is security-sensitive. This guide covers public de
 - Use HTTPS end to end.
 - Restrict CORS and WebAuthn origins to exact trusted origins.
 - Keep access and refresh tokens out of browser-readable storage.
+- Do not depend on browser auth cookies. Seamless Auth API uses a JSON/bearer token contract; put
+  browser-facing token custody behind a trusted server adapter or backend.
 - Store raw secrets in environment variables, a secret manager, or a user-supplied secret store.
 - Back up Postgres and test restores.
 - Monitor authentication failures and suspicious events.
@@ -19,6 +21,7 @@ Production deployments should define:
 - `API_SERVICE_TOKEN`
 - `REFRESH_TOKEN_LOOKUP_SECRET`
 - `TOTP_SECRET_ENCRYPTION_KEY`
+- `OAUTH_STATE_SECRET`
 - `SEAMLESS_JWKS_ACTIVE_KID`
 - `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`
 - `JWKS_PUBLIC_KEYS`
@@ -61,3 +64,7 @@ Direct email/SMS delivery requires provider credentials. If you use an external 
 ## Redaction
 
 Logs and auth events redact sensitive metadata by default. Sensitive values include tokens, OTPs, magic-link URLs, OAuth state/codes, PRF salts and output, TOTP secrets, email/phone snapshots, private keys, and configured provider secrets.
+
+Public admin/user responses are also minimized. They should not expose WebAuthn public keys,
+refresh-token hashes/lookups, challenge context, verification tokens, PRF output, TOTP secrets, or
+provider tokens.

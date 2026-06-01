@@ -6,13 +6,18 @@
 
 import { NextFunction, Request, Response } from 'express';
 
-import { validateBearerToken } from '../services/sessionService.js';
+import { AuthTokenType, validateBearerToken } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('verifyBearerAuth');
 
-export async function verifyBearerAuth(req: Request, res: Response, next: NextFunction) {
+export async function verifyBearerAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  authType: AuthTokenType = 'access',
+) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) {
     logger.error('Missing bearer token for authentication request');
@@ -21,9 +26,9 @@ export async function verifyBearerAuth(req: Request, res: Response, next: NextFu
 
   const token = auth.slice(7);
   try {
-    const result = await validateBearerToken(token);
+    const result = await validateBearerToken(token, authType);
     if (!result) {
-      logger.error('No user found for service bearer token');
+      logger.error(`Invalid ${authType} bearer token`);
       return res.status(401).json({ error: 'unauthorized' });
     }
     (req as AuthenticatedRequest).user = result.user;

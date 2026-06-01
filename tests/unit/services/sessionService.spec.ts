@@ -317,18 +317,23 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
-  it('returns user when valid', async () => {
-    const { getSecret } = await import('../../../src/utils/secretsStore');
-    const jwt = await import('jsonwebtoken');
+  it('returns user when access bearer token and session are valid', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { Session } = await import('../../../src/models/sessions');
     const { User } = await import('../../../src/models/users');
 
-    (getSecret as any).mockResolvedValue('secret');
-
-    (jwt.default.verify as any).mockReturnValue({
-      sub: 'user',
-      sid: 'session-1',
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: {
+        typ: 'access',
+        sub: 'user',
+        sid: 'session-1',
+        org_id: 'org-1',
+      },
     });
 
+    (Session.findByPk as any).mockResolvedValue(buildSession({ id: 'session-1', userId: 'user' }));
     const user = { id: 'user' };
     (User.findOne as any).mockResolvedValue(user);
 
@@ -339,19 +344,60 @@ describe('sessionService', () => {
     expect(result).toEqual({
       user,
       sessionId: 'session-1',
-      organizationId: null,
+      organizationId: 'org-1',
     });
   });
 
-  it('returns null if jwt fails', async () => {
-    const { getSecret } = await import('../../../src/utils/secretsStore');
-    const jwt = await import('jsonwebtoken');
+  it('returns null when access bearer token subject does not match the session owner', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { Session } = await import('../../../src/models/sessions');
 
-    (getSecret as any).mockResolvedValue('secret');
-
-    (jwt.default.verify as any).mockImplementation(() => {
-      throw new Error('fail');
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: {
+        typ: 'access',
+        sub: 'user',
+        sid: 'session-1',
+      },
     });
+
+    (Session.findByPk as any).mockResolvedValue(buildSession({ id: 'session-1', userId: 'other' }));
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    const result = await validateBearerToken('token');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns user when ephemeral bearer token is valid', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { User } = await import('../../../src/models/users');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: {
+        typ: 'ephemeral',
+        sub: 'user',
+      },
+    });
+
+    const user = { id: 'user' };
+    (User.findOne as any).mockResolvedValue(user);
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    const result = await validateBearerToken('token', 'ephemeral');
+
+    expect(result).toEqual({ user });
+  });
+
+  it('returns null if jwt verification fails', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockRejectedValue(new Error('fail'));
 
     const { validateBearerToken } = await import('../../../src/services/sessionService');
 

@@ -14,7 +14,6 @@ import {
   signAccessToken,
   signEphemeralToken,
 } from '../lib/token.js';
-import { AuthEvent } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
@@ -49,17 +48,16 @@ export const login = async (req: Request, res: Response) => {
 
   if (!identifier) {
     logger.warn('No pre authenticated identifier found');
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'No identifier supplied' },
     });
     return res.status(403).json({ error: 'Not allowed' });
   }
 
-  logger.info(`Login attempt with ${identifier}`);
+  logger.info('Login attempt with identifier');
 
   try {
     if (isValidEmail(identifier)) {
@@ -70,12 +68,11 @@ export const login = async (req: Request, res: Response) => {
         identifierType = 'email';
       } catch {
         logger.error('Failed to find user');
-        await AuthEvent.create({
-          user_id: null,
+        await AuthEventService.log({
+          userId: null,
           type: 'login_failed',
-          ip_address: req.ip,
-          user_agent: req.headers['user-agent'],
-          metadata: { reason: `No user found for identifer: ${identifier}` },
+          req,
+          metadata: { reason: 'No user found for identifier' },
         });
         return res.status(401).json({ message: 'Not allowed' });
       }
@@ -87,47 +84,43 @@ export const login = async (req: Request, res: Response) => {
         identifierType = 'phone';
       } catch {
         logger.error('Failed to find user');
-        await AuthEvent.create({
-          user_id: null,
+        await AuthEventService.log({
+          userId: null,
           type: 'login_failed',
-          ip_address: req.ip,
-          user_agent: req.headers['user-agent'],
-          metadata: { reason: `No user found for identifer: ${identifier}` },
+          req,
+          metadata: { reason: 'No user found for identifier' },
         });
         return res.status(403).json({ error: 'Not allowed' });
       }
     } else {
-      logger.error(`Invalid identifier: ${identifier}`);
-      await AuthEvent.create({
-        user_id: null,
+      logger.error('Invalid login identifier');
+      await AuthEventService.log({
+        userId: null,
         type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
-        metadata: { reason: `No user found for identifer: ${identifier}` },
+        req,
+        metadata: { reason: 'Invalid identifier' },
       });
       return res.status(400).json({ error: 'Invalid data' });
     }
   } catch (error) {
     logger.error(`Failed to find a user with valid Identifier: ${error}`);
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
-      metadata: { reason: `No user found for identifer: ${identifier}` },
+      req,
+      metadata: { reason: 'No user found for identifier' },
     });
     return res.status(500).json({ error: 'Internal server error' });
   }
 
   try {
     if (!user) {
-      logger.error(`Login attempt failed for non-existent identity: ${identifier}`);
-      await AuthEvent.create({
-        user_id: null,
+      logger.error('Login attempt failed for non-existent identity');
+      await AuthEventService.log({
+        userId: null,
         type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
-        metadata: { reason: `No user found for identifer: ${identifier}` },
+        req,
+        metadata: { reason: 'No user found for identifier' },
       });
       return res.status(401).json({ error: 'Not Allowed' });
     }
@@ -140,13 +133,12 @@ export const login = async (req: Request, res: Response) => {
     const token = await signEphemeralToken(user.id);
 
     if (!user.verified) {
-      logger.warn(`Login attempt for unverified account: ${identifier}`);
-      await AuthEvent.create({
-        user_id: user.id,
+      logger.warn('Login attempt for unverified account');
+      await AuthEventService.log({
+        userId: user.id,
         type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
-        metadata: { reason: `Unverified but valid user` },
+        req,
+        metadata: { reason: 'Unverified but valid user' },
       });
 
       return res.status(401).json({ error: 'Login failed. Need to verify.' });
@@ -164,23 +156,21 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (loginMethods.length === 0) {
-      logger.error(`Login attempt had no allowed continuation methods. ${identifier}`);
-      await AuthEvent.create({
-        user_id: user.id,
+      logger.error('Login attempt had no allowed continuation methods');
+      await AuthEventService.log({
+        userId: user.id,
         type: 'login_failed',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: { reason: 'No allowed login methods available' },
       });
       return res.status(401).json({ error: 'No available login methods' });
     }
 
     if (token) {
-      await AuthEvent.create({
-        user_id: user.id,
+      await AuthEventService.log({
+        userId: user.id,
         type: 'login_success',
-        ip_address: req.ip,
-        user_agent: req.headers['user-agent'],
+        req,
         metadata: {},
       });
 
@@ -197,37 +187,52 @@ export const login = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Login failed.' });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      logger.error(`Error during login for email ${error.message}`);
+      logger.error(`Error during login: ${error.message}`);
     } else {
       logger.error(`Failed to login - ${String(error)}`);
     }
 
-    await AuthEvent.create({
-      user_id: null,
+    await AuthEventService.log({
+      userId: null,
       type: 'login_failed',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: { reason: 'Catch all error' },
     });
     return res.status(500).json({ error: 'Server error' });
   }
 };
 
-export const logout = async (req: Request, res: Response) => {
+export const logoutCurrentSession = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const authUser = authReq.user;
-  logger.info(`${authUser?.email} logged out.`);
+  const sessionId = authReq.sessionId;
+  logger.info('User logged out current session');
 
   try {
-    const sessions = await Session.findAll({ where: { userId: authUser.id } });
+    if (!sessionId) {
+      await AuthEventService.log({
+        userId: authUser.id,
+        type: 'logout_suspicious',
+        req,
+        metadata: { reason: 'Access token did not include a session id' },
+      });
+      return res.status(401).json({ error: 'unauthorized' });
+    }
 
-    sessions.forEach(async (session) => {
-      if (!session.revokedAt) {
-        await hardRevokeSession(session, 'user_logout');
-      }
+    const session = await Session.findOne({
+      where: { id: sessionId, userId: authUser.id, revokedAt: null },
     });
 
-    await AuthEventService.log({ userId: authUser.id, type: 'logout_success', req });
+    if (session) {
+      await hardRevokeSession(session, 'user_logout');
+    }
+
+    await AuthEventService.log({
+      userId: authUser.id,
+      type: 'logout_success',
+      req,
+      metadata: { scope: 'current_session' },
+    });
   } catch (error) {
     logger.error(`Error during logout: ${error}`);
     await AuthEventService.log({ userId: authUser.id, type: 'logout_failed', req });
@@ -235,6 +240,32 @@ export const logout = async (req: Request, res: Response) => {
 
   return res.json({ message: 'Success' });
 };
+
+export const logoutAllSessions = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const authUser = authReq.user;
+  logger.info('User logged out all sessions');
+
+  try {
+    const sessions = await Session.findAll({ where: { userId: authUser.id, revokedAt: null } });
+
+    await Promise.all(sessions.map((session) => hardRevokeSession(session, 'user_logout_all')));
+
+    await AuthEventService.log({
+      userId: authUser.id,
+      type: 'logout_success',
+      req,
+      metadata: { scope: 'all_sessions', revokedSessions: sessions.length },
+    });
+  } catch (error) {
+    logger.error(`Error during logout: ${error}`);
+    await AuthEventService.log({ userId: authUser.id, type: 'logout_failed', req });
+  }
+
+  return res.json({ message: 'Success' });
+};
+
+export const logout = logoutAllSessions;
 
 export const refreshSession = async (req: Request, res: Response) => {
   logger.info(`Refreshing user token`);

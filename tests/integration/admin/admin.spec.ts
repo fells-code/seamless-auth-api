@@ -33,6 +33,7 @@ describe('GET /admin/users', () => {
     expect(res.status).toBe(200);
     expect(res.body.users).toHaveLength(1);
     expect(res.body.total).toBe(1);
+    expect(JSON.stringify(res.body)).not.toContain('challenge');
   });
 });
 
@@ -54,15 +55,39 @@ describe('DELETE /admin/users', () => {
 
 describe('GET /admin/users/:userId', () => {
   it('returns user detail', async () => {
-    (User.findByPk as any).mockResolvedValue(buildUser());
-    (Session.findAll as any).mockResolvedValue([]);
-    (Credential.findAll as any).mockResolvedValue([]);
+    (User.findByPk as any).mockResolvedValue(
+      buildUser({
+        emailVerificationToken: 'email-token',
+        phoneVerificationToken: 'phone-token',
+        challengeContext: { prfSalt: 'salt' },
+      }),
+    );
+    (Session.findAll as any).mockResolvedValue([
+      buildSession({
+        refreshTokenHash: 'refresh-hash',
+        refreshTokenLookup: 'refresh-lookup',
+        idleExpiresAt: new Date(),
+      }),
+    ]);
+    (Credential.findAll as any).mockResolvedValue([
+      buildCredential({
+        publicKey: 'public-key',
+      }),
+    ]);
     (AuthEvent.findAll as any).mockResolvedValue([]);
 
     const res = await request(app).get(`/admin/users/${testGuid}`);
 
     expect(res.status).toBe(200);
     expect(res.body.user).toBeDefined();
+    expect(res.body.sessions).toHaveLength(1);
+    expect(res.body.credentials).toHaveLength(1);
+    expect(JSON.stringify(res.body)).not.toContain('emailVerificationToken');
+    expect(JSON.stringify(res.body)).not.toContain('phoneVerificationToken');
+    expect(JSON.stringify(res.body)).not.toContain('challengeContext');
+    expect(JSON.stringify(res.body)).not.toContain('refreshTokenHash');
+    expect(JSON.stringify(res.body)).not.toContain('refreshTokenLookup');
+    expect(JSON.stringify(res.body)).not.toContain('publicKey');
   });
 
   it('returns 404 if user missing', async () => {
@@ -245,6 +270,8 @@ describe('POST /admin/users', () => {
       email: 'test@example.com',
       phone: '+14155552671',
       roles: ['user'],
+      challenge: 'challenge',
+      emailVerificationToken: 'email-token',
     });
 
     const res = await request(app)
@@ -257,6 +284,8 @@ describe('POST /admin/users', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.user).toBeDefined();
+    expect(res.body.user).not.toHaveProperty('challenge');
+    expect(res.body.user).not.toHaveProperty('emailVerificationToken');
   });
 
   it('creates user with scoped roles', async () => {
@@ -330,6 +359,8 @@ describe('PATCH /admin/users/:userId', () => {
 
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalled();
+    expect(res.body.user).not.toHaveProperty('challenge');
+    expect(res.body.user).not.toHaveProperty('challengeContext');
   });
 
   it('updates scoped roles successfully', async () => {

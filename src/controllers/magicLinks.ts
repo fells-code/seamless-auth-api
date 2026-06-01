@@ -10,7 +10,6 @@ import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
-import { AuthEvent } from '../models/authEvents.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -243,14 +242,13 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     });
 
     if (bootstrapResult.promoted) {
-      logger.info(`Bootstrap admin granted to ${user.email}`);
+      logger.info('Bootstrap admin granted');
     }
 
-    await AuthEvent.create({
-      user_id: user.id,
+    await AuthEventService.log({
+      userId: user.id,
       type: 'registration_success',
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
+      req,
       metadata: {},
     });
 
