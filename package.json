@@ -2,17 +2,8 @@
   "name": "seamless-auth-api",
   "version": "0.2.0",
   "description": "Seamless Auth API - A web application server for supporting a Seamless Auth server instance.",
-  "main": "dist/server.js",
+  "main": "index.js",
   "type": "module",
-  "files": [
-    "dist",
-    "src/migrations",
-    ".sequelizerc",
-    "docs",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE"
-  ],
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",
     "start": "node dist/server.js",
@@ -28,8 +19,6 @@
     "format": "prettier --write .",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release:stable": "npm run build && changeset publish",
-    "check-npm-build": "npm pack --dry-run --ignore-scripts",
     "db:create": "env-cmd -f .env sequelize-cli db:create || sequelize-cli db:create",
     "db:drop": "env-cmd -f .env sequelize-cli db:drop || sequelize-cli db:drop",
     "db:refresh": "env-cmd -f .env sequelize-cli db:drop && sequelize-cli db:create",
@@ -49,11 +38,6 @@
     "url": "https://github.com/fells-code/seamless-auth-api/issues"
   },
   "homepage": "https://github.com/fells-code/seamless-auth-api#readme",
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/",
-    "provenance": true
-  },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.4.3",
     "@seamless-auth/messaging": "^0.1.0",
