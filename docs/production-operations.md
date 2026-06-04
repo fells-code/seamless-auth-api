@@ -24,7 +24,7 @@ Production deployments should define:
 - `OAUTH_STATE_SECRET`
 - `SEAMLESS_JWKS_ACTIVE_KID`
 - `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`
-- `JWKS_PUBLIC_KEYS`
+- `SEAMLESS_JWKS_PUBLIC_KEYS`
 - OAuth client-secret environment variables referenced by provider `clientSecretEnv`
 - Messaging provider credentials when direct delivery is enabled
 
@@ -35,11 +35,14 @@ Do not store raw secrets in `system_config`.
 Access tokens are signed with configured JWKS signing keys. A typical rotation is:
 
 1. Generate a new key pair.
-2. Publish the new public key in `JWKS_PUBLIC_KEYS`.
+2. Publish the new public key in `SEAMLESS_JWKS_PUBLIC_KEYS`.
 3. Deploy with both old and new public keys available.
 4. Switch `SEAMLESS_JWKS_ACTIVE_KID` to the new key id.
 5. Keep retired public keys until all tokens signed with them expire.
 6. Remove retired public keys after the token TTL window.
+
+Use key ids with letters, numbers, and underscores because the active key id is used to derive the
+private-key environment variable name: `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`.
 
 ## Refresh Tokens
 

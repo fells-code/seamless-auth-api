@@ -96,6 +96,7 @@ Seamless Auth API returns JSON tokens instead of browser auth cookies.
 - Refresh uses the opaque `refreshToken` value, not the access token.
 - Internal service tokens remain separate. They are used only by explicitly service-token-protected
   paths or headers such as external delivery support, not as user access or ephemeral bearer tokens.
+  Do not send SeamlessAuth access or ephemeral JWTs as `x-seamless-service-token`.
 
 ---
 
@@ -280,6 +281,7 @@ through admin endpoints.
 Delivery payloads that contain OTPs or magic-link/bootstrap tokens are returned only when callers
 explicitly request external delivery with `x-seamless-auth-delivery-mode: external`. In production,
 external delivery also requires a valid `x-seamless-service-token` from a trusted server adapter.
+This must be an internal service token, not a SeamlessAuth access or ephemeral token.
 Development-only bootstrap token details require `x-seamless-auth-include-sensitive: true` and are
 never enabled in production.
 
