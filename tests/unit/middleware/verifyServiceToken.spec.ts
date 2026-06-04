@@ -4,6 +4,7 @@ import { verifyServiceToken } from '../../../src/middleware/authenticateServiceT
 vi.unmock('../../../src/middleware/authenticateServiceToken');
 vi.mock('jsonwebtoken', () => ({
   default: {
+    decode: vi.fn(() => ({ header: { alg: 'HS256' } })),
     verify: vi.fn(),
   },
 }));
@@ -150,5 +151,22 @@ describe('verifyServiceToken', () => {
     await verifyServiceToken(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it('rejects RS256 user JWTs without attempting internal service verification', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue({
+      header: { alg: 'RS256' },
+    });
+
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken');
+
+    await expect(validateInternalServiceToken('user-jwt')).resolves.toBeNull();
+
+    expect(jwt.default.verify).not.toHaveBeenCalled();
   });
 });

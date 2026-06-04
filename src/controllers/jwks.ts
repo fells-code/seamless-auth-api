@@ -29,7 +29,7 @@ export function __resetJwksCache() {
 async function loadJwksFromSecrets(): Promise<JWK[]> {
   logger.info('Loading JWKS from Secrets Manager');
 
-  const raw = await getSecret('JWKS_PUBLIC_KEYS');
+  const raw = await getSecret('SEAMLESS_JWKS_PUBLIC_KEYS');
   const parsed = JSON.parse(raw);
 
   const jwks: JWK[] = [];
