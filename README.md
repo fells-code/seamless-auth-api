@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/seamless-auth-logo.svg" alt="Seamless Auth key logo" width="180" />
+</p>
+
 # Seamless Auth API
 
 ![coverage](resources/coverage-badge.svg)
