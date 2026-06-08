@@ -101,7 +101,7 @@ describe('JWKS - Production Mode', () => {
     expect(res.status).toBe(200);
     expect(res.body.keys[0].kid).toBe('key-1');
 
-    expect(getSecret).toHaveBeenCalledWith('SEAMLESS_JWKS_PUBLIC_KEYS');
+    expect(getSecret).toHaveBeenCalledWith('JWKS_PUBLIC_KEYS');
     expect(res.headers['cache-control']).toContain('max-age=300');
   });
 });

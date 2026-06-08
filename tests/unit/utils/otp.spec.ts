@@ -110,12 +110,14 @@ describe('OTP utils', () => {
       const user = buildUser({
         phoneVerificationToken: '123456',
         phoneVerificationTokenExpiry: Date.now() + 10000,
+        emailVerified: true,
       });
 
       const result = await verifyPhoneOTP(user as any, '123456');
 
       expect(result.verified).toBe(true);
       expect(user.phoneVerified).toBe(true);
+      expect(user.verified).toBe(true);
       expect(user.save).toHaveBeenCalled();
     });
 
@@ -156,12 +158,14 @@ describe('OTP utils', () => {
       const user = buildUser({
         emailVerificationToken: 'ABCDEF',
         emailVerificationTokenExpiry: Date.now() + 10000,
+        phone: null,
       });
 
       const result = await verifyEmailOTP(user as any, 'abcdef');
 
       expect(result.verified).toBe(true);
       expect(user.emailVerified).toBe(true);
+      expect(user.verified).toBe(true);
       expect(user.save).toHaveBeenCalled();
     });
 

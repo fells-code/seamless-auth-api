@@ -56,7 +56,6 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
   const phone = user.phone;
-  const normalizedPhone = normalizePhoneNumber(phone);
   const useExternalDelivery = await canReturnExternalDelivery(req);
 
   if (!phone) {
@@ -73,6 +72,8 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
   logger.info('Sending phone OTP');
 
   try {
+    const normalizedPhone = normalizePhoneNumber(phone);
+
     if (!isValidPhoneNumber(phone) || !normalizedPhone) {
       logger.warn('Invalid phone provided');
       AuthEventService.log({
@@ -231,7 +232,6 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
 
   const authReq = req as AuthenticatedRequest;
   let user = authReq.user;
-  const email = user.email;
   const phone = user.phone;
 
   logger.info('Verifying phone number');
@@ -248,7 +248,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
   }
 
   try {
-    if (!verificationToken || !phone || !email) {
+    if (!verificationToken || !phone) {
       logger.warn(`Missing data from verify phone numnber request.`);
       await AuthEventService.log({
         userId: user.id,
@@ -300,7 +300,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   let user = authReq.user;
   const email = user.email;
-  const phone = user.phone;
 
   logger.info('Verifying email');
 
@@ -326,8 +325,8 @@ export const verifyEmail = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Invalid data' });
   }
 
-  if (!email || !phone) {
-    logger.warn(`Missing email or phone`);
+  if (!email) {
+    logger.warn(`Missing email`);
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -348,17 +347,17 @@ export const verifyEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_success',
       req,
-      metadata: { reason: 'User verified their email number' },
+      metadata: { reason: 'User verified their email' },
     });
 
-    if (user.phoneVerified && user.emailVerified && user.verified) {
+    if (user.emailVerified && user.verified) {
       logger.info('User is fully verified. Logging in...');
 
       await AuthEventService.log({
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User completed verification of phone and email' },
+        metadata: { reason: 'User completed email verification' },
       });
 
       await issueSessionAndRespond({
@@ -488,7 +487,6 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   let user = authReq.user;
   const email = user.email;
-  const phone = user.phone;
 
   if (await rejectDisabledLoginMethod('email_otp', req, res)) {
     return;
@@ -522,8 +520,8 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Not allowed' });
   }
 
-  if (!email || !phone) {
-    logger.warn(`Missing email or phone`);
+  if (!email) {
+    logger.warn(`Missing email`);
     await AuthEventService.log({
       userId: user.id,
       type: 'verify_otp_suspicious',
@@ -546,14 +544,14 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       req,
     });
 
-    if (user.phoneVerified && user.emailVerified && user.verified) {
+    if (user.emailVerified && user.verified) {
       logger.info('User is fully verified. Logging in...');
 
       await AuthEventService.log({
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User completed verification of phone and email' },
+        metadata: { reason: 'User completed email verification' },
       });
 
       await issueSessionAndRespond({

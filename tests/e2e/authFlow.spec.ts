@@ -27,7 +27,7 @@ import {
   hashRefreshToken,
 } from '../../src/lib/token.js';
 
-import { generatePhoneOTP, verifyPhoneOTP } from '../../src/utils/otp.js';
+import { generateEmailOTP, verifyEmailOTP } from '../../src/utils/otp.js';
 
 import {
   findRefreshSessionByToken,
@@ -73,17 +73,17 @@ describe('E2E Auth Flow', () => {
     expect(registerRes.status).toBe(200);
 
     const otpRes = await request(app)
-      .get('/otp/generate-phone-otp')
+      .get('/otp/generate-email-otp')
       .set('Authorization', 'Bearer ephemeral-token');
 
     expect(otpRes.status).toBe(200);
-    expect(generatePhoneOTP).toHaveBeenCalled();
+    expect(generateEmailOTP).toHaveBeenCalled();
 
-    (verifyPhoneOTP as any).mockResolvedValue({
+    (verifyEmailOTP as any).mockResolvedValue({
       user: {
         id: 'user-1',
         emailVerified: true,
-        phoneVerified: true,
+        phoneVerified: false,
         verified: true,
         roles: ['user'],
       },
@@ -95,7 +95,7 @@ describe('E2E Auth Flow', () => {
     });
 
     const verifyRes = await request(app)
-      .post('/otp/verify-phone-otp')
+      .post('/otp/verify-email-otp')
       .set('Authorization', 'Bearer ephemeral-token')
       .send({ verificationToken: '123456' });
 

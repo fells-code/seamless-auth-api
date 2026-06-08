@@ -15,3 +15,9 @@ export const RegistrationSuccessSchema = z.object({
   ttl: z.string().optional(),
   delivery: AuthDeliverySchema.optional(),
 });
+
+export const RegisterPhoneSuccessSchema = z.object({
+  message: z.string(),
+  phone: z.string(),
+  delivery: AuthDeliverySchema.optional(),
+});

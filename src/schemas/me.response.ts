@@ -13,7 +13,7 @@ import { RoleNameSchema } from './roles.schema.js';
 const MeUserSchema = z.object({
   id: z.string(),
   email: z.email(),
-  phone: z.string(),
+  phone: z.string().nullable(),
   roles: z.array(RoleNameSchema),
   lastLogin: z.any().optional(),
   activeOrganizationId: z.string().nullable().optional(),

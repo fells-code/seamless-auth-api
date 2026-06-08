@@ -9,5 +9,9 @@ import { z } from 'zod';
 export const RegistrationRequestSchema = z.object({
   bootstrapToken: z.string().optional(),
   email: z.email(),
+  phone: z.string().nullish(),
+});
+
+export const RegisterPhoneRequestSchema = z.object({
   phone: z.string(),
 });

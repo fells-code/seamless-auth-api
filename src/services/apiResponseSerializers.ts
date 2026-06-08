@@ -113,7 +113,7 @@ export function serializeApiUser(user: unknown) {
   return omitUndefined({
     id: stringField(user, 'id'),
     email: stringField(user, 'email'),
-    phone: stringField(user, 'phone'),
+    phone: nullableStringField(user, 'phone') ?? null,
     roles: stringArrayField(user, 'roles'),
     revoked: booleanField(user, 'revoked'),
     emailVerified: booleanField(user, 'emailVerified'),

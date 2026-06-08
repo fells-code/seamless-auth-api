@@ -15,8 +15,9 @@ import {
   BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY,
   createBootstrapInviteTokenHash,
 } from '../services/bootstrapPromotionService.js';
+import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
-import { generatePhoneOTP } from '../utils/otp.js';
+import { generateEmailOTP, generatePhoneOTP, verifyPhoneOTP } from '../utils/otp.js';
 import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('registration');
@@ -25,18 +26,19 @@ export const register = async (req: Request, res: Response) => {
   const { email, phone, bootstrapToken } = req.body;
   const useExternalDelivery = await canReturnExternalDelivery(req);
   const normalizedEmail = email?.toLowerCase();
-  const normalizedPhone = typeof phone === 'string' ? normalizePhoneNumber(phone) : null;
+  const phoneProvided = typeof phone === 'string' && phone.trim().length > 0;
+  const normalizedPhone = phoneProvided ? normalizePhoneNumber(phone) : null;
   const bootstrapInviteTokenHash =
     typeof bootstrapToken === 'string' && bootstrapToken.length > 10
       ? createBootstrapInviteTokenHash(bootstrapToken)
       : null;
 
   const systemConfig = await getSystemConfig();
-  logger.info(`Registering phone and email account`);
+  logger.info(`Registering email account`);
 
   try {
-    if (!isValidEmail(email) || !isValidPhoneNumber(phone) || !normalizedPhone) {
-      logger.error('Invalid email or phone provided during registration');
+    if (!isValidEmail(email)) {
+      logger.error('Invalid email provided during registration');
       await AuthEventService.log({
         userId: null,
         type: 'registration_suspicious',
@@ -44,18 +46,30 @@ export const register = async (req: Request, res: Response) => {
         metadata: { reason: 'Bad data submitted.' },
       });
 
-      return res.status(400).json({ message: 'Invalid data.' });
+      return res.status(400).json({ error: 'Invalid data.', message: 'Invalid data.' });
+    }
+
+    if (phoneProvided && (!isValidPhoneNumber(phone) || !normalizedPhone)) {
+      logger.error('Invalid optional phone provided during registration');
+      await AuthEventService.log({
+        userId: null,
+        type: 'registration_suspicious',
+        req,
+        metadata: { reason: 'Bad phone submitted.' },
+      });
+
+      return res.status(400).json({ error: 'Invalid data.', message: 'Invalid data.' });
     }
 
     const [existingEmailUser, existingPhoneUser] = await Promise.all([
       User.findOne({ where: { email: normalizedEmail } }),
-      User.findOne({ where: { phone: normalizedPhone } }),
+      normalizedPhone ? User.findOne({ where: { phone: normalizedPhone } }) : Promise.resolve(null),
     ]);
 
     const hasExactExistingUser =
       existingEmailUser && existingPhoneUser && existingEmailUser.id === existingPhoneUser.id;
     const hasIdentifierConflict =
-      (existingEmailUser && !existingPhoneUser) ||
+      (Boolean(existingEmailUser) && phoneProvided && !existingPhoneUser) ||
       (!existingEmailUser && existingPhoneUser) ||
       (existingEmailUser && existingPhoneUser && existingEmailUser.id !== existingPhoneUser.id);
 
@@ -75,18 +89,18 @@ export const register = async (req: Request, res: Response) => {
       return res.status(409).json({
         error: 'Registration conflict',
         message:
-          'The provided email and phone do not belong to the same account. Try signing in with your existing account details or use a different email and phone.',
+          'The provided identifiers do not belong to the same account. Try signing in with your existing account details or use a different email or phone.',
       });
     }
 
-    let user = hasExactExistingUser ? existingEmailUser : null;
+    let user = hasExactExistingUser || !phoneProvided ? existingEmailUser : null;
 
     let token;
-    let phoneOtp: number | null = null;
+    let emailOtp: string | null = null;
 
     if (user) {
       logger.info(`Registration attempt for a user that already exisited`);
-      logger.info(`Sending OTP`);
+      logger.info(`Sending email OTP`);
       await AuthEventService.log({
         userId: user.id,
         type: 'informational',
@@ -106,7 +120,7 @@ export const register = async (req: Request, res: Response) => {
         logger.info('Bootstrap token hash stored for registration flow');
       }
 
-      phoneOtp = await generatePhoneOTP(user, {
+      emailOtp = await generateEmailOTP(user, {
         sendMessage: !useExternalDelivery,
       });
     } else {
@@ -138,8 +152,8 @@ export const register = async (req: Request, res: Response) => {
         reason: 'Owner notified of new user registration',
       });
 
-      logger.info('Sending phone OTP for registration');
-      phoneOtp = await generatePhoneOTP(user, {
+      logger.info('Sending email OTP for registration');
+      emailOtp = await generateEmailOTP(user, {
         sendMessage: !useExternalDelivery,
       });
 
@@ -152,11 +166,11 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const delivery =
-      useExternalDelivery && phoneOtp !== null
+      useExternalDelivery && emailOtp !== null
         ? {
-            kind: 'otp_sms',
-            to: normalizePhoneNumber(user.phone) ?? user.phone,
-            token: phoneOtp,
+            kind: 'otp_email' as const,
+            to: user.email,
+            token: emailOtp,
           }
         : undefined;
 
@@ -180,6 +194,158 @@ export const register = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Catch all error' },
     });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const registerPhone = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const user = authReq.user;
+  const { phone } = req.body;
+  const normalizedPhone = typeof phone === 'string' ? normalizePhoneNumber(phone) : null;
+  const useExternalDelivery = await canReturnExternalDelivery(req);
+
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    if (!phone || !isValidPhoneNumber(phone) || !normalizedPhone) {
+      logger.warn('Invalid phone provided for phone registration');
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'registration_suspicious',
+        req,
+        metadata: { reason: 'Invalid phone number.' },
+      });
+
+      return res.status(400).json({ error: 'Invalid data' });
+    }
+
+    const existingPhoneUser = await User.findOne({ where: { phone: normalizedPhone } });
+
+    if (existingPhoneUser && existingPhoneUser.id !== user.id) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'registration_suspicious',
+        req,
+        metadata: { reason: 'Phone registration attempted with an in-use phone number.' },
+      });
+
+      return res.status(409).json({
+        error: 'Phone number in use',
+        message: 'The provided phone number is already registered to another account.',
+      });
+    }
+
+    const phoneChanged = user.phone !== normalizedPhone;
+
+    await user.update({
+      phone: normalizedPhone,
+      phoneVerified: phoneChanged ? false : user.phoneVerified,
+      phoneVerificationToken: null,
+      phoneVerificationTokenExpiry: null,
+    });
+
+    user.phone = normalizedPhone;
+    if (phoneChanged) {
+      user.phoneVerified = false;
+    }
+
+    const shouldSendVerification = phoneChanged || !user.phoneVerified;
+    const phoneOtp = shouldSendVerification
+      ? await generatePhoneOTP(user, { sendMessage: !useExternalDelivery })
+      : null;
+
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'registration_success',
+      req,
+      metadata: { reason: 'User registered a phone number.' },
+    });
+
+    const delivery =
+      useExternalDelivery && phoneOtp !== null
+        ? {
+            kind: 'otp_sms' as const,
+            to: normalizedPhone,
+            token: phoneOtp,
+          }
+        : undefined;
+
+    return res.status(200).json({
+      message: 'Success',
+      phone: normalizedPhone,
+      ...(delivery ? { delivery } : {}),
+    });
+  } catch (error: unknown) {
+    logger.error(`Error during phone registration: ${String(error)}`);
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'registration_failed',
+      req,
+      metadata: { reason: 'Failed to register phone number.' },
+    });
+
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const verifyRegisteredPhone = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const user = authReq.user;
+  const { verificationToken } = req.body;
+
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!user.phone || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'verify_otp_suspicious',
+      req,
+      metadata: { reason: 'Missing phone verification data.' },
+    });
+
+    return res.status(401).json({ error: 'Failed to verify OTP' });
+  }
+
+  if (!verificationToken) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'verify_otp_suspicious',
+      req,
+      metadata: { reason: 'Missing verification token.' },
+    });
+
+    return res.status(401).json({ error: 'Not allowed' });
+  }
+
+  try {
+    const verificationResult = await verifyPhoneOTP(user, verificationToken);
+
+    if (!verificationResult.verified) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'verify_otp_failed',
+        req,
+        metadata: { reason: 'User verification failed for phone.' },
+      });
+
+      return res.status(401).json({ error: 'Not allowed' });
+    }
+
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'verify_otp_success',
+      req,
+      metadata: { reason: 'User verified their phone number.' },
+    });
+
+    return res.status(200).json({ message: 'Success' });
+  } catch (error: unknown) {
+    logger.error(`Failed to verify registered phone: ${String(error)}`);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

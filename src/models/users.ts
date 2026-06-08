@@ -14,7 +14,7 @@ import type { TotpCredential } from './totpCredentials.js';
 export interface UserAttributes {
   id?: string;
   email: string;
-  phone: string;
+  phone: string | null;
   roles?: string[];
   revoked?: boolean;
   emailVerificationToken?: string | null;
@@ -38,7 +38,7 @@ export interface UserAttributes {
 export class User extends Model<UserAttributes> implements UserAttributes {
   declare id: string;
   declare email: string;
-  declare phone: string;
+  declare phone: string | null;
   declare revoked: boolean;
   declare emailVerificationToken: string | null;
   declare emailVerificationTokenExpiry: number | null;
@@ -106,7 +106,7 @@ const initializeUserModel = (sequelize: Sequelize) => {
       },
       phone: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         unique: true,
       },
       roles: {

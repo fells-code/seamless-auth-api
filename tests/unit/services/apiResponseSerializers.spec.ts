@@ -36,6 +36,23 @@ describe('api response serializers', () => {
     expect(user).not.toHaveProperty('phoneVerificationToken');
   });
 
+  it('preserves null phone values in user responses', () => {
+    const user = serializeApiUser({
+      id: 'user-1',
+      email: 'test@example.com',
+      phone: null,
+      roles: ['user'],
+    });
+
+    expect(user).toEqual(
+      expect.objectContaining({
+        id: 'user-1',
+        email: 'test@example.com',
+        phone: null,
+      }),
+    );
+  });
+
   it('minimizes credential responses without public key material', () => {
     const credential = serializeCredential({
       id: 'credential-1',
