@@ -24,7 +24,7 @@ export interface SerializedOrganizationMembership {
   user?: {
     id: string;
     email: string;
-    phone: string;
+    phone: string | null;
     roles: string[];
   };
 }

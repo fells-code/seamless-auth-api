@@ -14,7 +14,7 @@ export const ApiUserSchema = z
   .object({
     id: z.string(),
     email: z.email(),
-    phone: z.string(),
+    phone: z.string().nullable(),
     roles: z.array(RoleNameSchema).default([]),
     revoked: z.boolean().optional(),
     emailVerified: z.boolean().optional(),

@@ -67,6 +67,10 @@ export const generatePhoneOTP = async (
     throw new Error('Cannot generate phone OTP for non-exsistent user');
   }
 
+  if (!user.phone) {
+    throw new Error('Cannot generate phone OTP without a registered phone number');
+  }
+
   try {
     // Set the token and the expiry time (ALWAYS 5 mins)
     const now = new Date();
@@ -107,7 +111,7 @@ export const verifyPhoneOTP = async (
     user.phoneVerificationToken = null;
     user.phoneVerificationTokenExpiry = null;
 
-    if (user.phoneVerified && user.emailVerified && !user.verified) {
+    if (user.emailVerified && !user.verified) {
       user.verified = true;
     }
 
@@ -140,7 +144,7 @@ export const verifyEmailOTP = async (
     user.emailVerificationToken = null;
     user.emailVerificationTokenExpiry = null;
 
-    if (user.phoneVerified && user.emailVerified && !user.verified) {
+    if (user.emailVerified && !user.verified) {
       user.verified = true;
     }
 

@@ -10,10 +10,11 @@ import rateLimit from 'express-rate-limit';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthenticatedRequest } from '../types/types.js';
 
-let dynamicLimiter: ReturnType<typeof rateLimit> | null = null;
-let dynamicLimit: number | null = null;
-let magicLinkIpCachedLimiter: ReturnType<typeof rateLimit> | null = null;
-let magicLinkIdentityCachedLimiter: ReturnType<typeof rateLimit> | null = null;
+async function getConfiguredRateLimit() {
+  const { rate_limit } = await getSystemConfig();
+
+  return rate_limit ?? 50;
+}
 
 function getMagicLinkIdentityKey(req: Request) {
   const authReq = req as AuthenticatedRequest;
@@ -31,49 +32,37 @@ function getMagicLinkIdentityKey(req: Request) {
   return `ip:${req.ip ?? req.socket.remoteAddress ?? 'unknown'}`;
 }
 
-export async function dynamicRateLimit(req: Request, res: Response, next: NextFunction) {
-  const { rate_limit } = await getSystemConfig();
+const dynamicLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  limit: getConfiguredRateLimit,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests, please try again later',
+});
 
-  const limit = rate_limit ?? 50;
+const magicLinkIpCachedLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-  if (!dynamicLimiter || dynamicLimit !== limit) {
-    dynamicLimit = limit;
+const magicLinkIdentityCachedLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  keyGenerator: getMagicLinkIdentityKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-    dynamicLimiter = rateLimit({
-      windowMs: 1 * 60 * 1000,
-      max: limit,
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: 'Too many requests, please try again later',
-    });
-  }
-
+export function dynamicRateLimit(req: Request, res: Response, next: NextFunction) {
   return dynamicLimiter(req, res, next);
 }
 
-export async function magicLinkIpLimiter(req: Request, res: Response, next: NextFunction) {
-  if (!magicLinkIpCachedLimiter) {
-    magicLinkIpCachedLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 20,
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
-  }
-
+export function magicLinkIpLimiter(req: Request, res: Response, next: NextFunction) {
   return magicLinkIpCachedLimiter(req, res, next);
 }
 
-export async function magicLinkEmailLimiter(req: Request, res: Response, next: NextFunction) {
-  if (!magicLinkIdentityCachedLimiter) {
-    magicLinkIdentityCachedLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 5,
-      keyGenerator: getMagicLinkIdentityKey,
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
-  }
-
+export function magicLinkEmailLimiter(req: Request, res: Response, next: NextFunction) {
   return magicLinkIdentityCachedLimiter(req, res, next);
 }

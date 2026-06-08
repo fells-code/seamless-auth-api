@@ -7,13 +7,29 @@ vi.mock('../../../src/config/getSystemConfig', () => ({
 
 vi.mock('express-rate-limit', () => {
   return {
-    default: vi.fn(() => vi.fn((req, _res, next) => next())),
+    default: vi.fn((options = {}) =>
+      vi.fn(async (req, res, next) => {
+        if (typeof (options as any).limit === 'function') {
+          await (options as any).limit(req, res);
+        }
+
+        next();
+      }),
+    ),
   };
 });
 
 vi.mock('express-slow-down', () => {
   return {
-    default: vi.fn(() => vi.fn((req, _res, next) => next())),
+    default: vi.fn((options = {}) =>
+      vi.fn(async (req, res, next) => {
+        if (typeof (options as any).delayAfter === 'function') {
+          await (options as any).delayAfter(req, res);
+        }
+
+        next();
+      }),
+    ),
   };
 });
 
@@ -46,10 +62,11 @@ describe('dynamicSlowDown', () => {
 
     expect(slowDown.default).toHaveBeenCalledWith(
       expect.objectContaining({
-        delayAfter: 10,
+        delayAfter: expect.any(Function),
       }),
     );
 
+    expect(getSystemConfig).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalled();
   });
 
@@ -104,14 +121,15 @@ describe('dynamicRateLimit', () => {
 
     expect(rateLimit.default).toHaveBeenCalledWith(
       expect.objectContaining({
-        max: 100,
+        limit: expect.any(Function),
       }),
     );
 
+    expect(getSystemConfig).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalled();
   });
 
-  it('caches limiter', async () => {
+  it('creates limiter instances once at module initialization', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
     const rateLimit = await import('express-rate-limit');
 
@@ -122,12 +140,12 @@ describe('dynamicRateLimit', () => {
     await dynamicRateLimit(req, res, next);
     await dynamicRateLimit(req, res, next);
 
-    expect(rateLimit.default).toHaveBeenCalledTimes(1);
+    expect(rateLimit.default).toHaveBeenCalledTimes(3);
   });
 });
 
 describe('magicLinkIpLimiter', () => {
-  it('uses fixed max of 20', async () => {
+  it('uses fixed limit of 20', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
     const rateLimit = await import('express-rate-limit');
 
@@ -142,7 +160,7 @@ describe('magicLinkIpLimiter', () => {
 
     expect(rateLimit.default).toHaveBeenCalledWith(
       expect.objectContaining({
-        max: 20,
+        limit: 20,
       }),
     );
   });
@@ -171,16 +189,45 @@ describe('magicLinkEmailLimiter', () => {
       expect.objectContaining({
         keyGenerator: expect.any(Function),
         legacyHeaders: false,
-        max: 5,
+        limit: 5,
         standardHeaders: true,
         windowMs: 15 * 60 * 1000,
       }),
     );
 
-    const options = (rateLimit.default as any).mock.calls[0][0];
+    const options = (rateLimit.default as any).mock.calls.find(
+      ([options]: any[]) => options.keyGenerator,
+    )[0];
 
     expect(options.keyGenerator(req)).toBe('email:test@example.com');
     expect(options.keyGenerator({ ip: '127.0.0.1' })).toBe('ip:127.0.0.1');
+  });
+});
+
+describe('dynamicJWKSRateLimit', () => {
+  it('uses config rate_limit and invokes the cached limiter', async () => {
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    const rateLimit = await import('express-rate-limit');
+
+    (getSystemConfig as any).mockResolvedValue({ rate_limit: 100 });
+
+    const { dynamicJWKSRateLimit } = await import('../../../src/middleware/jwksRateLimit');
+    const limiter = (rateLimit.default as any).mock.results[0].value;
+    const next = vi.fn();
+    const req = {};
+    const res = {};
+
+    // @ts-ignore
+    await dynamicJWKSRateLimit(req, res, next);
+
+    expect(rateLimit.default).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: expect.any(Function),
+      }),
+    );
+    expect(limiter).toHaveBeenCalledWith(req, res, next);
+    expect(getSystemConfig).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalled();
   });
 });
 
@@ -204,8 +251,15 @@ describe('rate limiter caches', () => {
     await magicLinkEmailLimiter({}, {}, next);
 
     expect(rateLimit.default).toHaveBeenCalledTimes(3);
-    expect((rateLimit.default as any).mock.calls.map(([options]: any[]) => options.max)).toEqual([
-      100, 20, 5,
+    expect((rateLimit.default as any).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        limit: expect.any(Function),
+      }),
+    );
+    expect((rateLimit.default as any).mock.calls.map(([options]: any[]) => options.limit)).toEqual([
+      expect.any(Function),
+      20,
+      5,
     ]);
   });
 });

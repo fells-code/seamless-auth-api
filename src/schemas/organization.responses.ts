@@ -9,7 +9,7 @@ import { z } from 'zod';
 const OrganizationMembershipUserSchema = z.object({
   id: z.string(),
   email: z.email(),
-  phone: z.string(),
+  phone: z.string().nullable(),
   roles: z.array(z.string()),
 });
 

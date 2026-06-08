@@ -9,25 +9,20 @@ import rateLimit from 'express-rate-limit';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 
-let cachedLimiter: ReturnType<typeof rateLimit> | null = null;
-let cachedLimit: number | null = null;
-
-export async function dynamicJWKSRateLimit(req: Request, res: Response, next: NextFunction) {
+async function getConfiguredRateLimit() {
   const { rate_limit } = await getSystemConfig();
 
-  const limit = rate_limit ?? 50;
+  return rate_limit ?? 50;
+}
 
-  if (!cachedLimiter || cachedLimit !== limit) {
-    cachedLimit = limit;
+const jwksLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  limit: getConfiguredRateLimit,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests, please try again later',
+});
 
-    cachedLimiter = rateLimit({
-      windowMs: 1 * 60 * 1000,
-      max: limit,
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: 'Too many requests, please try again later',
-    });
-  }
-
-  return next();
+export function dynamicJWKSRateLimit(req: Request, res: Response, next: NextFunction) {
+  return jwksLimiter(req, res, next);
 }

@@ -94,7 +94,7 @@ export const createUser = async (req: Request, res: Response) => {
 
     const user = await User.create({
       email,
-      phone: phone,
+      phone: phone ?? null,
       roles: roles ?? [],
     });
 
