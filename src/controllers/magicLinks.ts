@@ -43,6 +43,15 @@ async function rejectDisabledMagicLink(req: Request, res: Response, userId?: str
   return true;
 }
 
+async function logMagicLinkFailure(req: Request, reason: string, userId?: string | null) {
+  await AuthEventService.log({
+    userId: userId ?? null,
+    type: 'magic_link_failed',
+    req,
+    metadata: { reason },
+  });
+}
+
 export async function requestMagicLink(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
@@ -82,7 +91,7 @@ export async function requestMagicLink(req: Request, res: Response) {
     },
   );
 
-  await MagicLinkToken.create({
+  const magicLinkRecord = await MagicLinkToken.create({
     user_id: user.id,
     token_hash: tokenHash,
     redirect_url,
@@ -92,7 +101,23 @@ export async function requestMagicLink(req: Request, res: Response) {
   });
 
   if (!useExternalDelivery) {
-    await sendMagicLinkEmail(user.email, rawToken, redirect_url);
+    try {
+      await sendMagicLinkEmail(user.email, rawToken, redirect_url);
+    } catch {
+      if (magicLinkRecord.id) {
+        await MagicLinkToken.update(
+          { expires_at: new Date() },
+          {
+            where: {
+              id: magicLinkRecord.id,
+            },
+          },
+        );
+      }
+
+      await logMagicLinkFailure(req, 'Delivery failed', user.id);
+      return res.status(500).json({ error: 'Failed to deliver magic link' });
+    }
   }
 
   await AuthEventService.log({
@@ -135,16 +160,19 @@ export async function verifyMagicLink(req: Request, res: Response) {
 
   if (!record) {
     logger.warn('No magic link found for supplied token');
+    await logMagicLinkFailure(req, 'Invalid verification token');
     return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   if (record.used_at) {
     logger.warn('Magic link token is already used');
+    await logMagicLinkFailure(req, 'Token already used', record.user_id);
     return res.status(400).json({ error: 'Invalid verification token' });
   }
 
   if (record.expires_at < new Date()) {
     logger.warn('Magic link token expired');
+    await logMagicLinkFailure(req, 'Token expired', record.user_id);
     return res.status(400).json({ error: 'Invalid verification token' });
   }
 
@@ -163,6 +191,7 @@ export async function verifyMagicLink(req: Request, res: Response) {
 
   if (!updated) {
     logger.error('Magic link token was not consumed');
+    await logMagicLinkFailure(req, 'Failed to consume token', record.user_id);
     return res.status(500).json({ error: 'Failed to use token' });
   }
 
@@ -209,6 +238,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
   if (!record) {
     logger.warn('No magic link token');
+    await logMagicLinkFailure(req, 'No active token found while polling', user.id);
     return res.status(500).json({ error: 'Invalid request' });
   }
 
@@ -216,10 +246,12 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
   if (record.ip_hash && record.ip_hash !== ip_hash) {
+    await logMagicLinkFailure(req, 'Polling device IP mismatch', user.id);
     return res.status(500).json({ error: 'Invalid request' });
   }
 
   if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
+    await logMagicLinkFailure(req, 'Polling device user agent mismatch', user.id);
     return res.status(500).json({ error: 'Invalid request' });
   }
 

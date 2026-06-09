@@ -11,6 +11,7 @@ import {
   generateRandomPhoneOTP,
   generateEmailOTP,
   generatePhoneOTP,
+  hashOtpToken,
   verifyPhoneOTP,
   verifyEmailOTP,
 } from '../../../src/utils/otp.js';
@@ -68,9 +69,15 @@ describe('OTP utils', () => {
     it('updates user and sends email', async () => {
       const user = buildUser();
 
-      await generateEmailOTP(user as any);
+      const token = await generateEmailOTP(user as any);
 
       expect(user.update).toHaveBeenCalled();
+      expect(user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          emailVerificationToken: hashOtpToken(token),
+          emailVerificationTokenExpiry: expect.any(Number),
+        }),
+      );
       expect(sendOTPEmail).toHaveBeenCalled();
     });
 
@@ -91,9 +98,15 @@ describe('OTP utils', () => {
     it('updates user and sends sms', async () => {
       const user = buildUser();
 
-      await generatePhoneOTP(user as any);
+      const token = await generatePhoneOTP(user as any);
 
       expect(user.update).toHaveBeenCalled();
+      expect(user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phoneVerificationToken: hashOtpToken(String(token)),
+          phoneVerificationTokenExpiry: expect.any(Number),
+        }),
+      );
       expect(sendOTPSMS).toHaveBeenCalled();
     });
 
@@ -108,7 +121,7 @@ describe('OTP utils', () => {
   describe('verifyPhoneOTP', () => {
     it('verifies valid OTP', async () => {
       const user = buildUser({
-        phoneVerificationToken: '123456',
+        phoneVerificationToken: hashOtpToken('123456'),
         phoneVerificationTokenExpiry: Date.now() + 10000,
         emailVerified: true,
       });
@@ -123,7 +136,7 @@ describe('OTP utils', () => {
 
     it('returns false for invalid token', async () => {
       const user = buildUser({
-        phoneVerificationToken: '123456',
+        phoneVerificationToken: hashOtpToken('123456'),
         phoneVerificationTokenExpiry: Date.now() + 10000,
       });
 
@@ -134,7 +147,7 @@ describe('OTP utils', () => {
 
     it('returns false for expired token', async () => {
       const user = buildUser({
-        phoneVerificationToken: '123456',
+        phoneVerificationToken: hashOtpToken('123456'),
         phoneVerificationTokenExpiry: Date.now() - 1000,
       });
 
@@ -156,7 +169,7 @@ describe('OTP utils', () => {
   describe('verifyEmailOTP', () => {
     it('verifies valid OTP (case insensitive)', async () => {
       const user = buildUser({
-        emailVerificationToken: 'ABCDEF',
+        emailVerificationToken: hashOtpToken('ABCDEF'),
         emailVerificationTokenExpiry: Date.now() + 10000,
         phone: null,
       });
@@ -171,7 +184,7 @@ describe('OTP utils', () => {
 
     it('returns false for invalid token', async () => {
       const user = buildUser({
-        emailVerificationToken: 'ABCDEF',
+        emailVerificationToken: hashOtpToken('ABCDEF'),
         emailVerificationTokenExpiry: Date.now() + 10000,
       });
 
@@ -187,3 +200,26 @@ describe('OTP utils', () => {
     });
   });
 });
+    it('accepts legacy plaintext phone OTP values during rollout', async () => {
+      const user = buildUser({
+        phoneVerificationToken: '123456',
+        phoneVerificationTokenExpiry: Date.now() + 10000,
+        emailVerified: true,
+      });
+
+      const result = await verifyPhoneOTP(user as any, '123456');
+
+      expect(result.verified).toBe(true);
+    });
+
+    it('accepts legacy plaintext email OTP values during rollout', async () => {
+      const user = buildUser({
+        emailVerificationToken: 'ABCDEF',
+        emailVerificationTokenExpiry: Date.now() + 10000,
+        phone: null,
+      });
+
+      const result = await verifyEmailOTP(user as any, 'abcdef');
+
+      expect(result.verified).toBe(true);
+    });

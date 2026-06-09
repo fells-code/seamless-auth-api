@@ -35,6 +35,7 @@ export const OAuthProviderConfigSchema = z.object({
   allowSignup: z.boolean().default(true),
   accountLinking: z.enum(['email', 'disabled']).default('email'),
   requireEmailVerified: z.boolean().default(false),
+  pkce: z.boolean().optional(),
 });
 
 export const LockoutPolicySchema = z.object({

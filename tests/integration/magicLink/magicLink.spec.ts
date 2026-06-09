@@ -9,6 +9,8 @@ import { Session } from '../../../src/models/sessions.js';
 import { createApp } from '../../../src/app.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
+import { sendMagicLinkEmail } from '../../../src/services/messagingService.js';
 
 let app: Application;
 
@@ -73,6 +75,24 @@ describe('GET /magic-link', () => {
     expect(MagicLinkToken.create).toHaveBeenCalled();
   });
 
+  it('returns an error when direct magic-link delivery fails', async () => {
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+    (sendMagicLinkEmail as any).mockRejectedValue(new Error('delivery failed'));
+
+    const res = await request(app).get('/magic-link');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to deliver magic link');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'magic_link_failed',
+        metadata: { reason: 'Delivery failed' },
+      }),
+    );
+  });
+
   it('rejects magic link requests when the method is disabled', async () => {
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5174'],
@@ -101,6 +121,12 @@ describe('GET /magic-link/verify/:token', () => {
     const res = await request(app).get('/magic-link/verify/bad');
 
     expect(res.status).toBe(400);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_failed',
+        metadata: { reason: 'Invalid verification token' },
+      }),
+    );
   });
 
   it('rejects used token', async () => {
@@ -109,6 +135,13 @@ describe('GET /magic-link/verify/:token', () => {
     const res = await request(app).get('/magic-link/verify/token');
 
     expect(res.status).toBe(400);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'magic_link_failed',
+        metadata: { reason: 'Token already used' },
+      }),
+    );
   });
 
   it('rejects expired token', async () => {

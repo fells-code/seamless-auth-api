@@ -63,7 +63,14 @@ Use `requireEmailVerified: true` for providers that expose a reliable email veri
 
 ## OIDC Notes
 
-When provider scopes include `openid`, Seamless Auth includes a nonce bound into signed state. PKCE support depends on provider and client flow requirements; keep provider callback handling server-side and avoid exposing provider tokens to browsers.
+When provider scopes include `openid`, Seamless Auth includes a nonce bound into signed state. OAuth
+start also includes PKCE challenge parameters by default, and the callback derives the matching
+verifier server-side from the signed state. Set `pkce: false` only for providers that cannot accept
+PKCE parameters.
+
+Callback state is consumed in-process after first use and expires after a short window. In a
+multi-instance deployment, keep OAuth callback traffic sticky to the same API instance or add shared
+state storage before relying on replay detection across instances.
 
 OAuth callback responses return the normal Seamless Auth JSON token payload. Provider tokens remain
 server-side and must not be forwarded to browser clients.

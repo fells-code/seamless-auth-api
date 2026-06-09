@@ -109,7 +109,7 @@ describe('OTP - Verify Email', () => {
 
     const res = await request(app).post('/otp/verify-email-otp').send({ verificationToken: 'bad' });
 
-    expect(res.status).toBe(500); // matches your controller behavior
+    expect(res.status).toBe(401);
   });
 
   it('succeeds when OTP valid', async () => {

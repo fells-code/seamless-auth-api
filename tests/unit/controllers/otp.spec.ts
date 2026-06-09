@@ -373,7 +373,7 @@ describe('otp controller', () => {
     });
   });
 
-  it('returns 500 when login email verification fails after lookup succeeds', async () => {
+  it('returns 401 when login email verification fails after lookup succeeds', async () => {
     const { verifyLoginEmail } = await loadOtpController();
     const failingUser = buildUser();
     const req = buildReq(buildUser(), {
@@ -394,7 +394,7 @@ describe('otp controller', () => {
         type: 'verify_otp_failed',
       }),
     );
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 });

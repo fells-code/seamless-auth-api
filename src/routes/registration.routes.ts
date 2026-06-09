@@ -6,6 +6,7 @@
 
 import { register, registerPhone, verifyRegisteredPhone } from '../controllers/registration.js';
 import { createRouter } from '../lib/createRouter.js';
+import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
 import { ErrorSchema } from '../schemas/generic.responses.js';
 import { VerifyOTPRequestSchema } from '../schemas/otp.requests.js';
 import { OTPVerifyTokenSuccessSchema } from '../schemas/otp.responses.js';
@@ -46,6 +47,7 @@ registrationRouter.post(
     auth: 'access',
     summary: 'Register a phone number for the authenticated user',
     tags: ['Registration'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: RegisterPhoneRequestSchema,

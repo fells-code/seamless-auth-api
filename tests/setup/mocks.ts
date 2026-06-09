@@ -162,6 +162,10 @@ vi.mock('../../src/middleware/requireAdmin.js', () => ({
 vi.mock('../../src/middleware/rateLimit.js', () => ({
   magicLinkIpLimiter: (_req: any, _res: any, next: any) => next(),
   magicLinkEmailLimiter: (_req: any, _res: any, next: any) => next(),
+  oauthIpLimiter: (_req: any, _res: any, next: any) => next(),
+  oauthProviderLimiter: (_req: any, _res: any, next: any) => next(),
+  otpIpLimiter: (_req: any, _res: any, next: any) => next(),
+  otpIdentityLimiter: (_req: any, _res: any, next: any) => next(),
   dynamicRateLimit: (_req: any, _res: any, next: any) => next(),
   dynamicSlowDown: (_req: any, _res: any, next: any) => next(),
 }));

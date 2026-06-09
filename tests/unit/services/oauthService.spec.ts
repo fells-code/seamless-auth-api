@@ -5,6 +5,10 @@ import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
 import { User } from '../../../src/models/users.js';
 import {
   buildOAuthAuthorizationUrl,
+  clearOAuthStateReplayCache,
+  consumeOAuthState,
+  createOAuthPkceCodeChallenge,
+  createOAuthPkceCodeVerifier,
   createOAuthState,
   exchangeOAuthCode,
   fetchOAuthProfile,
@@ -39,6 +43,7 @@ const provider = {
 describe('oauthService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearOAuthStateReplayCache();
     vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret');
     (getSystemConfig as any).mockResolvedValue(
       buildSystemConfig({
@@ -69,6 +74,20 @@ describe('oauthService', () => {
     expect(verifyOAuthState(state, 'github')).toBeNull();
   });
 
+  it('consumes OAuth state only once per process', () => {
+    const state = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
+
+    expect(consumeOAuthState(state, 'google')).toEqual(
+      expect.objectContaining({
+        providerId: 'google',
+      }),
+    );
+    expect(consumeOAuthState(state, 'google')).toBeNull();
+  });
+
   it('builds provider authorization URLs', () => {
     const state = 'state';
     const url = buildOAuthAuthorizationUrl({
@@ -93,6 +112,30 @@ describe('oauthService', () => {
     });
 
     expect(url).toContain('nonce=nonce-value');
+  });
+
+  it('adds PKCE challenge parameters when supplied', () => {
+    const state = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
+    const payload = verifyOAuthState(state, 'google');
+
+    expect(payload).not.toBeNull();
+
+    const codeVerifier = createOAuthPkceCodeVerifier(provider, payload!);
+    const codeChallenge = createOAuthPkceCodeChallenge(provider, payload!);
+    const url = buildOAuthAuthorizationUrl({
+      provider,
+      redirectUri: 'https://app.example.com/oauth/callback',
+      state,
+      codeChallenge,
+    });
+
+    expect(codeVerifier).toEqual(expect.any(String));
+    expect(codeChallenge).toEqual(expect.any(String));
+    expect(url).toContain('code_challenge=');
+    expect(url).toContain('code_challenge_method=S256');
   });
 
   it('rejects redirect URIs outside configured origins', async () => {
@@ -130,10 +173,14 @@ describe('oauthService', () => {
       provider,
       code: 'code',
       redirectUri: 'https://app.example.com/oauth/callback',
+      codeVerifier: 'pkce-verifier',
     });
     const profile = await fetchOAuthProfile(provider, token);
 
     expect(token).toBe('provider-token');
+    expect((fetchMock.mock.calls[0][1]?.body as URLSearchParams).get('code_verifier')).toBe(
+      'pkce-verifier',
+    );
     expect(profile).toEqual({
       subject: 'provider-user',
       email: 'person@example.com',

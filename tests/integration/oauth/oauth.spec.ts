@@ -13,6 +13,7 @@ import {
 import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
+import { clearOAuthStateReplayCache } from '../../../src/services/oauthService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
 
@@ -45,6 +46,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearOAuthStateReplayCache();
   vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret');
   (getSystemConfig as any).mockResolvedValue(
     buildSystemConfig({
@@ -81,6 +83,8 @@ describe('OAuth routes', () => {
     expect(res.body.authorizationUrl).toContain('client_id=client-id');
     expect(res.body.authorizationUrl).toContain('state=');
     expect(res.body.authorizationUrl).toContain('nonce=');
+    expect(res.body.authorizationUrl).toContain('code_challenge=');
+    expect(res.body.authorizationUrl).toContain('code_challenge_method=S256');
   });
 
   it('rejects redirect URI prefix lookalikes', async () => {
@@ -142,6 +146,9 @@ describe('OAuth routes', () => {
         method: 'POST',
       }),
     );
+    expect((fetchMock.mock.calls[0][1]?.body as URLSearchParams).get('code_verifier')).toEqual(
+      expect.any(String),
+    );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       'https://openidconnect.googleapis.com/v1/userinfo',
@@ -158,5 +165,14 @@ describe('OAuth routes', () => {
         sub: 'user-1',
       }),
     );
+
+    const replay = await request(app).post('/oauth/google/callback').send({
+      code: 'oauth-code-replay',
+      state: start.body.state,
+    });
+
+    expect(replay.status).toBe(400);
+    expect(replay.body.error).toBe('Invalid OAuth state');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
