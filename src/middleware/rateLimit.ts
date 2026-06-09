@@ -35,10 +35,8 @@ function getMagicLinkIdentityKey(req: Request) {
 function getOtpIdentityKey(req: Request) {
   const authReq = req as AuthenticatedRequest;
   const body = req.body as { email?: unknown; phone?: unknown } | undefined;
-  const email =
-    authReq.user?.email ?? (typeof body?.email === 'string' ? body.email : undefined);
-  const phone =
-    authReq.user?.phone ?? (typeof body?.phone === 'string' ? body.phone : undefined);
+  const email = authReq.user?.email ?? (typeof body?.email === 'string' ? body.email : undefined);
+  const phone = authReq.user?.phone ?? (typeof body?.phone === 'string' ? body.phone : undefined);
 
   if (email) {
     return `email:${email.toLowerCase()}`;

@@ -388,7 +388,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
     });
     return res.status(401).json({ error: 'Not allowed' });
   }
-
 };
 
 export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
@@ -588,5 +587,4 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
     });
     return res.status(401).json({ error: 'Not allowed' });
   }
-
 };

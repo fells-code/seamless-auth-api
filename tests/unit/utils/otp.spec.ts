@@ -200,26 +200,26 @@ describe('OTP utils', () => {
     });
   });
 });
-    it('accepts legacy plaintext phone OTP values during rollout', async () => {
-      const user = buildUser({
-        phoneVerificationToken: '123456',
-        phoneVerificationTokenExpiry: Date.now() + 10000,
-        emailVerified: true,
-      });
+it('accepts legacy plaintext phone OTP values during rollout', async () => {
+  const user = buildUser({
+    phoneVerificationToken: '123456',
+    phoneVerificationTokenExpiry: Date.now() + 10000,
+    emailVerified: true,
+  });
 
-      const result = await verifyPhoneOTP(user as any, '123456');
+  const result = await verifyPhoneOTP(user as any, '123456');
 
-      expect(result.verified).toBe(true);
-    });
+  expect(result.verified).toBe(true);
+});
 
-    it('accepts legacy plaintext email OTP values during rollout', async () => {
-      const user = buildUser({
-        emailVerificationToken: 'ABCDEF',
-        emailVerificationTokenExpiry: Date.now() + 10000,
-        phone: null,
-      });
+it('accepts legacy plaintext email OTP values during rollout', async () => {
+  const user = buildUser({
+    emailVerificationToken: 'ABCDEF',
+    emailVerificationTokenExpiry: Date.now() + 10000,
+    phone: null,
+  });
 
-      const result = await verifyEmailOTP(user as any, 'abcdef');
+  const result = await verifyEmailOTP(user as any, 'abcdef');
 
-      expect(result.verified).toBe(true);
-    });
+  expect(result.verified).toBe(true);
+});
