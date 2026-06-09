@@ -9,6 +9,22 @@ const routeCallPattern =
   /\w+Router\.(get|post|patch|put|delete)\(\s*(["'])([^"']+)\2([\s\S]*?)\n\);/g;
 
 describe('route response schema coverage', () => {
+  it('keeps protected routes wired through defineRoute auth metadata', () => {
+    const manualAuthRoutes: string[] = [];
+
+    for (const fileName of readdirSync(routesDir)
+      .filter((name) => name.endsWith('.ts'))
+      .sort()) {
+      const source = readFileSync(join(routesDir, fileName), 'utf8');
+
+      if (/\battachAuthMiddleware\b/.test(source)) {
+        manualAuthRoutes.push(fileName);
+      }
+    }
+
+    expect(manualAuthRoutes).toEqual([]);
+  });
+
   it('documents every route with an explicit response schema', () => {
     const missingResponses: string[] = [];
 

@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "coverage": "vitest run --coverage",
+    "coverage": "vitest run --coverage --fileParallelism=false",
     "coverage:badge": "node ./src/scripts/updateCoverageBadge.mjs",
     "test:ci": "CI=true vitest",
     "test:e2e": "CI=false vitest",

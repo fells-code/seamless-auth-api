@@ -8,7 +8,12 @@ import { Session } from '../../../src/models/sessions.js';
 
 import { createApp } from '../../../src/app.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token.js';
+import {
+  createRefreshTokenLookup,
+  generateRefreshToken,
+  hashRefreshToken,
+  signAccessToken,
+} from '../../../src/lib/token.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { sendMagicLinkEmail } from '../../../src/services/messagingService.js';
 
@@ -73,6 +78,25 @@ describe('GET /magic-link', () => {
 
     expect(res.status).toBe(200);
     expect(MagicLinkToken.create).toHaveBeenCalled();
+  });
+
+  it('returns external magic-link delivery payload without direct email delivery', async () => {
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+
+    const res = await request(app)
+      .get('/magic-link')
+      .set('x-seamless-auth-delivery-mode', 'external');
+
+    expect(res.status).toBe(200);
+    expect(sendMagicLinkEmail).not.toHaveBeenCalled();
+    expect(res.body.delivery).toEqual({
+      kind: 'magic_link_email',
+      to: 'test@example.com',
+      token: expect.any(String),
+      magicLinkUrl: expect.stringContaining('http://localhost:5174/verify-magiclink?token='),
+    });
+    expect(res.body.delivery.magicLinkUrl).toContain(res.body.delivery.token);
   });
 
   it('returns an error when direct magic-link delivery fails', async () => {
@@ -187,13 +211,19 @@ describe('GET /magic-link/check', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 500 when no token found', async () => {
+  it('returns 204 when no active token is found', async () => {
     (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
     (MagicLinkToken.findOne as any).mockResolvedValue(null);
 
     const res = await request(app).get('/magic-link/check');
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(204);
+    expect(AuthEventService.log).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_failed',
+        metadata: { reason: 'No active token found while polling' },
+      }),
+    );
   });
 
   it('returns 204 when not yet verified', async () => {
@@ -205,6 +235,26 @@ describe('GET /magic-link/check', () => {
 
     expect(res.status).toBe(204);
   });
+
+  it('returns 403 when the polling fingerprint does not match the pending link', async () => {
+    (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ ip_hash: 'different-ip-hash', used_at: null }),
+    );
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Invalid request');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'magic_link_failed',
+        metadata: { reason: 'Polling device IP mismatch' },
+      }),
+    );
+    expect(Session.create).not.toHaveBeenCalled();
+  });
 });
 
 it('creates session when magic link completed', async () => {
@@ -213,6 +263,7 @@ it('creates session when magic link completed', async () => {
     email: 'test@example.com',
     roles: ['user'],
     save: vi.fn(),
+    update: vi.fn(),
   };
 
   (User.findOne as any).mockResolvedValue(user);
@@ -230,9 +281,21 @@ it('creates session when magic link completed', async () => {
 
   (generateRefreshToken as any).mockReturnValue('refresh-token');
   (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+  (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
   (signAccessToken as any).mockResolvedValue('access-token');
 
   const res = await request(app).get('/magic-link/check');
 
   expect(res.status).toBe(200);
+  expect(res.body).toEqual(
+    expect.objectContaining({
+      message: 'Success',
+      token: 'access-token',
+      refreshToken: 'refresh-token',
+      sub: 'user-1',
+      roles: ['user'],
+      ttl: 900,
+      refreshTtl: 3600,
+    }),
+  );
 });

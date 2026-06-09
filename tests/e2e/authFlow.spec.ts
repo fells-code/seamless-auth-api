@@ -31,6 +31,7 @@ import { generateEmailOTP, verifyEmailOTP } from '../../src/utils/otp.js';
 
 import {
   findRefreshSessionByToken,
+  validateBearerToken,
   validateAccessToken,
 } from '../../src/services/sessionService.js';
 
@@ -80,13 +81,13 @@ describe('E2E Auth Flow', () => {
     expect(generateEmailOTP).toHaveBeenCalled();
 
     (verifyEmailOTP as any).mockResolvedValue({
-      user: {
+      user: buildUser({
         id: 'user-1',
         emailVerified: true,
         phoneVerified: false,
         verified: true,
         roles: ['user'],
-      },
+      }),
       verified: true,
     });
 
@@ -100,6 +101,17 @@ describe('E2E Auth Flow', () => {
       .send({ verificationToken: '123456' });
 
     expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body).toEqual(
+      expect.objectContaining({
+        message: 'Success',
+        token: 'access-token',
+        refreshToken: 'refresh-token',
+        sub: 'user-1',
+        roles: ['user'],
+        ttl: 900,
+        refreshTtl: 3600,
+      }),
+    );
 
     (validateAccessToken as any).mockResolvedValue({
       sessionId: 'session-1',
@@ -113,6 +125,7 @@ describe('E2E Auth Flow', () => {
     expect(accessRes.status).toBe(200);
 
     (validateAccessToken as any).mockResolvedValue(null);
+    (validateBearerToken as any).mockResolvedValue(null);
     (findRefreshSessionByToken as any).mockResolvedValue({
       session: buildSession(),
       legacyFallbackCandidates: 0,
@@ -121,14 +134,18 @@ describe('E2E Auth Flow', () => {
 
     (User.findByPk as any).mockResolvedValue({
       id: 'user-1',
+      email: 'test@example.com',
+      phone: '+14155552671',
+      roles: ['user'],
     });
 
     (Session.create as any).mockResolvedValue(buildSession({ id: 'session-2' }));
 
     const refreshRes = await request(app)
-      .get('/sessions')
-      .set('Authorization', 'Bearer access-token');
+      .post('/refresh')
+      .set('Authorization', 'Bearer refresh-token');
 
     expect(refreshRes.status).toBe(200);
+    expect(findRefreshSessionByToken).toHaveBeenCalledWith('refresh-token', expect.any(Date));
   });
 });

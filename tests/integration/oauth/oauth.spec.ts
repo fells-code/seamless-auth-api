@@ -13,6 +13,7 @@ import {
 import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import { clearOAuthStateReplayCache } from '../../../src/services/oauthService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
@@ -69,6 +70,24 @@ describe('OAuth routes', () => {
       },
     ]);
     expect(JSON.stringify(res.body)).not.toContain('GOOGLE_CLIENT_SECRET');
+  });
+
+  it('hides OAuth providers when OAuth login is disabled', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({
+        login_methods: ['passkey'],
+        oauth_providers: [provider],
+      }),
+    );
+
+    const providersRes = await request(app).get('/oauth/providers');
+    const startRes = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+
+    expect(providersRes.status).toBe(200);
+    expect(providersRes.body.providers).toEqual([]);
+    expect(startRes.status).toBe(404);
   });
 
   it('starts OAuth login with a signed state and authorization URL', async () => {
@@ -174,5 +193,30 @@ describe('OAuth routes', () => {
     expect(replay.status).toBe(400);
     expect(replay.body.error).toBe('Invalid OAuth state');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed when OAuth callback secrets are missing', async () => {
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', '');
+
+    const res = await request(app).post('/oauth/google/callback').send({
+      code: 'oauth-code',
+      state: start.body.state,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('OAuth login failed');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'callback_failed' },
+      }),
+    );
   });
 });

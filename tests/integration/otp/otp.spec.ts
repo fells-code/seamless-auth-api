@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { createApp } from '../../../src/app';
+import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { Application } from 'express';
 
 vi.mock('../../../src/models/authEvents.js', () => ({
@@ -41,6 +42,10 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  (getSystemConfig as any).mockResolvedValue({
+    login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp', 'oauth'],
+    passkey_login_fallback_enabled: true,
+  });
 });
 
 describe('OTP - Generate', () => {
@@ -57,6 +62,19 @@ describe('OTP - Generate', () => {
 
     expect(res.status).toBe(200);
     expect(generateEmailOTP).toHaveBeenCalled();
+  });
+
+  it('rejects login phone OTP generation when phone OTP login is disabled', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey', 'email_otp'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res = await request(app).get('/otp/generate-login-phone-otp');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('login_method_disabled');
+    expect(generatePhoneOTP).not.toHaveBeenCalled();
   });
 });
 

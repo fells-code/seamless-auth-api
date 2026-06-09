@@ -238,8 +238,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
   if (!record) {
     logger.warn('No magic link token');
-    await logMagicLinkFailure(req, 'No active token found while polling', user.id);
-    return res.status(500).json({ error: 'Invalid request' });
+    return res.status(204).json({ message: 'Success' });
   }
 
   // Device binding check
@@ -247,12 +246,12 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
   if (record.ip_hash && record.ip_hash !== ip_hash) {
     await logMagicLinkFailure(req, 'Polling device IP mismatch', user.id);
-    return res.status(500).json({ error: 'Invalid request' });
+    return res.status(403).json({ error: 'Invalid request' });
   }
 
   if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
     await logMagicLinkFailure(req, 'Polling device user agent mismatch', user.id);
-    return res.status(500).json({ error: 'Invalid request' });
+    return res.status(403).json({ error: 'Invalid request' });
   }
 
   if (record.used_at && record.expires_at > new Date()) {
