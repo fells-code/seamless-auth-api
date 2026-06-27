@@ -45,6 +45,8 @@ when specifically exercising real DB behavior.
   (`npm run changeset`); don't hand-edit `CHANGELOG.md` or the version in `package.json`.
 - **No `any`** (`@typescript-eslint/no-explicit-any` is an error) and imports/exports are
   auto-sorted (`simple-import-sort`).
+- **Comments** — keep them minimal. Comment only when the code genuinely needs explaining
+  (a non-obvious reason, a gotcha, an invariant). Don't narrate what the code plainly does.
 
 ### Codebase shape (where to make changes)
 
