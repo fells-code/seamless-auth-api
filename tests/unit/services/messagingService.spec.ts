@@ -89,4 +89,33 @@ describe('messagingService', () => {
     await expect(sendOTPEmail('test@example.com', '123')).resolves.toBeUndefined();
     expect(createDirectAuthMessagingServiceMock).toHaveBeenCalledWith('Seamless Auth Test');
   });
+
+  it('propagates production email delivery failures', async () => {
+    process.env.NODE_ENV = 'production';
+    sendOtpEmailMock.mockRejectedValueOnce(new Error('provider down'));
+
+    const { sendOTPEmail } = await import('../../../src/services/messagingService');
+
+    await expect(sendOTPEmail('test@example.com', '123')).rejects.toThrow('provider down');
+  });
+
+  it('propagates production SMS delivery failures', async () => {
+    process.env.NODE_ENV = 'production';
+    sendOtpSmsMock.mockRejectedValueOnce(new Error('sms down'));
+
+    const { sendOTPSMS } = await import('../../../src/services/messagingService');
+
+    await expect(sendOTPSMS('+14155552671', 123456)).rejects.toThrow('sms down');
+  });
+
+  it('propagates production magic-link delivery failures', async () => {
+    process.env.NODE_ENV = 'production';
+    sendMagicLinkEmailMock.mockRejectedValueOnce(new Error('email down'));
+
+    const { sendMagicLinkEmail } = await import('../../../src/services/messagingService');
+
+    await expect(
+      sendMagicLinkEmail('test@example.com', 'token', 'https://app.example.com/verify'),
+    ).rejects.toThrow('email down');
+  });
 });

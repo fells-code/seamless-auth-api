@@ -10,6 +10,9 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   buildOAuthAuthorizationUrl,
+  consumeOAuthState,
+  createOAuthPkceCodeChallenge,
+  createOAuthPkceCodeVerifier,
   createOAuthState,
   exchangeOAuthCode,
   fetchOAuthProfile,
@@ -59,6 +62,9 @@ export async function startOAuthLogin(req: Request, res: Response) {
       ...(returnTo ? { returnTo } : {}),
     });
     const statePayload = verifyOAuthState(state, provider.id);
+    const codeChallenge = statePayload
+      ? createOAuthPkceCodeChallenge(provider, statePayload)
+      : undefined;
 
     await AuthEventService.log({
       type: 'oauth_login_started',
@@ -74,6 +80,7 @@ export async function startOAuthLogin(req: Request, res: Response) {
         redirectUri,
         state,
         ...(statePayload?.nonce ? { nonce: statePayload.nonce } : {}),
+        ...(codeChallenge ? { codeChallenge } : {}),
       }),
     });
   } catch {
@@ -98,7 +105,7 @@ export async function finishOAuthLogin(req: Request, res: Response) {
     return res.status(404).json({ error: 'OAuth provider not found' });
   }
 
-  const statePayload = verifyOAuthState(state, provider.id);
+  const statePayload = consumeOAuthState(state, provider.id);
 
   if (!statePayload) {
     await AuthEventService.log({
@@ -114,6 +121,7 @@ export async function finishOAuthLogin(req: Request, res: Response) {
       provider,
       code,
       redirectUri: statePayload.redirectUri,
+      codeVerifier: createOAuthPkceCodeVerifier(provider, statePayload),
     });
     const profile = await fetchOAuthProfile(provider, accessToken);
     const user = await resolveOAuthUser(provider, profile);

@@ -29,6 +29,7 @@ magicLinkRouter.get(
       response: {
         200: MessageSchema,
         403: ErrorSchema,
+        500: InternalErrorSchema,
       },
     },
   },

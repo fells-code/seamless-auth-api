@@ -30,6 +30,7 @@ import { hardRevokeSession } from '../services/sessionService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { redactMetadata } from '../utils/redaction.js';
+import { isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('admin');
 
@@ -84,6 +85,14 @@ export const createUser = async (req: Request, res: Response) => {
   }
 
   const { email, phone, roles } = parsed.data;
+  const normalizedPhone = phone ? normalizePhoneNumber(phone) : null;
+
+  if (phone && (!normalizedPhone || !isValidPhoneNumber(phone))) {
+    return res.status(400).json({
+      error: 'Invalid payload',
+      details: { phone: 'Invalid phone number' },
+    });
+  }
 
   try {
     const existing = await User.findOne({ where: { email } });
@@ -94,7 +103,7 @@ export const createUser = async (req: Request, res: Response) => {
 
     const user = await User.create({
       email,
-      phone: phone ?? null,
+      phone: normalizedPhone,
       roles: roles ?? [],
     });
 
@@ -165,16 +174,60 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
     }
 
     const before = user.toJSON();
+    const updateData: Record<string, unknown> = { ...parsed.data };
+    const phoneSupplied = Object.prototype.hasOwnProperty.call(parsed.data, 'phone');
+    const phoneVerifiedSupplied = Object.prototype.hasOwnProperty.call(
+      parsed.data,
+      'phoneVerified',
+    );
+
+    if (phoneSupplied) {
+      const nextPhone = parsed.data.phone;
+
+      if (nextPhone === null) {
+        updateData.phone = null;
+        updateData.phoneVerified = false;
+        updateData.phoneVerificationToken = null;
+        updateData.phoneVerificationTokenExpiry = null;
+      } else if (typeof nextPhone === 'string') {
+        const normalizedPhone = normalizePhoneNumber(nextPhone);
+
+        if (!normalizedPhone || !isValidPhoneNumber(nextPhone)) {
+          return res.status(400).json({
+            error: 'Invalid update payload',
+            details: { phone: 'Invalid phone number' },
+          });
+        }
+
+        updateData.phone = normalizedPhone;
+        updateData.phoneVerificationToken = null;
+        updateData.phoneVerificationTokenExpiry = null;
+
+        if (normalizedPhone !== user.phone && !phoneVerifiedSupplied) {
+          updateData.phoneVerified = false;
+        }
+      }
+    }
+
+    if (
+      updateData.phoneVerified === true &&
+      (phoneSupplied ? updateData.phone : user.phone) === null
+    ) {
+      return res.status(400).json({
+        error: 'Invalid update payload',
+        details: { phoneVerified: 'Cannot verify a missing phone number' },
+      });
+    }
 
     try {
-      await user.update(parsed.data);
+      await user.update(updateData);
 
       await AuthEventService.log({
         type: 'internal_user_updated_by_owner',
         req,
         metadata: {
           before,
-          after: parsed.data,
+          after: updateData,
           targetUser: userId,
         },
       });

@@ -6,6 +6,7 @@
 
 import { finishOAuthLogin, listOAuthProviders, startOAuthLogin } from '../controllers/oauth.js';
 import { createRouter } from '../lib/createRouter.js';
+import { oauthIpLimiter, oauthProviderLimiter } from '../middleware/rateLimit.js';
 import { InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   FinishOAuthLoginRequestSchema,
@@ -39,6 +40,7 @@ oauthRouter.post(
   {
     summary: 'Start OAuth login',
     tags: ['OAuth'],
+    middleware: [oauthIpLimiter, oauthProviderLimiter],
     schemas: {
       params: OAuthProviderParamSchema,
       body: StartOAuthLoginRequestSchema,
@@ -57,6 +59,7 @@ oauthRouter.post(
   {
     summary: 'Finish OAuth login',
     tags: ['OAuth'],
+    middleware: [oauthIpLimiter, oauthProviderLimiter],
     schemas: {
       params: OAuthProviderParamSchema,
       body: FinishOAuthLoginRequestSchema,
