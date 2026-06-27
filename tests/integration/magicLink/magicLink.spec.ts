@@ -188,6 +188,21 @@ describe('GET /magic-link/verify/:token', () => {
     expect(res.status).toBe(200);
   });
 
+  it('accepts a valid token even when opened on a different device', async () => {
+    // The email link may legitimately be opened on a different device than the one
+    // that requested it. Device binding is enforced at the poll step, not here — so
+    // verify must remain device-agnostic. Guards against re-adding a device gate here.
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ ip_hash: 'a-different-device', user_agent_hash: 'another-ua' }),
+    );
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+
+    const res = await request(app).get('/magic-link/verify/token');
+
+    expect(res.status).toBe(200);
+    expect(MagicLinkToken.update).toHaveBeenCalled();
+  });
+
   it('rejects token verification when magic links are disabled', async () => {
     (getSystemConfig as any).mockResolvedValue({
       login_methods: ['passkey'],
@@ -255,6 +270,38 @@ describe('GET /magic-link/check', () => {
     );
     expect(Session.create).not.toHaveBeenCalled();
   });
+
+  it('returns 403 when the polling user-agent does not match the pending link', async () => {
+    (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ user_agent_hash: 'different-ua-hash', used_at: null }),
+    );
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(403);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'magic_link_failed',
+        metadata: { reason: 'Polling device user agent mismatch' },
+      }),
+    );
+    expect(Session.create).not.toHaveBeenCalled();
+  });
+
+  it('polls with 204 and an empty body while waiting (regression: previously 500)', async () => {
+    // The exact bug that created this branch: polling before confirmation returned 500,
+    // breaking the CLI starter sign-in. It must return 204 (No Content), never 500.
+    (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: null }));
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(204);
+    expect(res.status).not.toBe(500);
+    expect(res.text).toBe('');
+  });
 });
 
 it('creates session when magic link completed', async () => {
@@ -298,4 +345,56 @@ it('creates session when magic link completed', async () => {
       refreshTtl: 3600,
     }),
   );
+});
+
+describe('magic link full sign-in sequence (regression)', () => {
+  it('request -> poll(waiting) -> verify -> poll issues a session', async () => {
+    const user = {
+      id: 'user-1',
+      email: 'test@example.com',
+      roles: ['user'],
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    (User.findOne as any).mockResolvedValue(user);
+    // clearAllMocks (beforeEach) clears calls but not implementations, so reset the
+    // delivery mock another test may have left rejecting.
+    (sendMagicLinkEmail as any).mockResolvedValue(undefined);
+
+    // 1) Request the link
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+    const requestRes = await request(app).get('/magic-link');
+    expect(requestRes.status).toBe(200);
+
+    // 2) Poll before the link is verified -> 204 (still waiting), not 500
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: null }));
+    const pendingPoll = await request(app).get('/magic-link/check');
+    expect(pendingPoll.status).toBe(204);
+
+    // 3) Verify the token (marks it used)
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: null }));
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    const verifyRes = await request(app).get('/magic-link/verify/token');
+    expect(verifyRes.status).toBe(200);
+
+    // 4) Poll after verification -> session issued
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: new Date() }));
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (signAccessToken as any).mockResolvedValue('access-token');
+
+    const completedPoll = await request(app).get('/magic-link/check');
+    expect(completedPoll.status).toBe(200);
+    expect(completedPoll.body).toEqual(
+      expect.objectContaining({
+        message: 'Success',
+        token: 'access-token',
+        refreshToken: 'refresh-token',
+        sub: 'user-1',
+      }),
+    );
+  });
 });

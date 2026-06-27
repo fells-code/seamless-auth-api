@@ -202,17 +202,9 @@ export async function verifyMagicLink(req: Request, res: Response) {
     metadata: { reason: 'Magic link token consumed' },
   });
 
-  // Device binding check
-  const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
-
-  if (record.ip_hash && record.ip_hash !== ip_hash) {
-    return res.status(200).json({ message: 'Success' });
-  }
-
-  if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
-    return res.status(200).json({ message: 'Success' });
-  }
-
+  // Device binding is enforced at the poll step (pollMagicLinkConfirmation), where the
+  // session is actually issued. A magic link may legitimately be opened on a different
+  // device than the one that requested it, so verification must not gate on the device.
   return res.status(200).json({ message: 'Success' });
 }
 
@@ -238,7 +230,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
   if (!record) {
     logger.warn('No magic link token');
-    return res.status(204).json({ message: 'Success' });
+    return res.status(204).end();
   }
 
   // Device binding check
@@ -294,12 +286,12 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       res,
     });
 
-    user.update({
+    await user.update({
       lastLogin: new Date(),
       challengeContext: null,
     });
 
     return;
   }
-  return res.status(204).json({ message: 'Success' });
+  return res.status(204).end();
 }
