@@ -195,7 +195,8 @@ system config.
     "nameJsonPath": "name",
     "allowSignup": true,
     "accountLinking": "email",
-    "requireEmailVerified": true
+    "requireEmailVerified": true,
+    "pkce": true
   }
 ]
 ```
@@ -235,6 +236,10 @@ curl -X POST http://localhost:5312/oauth/google/callback \
 Security notes:
 
 - OAuth `state` is signed and expires after a short window.
+- OAuth callback state is consumed in-process after first use. Use sticky callback routing or shared
+  state storage if you need replay detection across multiple API instances.
+- PKCE is enabled by default; set `pkce: false` only for providers that cannot accept PKCE
+  parameters.
 - `redirectUri` must exactly match a provider `redirectUris` entry when configured. Providers
   without a redirect allowlist fall back to trusted configured origins.
 - `returnTo` must match configured `origins`.

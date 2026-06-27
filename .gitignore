@@ -29,11 +29,15 @@ docker-data/
 .vscode/
 *.swp
 
+# Claude Code — share settings.json, keep personal overrides local
+.claude/settings.local.json
+
 # Lint / tooling cache
 .eslintcache
 docs/*
 !docs/admin-operations.md
 !docs/architecture.md
+!docs/ecosystem.md
 !docs/oauth.md
 !docs/production-operations.md
 !docs/webauthn-prf.md

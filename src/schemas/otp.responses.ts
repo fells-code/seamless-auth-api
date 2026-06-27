@@ -4,8 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
+import { RefreshSuccessResponseSchema } from './auth.responses.js';
 
-export const OTPVerifyTokenSuccessSchema = z.object({
-  message: z.string(),
+export const OTPVerifyTokenSuccessSchema = RefreshSuccessResponseSchema.omit({
+  sessionId: true,
 });

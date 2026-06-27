@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { OAuthIdentity } from '../models/oauthIdentities.js';
@@ -12,6 +12,7 @@ import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 
 const STATE_TTL_MS = 10 * 60 * 1000;
+const consumedStateHashes = new Map<string, number>();
 
 export type PublicOAuthProvider = {
   id: string;
@@ -59,6 +60,26 @@ function base64UrlDecode(value: string) {
 
 function signPayload(payload: string) {
   return createHmac('sha256', stateSecret()).update(payload).digest('base64url');
+}
+
+function hashStateForReplayCache(state: string) {
+  return createHmac('sha256', stateSecret()).update(`oauth-state:${state}`).digest('base64url');
+}
+
+function purgeConsumedStates(now = Date.now()) {
+  for (const [stateHash, expiresAt] of consumedStateHashes.entries()) {
+    if (expiresAt <= now) {
+      consumedStateHashes.delete(stateHash);
+    }
+  }
+}
+
+function pkceEnabled(provider: OAuthProviderConfig) {
+  return provider.pkce !== false;
+}
+
+function sha256Base64Url(value: string) {
+  return createHash('sha256').update(value).digest('base64url');
 }
 
 function safeEqual(a: string, b: string) {
@@ -199,16 +220,69 @@ export function verifyOAuthState(state: string, providerId: string): OAuthStateP
   return payload;
 }
 
+export function consumeOAuthState(state: string, providerId: string): OAuthStatePayload | null {
+  const payload = verifyOAuthState(state, providerId);
+
+  if (!payload) return null;
+
+  purgeConsumedStates();
+
+  const stateHash = hashStateForReplayCache(state);
+
+  if (consumedStateHashes.has(stateHash)) {
+    return null;
+  }
+
+  consumedStateHashes.set(stateHash, payload.createdAt + STATE_TTL_MS);
+
+  return payload;
+}
+
+export function clearOAuthStateReplayCache() {
+  consumedStateHashes.clear();
+}
+
+export function createOAuthPkceCodeVerifier(
+  provider: OAuthProviderConfig,
+  payload: OAuthStatePayload,
+) {
+  if (!pkceEnabled(provider)) return undefined;
+
+  return createHmac('sha256', stateSecret())
+    .update(
+      JSON.stringify([
+        'oauth-pkce-v1',
+        provider.id,
+        payload.providerId,
+        payload.redirectUri,
+        payload.nonce,
+        payload.createdAt,
+      ]),
+    )
+    .digest('base64url');
+}
+
+export function createOAuthPkceCodeChallenge(
+  provider: OAuthProviderConfig,
+  payload: OAuthStatePayload,
+) {
+  const verifier = createOAuthPkceCodeVerifier(provider, payload);
+
+  return verifier ? sha256Base64Url(verifier) : undefined;
+}
+
 export function buildOAuthAuthorizationUrl({
   provider,
   redirectUri,
   state,
   nonce,
+  codeChallenge,
 }: {
   provider: OAuthProviderConfig;
   redirectUri: string;
   state: string;
   nonce?: string;
+  codeChallenge?: string;
 }) {
   const url = new URL(provider.authorizationUrl);
 
@@ -225,6 +299,11 @@ export function buildOAuthAuthorizationUrl({
     url.searchParams.set('nonce', nonce);
   }
 
+  if (codeChallenge) {
+    url.searchParams.set('code_challenge', codeChallenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+  }
+
   return url.toString();
 }
 
@@ -232,10 +311,12 @@ export async function exchangeOAuthCode({
   provider,
   code,
   redirectUri,
+  codeVerifier,
 }: {
   provider: OAuthProviderConfig;
   code: string;
   redirectUri: string;
+  codeVerifier?: string;
 }) {
   const clientSecret = process.env[provider.clientSecretEnv];
 
@@ -250,6 +331,10 @@ export async function exchangeOAuthCode({
     client_id: provider.clientId,
     client_secret: clientSecret,
   });
+
+  if (codeVerifier) {
+    body.set('code_verifier', codeVerifier);
+  }
 
   const response = await globalThis.fetch(provider.tokenUrl, {
     method: 'POST',

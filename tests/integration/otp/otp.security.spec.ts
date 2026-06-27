@@ -112,8 +112,7 @@ describe('OTP Security - Email Verification', () => {
       .set('Authorization', 'Bearer token')
       .send({ verificationToken: 'bad' });
 
-    // ⚠️ matches your current controller behavior
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(401);
   });
 
   it('rejects expired OTP', async () => {
@@ -138,6 +137,6 @@ describe('OTP Security - Email Verification', () => {
       .set('Authorization', 'Bearer token')
       .send({ verificationToken: '123456' });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(401);
   });
 });

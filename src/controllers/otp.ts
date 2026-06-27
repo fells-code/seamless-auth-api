@@ -371,7 +371,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         res,
       });
 
-      user.update({
+      await user.update({
         lastLogin: new Date(),
       });
 
@@ -380,9 +380,14 @@ export const verifyEmail = async (req: Request, res: Response) => {
     return res.json({ message: 'Success' });
   } else {
     logger.error(`Verification tokens did not match or expired for email verification`);
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'verify_otp_failed',
+      req,
+      metadata: { reason: 'User verification failed for email' },
+    });
+    return res.status(401).json({ error: 'Not allowed' });
   }
-
-  return res.status(500).json({ error: 'Internal server error' });
 };
 
 export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
@@ -459,7 +464,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           res,
         });
 
-        user.update({
+        await user.update({
           lastLogin: new Date(),
         });
 
@@ -565,7 +570,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         res,
       });
 
-      user.update({
+      await user.update({
         lastLogin: new Date(),
       });
 
@@ -578,9 +583,8 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_failed',
       req,
-      metadata: { reason: 'User verification failed for phone' },
+      metadata: { reason: 'User verification failed for email' },
     });
+    return res.status(401).json({ error: 'Not allowed' });
   }
-
-  return res.status(500).json({ error: 'Internal server error' });
 };

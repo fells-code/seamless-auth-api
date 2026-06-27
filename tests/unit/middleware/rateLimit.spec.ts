@@ -140,7 +140,7 @@ describe('dynamicRateLimit', () => {
     await dynamicRateLimit(req, res, next);
     await dynamicRateLimit(req, res, next);
 
-    expect(rateLimit.default).toHaveBeenCalledTimes(3);
+    expect(rateLimit.default).toHaveBeenCalledTimes(7);
   });
 });
 
@@ -204,6 +204,77 @@ describe('magicLinkEmailLimiter', () => {
   });
 });
 
+describe('otpIdentityLimiter', () => {
+  it('uses authenticated email or phone as key', async () => {
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    const rateLimit = await import('express-rate-limit');
+
+    (getSystemConfig as any).mockResolvedValue({});
+
+    const { otpIdentityLimiter } = await import('../../../src/middleware/rateLimit');
+
+    const req: any = {
+      user: { email: null, phone: '+14155552671' },
+      ip: '127.0.0.1',
+    };
+    const next = vi.fn();
+
+    // @ts-ignore
+    await otpIdentityLimiter(req, {}, next);
+
+    const options = (rateLimit.default as any).mock.calls
+      .map(([options]: any[]) => options)
+      .find((options: any) => options.keyGenerator?.(req) === 'phone:+14155552671');
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        keyGenerator: expect.any(Function),
+        legacyHeaders: false,
+        limit: 5,
+        standardHeaders: true,
+        windowMs: 15 * 60 * 1000,
+      }),
+    );
+    expect(options.keyGenerator({ user: { email: 'Test@Example.com' } })).toBe(
+      'email:test@example.com',
+    );
+  });
+});
+
+describe('oauthProviderLimiter', () => {
+  it('keys by provider and ip', async () => {
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    const rateLimit = await import('express-rate-limit');
+
+    (getSystemConfig as any).mockResolvedValue({});
+
+    const { oauthProviderLimiter } = await import('../../../src/middleware/rateLimit');
+
+    const req: any = {
+      params: { providerId: 'google' },
+      ip: '127.0.0.1',
+    };
+    const next = vi.fn();
+
+    // @ts-ignore
+    await oauthProviderLimiter(req, {}, next);
+
+    const options = (rateLimit.default as any).mock.calls
+      .map(([options]: any[]) => options)
+      .find((options: any) => options.keyGenerator?.(req) === 'google:127.0.0.1');
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        keyGenerator: expect.any(Function),
+        legacyHeaders: false,
+        limit: 10,
+        standardHeaders: true,
+        windowMs: 15 * 60 * 1000,
+      }),
+    );
+  });
+});
+
 describe('dynamicJWKSRateLimit', () => {
   it('uses config rate_limit and invokes the cached limiter', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
@@ -250,7 +321,7 @@ describe('rate limiter caches', () => {
     // @ts-ignore
     await magicLinkEmailLimiter({}, {}, next);
 
-    expect(rateLimit.default).toHaveBeenCalledTimes(3);
+    expect(rateLimit.default).toHaveBeenCalledTimes(7);
     expect((rateLimit.default as any).mock.calls[0][0]).toEqual(
       expect.objectContaining({
         limit: expect.any(Function),
@@ -260,6 +331,10 @@ describe('rate limiter caches', () => {
       expect.any(Function),
       20,
       5,
+      10,
+      5,
+      30,
+      10,
     ]);
   });
 });

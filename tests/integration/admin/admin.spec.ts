@@ -288,6 +288,59 @@ describe('POST /admin/users', () => {
     expect(res.body.user).not.toHaveProperty('emailVerificationToken');
   });
 
+  it('creates user without a phone number', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+
+    (User.create as any).mockResolvedValue({
+      id: 'user-1',
+      email: 'test@example.com',
+      phone: null,
+      roles: ['user'],
+    });
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({
+        email: 'test@example.com',
+        roles: ['user'],
+      });
+
+    expect(res.status).toBe(201);
+    expect(User.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'test@example.com',
+        phone: null,
+        roles: ['user'],
+      }),
+    );
+  });
+
+  it('normalizes optional phone numbers on create', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+
+    (User.create as any).mockResolvedValue({
+      id: 'user-1',
+      email: 'test@example.com',
+      phone: '+14155552671',
+      roles: ['user'],
+    });
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({
+        email: 'test@example.com',
+        phone: '+1 (415) 555-2671',
+        roles: ['user'],
+      });
+
+    expect(res.status).toBe(201);
+    expect(User.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '+14155552671',
+      }),
+    );
+  });
+
   it('creates user with scoped roles', async () => {
     (User.findOne as any).mockResolvedValue(null);
 
@@ -374,6 +427,33 @@ describe('PATCH /admin/users/:userId', () => {
 
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalledWith({ roles: ['admin:write'] });
+  });
+
+  it('clears phone state when phone is removed', async () => {
+    const user = buildUser({ phone: '+14155552671', phoneVerified: true });
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app).patch('/admin/users/user-1').send({ phone: null });
+
+    expect(res.status).toBe(200);
+    expect(user.update).toHaveBeenCalledWith({
+      phone: null,
+      phoneVerified: false,
+      phoneVerificationToken: null,
+      phoneVerificationTokenExpiry: null,
+    });
+  });
+
+  it('rejects phoneVerified true without a phone number', async () => {
+    const user = buildUser({ phone: null, phoneVerified: false });
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app).patch('/admin/users/user-1').send({ phoneVerified: true });
+
+    expect(res.status).toBe(400);
+    expect(user.update).not.toHaveBeenCalled();
   });
 
   it('returns 404 if user not found', async () => {

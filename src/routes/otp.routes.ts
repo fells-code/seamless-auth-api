@@ -15,6 +15,7 @@ import {
   verifyPhoneNumber,
 } from '../controllers/otp.js';
 import { createRouter } from '../lib/createRouter.js';
+import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { VerifyOTPRequestSchema } from '../schemas/otp.requests.js';
 import { OTPVerifyTokenSuccessSchema } from '../schemas/otp.responses.js';
@@ -27,6 +28,7 @@ otpRouter.get(
     auth: 'ephemeral',
     summary: 'Generate email OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       response: {
@@ -45,6 +47,7 @@ otpRouter.get(
     auth: 'ephemeral',
     summary: 'Generate phone OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       response: {
@@ -63,6 +66,7 @@ otpRouter.get(
     auth: 'ephemeral',
     summary: 'Generate login email OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       response: {
@@ -80,6 +84,7 @@ otpRouter.get(
     auth: 'ephemeral',
     summary: 'Generate login phone OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       response: {
@@ -97,6 +102,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify email OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,
@@ -118,6 +124,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify phone OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,
@@ -139,6 +146,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify login email OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,
@@ -159,6 +167,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify login phone OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,

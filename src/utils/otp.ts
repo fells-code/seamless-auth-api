@@ -4,27 +4,65 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { randomInt, timingSafeEqual } from 'crypto';
+
 import { User } from '../models/users.js';
 import { sendOTPEmail, sendOTPSMS } from '../services/messagingService.js';
 import getLogger from './logger.js';
+import { hashSha256 } from './utils.js';
 
 const logger = getLogger('utils.otp');
+const EMAIL_OTP_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const OTP_HASH_PREFIX = 'sha256:';
 
 export interface GenerateOtpOptions {
   sendMessage?: boolean;
 }
 
+function safeStringEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function normalizeEmailOtp(token: string) {
+  return token.trim().toUpperCase();
+}
+
+function normalizePhoneOtp(token: string) {
+  return token.trim();
+}
+
+export function hashOtpToken(token: string) {
+  return `${OTP_HASH_PREFIX}${hashSha256(token)}`;
+}
+
+function otpMatchesStoredValue(
+  storedToken: string,
+  verificationToken: string,
+  normalize: (token: string) => string,
+) {
+  // OTPs are always stored hashed (`sha256:` prefix). Compare the hash of the
+  // normalized submission against the stored hash in constant time. Plaintext OTPs
+  // are no longer accepted; any issued before hashing (5-min TTL) simply expire.
+  return safeStringEqual(storedToken, hashOtpToken(normalize(verificationToken)));
+}
+
 export const generateRandomEmailOTP = (): string => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let result = '';
   for (let i = 0; i < 6; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
+    result += EMAIL_OTP_ALPHABET.charAt(randomInt(EMAIL_OTP_ALPHABET.length));
   }
   return result;
 };
 
 export const generateRandomPhoneOTP = (): number => {
-  return Math.floor(Math.random() * 900000) + 100000;
+  return randomInt(100000, 1000000);
 };
 
 export const generateEmailOTP = async (
@@ -44,7 +82,7 @@ export const generateEmailOTP = async (
     const emailVerificationTokenExpiry = now.getTime();
 
     await user.update({
-      emailVerificationToken: emailToken,
+      emailVerificationToken: hashOtpToken(normalizeEmailOtp(emailToken)),
       emailVerificationTokenExpiry,
     });
 
@@ -80,7 +118,7 @@ export const generatePhoneOTP = async (
     const phoneVerificationTokenExpiry = now.getTime();
 
     await user.update({
-      phoneVerificationToken: String(phoneToken),
+      phoneVerificationToken: hashOtpToken(String(phoneToken)),
       phoneVerificationTokenExpiry,
     });
 
@@ -104,7 +142,7 @@ export const verifyPhoneOTP = async (
   }
 
   if (
-    user.phoneVerificationToken === verificationToken &&
+    otpMatchesStoredValue(user.phoneVerificationToken, verificationToken, normalizePhoneOtp) &&
     user.phoneVerificationTokenExpiry > new Date().getTime()
   ) {
     user.phoneVerified = true;
@@ -137,7 +175,7 @@ export const verifyEmailOTP = async (
   }
 
   if (
-    user.emailVerificationToken.toUpperCase() === verificationToken.toUpperCase() &&
+    otpMatchesStoredValue(user.emailVerificationToken, verificationToken, normalizeEmailOtp) &&
     user.emailVerificationTokenExpiry > new Date().getTime()
   ) {
     user.emailVerified = true;

@@ -10,14 +10,14 @@ import { RoleNameSchema } from './roles.schema.js';
 
 export const CreateUserSchema = z.object({
   email: z.email(),
-  phone: z.string().nullish(),
+  phone: z.string().min(5).nullish(),
   roles: z.array(RoleNameSchema).min(1),
 });
 
 export const UpdateUserSchema = z
   .object({
     email: z.email().optional(),
-    phone: z.string().min(5).optional(),
+    phone: z.string().min(5).nullable().optional(),
     emailVerified: z.boolean().optional(),
     phoneVerified: z.boolean().optional(),
     roles: z.array(RoleNameSchema).min(1).optional(),
