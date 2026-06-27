@@ -371,7 +371,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         res,
       });
 
-      user.update({
+      await user.update({
         lastLogin: new Date(),
       });
 
@@ -464,7 +464,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           res,
         });
 
-        user.update({
+        await user.update({
           lastLogin: new Date(),
         });
 
@@ -570,7 +570,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         res,
       });
 
-      user.update({
+      await user.update({
         lastLogin: new Date(),
       });
 

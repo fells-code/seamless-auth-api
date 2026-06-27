@@ -102,6 +102,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify email OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,
@@ -123,6 +124,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify phone OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,
@@ -144,6 +146,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify login email OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,
@@ -164,6 +167,7 @@ otpRouter.post(
     auth: 'ephemeral',
     summary: 'Verify login phone OTP',
     tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: VerifyOTPRequestSchema,

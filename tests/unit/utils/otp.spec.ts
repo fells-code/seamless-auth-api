@@ -200,7 +200,7 @@ describe('OTP utils', () => {
     });
   });
 });
-it('accepts legacy plaintext phone OTP values during rollout', async () => {
+it('rejects legacy plaintext phone OTP values (hashed-only after hardening)', async () => {
   const user = buildUser({
     phoneVerificationToken: '123456',
     phoneVerificationTokenExpiry: Date.now() + 10000,
@@ -209,10 +209,10 @@ it('accepts legacy plaintext phone OTP values during rollout', async () => {
 
   const result = await verifyPhoneOTP(user as any, '123456');
 
-  expect(result.verified).toBe(true);
+  expect(result.verified).toBe(false);
 });
 
-it('accepts legacy plaintext email OTP values during rollout', async () => {
+it('rejects legacy plaintext email OTP values (hashed-only after hardening)', async () => {
   const user = buildUser({
     emailVerificationToken: 'ABCDEF',
     emailVerificationTokenExpiry: Date.now() + 10000,
@@ -221,5 +221,59 @@ it('accepts legacy plaintext email OTP values during rollout', async () => {
 
   const result = await verifyEmailOTP(user as any, 'abcdef');
 
-  expect(result.verified).toBe(true);
+  expect(result.verified).toBe(false);
+});
+
+describe('OTP regression — hardened behavior', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('email OTP round-trips: a generated token verifies against the stored hash', async () => {
+    const issuingUser = buildUser();
+    const token = await generateEmailOTP(issuingUser as any, { sendMessage: false });
+    const stored = (issuingUser.update as any).mock.calls[0][0].emailVerificationToken;
+
+    const verifyingUser = buildUser({
+      emailVerificationToken: stored,
+      emailVerificationTokenExpiry: Date.now() + 100000,
+    });
+
+    expect((await verifyEmailOTP(verifyingUser as any, token)).verified).toBe(true);
+  });
+
+  it('email OTP round-trip is case-insensitive', async () => {
+    const issuingUser = buildUser();
+    const token = await generateEmailOTP(issuingUser as any, { sendMessage: false });
+    const stored = (issuingUser.update as any).mock.calls[0][0].emailVerificationToken;
+
+    const verifyingUser = buildUser({
+      emailVerificationToken: stored,
+      emailVerificationTokenExpiry: Date.now() + 100000,
+    });
+
+    expect((await verifyEmailOTP(verifyingUser as any, token.toLowerCase())).verified).toBe(true);
+  });
+
+  it('phone OTP round-trips: a generated token verifies against the stored hash', async () => {
+    const issuingUser = buildUser();
+    const token = await generatePhoneOTP(issuingUser as any, { sendMessage: false });
+    const stored = (issuingUser.update as any).mock.calls[0][0].phoneVerificationToken;
+
+    const verifyingUser = buildUser({
+      phoneVerificationToken: stored,
+      phoneVerificationTokenExpiry: Date.now() + 100000,
+    });
+
+    expect((await verifyPhoneOTP(verifyingUser as any, String(token))).verified).toBe(true);
+  });
+
+  it('stores OTPs hashed at rest (sha256: prefix, never the plaintext code)', async () => {
+    const user = buildUser();
+    const token = await generateEmailOTP(user as any, { sendMessage: false });
+    const stored = (user.update as any).mock.calls[0][0].emailVerificationToken;
+
+    expect(stored).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(stored).not.toContain(token);
+  });
 });

@@ -47,14 +47,10 @@ function otpMatchesStoredValue(
   verificationToken: string,
   normalize: (token: string) => string,
 ) {
-  const normalizedVerificationToken = normalize(verificationToken);
-
-  if (storedToken.startsWith(OTP_HASH_PREFIX)) {
-    return safeStringEqual(storedToken, hashOtpToken(normalizedVerificationToken));
-  }
-
-  // Transitional compatibility for OTPs issued before hashed storage was introduced.
-  return safeStringEqual(normalize(storedToken), normalizedVerificationToken);
+  // OTPs are always stored hashed (`sha256:` prefix). Compare the hash of the
+  // normalized submission against the stored hash in constant time. Plaintext OTPs
+  // are no longer accepted; any issued before hashing (5-min TTL) simply expire.
+  return safeStringEqual(storedToken, hashOtpToken(normalize(verificationToken)));
 }
 
 export const generateRandomEmailOTP = (): string => {
