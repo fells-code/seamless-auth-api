@@ -17,6 +17,7 @@
     "test:e2e": "CI=false vitest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "db:create": "env-cmd -f .env sequelize-cli db:create || sequelize-cli db:create",
