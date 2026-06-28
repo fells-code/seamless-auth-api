@@ -15,13 +15,31 @@ export async function bootstrapSystemConfig() {
 
   for (const [key, envVar] of Object.entries(SYSTEM_CONFIG_ENV_MAP)) {
     const existing = await SystemConfig.findByPk(key);
+    const envValue = process.env[envVar];
 
     if (existing) {
-      resolvedConfig[key] = existing.value;
+      // Re-apply the env value over config that hasn't been changed through the
+      // admin API (updatedBy IS NULL), so env-mapped config stays authoritative
+      // unless an admin has overridden it at runtime. Without this, a migration
+      // that seeds a default would permanently shadow the env var.
+      if (envValue && existing.updatedBy == null) {
+        const parsed = parseSystemConfigEnvValue(
+          key as keyof typeof SYSTEM_CONFIG_ENV_MAP,
+          envValue,
+        );
+
+        if (JSON.stringify(existing.value) !== JSON.stringify(parsed)) {
+          await existing.update({ value: parsed });
+        }
+
+        resolvedConfig[key] = parsed;
+      } else {
+        resolvedConfig[key] = existing.value;
+      }
+
       continue;
     }
 
-    const envValue = process.env[envVar];
     if (!envValue) {
       const defaultValue = SYSTEM_CONFIG_DEFAULTS[key as keyof typeof SYSTEM_CONFIG_DEFAULTS];
 
