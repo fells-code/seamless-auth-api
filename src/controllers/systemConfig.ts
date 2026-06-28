@@ -73,12 +73,16 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 
   const existingMap = Object.fromEntries(existingRows.map((row) => [row.key, row.value]));
 
+  const updatedBy = typeof req.clientId === 'function' ? req.clientId() : (req.clientId ?? null);
+
   await SystemConfig.sequelize!.transaction(async (tx) => {
     for (const [key, value] of Object.entries(updates)) {
       await SystemConfig.upsert(
         {
           key,
           value,
+          // Mark the row as admin-managed so bootstrap won't overwrite it from env.
+          updatedBy,
         },
         { transaction: tx },
       );

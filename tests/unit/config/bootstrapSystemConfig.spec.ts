@@ -84,6 +84,48 @@ describe('bootstrapSystemConfig', () => {
     expect(result).toBeDefined();
   });
 
+  it('re-applies env over an existing row that was not admin-edited', async () => {
+    const { SystemConfig } = await import('../../../src/models/systemConfig');
+    const { parseSystemConfigEnvValue } = await import('../../../src/utils/parseEnvConfigs');
+    const { SystemConfigSchema } = await import('../../../src/schemas/systemConfig.schema');
+
+    const update = vi.fn();
+    (SystemConfig.findByPk as any).mockResolvedValue({ value: 'old', updatedBy: null, update });
+
+    process.env.APP_NAME = 'TestApp';
+    process.env.RATE_LIMIT = '100';
+    (parseSystemConfigEnvValue as any).mockReturnValue('parsed');
+    (SystemConfigSchema.safeParse as any).mockReturnValue({ success: true, data: {} });
+
+    const { bootstrapSystemConfig } = await import('../../../src/config/bootstrapSystemConfig');
+    await bootstrapSystemConfig();
+
+    expect(update).toHaveBeenCalledWith({ value: 'parsed' });
+  });
+
+  it('preserves a row that was changed via the admin API (updatedBy set)', async () => {
+    const { SystemConfig } = await import('../../../src/models/systemConfig');
+    const { parseSystemConfigEnvValue } = await import('../../../src/utils/parseEnvConfigs');
+    const { SystemConfigSchema } = await import('../../../src/schemas/systemConfig.schema');
+
+    const update = vi.fn();
+    (SystemConfig.findByPk as any).mockResolvedValue({
+      value: 'admin-value',
+      updatedBy: 'admin-id',
+      update,
+    });
+
+    process.env.APP_NAME = 'TestApp';
+    process.env.RATE_LIMIT = '100';
+    (parseSystemConfigEnvValue as any).mockReturnValue('parsed');
+    (SystemConfigSchema.safeParse as any).mockReturnValue({ success: true, data: {} });
+
+    const { bootstrapSystemConfig } = await import('../../../src/config/bootstrapSystemConfig');
+    await bootstrapSystemConfig();
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('throws when env missing', async () => {
     const { SystemConfig } = await import('../../../src/models/systemConfig');
 
