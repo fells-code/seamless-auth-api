@@ -24,6 +24,9 @@ import {
   verifyOAuthState,
 } from '../services/oauthService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import getLogger from '../utils/logger.js';
+
+const logger = getLogger('oauth');
 
 function allowedReturnTo(value: string | undefined, origins: string[]) {
   if (!value) return undefined;
@@ -152,7 +155,8 @@ export async function finishOAuthLogin(req: Request, res: Response) {
       req,
       res,
     });
-  } catch {
+  } catch (error) {
+    logger.error(`OAuth callback failed for provider ${provider.id}: ${error}`);
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,
