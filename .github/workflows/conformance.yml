@@ -1,0 +1,12 @@
+# Run the cross-repo conformance matrix on PRs, testing this repo's change against
+# the rest of the ecosystem. The reusable workflow lives in seamless-cli.
+name: conformance
+
+on:
+  pull_request:
+
+jobs:
+  verify:
+    uses: fells-code/seamless-cli/.github/workflows/verify-conformance.yml@main
+    with:
+      api-ref: ${{ github.event.pull_request.head.sha }}
