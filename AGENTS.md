@@ -78,6 +78,7 @@ Direct provider wiring currently lives in [src/config/directMessaging.ts](/Users
 - Be careful around token response shapes and bearer auth. Browser-cookie auth mode has been removed.
 - Preserve existing local worktree changes unless the user explicitly asks you to clean them up.
 - Keep comments minimal. Comment only when the code genuinely needs explaining (a non-obvious reason or gotcha); do not narrate what the code plainly does.
+- Do not use em dashes (—) in public-facing text: commit messages, code comments, PR/issue descriptions, changesets, and docs. Use a comma, parentheses, or a separate sentence instead.
 
 ## Before You Finish A Change
 
