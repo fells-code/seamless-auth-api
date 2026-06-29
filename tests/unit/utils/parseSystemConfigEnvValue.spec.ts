@@ -63,6 +63,40 @@ describe('parseSystemConfigEnvValue', () => {
     });
   });
 
+  describe('oauth_providers parsing', () => {
+    it('applies per-provider schema defaults (e.g. subjectJsonPath)', () => {
+      const raw = JSON.stringify([
+        {
+          id: 'mock',
+          name: 'Mock',
+          clientId: 'client',
+          clientSecretEnv: 'MOCK_SECRET',
+          authorizationUrl: 'https://idp.test/authorize',
+          tokenUrl: 'https://idp.test/token',
+          userInfoUrl: 'https://idp.test/userinfo',
+        },
+      ]);
+
+      const result = parseSystemConfigEnvValue('oauth_providers', raw) as Array<
+        Record<string, unknown>
+      >;
+
+      expect(result[0]).toMatchObject({
+        enabled: true,
+        subjectJsonPath: 'sub',
+        emailJsonPath: 'email',
+        emailVerifiedJsonPath: 'email_verified',
+        scopes: [],
+        allowSignup: true,
+        accountLinking: 'email',
+      });
+    });
+
+    it('throws on an invalid provider entry', () => {
+      expect(() => parseSystemConfigEnvValue('oauth_providers', '[{"id":"x"}]')).toThrow();
+    });
+  });
+
   describe('invalid key', () => {
     it('throws for unknown key', () => {
       expect(() => parseSystemConfigEnvValue('invalid_key' as any, 'value')).toThrow(

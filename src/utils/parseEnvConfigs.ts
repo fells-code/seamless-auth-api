@@ -4,7 +4,10 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { z } from 'zod';
+
 import { SYSTEM_CONFIG_ENV_MAP } from '../config/systemConfig.envMap.js';
+import { OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
 
 export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MAP, raw: string) {
   switch (key) {
@@ -18,6 +21,11 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
         .filter(Boolean);
 
     case 'oauth_providers':
+      // Validate through the schema so per-provider defaults (subjectJsonPath,
+      // emailJsonPath, ...) are applied; raw JSON.parse leaves them undefined and
+      // OAuth profile extraction then silently fails.
+      return z.array(OAuthProviderConfigSchema).parse(JSON.parse(raw));
+
     case 'lockout_policy':
       return JSON.parse(raw);
 
