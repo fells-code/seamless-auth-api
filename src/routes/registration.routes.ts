@@ -26,6 +26,7 @@ registrationRouter.post(
   {
     summary: 'Register a new user',
     tags: ['Registration'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: RegistrationRequestSchema,
