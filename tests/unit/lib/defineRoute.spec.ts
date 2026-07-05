@@ -73,6 +73,31 @@ describe('defineRoute', () => {
     );
   });
 
+  it('forwards the deprecated flag to the OpenAPI registration', async () => {
+    const { defineRoute } = await import('../../../src/lib/defineRoute');
+    const { registry } = await import('../../../src/openapi/registry');
+
+    defineRoute(Router(), {
+      method: 'get',
+      path: '/legacy',
+      deprecated: true,
+      schemas: {
+        response: {
+          200: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+      handler: vi.fn(),
+    });
+
+    expect(registry.registerPath).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deprecated: true,
+      }),
+    );
+  });
+
   it('runs auth middleware before custom middleware when auth is declared on the route', async () => {
     const order: string[] = [];
     const { defineRoute } = await import('../../../src/lib/defineRoute');
