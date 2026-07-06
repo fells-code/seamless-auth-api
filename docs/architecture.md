@@ -102,6 +102,15 @@ Route modules use the `schemas` option so request validation, runtime response v
 OpenAPI generation stay aligned. Every route should declare an explicit response schema. Admin/user
 responses are intentionally minimized and should return only fields the route contract names.
 
+## Logging and Redaction
+
+All log output passes through a central redaction step (`src/utils/redaction.ts`) before it is
+written. Log messages are scrubbed for tokens, OTPs, magic-link URLs, bootstrap tokens, emails,
+phone numbers, and known sensitive query parameters; structured metadata is redacted by key name.
+This means route logs and auth events do not leak secrets even when a URL or payload contains them.
+Treat redaction as a hard requirement: new sensitive fields should be added to the redaction
+patterns. See [production-operations.md](./production-operations.md) for the operator-facing detail.
+
 ## Operational Boundaries
 
 This repository contains the auth server only. It does not include billing, hosted tenant lifecycle, managed observability, managed secret storage, or the hosted control plane. Self-hosted deployments can integrate their own infrastructure for those responsibilities.
