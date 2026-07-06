@@ -48,6 +48,7 @@ authRouter.get(
     auth: 'access',
     summary: 'Logout all sessions for the current user (deprecated; use DELETE /logout/all)',
     tags: ['Authentication'],
+    deprecated: true,
 
     schemas: {
       response: {

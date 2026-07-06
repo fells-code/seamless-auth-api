@@ -30,6 +30,7 @@ interface DefineRouteOptions<S extends RouteSchemas> {
   summary?: string;
   description?: string;
   tags?: string[];
+  deprecated?: boolean;
 
   auth?: AuthTokenType | undefined;
 
@@ -121,7 +122,7 @@ export function defineRoute<S extends RouteSchemas>(
   router: Router,
   options: DefineRouteOptions<S>,
 ): void {
-  const { method, path, auth, schemas, summary, description, tags, handler } = options;
+  const { method, path, auth, schemas, summary, description, tags, deprecated, handler } = options;
   const authType = resolveAuthType(auth, options.middleware);
 
   const params = schemas?.params;
@@ -137,6 +138,7 @@ export function defineRoute<S extends RouteSchemas>(
     summary,
     description,
     tags,
+    deprecated,
     security: authType ? [{ [getSecuritySchemeName(authType)]: [] }] : undefined,
     request: {
       params,
