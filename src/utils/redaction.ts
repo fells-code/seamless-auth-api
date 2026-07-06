@@ -17,7 +17,10 @@ const TOKEN_TEXT_PATTERNS: Array<[RegExp, string]> = [
   [/\+[1-9]\d{6,14}\b/g, REDACTED],
   [/\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, `$1${REDACTED}`],
   [/(\/magic-link\/verify\/)[^/?#\s]+/gi, `$1${REDACTED}`],
-  [/([?&](?:token|bootstrapToken|state|code|salt)=)[^&#\s]+/gi, `$1${REDACTED}`],
+  [
+    /([?&](?:token|bootstrapToken|verificationToken|otp|state|code|salt)=)[^&#\s]+/gi,
+    `$1${REDACTED}`,
+  ],
   [
     /\b((?:token|bootstrapToken|verificationToken|identifier|email(?:\s+address)?|phone(?:\s+number)?|state|code|secret|salt)\s*[:=]\s*)[^,&\s}]+/gi,
     `$1${REDACTED}`,
