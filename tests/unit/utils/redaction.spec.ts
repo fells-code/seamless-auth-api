@@ -57,4 +57,10 @@ describe('redaction utilities', () => {
       ),
     ).toBe('phone number: [REDACTED] email address: [REDACTED] identifier: [REDACTED]');
   });
+
+  it('redacts otp and verificationToken query parameters in a URL', () => {
+    expect(
+      redactSensitiveText('Received GET request for /verify?otp=999888&verificationToken=abc123'),
+    ).toBe('Received GET request for /verify?otp=[REDACTED]&verificationToken=[REDACTED]');
+  });
 });
