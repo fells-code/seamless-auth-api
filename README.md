@@ -117,6 +117,9 @@ Copy the `.env.example` to an `.env` file and populate values for your local env
 
 Never commit real secrets. Use `.env.example` for documentation.
 
+For a full reference of every environment variable and `system_config` key (which are required,
+their defaults, and where each takes effect), see [docs/configuration.md](./docs/configuration.md).
+
 For a default local Postgres instance, `.env.example` expects:
 
 ```text
