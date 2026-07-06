@@ -5,27 +5,38 @@
  */
 
 import { SystemConfig as SysConfigModel } from '../models/systemConfig.js';
-import { SystemConfig } from '../schemas/systemConfig.schema.js';
+import { SystemConfig, SystemConfigSchema } from '../schemas/systemConfig.schema.js';
+import getLogger from '../utils/logger.js';
 
-let cachedConfig: { [k: string]: unknown } | null;
+const logger = getLogger('systemConfig');
+
+let cachedConfig: SystemConfig | null = null;
 let lastLoadedAt = 0;
 
-const CACHE_TTL_MS = 300_000; // 30 seconds
+const CACHE_TTL_MS = 300_000; // 5 minutes
 
 export async function getSystemConfig(): Promise<SystemConfig> {
   const now = Date.now();
 
   if (cachedConfig && now - lastLoadedAt < CACHE_TTL_MS) {
-    return cachedConfig as SystemConfig;
+    return cachedConfig;
   }
 
   const rows = await SysConfigModel.findAll();
 
-  cachedConfig = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+  const raw = Object.fromEntries(rows.map((row) => [row.key, row.value]));
 
+  const parsed = SystemConfigSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    logger.error(`Invalid system_config on runtime load: ${parsed.error.message}`);
+    throw new Error('Invalid system_config: runtime configuration failed schema validation');
+  }
+
+  cachedConfig = parsed.data;
   lastLoadedAt = now;
 
-  return cachedConfig as SystemConfig;
+  return cachedConfig;
 }
 
 export function invalidateSystemConfigCache() {

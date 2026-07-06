@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
+
 vi.unmock('../../../src/config/getSystemConfig');
+
+const rowsFrom = (config: Record<string, unknown>) =>
+  Object.entries(config).map(([key, value]) => ({ key, value }));
 
 describe('getSystemConfig', () => {
   beforeEach(() => {
@@ -8,23 +13,34 @@ describe('getSystemConfig', () => {
     vi.clearAllMocks();
   });
 
-  it('fetches config from DB when cache empty', async () => {
+  it('fetches and validates config from DB when cache empty', async () => {
     const { SystemConfig } = await import('../../../src/models/systemConfig');
 
-    (SystemConfig.findAll as any).mockResolvedValue([{ key: 'app_name', value: 'TestApp' }]);
+    (SystemConfig.findAll as any).mockResolvedValue(rowsFrom(buildSystemConfig()));
 
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
 
     const result = await getSystemConfig();
 
     expect(SystemConfig.findAll).toHaveBeenCalled();
-    expect(result).toEqual({ app_name: 'TestApp' });
+    expect(result.app_name).toBe('SeamlessAuth');
+    expect(result.default_roles).toEqual(['user']);
+  });
+
+  it('throws when the stored config fails schema validation', async () => {
+    const { SystemConfig } = await import('../../../src/models/systemConfig');
+
+    (SystemConfig.findAll as any).mockResolvedValue([{ key: 'app_name', value: 'ab' }]);
+
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+
+    await expect(getSystemConfig()).rejects.toThrow(/Invalid system_config/);
   });
 
   it('returns cached config when within TTL', async () => {
     const { SystemConfig } = await import('../../../src/models/systemConfig');
 
-    (SystemConfig.findAll as any).mockResolvedValue([{ key: 'app_name', value: 'TestApp' }]);
+    (SystemConfig.findAll as any).mockResolvedValue(rowsFrom(buildSystemConfig()));
 
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
 
@@ -39,8 +55,8 @@ describe('getSystemConfig', () => {
     const { SystemConfig } = await import('../../../src/models/systemConfig');
 
     (SystemConfig.findAll as any)
-      .mockResolvedValueOnce([{ key: 'app_name', value: 'A' }])
-      .mockResolvedValueOnce([{ key: 'app_name', value: 'B' }]);
+      .mockResolvedValueOnce(rowsFrom(buildSystemConfig({ app_name: 'AppOne' })))
+      .mockResolvedValueOnce(rowsFrom(buildSystemConfig({ app_name: 'AppTwo' })));
 
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
 
@@ -53,7 +69,7 @@ describe('getSystemConfig', () => {
 
     const second = await getSystemConfig();
 
-    expect(second).not.toEqual(first);
+    expect(second.app_name).not.toBe(first.app_name);
     expect(SystemConfig.findAll).toHaveBeenCalledTimes(2);
   });
 
@@ -61,8 +77,8 @@ describe('getSystemConfig', () => {
     const { SystemConfig } = await import('../../../src/models/systemConfig');
 
     (SystemConfig.findAll as any)
-      .mockResolvedValueOnce([{ key: 'app_name', value: 'A' }])
-      .mockResolvedValueOnce([{ key: 'app_name', value: 'B' }]);
+      .mockResolvedValueOnce(rowsFrom(buildSystemConfig({ app_name: 'AppOne' })))
+      .mockResolvedValueOnce(rowsFrom(buildSystemConfig({ app_name: 'AppTwo' })));
 
     const { getSystemConfig, invalidateSystemConfigCache } =
       await import('../../../src/config/getSystemConfig');
@@ -73,7 +89,7 @@ describe('getSystemConfig', () => {
 
     const result = await getSystemConfig();
 
-    expect(result).toEqual({ app_name: 'B' });
+    expect(result.app_name).toBe('AppTwo');
     expect(SystemConfig.findAll).toHaveBeenCalledTimes(2);
   });
 });
