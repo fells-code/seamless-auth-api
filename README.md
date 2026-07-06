@@ -87,7 +87,8 @@ If you want hosted auth with a full control plane and operational support, use t
 - Postgres for persistence
 - Your application integrates via:
   - SeamlessAuth server SDK (recommended)
-  - Direct HTTP APIs (advanced)
+  - Direct HTTP APIs (advanced) - see [docs/direct-http-quickstart.md](./docs/direct-http-quickstart.md)
+    for an end-to-end `curl` login, token, and refresh walkthrough
 
 ## Bearer Token Contract
 

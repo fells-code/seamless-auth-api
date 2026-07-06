@@ -37,6 +37,7 @@ docker-data/
 docs/*
 !docs/admin-operations.md
 !docs/architecture.md
+!docs/direct-http-quickstart.md
 !docs/ecosystem.md
 !docs/oauth.md
 !docs/production-operations.md
