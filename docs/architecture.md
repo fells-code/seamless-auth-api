@@ -11,6 +11,46 @@ Seamless Auth API is an Express and TypeScript authentication service backed by 
 - Models: Sequelize models for users, credentials, sessions, system config, auth events, organizations, TOTP credentials, and OAuth identities.
 - Postgres: source of truth for users, credentials, sessions, config, and audit records.
 
+## Deployment Topology
+
+This API is one component in a small system. It speaks a single Bearer/JSON contract and never
+sets or reads browser cookies. Browser apps do not call it directly in the recommended setup;
+a trusted server adapter sits in between.
+
+```mermaid
+flowchart LR
+  browser["Browser<br/>(@seamless-auth/react)"]
+  adapter["Trusted server adapter<br/>(@seamless-auth/express / core)"]
+  api["This API<br/>(seamless-auth-api)"]
+  db[("Postgres")]
+
+  browser -- "cookies<br/>credentials: include" --> adapter
+  adapter -- "Bearer + service token<br/>JSON, no cookies" --> api
+  adapter -- "JWKS verify<br/>/.well-known/jwks.json" --> api
+  api --> db
+```
+
+**Trusted server adapter.** A server-side component (not the browser) that holds token custody
+and bridges the two auth styles. In the SeamlessAuth ecosystem this is
+`@seamless-auth/express` / `@seamless-auth/core`, but any backend you control can play the role.
+It is "trusted" because it runs in your infrastructure, holds the session cookies
+(`seamless-access`, `seamless-refresh`, `seamless-ephemeral`) on the browser side, and is the
+only party that presents this API's service token. Its responsibilities:
+
+- Terminate the browser's cookie-based session and translate it into an `Authorization: Bearer`
+  header for this API.
+- Attach the service token (`x-seamless-service-token`) and forwarded client IP
+  (`x-seamless-client-ip`) on calls that require them.
+- Verify access-token signatures against this API's JWKS (`/.well-known/jwks.json`, RS256).
+
+Direct browser-to-API integration is possible (see the "Direct HTTP APIs (advanced)" path in the
+README) but unsupported for cookie-based browser sessions, because this API issues tokens only in
+JSON bodies and expects the caller to hold them securely. Keeping token custody in the adapter is
+the recommended path.
+
+For the full dependency and contract-coupling map across sibling repositories, see
+[ecosystem.md](./ecosystem.md).
+
 ## Request Flow
 
 1. Express receives a request and applies global middleware.
