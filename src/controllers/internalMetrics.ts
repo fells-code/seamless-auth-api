@@ -47,7 +47,6 @@ export const getAuthEventSummary = async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Invalid query params' });
   }
 
-  // TODO: need to parse these for valid time ranges
   const { from, to } = parsed.data;
 
   const where: WhereOptions<AuthEventAttributes> =
