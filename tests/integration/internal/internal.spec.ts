@@ -49,7 +49,7 @@ describe('GET /internal/auth-events/summary', () => {
   it('returns 400 for invalid query', async () => {
     const res = await request(app).get('/internal/auth-events/summary?from=bad');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
   });
 });
 
