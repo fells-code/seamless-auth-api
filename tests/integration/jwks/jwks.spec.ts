@@ -48,30 +48,6 @@ afterAll(() => {
   vi.unstubAllEnvs();
 });
 
-describe('JWKS - Development Mode', () => {
-  it.skip('returns dev jwks', async () => {
-    vi.stubEnv('NODE_ENV', 'development');
-
-    const { readFileSync } = await import('fs');
-    const { importSPKI, exportJWK } = await import('jose');
-
-    (readFileSync as any).mockReturnValue('fake-public-key');
-
-    (importSPKI as any).mockResolvedValue('key');
-    (exportJWK as any).mockResolvedValue({
-      kty: 'RSA',
-      n: 'abc',
-      e: 'AQAB',
-    });
-
-    const res = await request(app).get('/.well-known/jwks.json');
-
-    expect(res.status).toBe(200);
-    expect(res.body.keys).toHaveLength(1);
-    expect(res.body.keys[0].kid).toBe('dev-main');
-  });
-});
-
 describe('JWKS - Production Mode', () => {
   it('returns jwks from secrets', async () => {
     vi.stubEnv('NODE_ENV', 'production');

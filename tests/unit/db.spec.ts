@@ -1,18 +1,17 @@
 import { vi } from 'vitest';
-vi.unmock('../src/utils/logger');
+vi.unmock('../../src/utils/logger');
 const loggerMock = {
   info: vi.fn(),
   error: vi.fn(),
 };
 
-vi.mock('../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   default: () => loggerMock,
 }));
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-//TODO: broken tests
-describe.skip('connectToDb', () => {
+describe('connectToDb', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
