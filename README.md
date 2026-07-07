@@ -464,6 +464,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 - [AGENTS.md](./AGENTS.md) for a fast codebase briefing aimed at coding agents and maintainers
 - [docs/architecture.md](./docs/architecture.md) for runtime structure and request flow
+- [docs/configuration.md](./docs/configuration.md) for the full env var and `system_config` reference
+- [docs/api-contract.md](./docs/api-contract.md) for tokens, per-flow status codes, and terminology
+- [docs/direct-http-quickstart.md](./docs/direct-http-quickstart.md) for a curl login/token/refresh walkthrough
+- [docs/extending.md](./docs/extending.md) for message-delivery providers and extension points
 - [docs/oauth.md](./docs/oauth.md) for OAuth provider setup and security behavior
 - [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
 - [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin and recovery operations
