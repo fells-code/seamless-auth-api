@@ -36,10 +36,12 @@ docker-data/
 .eslintcache
 docs/*
 !docs/admin-operations.md
+!docs/api-contract.md
 !docs/architecture.md
 !docs/direct-http-quickstart.md
 !docs/configuration.md
 !docs/ecosystem.md
+!docs/extending.md
 !docs/oauth.md
 !docs/production-operations.md
 !docs/webauthn-prf.md

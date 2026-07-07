@@ -80,6 +80,52 @@ curl http://localhost:5312/health/status
 
 ---
 
+## Configuration
+
+For a full reference of every environment variable and `system_config` key (which are
+required, their defaults, and where each takes effect), see
+[docs/configuration.md](./docs/configuration.md).
+
+## Testing
+
+The test suite runs on a mock database by default, so **no Postgres is required** for most work.
+
+```bash
+npm run test:run        # run the whole suite once (mock DB)
+npm run coverage        # run with coverage thresholds
+```
+
+Run a single file or a directory while iterating:
+
+```bash
+npx vitest run tests/integration/otp/otp.spec.ts     # one file
+npx vitest run tests/unit/utils                       # a directory
+npx vitest tests/unit/utils/redaction.spec.ts         # watch mode
+```
+
+Only a few tests exercise real database behavior. To run those against a running Postgres:
+
+```bash
+TEST_DB=postgres npm run test:run
+```
+
+### Writing a test
+
+Use the shared factories in [`tests/factories/`](./tests/factories) to build valid domain
+objects instead of hand-rolling fixtures. For example:
+
+```ts
+import { buildUser } from '../../factories/userFactory.js';
+import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
+
+const user = buildUser({ phone: null });
+const config = buildSystemConfig({ login_methods: ['passkey'] });
+```
+
+Integration tests build the app with `createApp()` and drive it with `supertest`; see the
+existing specs under `tests/integration/` for the pattern. Rate limiters and messaging are
+mocked in `tests/setup/mocks.ts`, so you do not need to work around them.
+
 ## Expectations
 
 When submitting a pull request:
@@ -90,6 +136,21 @@ When submitting a pull request:
 - Run lint and tests before submitting
 
 This ensures changes remain aligned with real authentication flows and infrastructure behavior.
+
+### What a good PR includes
+
+- **Scoped** to one change; unrelated cleanups go in their own PR.
+- **Schemas + tests for new or changed routes.** Use the `schemas` option in the route
+  definition (request + response) so validation and OpenAPI stay aligned, and add a test under
+  `tests/`.
+- **A changeset** for user-facing changes (`npm run changeset`). Do not hand-edit `CHANGELOG.md`
+  or the version in `package.json`.
+- **The AGPL license header** on every new `src/**/*.ts` file (eslint enforces this).
+- **Conventional Commit** messages (see below); commitlint enforces this on commit.
+- **Green checks**: `npm run typecheck`, `npm run lint`, and the test suite. The pre-commit hook
+  runs these for you.
+- For **contract changes** (routes, response/request schemas, token fields, status codes),
+  call out the downstream impact on the SDKs in the PR description.
 
 ## Commit Conventions
 
