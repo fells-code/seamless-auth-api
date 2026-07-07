@@ -4,7 +4,6 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { compareSync } from 'bcrypt-ts';
 import { importSPKI, jwtVerify } from 'jose';
 import { Op } from 'sequelize';
 
@@ -116,60 +115,20 @@ export async function validateAccessToken(token: string): Promise<ValidatedAcces
   };
 }
 
-export interface RefreshSessionLookupResult {
-  session: Session | null;
-  legacyFallbackCandidates: number;
-  usedLegacyFallback: boolean;
-}
-
 export async function findRefreshSessionByToken(
   refreshToken: string,
   now = new Date(),
-): Promise<RefreshSessionLookupResult> {
-  const activeWhere = {
-    revokedAt: null,
-    expiresAt: { [Op.gt]: now },
-    idleExpiresAt: { [Op.gt]: now },
-  };
-
+): Promise<Session | null> {
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
-  const session = await Session.findOne({
+
+  return Session.findOne({
     where: {
-      ...activeWhere,
+      revokedAt: null,
+      expiresAt: { [Op.gt]: now },
+      idleExpiresAt: { [Op.gt]: now },
       refreshTokenLookup,
     },
   });
-
-  if (session) {
-    return {
-      session,
-      legacyFallbackCandidates: 0,
-      usedLegacyFallback: false,
-    };
-  }
-
-  const legacySessions = await Session.findAll({
-    where: {
-      ...activeWhere,
-      refreshTokenLookup: null,
-    },
-  });
-
-  for (const legacySession of legacySessions) {
-    if (compareSync(refreshToken, legacySession.refreshTokenHash)) {
-      return {
-        session: legacySession,
-        legacyFallbackCandidates: legacySessions.length,
-        usedLegacyFallback: true,
-      };
-    }
-  }
-
-  return {
-    session: null,
-    legacyFallbackCandidates: legacySessions.length,
-    usedLegacyFallback: legacySessions.length > 0,
-  };
 }
 
 export async function validateSessionRecord(sessionId: string) {
