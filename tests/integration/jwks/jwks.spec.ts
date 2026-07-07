@@ -49,6 +49,11 @@ afterAll(() => {
 });
 
 describe('JWKS - Development Mode', () => {
+  // Skipped: the dev branch of jwksHandler reads ./keys/dev/public.pem from disk, which exists in
+  // a local dev checkout but not in CI (keys/ is gitignored). The fs/jose mocks configured here do
+  // not reliably reach the handler because the app is built once in beforeAll, before the per-test
+  // resetModules/env stubbing. Re-enabling this needs the harness to build the app per test (or the
+  // dev branch to be exercised without real key material). See #14.
   it.skip('returns dev jwks', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
