@@ -126,11 +126,7 @@ describe('E2E Auth Flow', () => {
 
     (validateAccessToken as any).mockResolvedValue(null);
     (validateBearerToken as any).mockResolvedValue(null);
-    (findRefreshSessionByToken as any).mockResolvedValue({
-      session: buildSession(),
-      legacyFallbackCandidates: 0,
-      usedLegacyFallback: false,
-    });
+    (findRefreshSessionByToken as any).mockResolvedValue(buildSession());
 
     (User.findByPk as any).mockResolvedValue({
       id: 'user-1',

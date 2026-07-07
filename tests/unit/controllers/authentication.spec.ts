@@ -85,11 +85,7 @@ describe('refreshSession', () => {
       await loadAuthenticationModule();
     const { req, res } = mockReqRes('Bearer raw-refresh-token');
 
-    (findRefreshSessionByToken as any).mockResolvedValue({
-      session: null,
-      legacyFallbackCandidates: 2,
-      usedLegacyFallback: true,
-    });
+    (findRefreshSessionByToken as any).mockResolvedValue(null);
     (AuthEventService.refreshTokenFailed as any).mockResolvedValue(undefined);
 
     await refreshSession(req, res);
@@ -99,7 +95,6 @@ describe('refreshSession', () => {
       req,
       expect.objectContaining({
         reason: 'No refresh session found for refresh token',
-        legacyFallbackCandidates: 2,
         tokenFormat: 'opaque',
       }),
     );
@@ -133,11 +128,7 @@ describe('refreshSession', () => {
       save: vi.fn(),
     };
 
-    (findRefreshSessionByToken as any).mockResolvedValue({
-      session,
-      legacyFallbackCandidates: 0,
-      usedLegacyFallback: false,
-    });
+    (findRefreshSessionByToken as any).mockResolvedValue(session);
     (User.findByPk as any).mockResolvedValue(user);
     (generateRefreshToken as any).mockReturnValue('new-raw-refresh-token');
     (hashRefreshToken as any).mockResolvedValue('new-refresh-hash');

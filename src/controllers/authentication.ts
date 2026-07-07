@@ -284,16 +284,13 @@ export const refreshSession = async (req: Request, res: Response) => {
   }
 
   const now = new Date();
-  const { session, legacyFallbackCandidates, usedLegacyFallback } = await findRefreshSessionByToken(
-    refreshToken,
-    now,
-  );
+  const session = await findRefreshSessionByToken(refreshToken, now);
 
   if (!session) {
     const looksLikeJwt = refreshToken.split('.').length === 3;
 
     logger.warn(
-      `No refresh session found for refresh token. legacyFallbackCandidates=${legacyFallbackCandidates} tokenFormat=${looksLikeJwt ? 'jwt_like' : 'opaque'}`,
+      `No refresh session found for refresh token. tokenFormat=${looksLikeJwt ? 'jwt_like' : 'opaque'}`,
     );
 
     if (looksLikeJwt) {
@@ -304,16 +301,9 @@ export const refreshSession = async (req: Request, res: Response) => {
 
     await AuthEventService.refreshTokenFailed(req, {
       reason: 'No refresh session found for refresh token',
-      legacyFallbackCandidates,
       tokenFormat: looksLikeJwt ? 'jwt_like' : 'opaque',
     });
     return res.status(401).json({ error: 'invalid_refresh_token' });
-  }
-
-  if (usedLegacyFallback) {
-    logger.info(
-      `Refresh token matched a legacy session without refreshTokenLookup. sessionId=${session.id} fallbackCandidates=${legacyFallbackCandidates}`,
-    );
   }
 
   // Reuse detection: if this session was already rotated, it means we’ve seen this token before
