@@ -1,5 +1,38 @@
 # seamless-auth-api
 
+## 0.2.3
+
+### Patch Changes
+
+- 0201af6: Mark `GET /logout` as deprecated in the generated OpenAPI document.
+
+  `defineRoute` now supports a `deprecated` flag that is forwarded to the OpenAPI
+  operation. The legacy `GET /logout` route sets it, so consumers and generated
+  clients can detect the deprecation and migrate to `DELETE /logout/all`. Runtime
+  behavior is unchanged.
+
+- 7d89315: Remove the legacy refresh-token fallback scan.
+
+  Refresh-token lookup now resolves sessions solely by their indexed `refreshTokenLookup`
+  fingerprint. The compatibility path that scanned all pre-fingerprint sessions and
+  bcrypt-compared each hash on a lookup miss has been removed, along with its per-request
+  `Session.findAll` scan. Sessions created before the `refreshTokenLookup` migration are no
+  longer refreshable and must re-authenticate; such sessions are long past the refresh-token
+  TTL, so no active sessions are affected.
+
+- a236888: Rate limit the `POST /registration/register` endpoint.
+
+  Registration now applies the same per-IP and per-identity limiters already used by
+  the OTP and phone-registration routes. This closes an unthrottled path that allowed
+  registration/OTP spam and account enumeration against the endpoint.
+
+- ac309bb: Validate `system_config` on the runtime read path.
+
+  `getSystemConfig()` now parses stored configuration against `SystemConfigSchema` on load
+  instead of trusting the database rows with a cast. Invalid configuration fails loudly (the
+  call throws and the error is logged) rather than flowing malformed values into auth logic.
+  Also corrects the cache TTL comment (the value is 5 minutes, not 30 seconds).
+
 ## 0.2.2
 
 ### Patch Changes
