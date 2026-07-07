@@ -204,11 +204,7 @@ describe('POST /refresh', () => {
   });
 
   it('rejects invalid session', async () => {
-    (findRefreshSessionByToken as any).mockResolvedValue({
-      session: null,
-      legacyFallbackCandidates: 0,
-      usedLegacyFallback: false,
-    });
+    (findRefreshSessionByToken as any).mockResolvedValue(null);
 
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
@@ -228,11 +224,7 @@ describe('POST /refresh', () => {
       save: vi.fn(),
     };
 
-    (findRefreshSessionByToken as any).mockResolvedValue({
-      session,
-      legacyFallbackCandidates: 0,
-      usedLegacyFallback: false,
-    });
+    (findRefreshSessionByToken as any).mockResolvedValue(session);
 
     (User.findByPk as any).mockResolvedValue(buildUser());
 

@@ -175,7 +175,7 @@ describe('sessionService', () => {
     expect(result).toBe(session);
   });
 
-  it('finds refresh sessions by indexed lookup before falling back to bcrypt comparison', async () => {
+  it('finds a refresh session by its indexed lookup fingerprint', async () => {
     const { Session } = await import('../../../src/models/sessions');
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
 
@@ -195,63 +195,21 @@ describe('sessionService', () => {
         }),
       }),
     );
-    expect(result).toEqual({
-      session,
-      legacyFallbackCandidates: 0,
-      usedLegacyFallback: false,
-    });
+    expect(result).toBe(session);
   });
 
-  it('falls back to legacy refresh-token hashes for sessions without lookup fingerprints', async () => {
+  it('returns null when no session matches the lookup fingerprint', async () => {
     const { Session } = await import('../../../src/models/sessions');
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
-    const { compareSync } = await import('bcrypt-ts');
-
-    const legacySession = buildSession({ refreshTokenHash: 'legacy-hash' });
 
     (createRefreshTokenLookup as any).mockReturnValue('lookup');
     (Session.findOne as any).mockResolvedValue(null);
-    (Session.findAll as any).mockResolvedValue([legacySession]);
-    (compareSync as any).mockReturnValue(true);
 
     const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
 
     const result = await findRefreshSessionByToken('refresh-token');
 
-    expect(Session.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          refreshTokenLookup: null,
-        }),
-      }),
-    );
-    expect(compareSync).toHaveBeenCalledWith('refresh-token', 'legacy-hash');
-    expect(result).toEqual({
-      session: legacySession,
-      legacyFallbackCandidates: 1,
-      usedLegacyFallback: true,
-    });
-  });
-
-  it('returns a legacy fallback miss when no legacy session hash matches', async () => {
-    const { Session } = await import('../../../src/models/sessions');
-    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
-    const { compareSync } = await import('bcrypt-ts');
-
-    (createRefreshTokenLookup as any).mockReturnValue('lookup');
-    (Session.findOne as any).mockResolvedValue(null);
-    (Session.findAll as any).mockResolvedValue([buildSession({ refreshTokenHash: 'legacy-hash' })]);
-    (compareSync as any).mockReturnValue(false);
-
-    const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
-
-    const result = await findRefreshSessionByToken('refresh-token');
-
-    expect(result).toEqual({
-      session: null,
-      legacyFallbackCandidates: 1,
-      usedLegacyFallback: true,
-    });
+    expect(result).toBeNull();
   });
 
   it('revokes replaced sessions during validateSessionRecord', async () => {
