@@ -323,7 +323,6 @@ export const getUserAnomalies = async (req: Request, res: Response) => {
   }
 };
 
-// TODO: Need a public session return type for sessions
 export const listUserSessions = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
