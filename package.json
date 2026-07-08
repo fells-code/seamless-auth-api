@@ -4,6 +4,9 @@
   "description": "Seamless Auth API - A web application server for supporting a Seamless Auth server instance.",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",
     "start": "node dist/server.js",
