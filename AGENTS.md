@@ -4,6 +4,51 @@ This repository is an Express + TypeScript authentication service for passwordle
 
 Use this file as the fast path. For the deeper architecture walkthrough, see [docs/architecture.md](/Users/brandoncorbett/git/seamless-auth-api/docs/architecture.md).
 
+## Working Standards (fells-code baseline)
+
+These rules apply to every repository in the fells-code org. Repo-specific
+guidance may extend them but must not contradict them.
+
+### Attribution
+
+- Commit and open PRs solely under the repository owner's identity. Never
+  commit under an agent or assistant identity.
+- Never attribute work to an AI assistant: no `Co-Authored-By: Claude` (or any
+  assistant) trailers, no "Generated with" / "Created with Claude" notes, and no
+  assistant branding or emoji anywhere in commit messages, PR or issue titles
+  and descriptions, changesets, code comments, or docs.
+
+### Comments
+
+- Comment only when the code genuinely needs explaining: a non-obvious reason, a
+  gotcha, or an invariant. Never narrate what the code plainly does.
+
+### TODOs
+
+- Every `TODO`/`FIXME` must reference a ticket, e.g. `// TODO(#123): ...`.
+  Do not leave a bare TODO. If no ticket exists, create one first.
+
+### Commits & branches
+
+- Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`, `test:`).
+- Descriptive branch names (`feat/...`, `fix/...`); never a `claude/` or other
+  tool-generated prefix.
+
+### Public-facing text
+
+- No em dashes in commit messages, code comments, PR or issue text, changesets,
+  or docs. Use a comma, parentheses, or a separate sentence.
+
+### Before declaring work done
+
+- All code quality checks must pass before you open a PR or call the work done:
+  tests, linting, type checks, and formatting. Run them and report the real
+  output; do not open a PR while any check is failing.
+- Typical commands: `npm run typecheck`, `npm run lint`, `npm run format:check`
+  (or `npm run format`), and `npm test`. Never claim a change works without
+  running them.
+- Match the surrounding code's style, naming, and comment density.
+
 ## Start Here
 
 - Install dependencies: `npm install`
@@ -77,8 +122,7 @@ Direct provider wiring currently lives in [src/config/directMessaging.ts](/Users
 - If a route also needs admin checks or rate limiting, combine `auth` with extra `middleware`.
 - Be careful around token response shapes and bearer auth. Browser-cookie auth mode has been removed.
 - Preserve existing local worktree changes unless the user explicitly asks you to clean them up.
-- Keep comments minimal. Comment only when the code genuinely needs explaining (a non-obvious reason or gotcha); do not narrate what the code plainly does.
-- Do not use em dashes (—) in public-facing text: commit messages, code comments, PR/issue descriptions, changesets, and docs. Use a comma, parentheses, or a separate sentence instead.
+- Comment, attribution, TODO, and public-facing-text rules live in Working Standards above.
 
 ## Before You Finish A Change
 
