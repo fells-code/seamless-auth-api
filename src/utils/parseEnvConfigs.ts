@@ -21,9 +21,6 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
         .filter(Boolean);
 
     case 'oauth_providers':
-      // Validate through the schema so per-provider defaults (subjectJsonPath,
-      // emailJsonPath, ...) are applied; raw JSON.parse leaves them undefined and
-      // OAuth profile extraction then silently fails.
       return z.array(OAuthProviderConfigSchema).parse(JSON.parse(raw));
 
     case 'lockout_policy':
@@ -40,6 +37,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     case 'refresh_token_ttl':
     case 'rpid':
     case 'app_name':
+    case 'frontend_url':
       return raw;
 
     default:
