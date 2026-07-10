@@ -77,6 +77,10 @@ export const SystemConfigSchema = z.object({
 
   rpid: z.string().min(1),
   origins: z.array(z.url()).min(1),
+
+  // Base URL of the user-facing frontend, used to build links emailed to users
+  // (e.g. magic links). Falls back to origins[0] when unset.
+  frontend_url: z.url().optional(),
 });
 
 export type SystemConfig = z.infer<typeof SystemConfigSchema>;
