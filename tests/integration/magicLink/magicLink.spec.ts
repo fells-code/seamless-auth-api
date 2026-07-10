@@ -99,6 +99,30 @@ describe('GET /magic-link', () => {
     expect(res.body.delivery.magicLinkUrl).toContain(res.body.delivery.token);
   });
 
+  it('builds the magic link from frontend_url when set, regardless of origins order', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      available_roles: ['user', 'admin'],
+      default_roles: ['user'],
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      origins: ['http://localhost:3000', 'http://localhost:5001'],
+      frontend_url: 'http://localhost:5001',
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+    });
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+
+    const res = await request(app)
+      .get('/magic-link')
+      .set('x-seamless-auth-delivery-mode', 'external');
+
+    expect(res.status).toBe(200);
+    expect(res.body.delivery.magicLinkUrl).toContain(
+      'http://localhost:5001/verify-magiclink?token=',
+    );
+  });
+
   it('returns an error when direct magic-link delivery fails', async () => {
     (MagicLinkToken.update as any).mockResolvedValue([1]);
     (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
