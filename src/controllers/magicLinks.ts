@@ -73,7 +73,8 @@ export async function requestMagicLink(req: Request, res: Response) {
   const tokenHash = hashSha256(rawToken);
 
   const config = await getSystemConfig();
-  const redirect_url = `${config.origins[0]}/verify-magiclink?token=${rawToken}`;
+  const frontendUrl = config.frontend_url ?? config.origins[0];
+  const redirect_url = `${frontendUrl}/verify-magiclink?token=${rawToken}`;
 
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 

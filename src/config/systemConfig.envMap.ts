@@ -17,5 +17,6 @@ export const SYSTEM_CONFIG_ENV_MAP = {
   delay_after: 'DELAY_AFTER',
   rpid: 'RPID',
   origins: 'ORIGINS',
+  frontend_url: 'FRONTEND_URL',
   app_name: 'APP_NAME',
 } as const;
