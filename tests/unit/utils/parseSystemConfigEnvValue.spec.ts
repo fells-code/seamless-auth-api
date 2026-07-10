@@ -54,6 +54,12 @@ describe('parseSystemConfigEnvValue', () => {
 
       expect(result).toBe('SeamlessAuth');
     });
+
+    it('returns frontend_url as a single string, not an array', () => {
+      const result = parseSystemConfigEnvValue('frontend_url', 'http://localhost:5173');
+
+      expect(result).toBe('http://localhost:5173');
+    });
   });
 
   describe('boolean parsing', () => {
