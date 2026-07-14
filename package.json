@@ -100,5 +100,11 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.0",
     "vitest": "^4.0.3"
+  },
+  "allowScripts": {
+    "@scarf/scarf@1.4.0": true,
+    "esbuild@0.27.4": true,
+    "fsevents@2.3.3": true,
+    "sqlite3@6.0.1": true
   }
 }
