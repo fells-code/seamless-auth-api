@@ -122,7 +122,7 @@ describe('OAuth routes', () => {
     const user = buildUser({
       id: 'user-1',
       email: 'person@example.com',
-      phone: 'oauth:google:provider-user',
+      phone: null,
       roles: ['user'],
     });
     const fetchMock = vi.fn();

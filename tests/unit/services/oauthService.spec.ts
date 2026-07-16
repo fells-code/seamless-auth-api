@@ -243,6 +243,32 @@ describe('oauthService', () => {
     );
   });
 
+  it('creates a new user with a null phone when no existing account matches', async () => {
+    const created = buildUser({ id: 'user-2', email: 'new@example.com', phone: null });
+
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockResolvedValue(created);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+
+    await expect(
+      resolveOAuthUser(provider, {
+        subject: 'provider-user',
+        email: 'new@example.com',
+        emailVerified: true,
+        name: 'New Person',
+        raw: {},
+      }),
+    ).resolves.toBe(created);
+
+    expect(User.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'new@example.com',
+        phone: null,
+      }),
+    );
+  });
+
   it('does not link an OAuth profile to an existing user when account linking is disabled', async () => {
     const user = buildUser({ id: 'user-1', email: 'person@example.com' });
 
