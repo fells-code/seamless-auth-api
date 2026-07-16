@@ -435,7 +435,7 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
 
     user = await User.create({
       email: profile.email,
-      phone: `oauth:${provider.id}:${profile.subject}`.slice(0, 255),
+      phone: null,
       roles: config.default_roles ?? [],
       verified: true,
       emailVerified: profile.emailVerified ?? true,
