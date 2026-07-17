@@ -1,5 +1,11 @@
 # seamless-auth-api
 
+## 0.2.7
+
+### Patch Changes
+
+- 7b33abc: Fix OAuth signup writing a synthetic `oauth:<provider>:<subject>` string into the user's phone field. New OAuth users now have a null phone since the provider supplies no phone number.
+
 ## 0.2.6
 
 ### Patch Changes

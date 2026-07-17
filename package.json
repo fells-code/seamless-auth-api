@@ -1,6 +1,6 @@
 {
   "name": "seamless-auth-api",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Seamless Auth API - A web application server for supporting a Seamless Auth server instance.",
   "main": "index.js",
   "type": "module",
