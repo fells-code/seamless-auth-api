@@ -81,10 +81,10 @@ This API also **consumes** `@seamless-auth/types` (shared Zod schemas) and
 token claims), `seamless-auth-react` (client SDK — ~38 hardcoded routes, parses `message`/user
 shape), `seamless-auth-types` (shared schemas — bidirectional), `seamless-messaging` (adapter
 contract — bidirectional).
-**Downstream (Tier 2):** `seamless-auth-admin-dashboard`, `seamless-auth-starter-express`,
-`seamless-auth-starter-react`, `seamless-auth-internal-api`, `seamless-auth-docs`, `seamless-cli`.
+**Downstream (Tier 2):** `seamless-auth-admin-dashboard`, `seamless-templates`,
+`seamless-auth-internal-api`, `seamless-auth-docs`, `seamless-cli`.
 
-All ten are granted in `.claude/settings.local.json` so I can read/edit them.
+All nine are granted in `.claude/settings.local.json` so I can read/edit them.
 
 ### Ripple protocol — when a change here touches the contract
 
