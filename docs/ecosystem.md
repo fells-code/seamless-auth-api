@@ -96,14 +96,13 @@ Provider-agnostic email/SMS adapter contract. **Reverse coupling.**
 
 ## Tier 2 — downstream consumers (transitively affected)
 
-| Repo                               | What it is                      | Coupling                                                                                         |
-| ---------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `seamless-auth-admin-dashboard`    | Admin UI                        | `@seamless-auth/react` + `@seamless-auth/types`; consumes `/admin/*` + `/internal/*` via the SDK |
-| `seamless-auth-starter-express`    | Express starter/demo            | `@seamless-auth/express` — breaks only if the server adapter's public API changes                |
-| `seamless-auth-starter-react`      | React starter/demo              | `@seamless-auth/react` — same, via the client SDK                                                |
-| `seamless-auth-internal-api`       | Internal/enterprise API variant | Tracks this codebase closely; likely needs parallel changes for shared logic                     |
-| `seamless-auth-docs`               | Public docs                     | Documents the HTTP contract — update when routes/schemas change                                  |
-| `seamless-cli` (`create-seamless`) | Scaffolding CLI                 | Generates projects wired to the SDKs                                                             |
+| Repo                               | What it is                                                | Coupling                                                                                         |
+| ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `seamless-auth-admin-dashboard`    | Admin UI                                                  | `@seamless-auth/react` + `@seamless-auth/types`; consumes `/admin/*` + `/internal/*` via the SDK |
+| `seamless-templates`               | Express + React starter templates (scaffolded by the CLI) | `@seamless-auth/express` and `@seamless-auth/react`; break only if those SDK public APIs change  |
+| `seamless-auth-internal-api`       | Internal/enterprise API variant                           | Tracks this codebase closely; likely needs parallel changes for shared logic                     |
+| `seamless-auth-docs`               | Public docs                                               | Documents the HTTP contract — update when routes/schemas change                                  |
+| `seamless-cli` (`create-seamless`) | Scaffolding CLI                                           | Generates projects wired to the SDKs                                                             |
 
 ## High-risk contract surfaces (change = survey downstream)
 
