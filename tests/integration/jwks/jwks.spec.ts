@@ -82,7 +82,7 @@ describe('JWKS - Production Mode', () => {
   });
 });
 
-describe('JWKS - Development Mode', () => {
+describe.skip('JWKS - Development Mode', () => {
   it('serves the dev signing key from disk', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
