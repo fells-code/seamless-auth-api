@@ -106,6 +106,17 @@ describe('OAuth routes', () => {
     expect(res.body.authorizationUrl).toContain('code_challenge_method=S256');
   });
 
+  it('ignores a returnTo that does not match an allowed origin', async () => {
+    const res = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+      returnTo: 'https://unrelated.example.com/landing',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.state).toMatch(/\./);
+    expect(res.body.authorizationUrl).not.toContain('unrelated.example.com');
+  });
+
   it('rejects redirect URI prefix lookalikes', async () => {
     const res = await request(app).post('/oauth/google/start').send({
       redirectUri: 'http://localhost:5174.evil.test/oauth/callback',
@@ -193,6 +204,78 @@ describe('OAuth routes', () => {
     expect(replay.status).toBe(400);
     expect(replay.body.error).toBe('Invalid OAuth state');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs and returns 400 when the login start fails', async () => {
+    const res = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'https://evil.example.com/oauth/callback',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('OAuth start failed');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'start_failed' },
+      }),
+    );
+  });
+
+  it('returns 404 when the callback provider is unknown', async () => {
+    const res = await request(app).post('/oauth/unknown/callback').send({
+      code: 'oauth-code',
+      state: 'some-state',
+    });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('OAuth provider not found');
+  });
+
+  it('returns 403 when signup is disabled and no user matches', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({
+        login_methods: ['passkey', 'oauth'],
+        oauth_providers: [{ ...provider, allowSignup: false }],
+      }),
+    );
+
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'provider-token' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: 'provider-user',
+          email: 'nouser@example.com',
+          email_verified: true,
+        }),
+      });
+
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (User.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app).post('/oauth/google/callback').send({
+      code: 'oauth-code',
+      state: start.body.state,
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('OAuth signup is disabled');
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'signup_disabled' },
+      }),
+    );
   });
 
   it('fails closed when OAuth callback secrets are missing', async () => {

@@ -103,4 +103,93 @@ describe('api response serializers', () => {
     expect(session).not.toHaveProperty('refreshTokenLookup');
     expect(session).not.toHaveProperty('idleExpiresAt');
   });
+
+  it('reads fields from Sequelize-style get({ plain: true }) instances', () => {
+    const model = {
+      get: ({ plain }: { plain: boolean }) =>
+        plain ? { id: 'model-1', email: 'm@example.com', roles: ['user'] } : undefined,
+    };
+
+    expect(serializeApiUser(model)).toEqual(
+      expect.objectContaining({
+        id: 'model-1',
+        email: 'm@example.com',
+        phone: null,
+        roles: ['user'],
+      }),
+    );
+  });
+
+  it('ignores get() results that are not plain records', () => {
+    const model = { get: () => 'not-a-record' };
+
+    expect(serializeApiUser(model)).toEqual(expect.objectContaining({ id: '', email: '' }));
+  });
+
+  it('coerces non-string scalar user fields', () => {
+    const user = serializeApiUser({ id: 123, email: 'a@example.com', phone: 4155551234 });
+
+    expect(user.id).toBe('123');
+    expect(user.phone).toBe('4155551234');
+  });
+
+  it('returns undefined for non-record sources', () => {
+    const user = serializeApiUser('not-an-object' as unknown);
+
+    expect(user).toEqual({ id: '', email: '', phone: null, roles: [] });
+  });
+
+  it('parses numeric strings and falls back for non-numeric counters', () => {
+    expect(serializeCredential({ counter: '42' }).counter).toBe(42);
+    expect(serializeCredential({ counter: 'not-a-number' }).counter).toBe(0);
+    expect(serializeCredential({ counter: Number.NaN }).counter).toBe(0);
+  });
+
+  it('normalizes assorted date field shapes', () => {
+    const numericDate = serializeCredential({
+      lastUsedAt: null,
+      createdAt: Date.parse('2026-03-01T00:00:00.000Z'),
+    });
+    expect(numericDate.lastUsedAt).toBeNull();
+    expect(numericDate.createdAt).toBe('2026-03-01T00:00:00.000Z');
+
+    const stringDate = serializeCredential({ createdAt: '2026-03-02T00:00:00.000Z' });
+    expect(stringDate.createdAt).toBe('2026-03-02T00:00:00.000Z');
+
+    const invalidNumber = serializeCredential({ createdAt: Number.NaN });
+    expect(invalidNumber).not.toHaveProperty('createdAt');
+
+    const invalidType = serializeCredential({ createdAt: true });
+    expect(invalidType).not.toHaveProperty('createdAt');
+  });
+
+  it('filters webauthn transports and device type to known values', () => {
+    const credential = serializeCredential({
+      id: 'credential-2',
+      transports: ['usb', 'ble', 'bogus', 'nfc', 'internal'],
+      deviceType: 'multiDevice',
+    });
+
+    expect(credential.transports).toEqual(['usb', 'ble', 'nfc', 'internal']);
+    expect(credential.deviceType).toBe('multiDevice');
+  });
+
+  it('coerces a non-array transports value to an empty list', () => {
+    const credential = serializeCredential({ id: 'credential-3', transports: 'usb' });
+
+    expect(credential.transports).toEqual([]);
+  });
+
+  it('omits transports and device type when absent or unknown', () => {
+    const credential = serializeCredential({ id: 'credential-4', deviceType: 'unknown' });
+
+    expect(credential).not.toHaveProperty('transports');
+    expect(credential).not.toHaveProperty('deviceType');
+  });
+
+  it('marks sessions as not current when no current session id is provided', () => {
+    const session = serializeSession({ id: 'session-2' });
+
+    expect(session.current).toBe(false);
+  });
 });

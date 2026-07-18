@@ -9,6 +9,29 @@ import { buildCredential } from '../../factories/credentialFactory.js';
 
 let app: Application;
 
+vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../src/middleware/attachAuthMiddleware.js')>();
+
+  return {
+    ...actual,
+    attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
+      if (req.headers['x-omit-user'] !== 'true') {
+        req.user = {
+          id: 'user-1',
+          email: 'test@example.com',
+          phone: '+14155552671',
+          roles: ['user'],
+          lastLogin: null,
+        };
+      }
+
+      req.sessionId = 'session-1';
+      next();
+    },
+  };
+});
+
 beforeAll(async () => {
   app = await createApp();
 });
@@ -140,5 +163,77 @@ describe('DELETE /users/credentials', () => {
     const res = await request(app).delete('/users/credentials').send({ id: 'bad' });
 
     expect(res.status).toBe(404);
+  });
+
+  it('returns 500 when destroy fails', async () => {
+    const cred = buildCredential();
+    (cred.destroy as any).mockRejectedValue(new Error('boom'));
+    (Credential.findOne as any).mockResolvedValue(cred);
+    (Credential.count as any).mockResolvedValue(2);
+
+    const res = await request(app).delete('/users/credentials').send({ id: 'cred-1' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to delete credential');
+  });
+
+  it('returns 401 when unauthenticated', async () => {
+    const res = await request(app)
+      .delete('/users/credentials')
+      .set('x-omit-user', 'true')
+      .send({ id: 'cred-1' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('Unauthorized');
+  });
+});
+
+describe('POST /users/credentials (additional branches)', () => {
+  it('keeps the existing friendlyName when none is provided', async () => {
+    const cred = buildCredential({ friendlyName: 'Existing' });
+    (Credential.findOne as any).mockResolvedValue(cred);
+
+    const res = await request(app).post('/users/credentials').send({ id: 'cred-1' });
+
+    expect(res.status).toBe(200);
+    expect(cred.update).toHaveBeenCalledWith({ friendlyName: 'Existing' });
+  });
+
+  it('returns 500 when update fails', async () => {
+    const cred = buildCredential();
+    (cred.update as any).mockRejectedValue(new Error('boom'));
+    (Credential.findOne as any).mockResolvedValue(cred);
+
+    const res = await request(app)
+      .post('/users/credentials')
+      .send({ id: 'cred-1', friendlyName: 'Updated' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to update credential');
+  });
+
+  it('returns 401 when unauthenticated', async () => {
+    const res = await request(app)
+      .post('/users/credentials')
+      .set('x-omit-user', 'true')
+      .send({ id: 'cred-1', friendlyName: 'Updated' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('Unauthorized');
+  });
+});
+
+describe('user not-found branches', () => {
+  it('returns 404 from GET /users/me when unauthenticated', async () => {
+    const res = await request(app).get('/users/me').set('x-omit-user', 'true');
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 from DELETE /users/delete when unauthenticated', async () => {
+    const res = await request(app).delete('/users/delete').set('x-omit-user', 'true');
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('User not found.');
   });
 });

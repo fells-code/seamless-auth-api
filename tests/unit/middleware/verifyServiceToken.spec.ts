@@ -153,6 +153,118 @@ describe('verifyServiceToken', () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
+  it('rejects and logs unsupported-algorithm tokens when logging is enabled', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue({ header: { alg: 'RS256' } });
+
+    req.headers.authorization = 'Bearer token';
+
+    const { verifyServiceToken } = await import('../../../src/middleware/authenticateServiceToken');
+
+    await verifyServiceToken(req, res, next);
+
+    expect(jwt.default.verify).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('verifies tokens whose algorithm cannot be decoded from the header', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue(null);
+    (jwt.default.verify as any).mockReturnValue({
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+      sub: 'client-2',
+    });
+
+    req.headers.authorization = 'Bearer token';
+
+    const { verifyServiceToken } = await import('../../../src/middleware/authenticateServiceToken');
+
+    await verifyServiceToken(req, res, next);
+
+    expect(jwt.default.verify).toHaveBeenCalled();
+    expect(req.clientId).toBe('client-2');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('verifies tokens whose header carries a non-string algorithm', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue({ header: { alg: 123 } });
+    (jwt.default.verify as any).mockReturnValue({
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+      sub: 'client-3',
+    });
+
+    req.headers.authorization = 'Bearer token';
+
+    const { verifyServiceToken } = await import('../../../src/middleware/authenticateServiceToken');
+
+    await verifyServiceToken(req, res, next);
+
+    expect(jwt.default.verify).toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('logs and returns null when verification throws with logging enabled', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue({ header: { alg: 'HS256' } });
+    (jwt.default.verify as any).mockImplementation(() => {
+      throw new Error('expired');
+    });
+
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken');
+
+    await expect(validateInternalServiceToken('token', { logInvalid: true })).resolves.toBeNull();
+  });
+
+  it('returns null without logging when verification throws and logging is disabled', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue({ header: { alg: 'HS256' } });
+    (jwt.default.verify as any).mockImplementation(() => {
+      throw new Error('expired');
+    });
+
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken');
+
+    await expect(validateInternalServiceToken('token')).resolves.toBeNull();
+  });
+
+  it('reuses the cached internal secret across calls', async () => {
+    const { getSecret } = await import('../../../src/utils/secretsStore');
+    const jwt = await import('jsonwebtoken');
+
+    (getSecret as any).mockResolvedValue('secret');
+    (jwt.default.decode as any).mockReturnValue({ header: { alg: 'HS256' } });
+    (jwt.default.verify as any).mockReturnValue({ sub: 'client' });
+
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken');
+
+    await validateInternalServiceToken('token');
+    await validateInternalServiceToken('token');
+
+    expect(getSecret).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects RS256 user JWTs without attempting internal service verification', async () => {
     const { getSecret } = await import('../../../src/utils/secretsStore');
     const jwt = await import('jsonwebtoken');

@@ -76,6 +76,75 @@ describe('external delivery gates', () => {
     ).resolves.toBe(false);
   });
 
+  it('does not attempt delivery when the external mode header is absent', async () => {
+    await expect(canReturnExternalDelivery(req({}))).resolves.toBe(false);
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+  });
+
+  it('blocks external delivery in production when the service token header is missing', async () => {
+    process.env.NODE_ENV = 'production';
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+        }),
+      ),
+    ).resolves.toBe(false);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+  });
+
+  it('treats an empty Bearer service token as missing in production', async () => {
+    process.env.NODE_ENV = 'production';
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'Bearer ',
+        }),
+      ),
+    ).resolves.toBe(false);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+  });
+
+  it('accepts a raw (non-Bearer) service token value in production', async () => {
+    process.env.NODE_ENV = 'production';
+    (validateInternalServiceToken as any).mockResolvedValue({
+      sub: 'service',
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+    });
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'raw-token',
+        }),
+      ),
+    ).resolves.toBe(true);
+
+    expect(validateInternalServiceToken).toHaveBeenCalledWith('raw-token');
+  });
+
+  it('treats a whitespace-only service token as missing in production', async () => {
+    process.env.NODE_ENV = 'production';
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': '   ',
+        }),
+      ),
+    ).resolves.toBe(false);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+  });
+
   it('requires explicit sensitive-details opt-in outside production', () => {
     expect(
       canReturnSensitiveDevelopmentDetails(
@@ -84,5 +153,17 @@ describe('external delivery gates', () => {
         }),
       ),
     ).toBe(true);
+  });
+
+  it('never returns sensitive details in production', () => {
+    process.env.NODE_ENV = 'production';
+
+    expect(
+      canReturnSensitiveDevelopmentDetails(
+        req({
+          'x-seamless-auth-include-sensitive': 'true',
+        }),
+      ),
+    ).toBe(false);
   });
 });

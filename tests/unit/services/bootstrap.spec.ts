@@ -149,6 +149,32 @@ it('stores email in lowercase', async () => {
   );
 });
 
+it('logs the invite link when debug secrets are enabled in development', async () => {
+  process.env.NODE_ENV = 'development';
+  process.env.SEAMLESS_AUTH_DEBUG_SECRETS = 'true';
+
+  try {
+    const result = await createAdminBootstrapInvite({ email: 'debug@example.com' });
+
+    expect(result.registrationUrl).toContain('bootstrapToken');
+    expect(sendBootstrapEmail).toHaveBeenCalled();
+  } finally {
+    process.env.NODE_ENV = 'test';
+    delete process.env.SEAMLESS_AUTH_DEBUG_SECRETS;
+  }
+});
+
+it('skips sending the invite email when sendMessage is false', async () => {
+  const result = await createAdminBootstrapInvite({
+    email: 'silent@example.com',
+    sendMessage: false,
+  });
+
+  expect(BootstrapInvite.create).toHaveBeenCalled();
+  expect(sendBootstrapEmail).not.toHaveBeenCalled();
+  expect(result.token).toBeDefined();
+});
+
 it('hashes token consistently', () => {
   const hash1 = hashBootstrapToken('abc');
   const hash2 = hashBootstrapToken('abc');

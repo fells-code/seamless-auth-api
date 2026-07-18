@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { serializeAuthEvent } from '../../../src/services/authEventSerialization.js';
+import {
+  serializeAuthEvent,
+  serializeAuthEvents,
+} from '../../../src/services/authEventSerialization.js';
 
 describe('auth event serialization', () => {
   it('redacts legacy sensitive metadata when returning auth events', () => {
@@ -35,5 +38,29 @@ describe('auth event serialization', () => {
         },
       },
     });
+  });
+
+  it('returns non-object inputs unchanged', () => {
+    expect(serializeAuthEvent(null)).toBeNull();
+    expect(serializeAuthEvent('not-an-event')).toBe('not-an-event');
+  });
+
+  it('redacts plain event objects that do not expose toJSON', () => {
+    expect(
+      serializeAuthEvent({
+        id: 'event-2',
+        metadata: { email: 'user@example.com' },
+      }),
+    ).toEqual({
+      id: 'event-2',
+      metadata: { email: '[REDACTED]' },
+    });
+  });
+
+  it('serializes a list of auth events', () => {
+    expect(serializeAuthEvents([{ id: 'event-3', metadata: null }, null])).toEqual([
+      { id: 'event-3', metadata: null },
+      null,
+    ]);
   });
 });

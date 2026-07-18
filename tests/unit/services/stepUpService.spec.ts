@@ -6,6 +6,7 @@ import {
   getSessionStepUpStatus,
   getStepUpStatusFromSession,
   recordStepUpVerification,
+  serializeStepUpStatus,
 } from '../../../src/services/stepUpService.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 
@@ -80,5 +81,66 @@ describe('stepUpService', () => {
 
     expect(status.sessionFound).toBe(false);
     expect(status.fresh).toBe(false);
+  });
+
+  it('returns null when recording step-up on a missing session', async () => {
+    (Session.findOne as any).mockResolvedValue(null);
+
+    const status = await recordStepUpVerification({
+      sessionId: 'missing-session',
+      userId: 'user-1',
+      method: 'totp',
+    });
+
+    expect(status).toBeNull();
+  });
+
+  it('ignores unknown step-up methods when reading a session', () => {
+    const status = getStepUpStatusFromSession(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'sms' as any }),
+    );
+
+    expect(status.method).toBeNull();
+  });
+
+  it('serializes step-up status timestamps to ISO strings', () => {
+    const verifiedAt = new Date('2026-05-15T12:00:00.000Z');
+    const expiresAt = new Date('2026-05-15T12:05:00.000Z');
+
+    expect(
+      serializeStepUpStatus({
+        sessionFound: true,
+        fresh: true,
+        method: 'webauthn',
+        verifiedAt,
+        expiresAt,
+        maxAgeSeconds: DEFAULT_STEP_UP_MAX_AGE_SECONDS,
+      }),
+    ).toEqual({
+      fresh: true,
+      method: 'webauthn',
+      verifiedAt: '2026-05-15T12:00:00.000Z',
+      expiresAt: '2026-05-15T12:05:00.000Z',
+      maxAgeSeconds: DEFAULT_STEP_UP_MAX_AGE_SECONDS,
+    });
+  });
+
+  it('serializes null step-up timestamps as null', () => {
+    expect(
+      serializeStepUpStatus({
+        sessionFound: false,
+        fresh: false,
+        method: null,
+        verifiedAt: null,
+        expiresAt: null,
+        maxAgeSeconds: DEFAULT_STEP_UP_MAX_AGE_SECONDS,
+      }),
+    ).toEqual({
+      fresh: false,
+      method: null,
+      verifiedAt: null,
+      expiresAt: null,
+      maxAgeSeconds: DEFAULT_STEP_UP_MAX_AGE_SECONDS,
+    });
   });
 });

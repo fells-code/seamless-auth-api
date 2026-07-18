@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
+import { Op } from 'sequelize';
 
 import { createApp } from '../../../src/app';
 import { Credential } from '../../../src/models/credentials.js';
@@ -10,6 +11,12 @@ import { AuthEvent } from '../../../src/models/authEvents.js';
 import { Session } from '../../../src/models/sessions.js';
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import {
+  createUser,
+  getAuthEvents,
+  recoverUserForDeviceReplacement,
+  updateUser,
+} from '../../../src/controllers/admin.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 
@@ -478,5 +485,338 @@ describe('PATCH /admin/users/:userId', () => {
       .send({ roles: ['admin'] });
 
     expect([400, 404]).toContain(res.status);
+  });
+
+  it('rejects an invalid phone number on update', async () => {
+    (User.findByPk as any).mockResolvedValue(buildUser());
+
+    const res = await request(app).patch('/admin/users/user-1').send({ phone: '11111' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid update payload');
+    expect(User.findByPk).toHaveBeenCalled();
+  });
+
+  it('resets phoneVerified when the phone number changes', async () => {
+    const user = buildUser({ phone: '+14155552671', phoneVerified: true });
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app).patch('/admin/users/user-1').send({ phone: '+14155552672' });
+
+    expect(res.status).toBe(200);
+    expect(user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+14155552672', phoneVerified: false }),
+    );
+  });
+
+  it('keeps phoneVerified when explicitly supplied alongside a new phone', async () => {
+    const user = buildUser({ phone: '+14155552671', phoneVerified: false });
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ phone: '+14155552672', phoneVerified: true });
+
+    expect(res.status).toBe(200);
+    expect(user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+14155552672', phoneVerified: true }),
+    );
+  });
+
+  it('returns 500 when the user update fails', async () => {
+    const user = buildUser();
+    (user.update as any).mockRejectedValue(new Error('boom'));
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ roles: ['admin'] });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to update user');
+  });
+
+  it('returns 400 when the user lookup throws', async () => {
+    (User.findByPk as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ roles: ['admin'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Could not update users');
+  });
+});
+
+describe('GET /admin/users (additional branches)', () => {
+  it('filters users by a search term', async () => {
+    (User.findAll as any).mockResolvedValue([buildUser()]);
+    (User.count as any).mockResolvedValue(1);
+
+    const res = await request(app).get('/admin/users').query({ search: 'example' });
+
+    expect(res.status).toBe(200);
+    const where = (User.findAll as any).mock.calls[0][0].where;
+    expect(where[Op.or]).toBeDefined();
+  });
+
+  it('returns an empty list when findAll resolves null', async () => {
+    (User.findAll as any).mockResolvedValue(null);
+    (User.count as any).mockResolvedValue(0);
+
+    const res = await request(app).get('/admin/users');
+
+    expect(res.status).toBe(200);
+    expect(res.body.users).toEqual([]);
+  });
+});
+
+describe('POST /admin/users (additional branches)', () => {
+  it('rejects an invalid phone number', async () => {
+    const res = await request(app)
+      .post('/admin/users')
+      .send({ email: 'test@example.com', phone: '11111', roles: ['user'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details.phone).toBe('Invalid phone number');
+    expect(User.findOne).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when creation fails', async () => {
+    (User.findOne as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({ email: 'test@example.com', phone: '+14155552671', roles: ['user'] });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to create user');
+  });
+});
+
+describe('DELETE /admin/users (additional branches)', () => {
+  it('returns 200 when the user cannot be found for deletion', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app).delete('/admin/users').send({ userId: 'missing' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 500 when the deletion lookup throws', async () => {
+    (User.findOne as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app).delete('/admin/users').send({ userId: 'user-1' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed');
+  });
+});
+
+describe('GET /admin/users/:userId/anomalies (additional branches)', () => {
+  it('aggregates related ips and agents', async () => {
+    (AuthEvent.findAll as any)
+      .mockResolvedValueOnce([
+        { ip_address: '1.1.1.1', user_agent: 'UA' },
+        { ip_address: null, user_agent: null },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const res = await request(app).get('/admin/users/user-1/anomalies');
+
+    expect(res.status).toBe(200);
+    expect(res.body.relatedIps).toEqual(['1.1.1.1']);
+    expect(res.body.relatedAgents).toEqual(['UA']);
+  });
+
+  it('returns 500 when the anomaly lookup fails', async () => {
+    (AuthEvent.findAll as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app).get('/admin/users/user-1/anomalies');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to fetch anomalies');
+  });
+});
+
+describe('admin session failure paths', () => {
+  it('returns 500 when fetching user sessions fails', async () => {
+    (Session.findAll as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app).get(`/admin/sessions/${testGuid}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to fetch sessions');
+  });
+
+  it('returns 500 when revoking all sessions fails', async () => {
+    (Session.findAll as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app).delete(`/admin/sessions/${testGuid}/revoke-all`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to revoke sessions');
+  });
+
+  it('returns 500 when a single session revoke fails', async () => {
+    (Session.findOne as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app).delete('/admin/sessions/by-id/session-x');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to revoke session');
+  });
+});
+
+describe('POST /admin/users/:userId/recovery/device-replacement (additional branches)', () => {
+  it('returns 404 when the recovery target is missing', async () => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
+    );
+    (User.findByPk as any).mockResolvedValue(null);
+
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({});
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('User not found');
+  });
+
+  it('skips every action when all recovery flags are false', async () => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
+    );
+    (User.findByPk as any).mockResolvedValue(buildUser({ id: testGuid }));
+
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({ revokeSessions: false, removePasskeys: false, disableTotp: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      userId: testGuid,
+      revokedSessions: 0,
+      removedCredentials: 0,
+      disabledTotpCredentials: 0,
+    });
+    expect(hardRevokeSession).not.toHaveBeenCalled();
+    expect(TotpCredential.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /admin/auth-events (additional branches)', () => {
+  it('expands type filters and applies date and user filters', async () => {
+    (AuthEvent.findAll as any).mockResolvedValue([]);
+    (AuthEvent.count as any).mockResolvedValue(0);
+
+    const res = await request(app)
+      .get('/admin/auth-events')
+      .query({
+        type: ['login', 'otp', 'webauthn', 'magicLink', 'suspicious', 'custom'],
+        from: '2026-01-01',
+        to: '2026-02-01',
+        userId: 'user-1',
+      });
+
+    expect(res.status).toBe(200);
+    const where = (AuthEvent.findAll as any).mock.calls[0][0].where;
+    expect(where.user_id).toBe('user-1');
+    expect(where.created_at).toBeDefined();
+    expect(where.type[Op.in]).toEqual(
+      expect.arrayContaining([
+        'login_success',
+        'otp_success',
+        'webauthn_login_success',
+        'magic_link_success',
+        'login_suspicious',
+        'custom',
+      ]),
+    );
+  });
+
+  it('returns 500 when the auth events lookup fails', async () => {
+    (AuthEvent.findAll as any).mockRejectedValue(new Error('boom'));
+    (AuthEvent.count as any).mockResolvedValue(0);
+
+    const res = await request(app).get('/admin/auth-events');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to fetch events');
+  });
+});
+
+describe('GET /admin/credential-count (additional branches)', () => {
+  it('returns 500 when the credential count fails', async () => {
+    (Credential.count as any).mockRejectedValue(new Error('boom'));
+
+    const res = await request(app).get('/admin/credential-count');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to fetch credential count');
+  });
+});
+
+describe('admin controller guards (direct invocation)', () => {
+  function mockRes() {
+    const res: any = {};
+    res.status = vi.fn().mockReturnValue(res);
+    res.json = vi.fn().mockReturnValue(res);
+    return res;
+  }
+
+  it('rejects createUser with an invalid body', async () => {
+    const res = mockRes();
+
+    await createUser({ body: {} } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid payload' }));
+  });
+
+  it('rejects updateUser when the user id is missing', async () => {
+    const res = mockRes();
+
+    await updateUser({ params: {}, body: { roles: ['admin'] } } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Bad request' });
+  });
+
+  it('rejects device-replacement recovery with an invalid body', async () => {
+    const res = mockRes();
+
+    await recoverUserForDeviceReplacement(
+      { params: { userId: testGuid }, body: { revokeSessions: 'nope' } } as any,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(User.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('rejects getAuthEvents with an invalid query', async () => {
+    const res = mockRes();
+
+    await getAuthEvents({ query: { limit: '5000' } } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid query params' });
+  });
+});
+
+describe('getDatabaseSize', () => {
+  it('returns the numeric database size', async () => {
+    const index = await import('../../../src/models/index.js');
+    const spy = vi.spyOn(index, 'getSequelize').mockReturnValue({
+      query: vi.fn().mockResolvedValue([[{ size: '4096' }]]),
+    } as any);
+
+    const { getDatabaseSize } = await import('../../../src/controllers/admin.js');
+
+    await expect(getDatabaseSize()).resolves.toBe(4096);
+    spy.mockRestore();
   });
 });

@@ -63,6 +63,112 @@ describe('applyTrustedClientIp', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('continues without changes when no trusted client IP header is present', async () => {
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken.js');
+    const { applyTrustedClientIp } = await import('../../../src/middleware/trustedClientIp.js');
+
+    const req = {
+      ip: '10.0.1.25',
+      get: vi.fn(() => undefined),
+    } as any;
+
+    await applyTrustedClientIp(req, {} as any, next);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+    expect(req.ip).toBe('10.0.1.25');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('ignores a trusted client IP when no service token header is present', async () => {
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken.js');
+    const { applyTrustedClientIp } = await import('../../../src/middleware/trustedClientIp.js');
+
+    const req = {
+      ip: '10.0.1.25',
+      get: vi.fn((header: string) => {
+        if (header === 'x-seamless-client-ip') return '203.0.113.44';
+        return undefined;
+      }),
+    } as any;
+
+    await applyTrustedClientIp(req, {} as any, next);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+    expect(req.ip).toBe('10.0.1.25');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('accepts a raw (non-Bearer) service token value', async () => {
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken.js');
+    const { applyTrustedClientIp } = await import('../../../src/middleware/trustedClientIp.js');
+
+    (validateInternalServiceToken as any).mockResolvedValue({
+      sub: 'review-api',
+      aud: 'seamless-auth',
+      iss: 'seamless-portal-api',
+    });
+
+    const req = {
+      ip: '10.0.1.25',
+      get: vi.fn((header: string) => {
+        if (header === 'x-seamless-client-ip') return '203.0.113.44';
+        if (header === 'x-seamless-service-token') return 'raw-token';
+        return undefined;
+      }),
+    } as any;
+
+    await applyTrustedClientIp(req, {} as any, next);
+
+    expect(validateInternalServiceToken).toHaveBeenCalledWith('raw-token');
+    expect(req.ip).toBe('203.0.113.44');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('ignores an empty Bearer service token value', async () => {
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken.js');
+    const { applyTrustedClientIp } = await import('../../../src/middleware/trustedClientIp.js');
+
+    const req = {
+      ip: '10.0.1.25',
+      get: vi.fn((header: string) => {
+        if (header === 'x-seamless-client-ip') return '203.0.113.44';
+        if (header === 'x-seamless-service-token') return 'Bearer ';
+        return undefined;
+      }),
+    } as any;
+
+    await applyTrustedClientIp(req, {} as any, next);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+    expect(req.ip).toBe('10.0.1.25');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('ignores a whitespace-only service token value', async () => {
+    const { validateInternalServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken.js');
+    const { applyTrustedClientIp } = await import('../../../src/middleware/trustedClientIp.js');
+
+    const req = {
+      ip: '10.0.1.25',
+      get: vi.fn((header: string) => {
+        if (header === 'x-seamless-client-ip') return '203.0.113.44';
+        if (header === 'x-seamless-service-token') return '   ';
+        return undefined;
+      }),
+    } as any;
+
+    await applyTrustedClientIp(req, {} as any, next);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+    expect(req.ip).toBe('10.0.1.25');
+    expect(next).toHaveBeenCalled();
+  });
+
   it('ignores malformed client IP values', async () => {
     const { applyTrustedClientIp } = await import('../../../src/middleware/trustedClientIp.js');
 

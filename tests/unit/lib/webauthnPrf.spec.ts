@@ -33,6 +33,20 @@ describe('webauthnPrf', () => {
     });
   });
 
+  it('builds no assertion extension when no PRF request is provided', () => {
+    expect(buildPrfAuthenticationExtensions(undefined)).toBeUndefined();
+  });
+
+  it('omits the second salt from the assertion extension when not requested', () => {
+    expect(buildPrfAuthenticationExtensions({ salt: salt() })).toEqual({
+      prf: {
+        eval: {
+          first: salt(),
+        },
+      },
+    });
+  });
+
   it('rejects salts that are not base64url or are too short', () => {
     expect(() => assertValidPrfSalt('not valid!')).toThrow('base64url');
     expect(() => assertValidPrfSalt(Buffer.alloc(16).toString('base64url'))).toThrow(
@@ -54,6 +68,31 @@ describe('webauthnPrf', () => {
     ).toBe(true);
   });
 
+  it('reports no PRF capability when the shape is missing or malformed', () => {
+    expect(getRegistrationPrfCapable(null)).toBe(false);
+    expect(getRegistrationPrfCapable({ clientExtensionResults: 'nope' })).toBe(false);
+    expect(getRegistrationPrfCapable({ clientExtensionResults: { prf: 'nope' } })).toBe(false);
+    expect(getRegistrationPrfCapable({ clientExtensionResults: { prf: { enabled: false } } })).toBe(
+      false,
+    );
+  });
+
+  it('reports no PRF output when the shape is missing or malformed', () => {
+    expect(containsPrfOutput(null)).toBe(false);
+    expect(containsPrfOutput({ clientExtensionResults: 'nope' })).toBe(false);
+    expect(containsPrfOutput({ clientExtensionResults: { prf: 'nope' } })).toBe(false);
+    expect(containsPrfOutput({ clientExtensionResults: { prf: {} } })).toBe(false);
+  });
+
+  it('returns null when the credential produced no PRF first output', () => {
+    const result = extractPasskeyPrfResult({
+      id: 'cred-1',
+      getClientExtensionResults: () => ({ prf: { results: {} } }),
+    });
+
+    expect(result).toBeNull();
+  });
+
   it('extracts browser PRF output without needing to send it to the API', () => {
     const output = Uint8Array.from([1, 2, 3, 4]);
     const result = extractPasskeyPrfResult({
@@ -70,5 +109,23 @@ describe('webauthnPrf', () => {
     expect(result?.credentialId).toBe('cred-1');
     expect(Array.from(result?.output ?? [])).toEqual([1, 2, 3, 4]);
     expect(result?.outputBase64url).toBe('AQIDBA');
+  });
+
+  it('extracts PRF output from an ArrayBufferView without copying the whole buffer', () => {
+    const backing = Uint8Array.from([9, 8, 7, 6, 5]);
+    const view = new Uint8Array(backing.buffer, 1, 3);
+
+    const result = extractPasskeyPrfResult({
+      id: 'cred-2',
+      getClientExtensionResults: () => ({
+        prf: {
+          results: {
+            first: view,
+          },
+        },
+      }),
+    });
+
+    expect(Array.from(result?.output ?? [])).toEqual([8, 7, 6]);
   });
 });

@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +6,7 @@ import {
   base32Encode,
   buildTotpUri,
   generateTotpCode,
+  generateTotpSecret,
   verifyTotpCode,
 } from '../../../src/utils/totp.js';
 
@@ -46,6 +48,40 @@ describe('totp utils', () => {
         lastUsedCounter: 1,
       }),
     ).toEqual({ verified: false, counter: null });
+  });
+
+  it('encodes the raw random buffer when randomBytes returns a Buffer', () => {
+    (randomBytes as any).mockReturnValueOnce(Buffer.alloc(20));
+
+    const secret = generateTotpSecret(20);
+
+    expect(secret).toMatch(/^[A-Z2-7]+$/);
+    expect(secret.length).toBeGreaterThan(0);
+  });
+
+  it('truncates the fallback buffer when randomBytes yields more bytes than requested', () => {
+    const secret = generateTotpSecret(5);
+
+    expect(secret).toMatch(/^[A-Z2-7]+$/);
+  });
+
+  it('pads the fallback buffer when randomBytes yields fewer bytes than requested', () => {
+    const secret = generateTotpSecret(20);
+
+    expect(secret).toMatch(/^[A-Z2-7]+$/);
+  });
+
+  it('rejects invalid base32 input', () => {
+    expect(() => base32Decode('1!!')).toThrow('Invalid base32 secret');
+  });
+
+  it('returns unverified for a code that is not the expected digit format', () => {
+    const secret = base32Encode(Buffer.from('12345678901234567890'));
+
+    expect(verifyTotpCode({ secret, code: 'not-a-code' })).toEqual({
+      verified: false,
+      counter: null,
+    });
   });
 
   it('builds an otpauth URI for authenticator apps', () => {

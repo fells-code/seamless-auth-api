@@ -20,6 +20,20 @@ describe('parseSystemConfigEnvValue', () => {
 
       expect(result).toEqual(['passkey', 'magic_link', 'email_otp']);
     });
+
+    it('parses default_roles', () => {
+      expect(parseSystemConfigEnvValue('default_roles', 'user,guest')).toEqual(['user', 'guest']);
+    });
+  });
+
+  describe('remaining string passthrough keys', () => {
+    it('returns refresh_token_ttl as-is', () => {
+      expect(parseSystemConfigEnvValue('refresh_token_ttl', '7d')).toBe('7d');
+    });
+
+    it('returns rpid as-is', () => {
+      expect(parseSystemConfigEnvValue('rpid', 'example.com')).toBe('example.com');
+    });
   });
 
   describe('number parsing', () => {
@@ -100,6 +114,24 @@ describe('parseSystemConfigEnvValue', () => {
 
     it('throws on an invalid provider entry', () => {
       expect(() => parseSystemConfigEnvValue('oauth_providers', '[{"id":"x"}]')).toThrow();
+    });
+  });
+
+  describe('lockout_policy parsing', () => {
+    it('parses the lockout policy JSON object', () => {
+      const raw = JSON.stringify({
+        enabled: true,
+        maxFailures: 5,
+        windowSeconds: 60,
+        lockoutSeconds: 120,
+      });
+
+      expect(parseSystemConfigEnvValue('lockout_policy', raw)).toEqual({
+        enabled: true,
+        maxFailures: 5,
+        windowSeconds: 60,
+        lockoutSeconds: 120,
+      });
     });
   });
 

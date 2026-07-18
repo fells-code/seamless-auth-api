@@ -181,5 +181,82 @@ describe('signingKeyStore', () => {
 
       expect(result).toBeNull();
     });
+
+    it('returns null when the public keys secret is missing', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
+
+      (getSecret as any).mockResolvedValue(undefined);
+
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
+
+      const result = await getPublicKeyByKid('any');
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when the public keys secret is not valid JSON', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
+
+      (getSecret as any).mockResolvedValue('not-json');
+
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
+
+      const result = await getPublicKeyByKid('any');
+
+      expect(result).toBeNull();
+    });
+
+    it('serves a cached public key without re-fetching within the TTL', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
+
+      (getSecret as any).mockResolvedValue(
+        JSON.stringify({ keys: [{ kid: 'k1', pem: 'PEM_KEY', createdAt: '' }] }),
+      );
+
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
+
+      const first = await getPublicKeyByKid('k1');
+      const second = await getPublicKeyByKid('k1');
+
+      expect(first).toBe('PEM_KEY');
+      expect(second).toBe('PEM_KEY');
+      expect(getSecret).toHaveBeenCalledTimes(1);
+    });
+
+    it('async-refreshes the signing key once the cache goes stale', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const { getSecret } = await import('../../../src/utils/secretsStore.js');
+
+      (getSecret as any)
+        .mockResolvedValueOnce('kid-1')
+        .mockResolvedValueOnce('PRIVATE_1')
+        .mockResolvedValueOnce('kid-2')
+        .mockResolvedValueOnce('PRIVATE_2');
+
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1000);
+
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
+
+      const first = await getSigningKey();
+      expect(first.kid).toBe('kid-1');
+
+      nowSpy.mockReturnValue(1000 + 6 * 60 * 1000);
+
+      const second = await getSigningKey();
+      expect(second.kid).toBe('kid-1');
+
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(getSecret).toHaveBeenCalledTimes(4);
+
+      nowSpy.mockRestore();
+    });
   });
 });

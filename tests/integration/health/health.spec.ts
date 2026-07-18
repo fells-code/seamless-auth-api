@@ -23,6 +23,14 @@ describe('Health Routes', () => {
     expect(res.body).toEqual({ message: 'System up' });
   });
 
+  it('returns the API version', async () => {
+    const res = await request(app).get('/health/version');
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.message).toBe('string');
+    expect(res.body.message.length).toBeGreaterThan(0);
+  });
+
   it('returns 404 for unknown health route', async () => {
     const res = await request(app).get('/health/unknown');
 

@@ -224,6 +224,105 @@ describe('AuthEventService', () => {
     });
   });
 
+  it('coerces blank context values to unknown', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.logContext({
+      type: 'login_success',
+      ipAddress: '',
+      userAgent: '',
+    });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ip_address: 'unknown',
+        user_agent: 'unknown',
+      }),
+    );
+  });
+
+  it('refreshTokenFailed defaults metadata to null', async () => {
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    const spy = vi.spyOn(AuthEventService, 'log');
+
+    const req = buildReq();
+
+    await AuthEventService.refreshTokenFailed(req);
+
+    expect(spy).toHaveBeenCalledWith({
+      type: 'refresh_token_failed',
+      metadata: null,
+      req,
+    });
+  });
+
+  it('requestSuspicious logs with supplied metadata', async () => {
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    const spy = vi.spyOn(AuthEventService, 'log');
+
+    const req = buildReq();
+
+    await AuthEventService.requestSuspicious(req, { reason: 'velocity' });
+
+    expect(spy).toHaveBeenCalledWith({
+      type: 'request_suspicious',
+      metadata: { reason: 'velocity' },
+      req,
+    });
+  });
+
+  it('requestSuspicious defaults metadata to null', async () => {
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    const spy = vi.spyOn(AuthEventService, 'log');
+
+    const req = buildReq();
+
+    await AuthEventService.requestSuspicious(req);
+
+    expect(spy).toHaveBeenCalledWith({
+      type: 'request_suspicious',
+      metadata: null,
+      req,
+    });
+  });
+
+  it('requestSuspiciousContext writes an auth event from raw request context', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.requestSuspiciousContext(
+      { ipAddress: '10.0.0.1', userAgent: 'probe' },
+      { reason: 'no session' },
+    );
+
+    expect(AuthEvent.create).toHaveBeenCalledWith({
+      user_id: null,
+      type: 'request_suspicious',
+      ip_address: '10.0.0.1',
+      user_agent: 'probe',
+      metadata: { reason: 'no session' },
+    });
+  });
+
+  it('requestSuspiciousContext falls back to unknown context and null metadata', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.requestSuspiciousContext({});
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ip_address: 'unknown',
+        user_agent: 'unknown',
+        metadata: null,
+      }),
+    );
+  });
+
   it('normalizes legacy event type aliases', async () => {
     const { AuthEvent } = await import('../../../src/models/authEvents.js');
     const { AuthEventService } = await import('../../../src/services/authEventService.js');

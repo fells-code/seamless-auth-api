@@ -111,4 +111,62 @@ describe('PATCH /system-config/admin', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('handles a null user list when computing roles in use', async () => {
+    (User.findAll as any).mockResolvedValue(null);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['user', 'admin'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('returns 400 when the payload fails the dynamic (config-aware) schema', async () => {
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['admin'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid system config payload');
+  });
+
+  it('allows keeping a role that is still available and in use', async () => {
+    (User.findAll as any).mockResolvedValue([{ roles: ['user'] }]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['user', 'admin'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('tolerates users without any roles when computing roles in use', async () => {
+    (User.findAll as any).mockResolvedValue([{ roles: null }]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['user', 'admin'] });
+
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('GET /system-config/roles (additional branches)', () => {
+  it('returns an empty roles list when none are configured', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      available_roles: undefined,
+      default_roles: ['user'],
+    });
+
+    const res = await request(app).get('/system-config/roles');
+
+    expect(res.status).toBe(200);
+    expect(res.body.roles).toEqual([]);
+  });
 });

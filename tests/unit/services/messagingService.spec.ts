@@ -118,4 +118,60 @@ describe('messagingService', () => {
       sendMagicLinkEmail('test@example.com', 'token', 'https://app.example.com/verify'),
     ).rejects.toThrow('email down');
   });
+
+  it('rejects SMS delivery to an unparseable phone number', async () => {
+    process.env.NODE_ENV = 'production';
+
+    const { sendOTPSMS } = await import('../../../src/services/messagingService');
+
+    await expect(sendOTPSMS('not-a-phone', 123456)).rejects.toThrow(
+      'Invalid phone number for direct SMS delivery',
+    );
+    expect(sendOtpSmsMock).not.toHaveBeenCalled();
+  });
+
+  it('normalizes valid phone numbers before direct SMS delivery', async () => {
+    process.env.NODE_ENV = 'production';
+
+    const { sendOTPSMS } = await import('../../../src/services/messagingService');
+
+    await expect(sendOTPSMS('+14155552671', 123456)).resolves.toBeUndefined();
+    expect(sendOtpSmsMock).toHaveBeenCalledWith({ to: '+14155552671', token: 123456 });
+  });
+
+  it('does nothing in development (bootstrap invite)', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const { sendBootstrapEmail } = await import('../../../src/services/messagingService');
+
+    await expect(
+      sendBootstrapEmail('admin@example.com', 'https://app.example.com/invite'),
+    ).resolves.toBeUndefined();
+    expect(createDirectAuthMessagingServiceMock).not.toHaveBeenCalled();
+  });
+
+  it('sends bootstrap invite emails in production', async () => {
+    process.env.NODE_ENV = 'production';
+
+    const { sendBootstrapEmail } = await import('../../../src/services/messagingService');
+
+    await expect(
+      sendBootstrapEmail('admin@example.com', 'https://app.example.com/invite'),
+    ).resolves.toBeUndefined();
+    expect(sendBootstrapInviteEmailMock).toHaveBeenCalledWith({
+      to: 'admin@example.com',
+      inviteUrl: 'https://app.example.com/invite',
+    });
+  });
+
+  it('propagates production bootstrap delivery failures', async () => {
+    process.env.NODE_ENV = 'production';
+    sendBootstrapInviteEmailMock.mockRejectedValueOnce(new Error('bootstrap down'));
+
+    const { sendBootstrapEmail } = await import('../../../src/services/messagingService');
+
+    await expect(
+      sendBootstrapEmail('admin@example.com', 'https://app.example.com/invite'),
+    ).rejects.toThrow('bootstrap down');
+  });
 });

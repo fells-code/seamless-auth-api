@@ -113,6 +113,22 @@ describe('OTP utils', () => {
     it('throws if user missing', async () => {
       await expect(generatePhoneOTP(null as any)).rejects.toThrow();
     });
+
+    it('throws when the user has no registered phone number', async () => {
+      const user = buildUser({ phone: null });
+
+      await expect(generatePhoneOTP(user as any)).rejects.toThrow(
+        'without a registered phone number',
+      );
+    });
+
+    it('throws when persisting the generated phone OTP fails', async () => {
+      const user = buildUser({
+        update: vi.fn().mockRejectedValue(new Error('db down')),
+      });
+
+      await expect(generatePhoneOTP(user as any)).rejects.toThrow('Failed to set user OTP');
+    });
   });
 
   // ---------------------------
@@ -275,5 +291,53 @@ describe('OTP regression — hardened behavior', () => {
 
     expect(stored).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(stored).not.toContain(token);
+  });
+});
+
+describe('OTP verification save failures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws when persisting a verified phone OTP fails', async () => {
+    const user = buildUser({
+      phoneVerificationToken: hashOtpToken('123456'),
+      phoneVerificationTokenExpiry: Date.now() + 10000,
+      emailVerified: true,
+      save: vi.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(verifyPhoneOTP(user as any, '123456')).rejects.toThrow(
+      'Failed to update user verfication via phone OTP',
+    );
+    expect(user.save).toHaveBeenCalled();
+  });
+
+  it('throws when persisting a verified email OTP fails', async () => {
+    const user = buildUser({
+      emailVerificationToken: hashOtpToken('ABCDEF'),
+      emailVerificationTokenExpiry: Date.now() + 10000,
+      phone: null,
+      save: vi.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(verifyEmailOTP(user as any, 'abcdef')).rejects.toThrow(
+      'Failed to update user verfication via phone OTP',
+    );
+    expect(user.save).toHaveBeenCalled();
+  });
+
+  it('leaves an already-verified user verified after email OTP', async () => {
+    const user = buildUser({
+      emailVerificationToken: hashOtpToken('ABCDEF'),
+      emailVerificationTokenExpiry: Date.now() + 10000,
+      phone: null,
+      verified: true,
+    });
+
+    const result = await verifyEmailOTP(user as any, 'abcdef');
+
+    expect(result.verified).toBe(true);
+    expect(user.verified).toBe(true);
   });
 });

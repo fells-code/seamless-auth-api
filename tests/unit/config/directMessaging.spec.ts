@@ -112,4 +112,40 @@ describe('directMessaging config', () => {
       'Unsupported MESSAGING_SMS_PROVIDER "postal-pigeon"',
     );
   });
+
+  it('throws when no AWS region is configured for email delivery', async () => {
+    process.env.SES_EMAIL = 'noreply@example.com';
+
+    const { createDirectAuthMessagingService } =
+      await import('../../../src/config/directMessaging.js');
+
+    expect(() => createDirectAuthMessagingService('Test App')).toThrow(
+      'MESSAGING_AWS_REGION or AWS_REGION is required for direct email delivery.',
+    );
+  });
+
+  it('throws when no from email is configured for email delivery', async () => {
+    process.env.AWS_REGION = 'us-east-1';
+
+    const { createDirectAuthMessagingService } =
+      await import('../../../src/config/directMessaging.js');
+
+    expect(() => createDirectAuthMessagingService('Test App')).toThrow(
+      'MESSAGING_EMAIL_FROM is required for direct email delivery.',
+    );
+  });
+
+  it('throws when Twilio credentials are incomplete', async () => {
+    process.env.AWS_REGION = 'us-east-1';
+    process.env.SES_EMAIL = 'noreply@example.com';
+    process.env.MESSAGING_SMS_PROVIDER = 'twilio';
+
+    const { createDirectAuthMessagingService } =
+      await import('../../../src/config/directMessaging.js');
+
+    expect(() => createDirectAuthMessagingService('Test App')).toThrow(
+      'MESSAGING_TWILIO_ACCOUNT_SID, MESSAGING_TWILIO_AUTH_TOKEN, and MESSAGING_SMS_FROM are required when MESSAGING_SMS_PROVIDER=twilio.',
+    );
+    expect(createTwilioSmsTransportMock).not.toHaveBeenCalled();
+  });
 });
