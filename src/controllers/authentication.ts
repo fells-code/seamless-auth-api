@@ -59,58 +59,47 @@ export const login = async (req: Request, res: Response) => {
 
   logger.info('Login attempt with identifier');
 
-  try {
-    if (isValidEmail(identifier)) {
-      try {
-        user = await User.findOne({
-          where: { email: identifier.toLowerCase() },
-        });
-        identifierType = 'email';
-      } catch {
-        logger.error('Failed to find user');
-        await AuthEventService.log({
-          userId: null,
-          type: 'login_failed',
-          req,
-          metadata: { reason: 'No user found for identifier' },
-        });
-        return res.status(401).json({ message: 'Not allowed' });
-      }
-    } else if (isValidPhoneNumber(identifier) && normalizedIdentifier) {
-      try {
-        user = await User.findOne({
-          where: { phone: normalizedIdentifier },
-        });
-        identifierType = 'phone';
-      } catch {
-        logger.error('Failed to find user');
-        await AuthEventService.log({
-          userId: null,
-          type: 'login_failed',
-          req,
-          metadata: { reason: 'No user found for identifier' },
-        });
-        return res.status(403).json({ error: 'Not allowed' });
-      }
-    } else {
-      logger.error('Invalid login identifier');
+  if (isValidEmail(identifier)) {
+    try {
+      user = await User.findOne({
+        where: { email: identifier.toLowerCase() },
+      });
+      identifierType = 'email';
+    } catch {
+      logger.error('Failed to find user');
       await AuthEventService.log({
         userId: null,
         type: 'login_failed',
         req,
-        metadata: { reason: 'Invalid identifier' },
+        metadata: { reason: 'No user found for identifier' },
       });
-      return res.status(400).json({ error: 'Invalid data' });
+      return res.status(401).json({ message: 'Not allowed' });
     }
-  } catch (error) {
-    logger.error(`Failed to find a user with valid Identifier: ${error}`);
+  } else if (isValidPhoneNumber(identifier) && normalizedIdentifier) {
+    try {
+      user = await User.findOne({
+        where: { phone: normalizedIdentifier },
+      });
+      identifierType = 'phone';
+    } catch {
+      logger.error('Failed to find user');
+      await AuthEventService.log({
+        userId: null,
+        type: 'login_failed',
+        req,
+        metadata: { reason: 'No user found for identifier' },
+      });
+      return res.status(403).json({ error: 'Not allowed' });
+    }
+  } else {
+    logger.error('Invalid login identifier');
     await AuthEventService.log({
       userId: null,
       type: 'login_failed',
       req,
-      metadata: { reason: 'No user found for identifier' },
+      metadata: { reason: 'Invalid identifier' },
     });
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(400).json({ error: 'Invalid data' });
   }
 
   try {

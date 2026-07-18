@@ -85,17 +85,6 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid data' });
     }
 
-    if (!user) {
-      logger.error('Attempted to send OTP to an unknown user');
-      AuthEventService.log({
-        userId: null,
-        type: 'otp_suspicious',
-        req,
-        metadata: { reason: 'Missing required phone.' },
-      });
-      return res.status(400).json({ error: 'Invalid data' });
-    }
-
     logger.info('User requested a phone OTP');
     const generatedToken = await generatePhoneOTP(user, {
       sendMessage: !useExternalDelivery,
@@ -140,17 +129,6 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
   const useExternalDelivery = await canReturnExternalDelivery(req);
 
   try {
-    if (!user) {
-      logger.warn('Attempted to send OTP to an unknown user');
-      AuthEventService.log({
-        userId: null,
-        type: 'otp_suspicious',
-        req,
-        metadata: { reason: 'Missing required user.' },
-      });
-      return res.status(400).json({ error: 'Invalid data.' });
-    }
-
     if (!email) {
       logger.warn(`Missing email`);
       AuthEventService.log({

@@ -79,59 +79,54 @@ export const deleteUser = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const authUser = authReq.user;
 
+  if (!authUser) {
+    return res.status(404).json({ message: 'User not found.' });
+  }
+
+  logger.info('Authenticated user triggered account deletion');
+
   try {
-    if (!authUser) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
+    const user = await User.findOne({
+      where: {
+        email: authUser.email.toLowerCase(),
+        phone: authUser.phone,
+      },
+    });
 
-    logger.info('Authenticated user triggered account deletion');
+    if (user) {
+      logger.info('Deleting all user credentials');
+      const creds = await Credential.findAll({ where: { userId: user.id } });
 
-    try {
-      const user = await User.findOne({
-        where: {
-          email: authUser.email.toLowerCase(),
-          phone: authUser.phone,
-        },
+      creds.forEach((cred) => {
+        cred.destroy();
       });
 
-      if (user) {
-        logger.info('Deleting all user credentials');
-        const creds = await Credential.findAll({ where: { userId: user.id } });
+      await AuthEventService.log({
+        userId: user.id || null,
+        type: 'credentials_deleted',
+        req,
+        metadata: { reason: 'User deleted account' },
+      });
 
-        creds.forEach((cred) => {
-          cred.destroy();
-        });
+      logger.info(`All credentials deleted for ${user.id}.`);
 
-        await AuthEventService.log({
-          userId: user.id || null,
-          type: 'credentials_deleted',
-          req,
-          metadata: { reason: 'User deleted account' },
-        });
+      user.destroy();
+      logger.info('User deleted');
 
-        logger.info(`All credentials deleted for ${user.id}.`);
-
-        user.destroy();
-        logger.info('User deleted');
-
-        await AuthEventService.log({
-          userId: user?.id || null,
-          type: 'user_deleted',
-          req,
-          metadata: { reason: 'User deleted account' },
-        });
-      } else {
-        logger.error('Failed to destroy a seemingly valid user');
-      }
-
-      return res.status(200).json({ message: 'Success' });
-    } catch (error: unknown) {
-      logger.error(`Failed to delete user: ${error}`);
-      return res.status(500).json({ message: 'Failed' });
+      await AuthEventService.log({
+        userId: user?.id || null,
+        type: 'user_deleted',
+        req,
+        metadata: { reason: 'User deleted account' },
+      });
+    } else {
+      logger.error('Failed to destroy a seemingly valid user');
     }
-  } catch (error) {
-    logger.error(`Error occured deleting a user: ${error}`);
-    return res.status(500).json({ message: `Failed` });
+
+    return res.status(200).json({ message: 'Success' });
+  } catch (error: unknown) {
+    logger.error(`Failed to delete user: ${error}`);
+    return res.status(500).json({ message: 'Failed' });
   }
 };
 

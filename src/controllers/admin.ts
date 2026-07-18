@@ -118,33 +118,28 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
   logger.info('Internal deletion call made.');
   const { userId } = req.body;
 
+  if (!userId) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
   try {
-    if (!userId) {
-      return res.status(404).json({ error: 'User not found.' });
+    const user = await User.findOne({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (user) {
+      user.destroy();
+      logger.info('User deleted from database through the seamless auth portal.');
+    } else {
+      logger.error(`Failed to destory a seemingly valid user via the portal`);
     }
 
-    try {
-      const user = await User.findOne({
-        where: {
-          id: userId,
-        },
-      });
-
-      if (user) {
-        user.destroy();
-        logger.info('User deleted from database through the seamless auth portal.');
-      } else {
-        logger.error(`Failed to destory a seemingly valid user via the portal`);
-      }
-
-      return res.status(200).json({ message: 'Success' });
-    } catch (error: unknown) {
-      logger.error(`Failed to delete user. Error: ${error}`);
-      return res.status(500).json({ error: 'Failed' });
-    }
-  } catch (error) {
-    logger.error(`Error occured deleting a user: ${error}`);
-    return res.status(500).json({ error: `Failed` });
+    return res.status(200).json({ message: 'Success' });
+  } catch (error: unknown) {
+    logger.error(`Failed to delete user. Error: ${error}`);
+    return res.status(500).json({ error: 'Failed' });
   }
 };
 

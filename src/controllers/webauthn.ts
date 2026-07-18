@@ -352,17 +352,6 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     return res.status(403).json({ message: 'Not allowed' });
   }
 
-  if (!user) {
-    logger.warn('Failed to find a user for generating passkey challenge during auth');
-    await AuthEventService.log({
-      userId: null,
-      type: 'login_failed',
-      req,
-      metadata: { reason: 'No user' },
-    });
-    return res.status(401).send('Not allowed');
-  }
-
   creds = await Credential.findAll({ where: { userId: user.id } });
 
   try {
