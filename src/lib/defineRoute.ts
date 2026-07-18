@@ -198,12 +198,17 @@ export function defineRoute<S extends RouteSchemas>(
 
             return originalJson(data);
           } catch (err) {
-            logger.error('Response schema validation failed', err);
-
-            return originalJson({
-              error: 'Response validation failed',
+            // A response that violates its own schema is a server-side drift bug. Log it
+            // for observability, but do not overwrite the controller's response or leak
+            // internal schema issues to the client: the handler's payload is the source of
+            // truth for the client contract.
+            logger.error('Response schema validation failed', {
+              path,
+              status: res.statusCode,
               issues: err instanceof ZodError ? err.issues : err,
             });
+
+            return originalJson(data);
           }
         }) as typeof res.json;
       }

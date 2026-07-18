@@ -343,7 +343,7 @@ describe('defineRoute', () => {
     expect(json).toHaveBeenCalledWith({ error: 'not found' });
   });
 
-  it('returns a validation error body when the response fails its schema', async () => {
+  it('returns the original response body unchanged when it fails its schema', async () => {
     const { defineRoute } = await import('../../../src/lib/defineRoute');
     const router = Router();
 
@@ -361,11 +361,9 @@ describe('defineRoute', () => {
     const { res, json } = makeRes();
     await runRoute(router, '/bad-response', res);
 
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        error: 'Response validation failed',
-        issues: expect.any(Array),
-      }),
+    expect(json).toHaveBeenCalledWith({ message: 123 });
+    expect(json).not.toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'Response validation failed' }),
     );
   });
 
@@ -448,7 +446,7 @@ describe('defineRoute', () => {
     expect(json).toHaveBeenCalledWith({ message: 'ok' });
   });
 
-  it('surfaces the raw error when response validation throws a non-Zod error', async () => {
+  it('returns the original body when response validation throws a non-Zod error', async () => {
     const { defineRoute } = await import('../../../src/lib/defineRoute');
     const router = Router();
     const failure = new Error('non-zod failure');
@@ -473,10 +471,7 @@ describe('defineRoute', () => {
     const { res, json } = makeRes();
     await runRoute(router, '/non-zod-response', res);
 
-    expect(json).toHaveBeenCalledWith({
-      error: 'Response validation failed',
-      issues: failure,
-    });
+    expect(json).toHaveBeenCalledWith({ message: 'ok' });
   });
 
   it('parses and replaces params and query when their schemas are provided', async () => {
