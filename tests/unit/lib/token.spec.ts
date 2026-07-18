@@ -10,8 +10,13 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
   getSystemConfig: vi.fn(),
 }));
 
+const signPayloads = vi.hoisted(() => [] as unknown[]);
+
 vi.mock('jose', () => {
   class MockSignJWT {
+    constructor(payload: unknown) {
+      signPayloads.push(payload);
+    }
     setProtectedHeader() {
       return this;
     }
@@ -80,6 +85,38 @@ describe('token utils', () => {
     const result = await signAccessToken('sid', 'user', ['admin']);
 
     expect(result).toBe('mock-jwt');
+  });
+
+  it('embeds an organization claim when an organization id is provided', async () => {
+    const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+
+    (getSigningKey as any).mockResolvedValue({ kid: 'kid', privateKeyPem: 'pem' });
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    signPayloads.length = 0;
+
+    const { signAccessToken } = await import('../../../src/lib/token');
+
+    await signAccessToken('sid', 'user', ['admin'], 'org-1');
+
+    expect(signPayloads.at(-1)).toEqual(expect.objectContaining({ org_id: 'org-1' }));
+  });
+
+  it('omits the organization claim when no organization id is provided', async () => {
+    const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+
+    (getSigningKey as any).mockResolvedValue({ kid: 'kid', privateKeyPem: 'pem' });
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    signPayloads.length = 0;
+
+    const { signAccessToken } = await import('../../../src/lib/token');
+
+    await signAccessToken('sid', 'user', ['admin']);
+
+    expect(signPayloads.at(-1)).not.toHaveProperty('org_id');
   });
 
   it('signs refresh token', async () => {
@@ -170,6 +207,13 @@ describe('token utils', () => {
     const result = createRefreshTokenLookup('token');
 
     expect(result).toBe('lookup-hash');
+  });
+
+  it('warns only once and defaults APP_ID to local for the dev fallback secret', async () => {
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    expect(createRefreshTokenLookup('token')).toBe('lookup-hash');
+    expect(createRefreshTokenLookup('token')).toBe('lookup-hash');
   });
 
   it('throws in production when no refresh token lookup secret is available', async () => {

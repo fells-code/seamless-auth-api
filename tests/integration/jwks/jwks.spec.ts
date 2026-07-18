@@ -82,6 +82,27 @@ describe('JWKS - Production Mode', () => {
   });
 });
 
+describe('JWKS - Development Mode', () => {
+  it('serves the dev signing key from disk', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+
+    const fs = await import('fs');
+    (fs.readFileSync as any).mockReturnValue('dev-pem');
+
+    const { importSPKI, exportJWK } = await import('jose');
+    (importSPKI as any).mockResolvedValue('key');
+    (exportJWK as any).mockResolvedValue({ kty: 'RSA', n: 'abc', e: 'AQAB' });
+
+    const res = await request(app).get('/.well-known/jwks.json');
+
+    expect(res.status).toBe(200);
+    expect(res.body.keys[0].kid).toBe('dev-main');
+    expect(res.body.keys[0].alg).toBe('RS256');
+    expect(res.body.keys[0].use).toBe('sig');
+    expect(getSecret).not.toHaveBeenCalled();
+  });
+});
+
 describe('JWKS - Error Handling', () => {
   it('returns 500 when secrets fail', async () => {
     vi.stubEnv('NODE_ENV', 'production');

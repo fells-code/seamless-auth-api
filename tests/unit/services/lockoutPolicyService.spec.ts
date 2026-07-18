@@ -37,6 +37,44 @@ describe('lockoutPolicyService', () => {
     });
   });
 
+  it('short-circuits as unlocked when the lockout policy is disabled', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      lockout_policy: { enabled: false, maxFailures: 3, windowSeconds: 900, lockoutSeconds: 600 },
+    });
+
+    await expect(getUserLockoutStatus('user-1')).resolves.toEqual({
+      locked: false,
+      failureCount: 0,
+      retryAfterSeconds: 0,
+      policy: expect.objectContaining({ enabled: false }),
+    });
+    expect(AuthEvent.count).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the default policy when config lookup fails', async () => {
+    (getSystemConfig as any).mockRejectedValue(new Error('config unavailable'));
+    (AuthEvent.count as any).mockResolvedValue(10);
+
+    await expect(getUserLockoutStatus('user-1')).resolves.toEqual(
+      expect.objectContaining({
+        locked: true,
+        failureCount: 10,
+        policy: expect.objectContaining({ enabled: true, maxFailures: 10 }),
+      }),
+    );
+  });
+
+  it('does nothing when the account is not locked', async () => {
+    (AuthEvent.count as any).mockResolvedValue(0);
+
+    const req = { ip: '127.0.0.1', headers: {} } as any;
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as any;
+
+    await expect(rejectIfUserLocked({ userId: 'user-1', req, res })).resolves.toBe(false);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+  });
+
   it('reports unlocked when failures are below the configured threshold', async () => {
     (AuthEvent.count as any).mockResolvedValue(2);
 

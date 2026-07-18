@@ -1,0 +1,1 @@
+export const notARouter = true;

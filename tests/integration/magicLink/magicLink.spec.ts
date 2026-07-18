@@ -8,6 +8,7 @@ import { Session } from '../../../src/models/sessions.js';
 
 import { createApp } from '../../../src/app.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { verifyMagicLink } from '../../../src/controllers/magicLinks.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -15,7 +16,16 @@ import {
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
+import { maybePromoteBootstrapAdmin } from '../../../src/services/bootstrapPromotionService.js';
 import { sendMagicLinkEmail } from '../../../src/services/messagingService.js';
+import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
+
+vi.mock('../../../src/services/bootstrapPromotionService.js', () => ({
+  maybePromoteBootstrapAdmin: vi.fn(async () => ({
+    promoted: false,
+    reason: 'bootstrap_disabled',
+  })),
+}));
 
 let app: Application;
 
@@ -141,6 +151,17 @@ describe('GET /magic-link', () => {
     );
   });
 
+  it('rejects requests without identifiable device metadata', async () => {
+    (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+    (hashDeviceFingerprint as any).mockReturnValueOnce({ ip_hash: null, user_agent_hash: null });
+
+    const res = await request(app).get('/magic-link');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid device data');
+    expect(MagicLinkToken.create).not.toHaveBeenCalled();
+  });
+
   it('rejects magic link requests when the method is disabled', async () => {
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5174'],
@@ -227,6 +248,17 @@ describe('GET /magic-link/verify/:token', () => {
     expect(MagicLinkToken.update).toHaveBeenCalled();
   });
 
+  it('rejects verification when the token param is empty (direct invocation)', async () => {
+    const res: any = {};
+    res.status = vi.fn().mockReturnValue(res);
+    res.json = vi.fn().mockReturnValue(res);
+
+    await verifyMagicLink({ params: {} } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Missing verification token' });
+  });
+
   it('rejects token verification when magic links are disabled', async () => {
     (getSystemConfig as any).mockResolvedValue({
       login_methods: ['passkey'],
@@ -238,6 +270,22 @@ describe('GET /magic-link/verify/:token', () => {
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('login_method_disabled');
     expect(MagicLinkToken.findOne).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the token cannot be atomically consumed', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink());
+    (MagicLinkToken.update as any).mockResolvedValue([0]);
+
+    const res = await request(app).get('/magic-link/verify/token');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Failed to use token');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_failed',
+        metadata: { reason: 'Failed to consume token' },
+      }),
+    );
   });
 });
 
@@ -312,6 +360,49 @@ describe('GET /magic-link/check', () => {
       }),
     );
     expect(Session.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects polling when magic links are disabled', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('login_method_disabled');
+    expect(User.findOne).not.toHaveBeenCalled();
+  });
+
+  it('logs when the poll promotes a bootstrap admin', async () => {
+    const user = {
+      id: 'user-1',
+      email: 'test@example.com',
+      roles: ['user'],
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    (User.findOne as any).mockResolvedValue(user);
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ used_at: new Date(), expires_at: new Date(Date.now() + 100000) }),
+    );
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (maybePromoteBootstrapAdmin as any).mockResolvedValueOnce({
+      promoted: true,
+      reason: 'success',
+    });
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(200);
+    expect(maybePromoteBootstrapAdmin).toHaveBeenCalledWith(
+      expect.objectContaining({ completionMethod: 'magic_link_fallback' }),
+    );
   });
 
   it('polls with 204 and an empty body while waiting (regression: previously 500)', async () => {

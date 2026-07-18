@@ -38,6 +38,30 @@ describe('requireStepUp', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it('returns 401 when the request has no authenticated user or session', async () => {
+    const res = buildRes();
+    const next = vi.fn();
+
+    await requireStepUp()(buildReq({ user: undefined, sessionId: undefined }), res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('returns 401 when the current session cannot be found', async () => {
+    (Session.findOne as any).mockResolvedValue(null);
+
+    const res = buildRes();
+    const next = vi.fn();
+
+    await requireStepUp()(buildReq(), res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
   it('returns step_up_required when step-up verification is stale', async () => {
     (Session.findOne as any).mockResolvedValue(
       buildSession({

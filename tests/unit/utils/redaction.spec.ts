@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { REDACTED, redactMetadata, redactSensitiveText } from '../../../src/utils/redaction.js';
+import {
+  REDACTED,
+  redactMetadata,
+  redactSensitiveText,
+  redactSensitiveValue,
+} from '../../../src/utils/redaction.js';
 
 describe('redaction utilities', () => {
   it('redacts sensitive keys while preserving operational metadata', () => {
@@ -62,5 +67,42 @@ describe('redaction utilities', () => {
     expect(
       redactSensitiveText('Received GET request for /verify?otp=999888&verificationToken=abc123'),
     ).toBe('Received GET request for /verify?otp=[REDACTED]&verificationToken=[REDACTED]');
+  });
+
+  it('returns null and undefined metadata unchanged', () => {
+    expect(redactMetadata(null)).toBeNull();
+    expect(redactMetadata(undefined)).toBeUndefined();
+  });
+
+  describe('redactSensitiveValue', () => {
+    it('returns null and undefined unchanged', () => {
+      expect(redactSensitiveValue(null)).toBeNull();
+      expect(redactSensitiveValue(undefined)).toBeUndefined();
+    });
+
+    it('returns non-string primitives unchanged', () => {
+      expect(redactSensitiveValue(42)).toBe(42);
+      expect(redactSensitiveValue(true)).toBe(true);
+    });
+
+    it('serializes Date values to ISO strings', () => {
+      expect(redactSensitiveValue(new Date('2026-01-01T00:00:00.000Z'))).toBe(
+        '2026-01-01T00:00:00.000Z',
+      );
+    });
+
+    it('stops recursing once the max depth limit is reached', () => {
+      let nested: unknown = 'leaf';
+      for (let i = 0; i < 9; i += 1) {
+        nested = { child: nested };
+      }
+
+      let cursor = redactSensitiveValue(nested) as Record<string, unknown>;
+      for (let i = 0; i < 8; i += 1) {
+        cursor = cursor.child as Record<string, unknown>;
+      }
+
+      expect(cursor).toBe('[REDACTED_DEPTH_LIMIT]');
+    });
   });
 });

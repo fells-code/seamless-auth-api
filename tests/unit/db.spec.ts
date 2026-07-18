@@ -1,24 +1,23 @@
-import { vi } from 'vitest';
-vi.unmock('../../src/utils/logger');
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 const loggerMock = {
   info: vi.fn(),
   error: vi.fn(),
 };
 
-vi.mock('../../src/utils/logger', () => ({
-  default: () => loggerMock,
-}));
-
-import { describe, it, expect, beforeEach } from 'vitest';
-
+// db.ts binds its logger at module-load time, so the logger mock must be registered before
+// db.ts is imported. Using vi.doMock (not hoisted) plus resetModules guarantees the fresh
+// import picks up the mock deterministically, even when this file shares a worker with
+// specs that import the real logger.
 describe('connectToDb', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
+    loggerMock.info.mockClear();
+    loggerMock.error.mockClear();
+    vi.doMock('../../src/utils/logger', () => ({ default: () => loggerMock }));
   });
 
   it('connects successfully and logs info', async () => {
-    const logger = (await import('../../src/utils/logger')).default('test');
     const { connectToDb } = await import('../../src/db');
 
     const models = {

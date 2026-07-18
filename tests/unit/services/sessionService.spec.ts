@@ -161,6 +161,36 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
+  it('returns null when the session lifetime has expired', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+
+    (Session.findByPk as any).mockResolvedValue(
+      buildSession({
+        expiresAt: new Date(Date.now() - 1000),
+        idleExpiresAt: new Date(Date.now() + 1000),
+      }),
+    );
+
+    const { validateSessionRecord } = await import('../../../src/services/sessionService');
+
+    expect(await validateSessionRecord('id')).toBeNull();
+  });
+
+  it('returns null when the session idle window has expired', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+
+    (Session.findByPk as any).mockResolvedValue(
+      buildSession({
+        expiresAt: new Date(Date.now() + 1000),
+        idleExpiresAt: new Date(Date.now() - 1000),
+      }),
+    );
+
+    const { validateSessionRecord } = await import('../../../src/services/sessionService');
+
+    expect(await validateSessionRecord('id')).toBeNull();
+  });
+
   it('returns session if valid', async () => {
     const { Session } = await import('../../../src/models/sessions');
 
@@ -239,6 +269,33 @@ describe('sessionService', () => {
     await revokeSessionChain(session as any);
 
     expect(session.save).toHaveBeenCalled();
+  });
+
+  it('stops revoking the chain when a session has no replacement', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+
+    const session = buildSession({ replacedBySessionId: null });
+
+    const { revokeSessionChain } = await import('../../../src/services/sessionService');
+
+    await revokeSessionChain(session as any);
+
+    expect(session.save).toHaveBeenCalled();
+    expect(Session.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('rejects access tokens whose subject or session id are not strings', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'access', sub: 123, sid: 'session' },
+    });
+
+    const { validateAccessToken } = await import('../../../src/services/sessionService');
+
+    expect(await validateAccessToken('token')).toBeNull();
   });
 
   it('revokes session immediately', async () => {
@@ -356,6 +413,150 @@ describe('sessionService', () => {
     const jose = await import('jose');
 
     (jose.jwtVerify as any).mockRejectedValue(new Error('fail'));
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    const result = await validateBearerToken('token');
+
+    expect(result).toBeNull();
+  });
+
+  it('resolves the signing key from the JWT header kid', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.importSPKI as any).mockResolvedValue('key');
+    (jose.jwtVerify as any).mockImplementation(async (_token: string, getKey: any) => {
+      await getKey({ kid: 'kid-1' });
+      return { payload: { typ: 'access', sub: 'user', sid: 'session' } };
+    });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    const result = await verifyJwtWithKid('token', 'access');
+
+    expect(getPublicKeyByKid).toHaveBeenCalledWith('kid-1');
+    expect(jose.importSPKI).toHaveBeenCalledWith('pem', 'RS256');
+    expect(result).toBeDefined();
+  });
+
+  it('returns null when the JWT header is missing a kid', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockImplementation(async (_token: string, getKey: any) => {
+      await getKey({});
+      return { payload: { typ: 'access', sub: 'user', sid: 'session' } };
+    });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    const result = await verifyJwtWithKid('token', 'access');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when no public key is registered for the kid', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+
+    (getPublicKeyByKid as any).mockResolvedValue(null);
+    (jose.jwtVerify as any).mockImplementation(async (_token: string, getKey: any) => {
+      await getKey({ kid: 'kid-1' });
+      return { payload: { typ: 'access', sub: 'user', sid: 'session' } };
+    });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    const result = await verifyJwtWithKid('token', 'access');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when an access token is missing its subject', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'access', sid: 'session' },
+    });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    const result = await verifyJwtWithKid('token', 'access');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when an ephemeral token is missing its subject', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'ephemeral' },
+    });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    const result = await verifyJwtWithKid('token', 'ephemeral');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when an ephemeral bearer token cannot be verified', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockRejectedValue(new Error('fail'));
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    const result = await validateBearerToken('token', 'ephemeral');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when an ephemeral token subject has no matching user', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { User } = await import('../../../src/models/users');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'ephemeral', sub: 'user' },
+    });
+    (User.findOne as any).mockResolvedValue(null);
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    expect(await validateBearerToken('token', 'ephemeral')).toBeNull();
+  });
+
+  it('returns null when the session owner cannot be loaded', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { Session } = await import('../../../src/models/sessions');
+    const { User } = await import('../../../src/models/users');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'access', sub: 'user', sid: 'session-1' },
+    });
+    (Session.findByPk as any).mockResolvedValue(buildSession({ id: 'session-1', userId: 'user' }));
+    (User.findOne as any).mockResolvedValue(null);
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    expect(await validateBearerToken('token')).toBeNull();
+  });
+
+  it('returns null when the access token session record is missing', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { Session } = await import('../../../src/models/sessions');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'access', sub: 'user', sid: 'session-1' },
+    });
+    (Session.findByPk as any).mockResolvedValue(null);
 
     const { validateBearerToken } = await import('../../../src/services/sessionService');
 

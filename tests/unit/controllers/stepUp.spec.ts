@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { finishWebAuthnStepUp, startWebAuthnStepUp } from '../../../src/controllers/stepUp.js';
+import {
+  finishWebAuthnStepUp,
+  getStepUpStatus,
+  startWebAuthnStepUp,
+} from '../../../src/controllers/stepUp.js';
 import { Credential } from '../../../src/models/credentials.js';
 import { Session } from '../../../src/models/sessions.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
@@ -192,5 +196,203 @@ describe('step-up controller', () => {
     expect(Credential.findOne).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: 'prf_output_not_allowed' });
+  });
+
+  it('reports step-up status for the current session', async () => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
+    );
+
+    const req = buildReq();
+    const res = buildRes();
+
+    await getStepUpStatus(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ fresh: true, method: 'webauthn' }),
+    );
+  });
+
+  it('rejects status requests without an authenticated session', async () => {
+    const req = buildReq({ user: undefined, sessionId: undefined });
+    const res = buildRes();
+
+    await getStepUpStatus(req, res);
+
+    expect(Session.findOne).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('rejects status requests when the session cannot be found', async () => {
+    (Session.findOne as any).mockResolvedValue(null);
+
+    const req = buildReq();
+    const res = buildRes();
+
+    await getStepUpStatus(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('rejects starting step-up without an authenticated user', async () => {
+    const req = buildReq({ user: undefined });
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(Credential.findAll).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('rejects starting step-up when the user has no matching credentials', async () => {
+    (Credential.findAll as any).mockResolvedValue([]);
+
+    const req = buildReq();
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+  });
+
+  it('defaults an absent body and credential list when starting step-up', async () => {
+    (Credential.findAll as any).mockResolvedValue(null);
+
+    const req = buildReq({ body: undefined });
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+  });
+
+  it('filters out credentials that do not match the requested credential id', async () => {
+    (Credential.findAll as any).mockResolvedValue([buildCredential({ id: 'other-cred' })]);
+
+    const req = buildReq({ body: { credentialId: 'wanted-cred' } });
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+  });
+
+  it('reports when no PRF-capable credentials are available', async () => {
+    (Credential.findAll as any).mockResolvedValue([buildCredential({ prfCapable: false })]);
+
+    const req = buildReq({ body: { prf: { salt: prfSalt() } } });
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+  });
+
+  it('returns 500 when generating step-up options fails', async () => {
+    (Credential.findAll as any).mockResolvedValue([buildCredential()]);
+    (getSystemConfig as any).mockResolvedValue({ rpid: 'localhost' });
+
+    const { generateAuthenticationOptions } = await import('@simplewebauthn/server');
+    (generateAuthenticationOptions as any).mockRejectedValue(new Error('boom'));
+
+    const req = buildReq();
+    const res = buildRes();
+
+    await startWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+  });
+
+  it('rejects finishing step-up without an authenticated session', async () => {
+    const req = buildReq({ user: undefined, sessionId: undefined });
+    const res = buildRes();
+
+    await finishWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('rejects finishing step-up when the challenge or assertion id is missing', async () => {
+    const user = buildUser({ challenge: null });
+    const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });
+    const res = buildRes();
+
+    await finishWebAuthnStepUp(req, res);
+
+    expect(Credential.findOne).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
+  });
+
+  it('rejects finishing step-up when the credential is not found', async () => {
+    const user = buildUser({ challenge: 'challenge' });
+    (Credential.findOne as any).mockResolvedValue(null);
+
+    const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });
+    const res = buildRes();
+
+    await finishWebAuthnStepUp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
+  });
+
+  it('rejects finishing step-up when the session cannot be recorded', async () => {
+    const user = buildUser({ challenge: 'challenge' });
+    const credential = buildCredential({ id: 'cred-1', userId: user.id });
+
+    (Credential.findOne as any).mockResolvedValue(credential);
+    (Session.findOne as any).mockResolvedValue(null);
+    (getSystemConfig as any).mockResolvedValue({
+      origins: ['http://localhost:5137'],
+      rpid: 'localhost',
+    });
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockResolvedValue({
+      verified: true,
+      authenticationInfo: { newCounter: 2 },
+    });
+
+    const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });
+    const res = buildRes();
+
+    await finishWebAuthnStepUp(req, res);
+
+    expect(credential.update).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('returns 401 when verification throws during finish', async () => {
+    const user = buildUser({ challenge: 'challenge' });
+    const credential = buildCredential({ id: 'cred-1', userId: user.id });
+
+    (Credential.findOne as any).mockResolvedValue(credential);
+    (getSystemConfig as any).mockResolvedValue({
+      origins: ['http://localhost:5137'],
+      rpid: 'localhost',
+    });
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockRejectedValue(new Error('boom'));
+
+    const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });
+    const res = buildRes();
+
+    await finishWebAuthnStepUp(req, res);
+
+    expect(user.update).toHaveBeenCalledWith({ challenge: null });
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
   });
 });

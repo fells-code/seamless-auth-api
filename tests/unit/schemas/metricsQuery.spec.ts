@@ -23,6 +23,16 @@ describe('MetricsQuerySchema', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('rejects an unparseable to date', () => {
+    const parsed = MetricsQuerySchema.safeParse({
+      from: '2026-01-01T00:00:00.000Z',
+      to: 'not-a-date',
+    });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.success === false && parsed.error.issues[0].message).toBe('Invalid to date');
+  });
+
   it('rejects an inverted range (from after to)', () => {
     const parsed = MetricsQuerySchema.safeParse({
       from: '2026-02-01T00:00:00.000Z',

@@ -79,6 +79,24 @@ describe('verifyBearerAuth', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('attaches the organization id when present on the validated result', async () => {
+    req.headers.authorization = 'Bearer token';
+
+    const mockUser = { id: 'user-1' };
+
+    (validateBearerToken as any).mockResolvedValue({
+      user: mockUser,
+      sessionId: 'session-1',
+      organizationId: 'org-1',
+    });
+
+    await verifyBearerAuth(req, res, next);
+
+    expect(req.organizationId).toBe('org-1');
+    expect(req.sessionId).toBe('session-1');
+    expect(next).toHaveBeenCalled();
+  });
+
   it('validates with the requested auth token type', async () => {
     req.headers.authorization = 'Bearer token';
 

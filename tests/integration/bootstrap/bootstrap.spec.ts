@@ -87,6 +87,34 @@ it('returns bootstrap invite token details only when explicitly requested in non
   expect(res.body.data.token).toBe('test-secret-that-is-very-long-very-very-very-long');
 });
 
+it('returns an external delivery payload when requested', async () => {
+  (assertBootstrapSecret as any).mockReset();
+  (assertBootstrapAllowed as any).mockReset();
+  (createAdminBootstrapInvite as any).mockResolvedValue({
+    registrationUrl: 'http://localhost:3000/register?bootstrapToken=tok',
+    expiresAt: new Date(),
+    token: 'test-secret-that-is-very-long-very-very-very-long',
+    email: 'test@example.com',
+  });
+
+  const res = await request(app)
+    .post('/internal/bootstrap/admin-invite')
+    .set('Authorization', 'Bearer test-secret-that-is-very-long-very-very-very-long')
+    .set('x-seamless-auth-delivery-mode', 'external')
+    .send({ email: 'test@example.com' });
+
+  expect(res.status).toBe(201);
+  expect(res.body.data.delivery).toMatchObject({
+    kind: 'bootstrap_invite_email',
+    to: 'test@example.com',
+    inviteUrl: 'http://localhost:3000/register?bootstrapToken=tok',
+    token: 'test-secret-that-is-very-long-very-very-very-long',
+  });
+  expect(createAdminBootstrapInvite).toHaveBeenCalledWith(
+    expect.objectContaining({ sendMessage: false }),
+  );
+});
+
 it('fails when missing bearer token', async () => {
   (assertBootstrapSecret as any).mockImplementation(() => {
     throw new BootstrapError('UNAUTHORIZED', 'Unauthorized', 401);

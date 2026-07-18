@@ -6,6 +6,7 @@ import {
   isValidEmail,
   isValidPhoneNumber,
   computeSessionTimes,
+  normalizePhoneNumber,
   parseDurationToSeconds,
   hashSha256,
   hashDeviceFingerprint,
@@ -30,6 +31,16 @@ describe('utils', () => {
 
     it('invalid phone', () => {
       expect(isValidPhoneNumber('123')).toBe(false);
+    });
+  });
+
+  describe('normalizePhoneNumber', () => {
+    it('normalizes a valid phone number to E.164', () => {
+      expect(normalizePhoneNumber('+1 415 555 2671')).toBe('+14155552671');
+    });
+
+    it('returns null for an invalid phone number', () => {
+      expect(normalizePhoneNumber('123')).toBeNull();
     });
   });
 
