@@ -15,13 +15,14 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ---------- Admin dashboard build stage ----------
-# Fetches the admin dashboard SPA at a PINNED ref and builds the same-origin /admin variant
-# (base path /admin) that this API serves at /admin. The dashboard is not published to npm
-# (its package is private), so it is fetched from git by tag. Bump SEAMLESS_ADMIN_DASHBOARD_REF
+# Fetches the admin dashboard SPA at a PINNED ref and builds the same-origin /console variant
+# (base path /console) that this API serves at /console. The dashboard repo is public, but its
+# npm package is not published (package.json is marked private), so it is fetched from git by tag.
+# Bump SEAMLESS_ADMIN_DASHBOARD_REF
 # to ship a new dashboard to tenants on the next auth-image release; never point a release build
-# at a floating branch. The dedicated same-origin build (origin-derived API, /admin base) is a
+# at a floating branch. The dedicated same-origin build (origin-derived API, /console base) is a
 # coordinated dashboard PR; until it merges, point the ref at that PR's branch and this stage
-# still builds a /admin-based bundle via the --base override below.
+# still builds a /console-based bundle via the --base override below.
 FROM node:24-slim AS admin-dashboard
 WORKDIR /dashboard
 
@@ -35,7 +36,7 @@ RUN apt-get update && \
 RUN git clone --depth 1 --branch "${SEAMLESS_ADMIN_DASHBOARD_REF}" \
   "${SEAMLESS_ADMIN_DASHBOARD_REPO}" .
 RUN npm ci
-RUN npx vite build --base=/admin/
+RUN npx vite build --base=/console/
 
 # ---------- Runtime stage ----------
 FROM node:24-slim AS runner
@@ -53,7 +54,7 @@ COPY --from=builder /app/src/config ./src/config
 COPY --from=builder /app/src/migrations ./src/migrations
 COPY --from=builder /app/.sequelizerc ./.sequelizerc
 
-# Admin dashboard SPA, served at /admin when SERVE_ADMIN_DASHBOARD is not "false".
+# Admin dashboard SPA, served at /console when SERVE_ADMIN_DASHBOARD is not "false".
 COPY --from=admin-dashboard /dashboard/dist ./admin-dashboard
 
 RUN mkdir -p ./keys && \

@@ -16,20 +16,10 @@ const logger = getLogger('adminDashboard');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const ADMIN_DASHBOARD_BASE_PATH = '/admin';
-
-// The dashboard SPA shares the /admin namespace with the admin API routes. Those API
-// routes are registered before this static handler and therefore keep priority; the
-// SPA only ever serves paths the API leaves unmatched. A hard refresh on one of these
-// reserved sub-paths hits the API, so the dashboard's same-origin build must keep its
-// client route paths out of this set. Kept in sync with src/routes/admin.routes.ts.
-const RESERVED_API_SEGMENTS = new Set([
-  'organizations',
-  'users',
-  'sessions',
-  'audit-events',
-  'credential-count',
-]);
+// Served under /console rather than /admin so the SPA namespace never overlaps the admin
+// API routes (which live under /admin/*). The handler is still registered after the API
+// routers, so the API keeps priority regardless.
+export const ADMIN_DASHBOARD_BASE_PATH = '/console';
 
 export function isAdminDashboardEnabled(): boolean {
   // Default enabled for managed instances; disable only with an explicit "false".
@@ -41,7 +31,7 @@ export function resolveAdminDashboardDir(): string {
 }
 
 /**
- * Mounts static serving for the admin dashboard SPA under /admin when enabled and a build
+ * Mounts static serving for the admin dashboard SPA under /console when enabled and a build
  * is present. Additive only: it never intercepts an existing API route, and it no-ops
  * (leaving the API fully functional) when the flag is off or no build was bundled.
  * Returns true when the SPA was mounted.
@@ -65,7 +55,7 @@ export function mountAdminDashboard(app: Express): boolean {
 
   const staticHandler = express.static(dir, {
     index: false,
-    // Let the history fallback below own the /admin root instead of a 301 to /admin/.
+    // Let the history fallback below own the /console root instead of a 301 to /console/.
     redirect: false,
     setHeaders: (res, filePath) => {
       if (path.basename(filePath) === 'index.html') {
@@ -96,10 +86,6 @@ export function mountAdminDashboard(app: Express): boolean {
   app.get(ADMIN_DASHBOARD_BASE_PATH, sendIndex);
   app.get(`${ADMIN_DASHBOARD_BASE_PATH}/*`, sendIndex);
 
-  const reserved = [...RESERVED_API_SEGMENTS].map((s) => `/admin/${s}`).join(', ');
-  logger.info(
-    `Serving admin dashboard at ${ADMIN_DASHBOARD_BASE_PATH} from ${dir}. ` +
-      `API keeps priority on reserved paths (${reserved}).`,
-  );
+  logger.info(`Serving admin dashboard at ${ADMIN_DASHBOARD_BASE_PATH} from ${dir}.`);
   return true;
 }

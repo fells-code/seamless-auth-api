@@ -90,9 +90,9 @@ app.use(logRoute);
 export async function createApp() {
   await loadRoutes(app);
 
-  // Additive static serving for the admin dashboard SPA. Registered after the API routes
-  // so the API always keeps priority, and before the 404 handler so unmatched /admin/*
-  // navigations fall back to the SPA instead of 404ing.
+  // Additive static serving for the admin dashboard SPA at /console. Registered after the
+  // API routes so the API always keeps priority, and before the 404 handler so unmatched
+  // /console/* navigations fall back to the SPA instead of 404ing.
   mountAdminDashboard(app);
 
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

@@ -124,23 +124,24 @@ set and is preferred in containers and hosted environments.
 ### Admin dashboard (optional)
 
 This API can serve the admin dashboard SPA ([`seamless-auth-admin-dashboard`](https://github.com/fells-code/seamless-auth-admin-dashboard))
-at the `/admin` subpath on its own origin (same origin as the API), so a managed instance ships
+at the `/console` subpath on its own origin (same origin as the API), so a managed instance ships
 its dashboard without a separate host. Serving is additive: the admin API routes are registered
-first and keep priority, and the SPA history fallback only handles unmatched `/admin/*` GETs. No
+first and keep priority, and the SPA history fallback only handles unmatched `/console/*` GETs. No
 CORS changes are needed because the dashboard is same-origin with the API.
 
-| Variable                | Required | Default             | Notes                                                                                                           |
-| ----------------------- | -------- | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `SERVE_ADMIN_DASHBOARD` | No       | `true`              | Serve the SPA at `/admin`. Set to `false` to disable. When enabled but no build is bundled, serving is skipped. |
-| `ADMIN_DASHBOARD_DIR`   | No       | `./admin-dashboard` | Directory of the built SPA, relative to the compiled bundle. The Docker image copies the dashboard build here.  |
+`/console` is chosen deliberately so the SPA namespace never overlaps the admin API, which lives
+under `/admin/*` (`/admin/users`, `/admin/organizations`, `/admin/sessions`, `/admin/audit-events`,
+`/admin/credential-count`). A path under `/admin` would let a hard refresh or deep-link on one of
+those routes resolve to the API instead of the SPA; `/console` has no such overlap.
 
-**Reserved paths.** The dashboard shares the `/admin` namespace with the admin API. These
-sub-paths always resolve to the API, so the dashboard's client routes must avoid them (a hard
-refresh on one hits the API, not the SPA): `/admin/organizations`, `/admin/users`,
-`/admin/sessions`, `/admin/audit-events`, `/admin/credential-count`.
+| Variable                | Required | Default             | Notes                                                                                                             |
+| ----------------------- | -------- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `SERVE_ADMIN_DASHBOARD` | No       | `true`              | Serve the SPA at `/console`. Set to `false` to disable. When enabled but no build is bundled, serving is skipped. |
+| `ADMIN_DASHBOARD_DIR`   | No       | `./admin-dashboard` | Directory of the built SPA, relative to the compiled bundle. The Docker image copies the dashboard build here.    |
 
-**Build integration and version bumps.** The dashboard package is private (not on npm), so the
-Docker image fetches it from git at a pinned ref and builds the `/admin` variant in a dedicated
+**Build integration and version bumps.** The dashboard repo is public, but its npm package is
+not published (`"private": true` in its `package.json`), so the Docker image fetches it from git
+at a pinned ref and builds the `/console` variant in a dedicated
 stage (see the `admin-dashboard` stage in [`Dockerfile`](../Dockerfile)). Bump the dashboard
 shipped to tenants by raising the `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG (a git tag); the new
 version then flows to tenants through the normal upstream auth-image release. The dedicated
