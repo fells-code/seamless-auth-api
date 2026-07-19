@@ -153,9 +153,19 @@ Because the same-origin build derives its API base from the page origin **and st
 server-adapter contract** (it calls `<origin>/auth/...` with `credentials: include`), the origin
 that serves `/console` must also expose the `@seamless-auth/express` adapter's `/auth/*` cookie
 endpoints. This bare API is Bearer-only with no `/auth` prefix and no cookies, so loading the SPA
-directly from the API origin renders the UI but its API calls fail. Front the API with the adapter
-on one origin (or proxy `/console` to the API and `/auth/*` to the adapter) so the dashboard and
-the adapter share an origin.
+directly from the API origin renders the UI but its API calls fail.
+
+The supported wiring is `@seamless-auth/express` (>= 0.8.0), which serves the dashboard and the
+adapter from one origin: mount the console reverse-proxy alongside the auth routes so `/console`
+is proxied to this API while `/auth/*` is handled by the adapter.
+
+```js
+app.use('/auth', createSeamlessAuthServer(opts));
+app.use('/console', createSeamlessConsoleProxy({ authServerUrl: opts.authServerUrl }));
+```
+
+The proxy forwards `/console` requests to this API's `/console` (so the dashboard version tracks
+the auth image), while the adapter bridges the dashboard's cookie session to Bearer upstream.
 
 ### Direct messaging (optional)
 
