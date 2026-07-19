@@ -141,12 +141,21 @@ those routes resolve to the API instead of the SPA; `/console` has no such overl
 
 **Build integration and version bumps.** The dashboard repo is public, but its npm package is
 not published (`"private": true` in its `package.json`), so the Docker image fetches it from git
-at a pinned ref and builds the `/console` variant in a dedicated
-stage (see the `admin-dashboard` stage in [`Dockerfile`](../Dockerfile)). Bump the dashboard
-shipped to tenants by raising the `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG (a git tag); the new
-version then flows to tenants through the normal upstream auth-image release. The dedicated
-same-origin dashboard build (origin-derived API base) is a coordinated dashboard PR; until it
-merges, point `SEAMLESS_ADMIN_DASHBOARD_REF` at that PR's branch. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37).
+at a pinned ref and runs the dashboard's own same-origin build (`npm run build:console`, which
+sets `VITE_BASE_PATH=/console/` and `VITE_SAME_ORIGIN=true` so the assets, the router basename,
+and the origin-derived API base all agree) in a dedicated stage (see the `admin-dashboard` stage
+in [`Dockerfile`](../Dockerfile)). Bump the dashboard shipped to tenants by raising the
+`SEAMLESS_ADMIN_DASHBOARD_REF` build ARG; the new version then flows to tenants through the normal
+upstream auth-image release. The ref is currently pinned to the merge commit of the dashboard's
+same-origin build; move it to a release tag once one is cut. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37).
+
+Because the same-origin build derives its API base from the page origin **and still speaks the
+server-adapter contract** (it calls `<origin>/auth/...` with `credentials: include`), the origin
+that serves `/console` must also expose the `@seamless-auth/express` adapter's `/auth/*` cookie
+endpoints. This bare API is Bearer-only with no `/auth` prefix and no cookies, so loading the SPA
+directly from the API origin renders the UI but its API calls fail. Front the API with the adapter
+on one origin (or proxy `/console` to the API and `/auth/*` to the adapter) so the dashboard and
+the adapter share an origin.
 
 ### Direct messaging (optional)
 
