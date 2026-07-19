@@ -9,6 +9,7 @@ import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 
+import { mountAdminDashboard } from './lib/adminDashboard.js';
 import { loadRoutes } from './lib/loadRoutes.js';
 import { dynamicRateLimit } from './middleware/rateLimit.js';
 import { logRoute } from './middleware/routeLogger.js';
@@ -88,6 +89,12 @@ app.use(logRoute);
 
 export async function createApp() {
   await loadRoutes(app);
+
+  // Additive static serving for the admin dashboard SPA. Registered after the API routes
+  // so the API always keeps priority, and before the 404 handler so unmatched /admin/*
+  // navigations fall back to the SPA instead of 404ing.
+  mountAdminDashboard(app);
+
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     if (err.message === 'Not allowed by CORS') {
       void AuthEventService.requestSuspicious(req, {
