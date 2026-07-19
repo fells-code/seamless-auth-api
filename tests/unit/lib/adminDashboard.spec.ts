@@ -26,8 +26,8 @@ function writeBuild(dir: string) {
 
 function buildApp(): Express {
   const app = express();
-  // A stand-in for the admin API routes, registered first so we can prove the API keeps
-  // priority over the SPA fallback on reserved paths.
+  // A stand-in for the admin API routes, registered first so we can prove the SPA never
+  // shadows them. The dashboard lives at /console, so there is no overlap with /admin.
   app.get('/admin/users', (_req, res) => {
     res.status(200).json({ source: 'api' });
   });
@@ -75,7 +75,7 @@ describe('resolveAdminDashboardDir', () => {
 });
 
 describe('mountAdminDashboard', () => {
-  it('serves index.html for the /admin root', async () => {
+  it('serves index.html for the /console root', async () => {
     writeBuild(buildDir);
     const res = await request(buildApp()).get(ADMIN_DASHBOARD_BASE_PATH);
 
@@ -87,7 +87,7 @@ describe('mountAdminDashboard', () => {
 
   it('serves index.html for a deep SPA route (history fallback)', async () => {
     writeBuild(buildDir);
-    const res = await request(buildApp()).get('/admin/settings/profile');
+    const res = await request(buildApp()).get('/console/settings/profile');
 
     expect(res.status).toBe(200);
     expect(res.text).toContain('id="root"');
@@ -96,14 +96,14 @@ describe('mountAdminDashboard', () => {
 
   it('serves hashed assets with an immutable long cache and correct MIME', async () => {
     writeBuild(buildDir);
-    const res = await request(buildApp()).get('/admin/assets/app-abc123.js');
+    const res = await request(buildApp()).get('/console/assets/app-abc123.js');
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/javascript/);
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
 
-  it('lets the API keep priority on reserved paths', async () => {
+  it('does not shadow API routes outside the /console namespace', async () => {
     writeBuild(buildDir);
     const res = await request(buildApp()).get('/admin/users');
 
@@ -113,7 +113,7 @@ describe('mountAdminDashboard', () => {
 
   it('404s a missing asset instead of serving index.html', async () => {
     writeBuild(buildDir);
-    const res = await request(buildApp()).get('/admin/assets/missing.js');
+    const res = await request(buildApp()).get('/console/assets/missing.js');
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'Not Found' });

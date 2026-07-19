@@ -31,21 +31,21 @@ afterAll(() => {
 });
 
 describe('Admin dashboard static serving (via createApp)', () => {
-  it('serves the SPA at /admin', async () => {
-    const res = await request(app).get('/admin');
+  it('serves the SPA at /console', async () => {
+    const res = await request(app).get('/console');
     expect(res.status).toBe(200);
     expect(res.text).toContain('id="root"');
     expect(res.headers['cache-control']).toBe('no-store');
   });
 
   it('serves the SPA history fallback for a deep client route', async () => {
-    const res = await request(app).get('/admin/anything/here');
+    const res = await request(app).get('/console/anything/here');
     expect(res.status).toBe(200);
     expect(res.text).toContain('id="root"');
   });
 
   it('serves hashed assets with an immutable cache header', async () => {
-    const res = await request(app).get('/admin/assets/app-abc123.js');
+    const res = await request(app).get('/console/assets/app-abc123.js');
     expect(res.status).toBe(200);
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
@@ -56,9 +56,9 @@ describe('Admin dashboard static serving (via createApp)', () => {
     expect(res.body).toEqual({ message: 'System up' });
   });
 
-  it('leaves the /admin API namespace to the API (reserved path is not the SPA)', async () => {
-    // /admin/users is an admin API route. It must resolve to the API (JSON), never the SPA
-    // shell, proving the API keeps priority on reserved paths.
+  it('does not touch the /admin API namespace', async () => {
+    // /admin/users is an admin API route. Serving the SPA at /console must leave it fully to
+    // the API (JSON), never the SPA shell.
     const res = await request(app).get('/admin/users');
     expect(res.headers['content-type']).toMatch(/application\/json/);
     expect(res.text).not.toContain('id="root"');
