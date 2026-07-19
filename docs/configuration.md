@@ -121,6 +121,32 @@ set and is preferred in containers and hosted environments.
 | `SEAMLESS_BOOTSTRAP_SECRET`   | Conditional   | -       | Required when `SEAMLESS_BOOTSTRAP_ENABLED=true`.                                 |
 | `SEAMLESS_AUTH_DEBUG_SECRETS` | No (dev only) | `false` | Logs bootstrap invite links for local debugging. **Never enable in production.** |
 
+### Admin dashboard (optional)
+
+This API can serve the admin dashboard SPA ([`seamless-auth-admin-dashboard`](https://github.com/fells-code/seamless-auth-admin-dashboard))
+at the `/admin` subpath on its own origin (same origin as the API), so a managed instance ships
+its dashboard without a separate host. Serving is additive: the admin API routes are registered
+first and keep priority, and the SPA history fallback only handles unmatched `/admin/*` GETs. No
+CORS changes are needed because the dashboard is same-origin with the API.
+
+| Variable                | Required | Default             | Notes                                                                                                           |
+| ----------------------- | -------- | ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `SERVE_ADMIN_DASHBOARD` | No       | `true`              | Serve the SPA at `/admin`. Set to `false` to disable. When enabled but no build is bundled, serving is skipped. |
+| `ADMIN_DASHBOARD_DIR`   | No       | `./admin-dashboard` | Directory of the built SPA, relative to the compiled bundle. The Docker image copies the dashboard build here.  |
+
+**Reserved paths.** The dashboard shares the `/admin` namespace with the admin API. These
+sub-paths always resolve to the API, so the dashboard's client routes must avoid them (a hard
+refresh on one hits the API, not the SPA): `/admin/organizations`, `/admin/users`,
+`/admin/sessions`, `/admin/audit-events`, `/admin/credential-count`.
+
+**Build integration and version bumps.** The dashboard package is private (not on npm), so the
+Docker image fetches it from git at a pinned ref and builds the `/admin` variant in a dedicated
+stage (see the `admin-dashboard` stage in [`Dockerfile`](../Dockerfile)). Bump the dashboard
+shipped to tenants by raising the `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG (a git tag); the new
+version then flows to tenants through the normal upstream auth-image release. The dedicated
+same-origin dashboard build (origin-derived API base) is a coordinated dashboard PR; until it
+merges, point `SEAMLESS_ADMIN_DASHBOARD_REF` at that PR's branch. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37).
+
 ### Direct messaging (optional)
 
 Needed only when this API sends OTP/magic-link messages itself. Not needed when a SeamlessAuth
