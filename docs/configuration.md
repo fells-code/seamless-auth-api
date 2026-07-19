@@ -146,8 +146,8 @@ sets `VITE_BASE_PATH=/console/` and `VITE_SAME_ORIGIN=true` so the assets, the r
 and the origin-derived API base all agree) in a dedicated stage (see the `admin-dashboard` stage
 in [`Dockerfile`](../Dockerfile)). Bump the dashboard shipped to tenants by raising the
 `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG; the new version then flows to tenants through the normal
-upstream auth-image release. The ref is currently pinned to the merge commit of the dashboard's
-same-origin build; move it to a release tag once one is cut. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37).
+upstream auth-image release. The ref is pinned to the dashboard release tag `v0.2.0`, the first
+release that ships the same-origin `/console` build. See [seamless-iac#37](https://github.com/fells-code/seamless-iac/issues/37).
 
 Because the same-origin build derives its API base from the page origin **and still speaks the
 server-adapter contract** (it calls `<origin>/auth/...` with `credentials: include`), the origin

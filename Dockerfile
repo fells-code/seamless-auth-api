@@ -27,8 +27,8 @@ FROM node:24-slim AS admin-dashboard
 WORKDIR /dashboard
 
 ARG SEAMLESS_ADMIN_DASHBOARD_REPO=https://github.com/fells-code/seamless-auth-admin-dashboard.git
-# Merge commit of the same-origin /console build (PR #12). Swap for a release tag once cut.
-ARG SEAMLESS_ADMIN_DASHBOARD_REF=dcc1fe7
+# Pinned dashboard release tag. v0.2.0 is the first release with the same-origin /console build.
+ARG SEAMLESS_ADMIN_DASHBOARD_REF=v0.2.0
 
 RUN apt-get update && \
   apt-get install -y git python3 make g++ && \
