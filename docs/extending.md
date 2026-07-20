@@ -32,8 +32,10 @@ A trusted caller can take over delivery entirely by sending the header
 delivery payload (recipient + token, and a URL for magic links) so the caller sends it through
 its own channel. See [`src/lib/externalDelivery.ts`](../src/lib/externalDelivery.ts).
 
-- In development, external delivery is returned without additional credentials.
-- In production, it requires a valid `x-seamless-service-token` from a trusted server adapter.
+- External delivery requires a valid `x-seamless-service-token` from a trusted server adapter
+  in every environment.
+- For local development without a service token, set `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS=true`.
+  The flag is ignored when `NODE_ENV=production`.
 
 This is how a server adapter integrates its own email/SMS stack without the API baking in a
 provider. See the delivery payload shapes in

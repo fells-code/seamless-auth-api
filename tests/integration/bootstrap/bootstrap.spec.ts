@@ -1,3 +1,4 @@
+import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
@@ -18,6 +19,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 vi.mock('../../../src/services/bootstrapService.js', () => ({
@@ -67,7 +69,9 @@ it('creates bootstrap invite successfully', async () => {
   expect(res.body.data.token).toBeUndefined();
 });
 
-it('returns bootstrap invite token details only when explicitly requested in non-production', async () => {
+it('returns bootstrap invite token details only behind the local uncredentialed opt-in', async () => {
+  vi.stubEnv('ALLOW_UNCREDENTIALED_DELIVERY_SECRETS', 'true');
+
   (createAdminBootstrapInvite as any).mockResolvedValue({
     registrationUrl:
       'http://localhost:3000/register?bootstrapToken=test-secret-that-is-very-long-very-very-very-long',
@@ -101,6 +105,7 @@ it('returns an external delivery payload when requested', async () => {
     .post('/internal/bootstrap/admin-invite')
     .set('Authorization', 'Bearer test-secret-that-is-very-long-very-very-very-long')
     .set('x-seamless-auth-delivery-mode', 'external')
+    .set('x-seamless-service-token', await mintInternalServiceToken())
     .send({ email: 'test@example.com' });
 
   expect(res.status).toBe(201);

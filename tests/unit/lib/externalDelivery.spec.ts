@@ -18,10 +18,12 @@ function req(headers: Record<string, string | undefined>) {
 
 describe('external delivery gates', () => {
   const originalNodeEnv = process.env.NODE_ENV;
+  const originalOptIn = process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS;
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NODE_ENV = 'test';
+    delete process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS;
   });
 
   afterEach(() => {
@@ -30,9 +32,63 @@ describe('external delivery gates', () => {
     } else {
       process.env.NODE_ENV = originalNodeEnv;
     }
+
+    if (originalOptIn === undefined) {
+      delete process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS;
+    } else {
+      process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = originalOptIn;
+    }
   });
 
-  it('allows explicit external delivery outside production', async () => {
+  it('blocks external delivery outside production without a trusted service token', async () => {
+    (validateInternalServiceToken as any).mockResolvedValue(null);
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it('allows external delivery with a trusted service token outside production', async () => {
+    (validateInternalServiceToken as any).mockResolvedValue({
+      sub: 'service',
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+    });
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'Bearer service-token',
+        }),
+      ),
+    ).resolves.toBe(true);
+  });
+
+  it('rejects a token from an untrusted issuer or audience', async () => {
+    (validateInternalServiceToken as any).mockResolvedValue({
+      sub: 'service',
+      iss: 'someone-else',
+      aud: 'seamless-auth',
+    });
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'Bearer service-token',
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it('allows uncredentialed external delivery only behind the explicit local opt-in', async () => {
+    process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = 'true';
+
     await expect(
       canReturnExternalDelivery(
         req({
@@ -40,6 +96,21 @@ describe('external delivery gates', () => {
         }),
       ),
     ).resolves.toBe(true);
+
+    expect(validateInternalServiceToken).not.toHaveBeenCalled();
+  });
+
+  it('ignores the local opt-in in production', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = 'true';
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+        }),
+      ),
+    ).resolves.toBe(false);
   });
 
   it('requires a valid internal service token in production', async () => {
@@ -145,7 +216,20 @@ describe('external delivery gates', () => {
     expect(validateInternalServiceToken).not.toHaveBeenCalled();
   });
 
-  it('requires explicit sensitive-details opt-in outside production', () => {
+  it('does not return sensitive details on the header alone', () => {
+    expect(
+      canReturnSensitiveDevelopmentDetails(
+        req({
+          'x-seamless-auth-include-sensitive': 'true',
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns sensitive details only with the header and the local opt-in', () => {
+    process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = 'true';
+
+    expect(canReturnSensitiveDevelopmentDetails(req({}))).toBe(false);
     expect(
       canReturnSensitiveDevelopmentDetails(
         req({
@@ -157,6 +241,7 @@ describe('external delivery gates', () => {
 
   it('never returns sensitive details in production', () => {
     process.env.NODE_ENV = 'production';
+    process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = 'true';
 
     expect(
       canReturnSensitiveDevelopmentDetails(

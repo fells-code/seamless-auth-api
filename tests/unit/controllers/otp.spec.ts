@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js';
+
 const signEphemeralTokenMock = vi.fn();
 const authEventLogMock = vi.fn();
 const issueSessionAndRespondMock = vi.fn();
@@ -142,7 +144,10 @@ describe('otp controller', () => {
     const { sendPhoneOTP } = await loadOtpController();
     const user = buildUser();
     const req = buildReq(user, {
-      headers: { 'x-seamless-auth-delivery-mode': 'external' },
+      headers: {
+        'x-seamless-auth-delivery-mode': 'external',
+        'x-seamless-service-token': await mintInternalServiceToken(),
+      },
     });
     const res = buildRes();
 
@@ -198,7 +203,10 @@ describe('otp controller', () => {
     const { sendEmailOTP } = await loadOtpController();
     const user = buildUser();
     const req = buildReq(user, {
-      headers: { 'x-seamless-auth-delivery-mode': 'external' },
+      headers: {
+        'x-seamless-auth-delivery-mode': 'external',
+        'x-seamless-service-token': await mintInternalServiceToken(),
+      },
     });
     const res = buildRes();
 
@@ -569,7 +577,12 @@ describe('otp controller', () => {
     const res = buildRes();
 
     await sendLoginPhoneOTP(
-      buildReq(buildUser(), { headers: { 'x-seamless-auth-delivery-mode': 'external' } }),
+      buildReq(buildUser(), {
+        headers: {
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': await mintInternalServiceToken(),
+        },
+      }),
       res,
     );
 
@@ -582,7 +595,12 @@ describe('otp controller', () => {
     const res = buildRes();
 
     await sendLoginEmailOTP(
-      buildReq(buildUser(), { headers: { 'x-seamless-auth-delivery-mode': 'external' } }),
+      buildReq(buildUser(), {
+        headers: {
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': await mintInternalServiceToken(),
+        },
+      }),
       res,
     );
 

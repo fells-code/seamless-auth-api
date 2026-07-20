@@ -1,3 +1,4 @@
+import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { createApp } from '../../../src/app';
@@ -123,6 +124,7 @@ describe('POST /registration/register', () => {
     const res = await request(app)
       .post('/registration/register')
       .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken())
       .send(buildRegistrationRequest());
 
     expect(res.status).toBe(200);
@@ -309,6 +311,7 @@ describe('POST /registration/phone', () => {
     const res = await request(app)
       .post('/registration/phone')
       .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken())
       .send({ phone: '+14155550000' });
 
     expect(res.status).toBe(200);

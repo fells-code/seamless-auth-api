@@ -1,3 +1,4 @@
+import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
@@ -96,7 +97,8 @@ describe('GET /magic-link', () => {
 
     const res = await request(app)
       .get('/magic-link')
-      .set('x-seamless-auth-delivery-mode', 'external');
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken());
 
     expect(res.status).toBe(200);
     expect(sendMagicLinkEmail).not.toHaveBeenCalled();
@@ -125,7 +127,8 @@ describe('GET /magic-link', () => {
 
     const res = await request(app)
       .get('/magic-link')
-      .set('x-seamless-auth-delivery-mode', 'external');
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken());
 
     expect(res.status).toBe(200);
     expect(res.body.delivery.magicLinkUrl).toContain(
