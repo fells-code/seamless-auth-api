@@ -14,6 +14,10 @@ import { getSigningKey } from '../utils/signingKeyStore.js';
 
 const logger = getLogger('tokens');
 
+// User tokens are signed with `aud` equal to ISSUER. The Seamless adapter verifies
+// signed auth responses with `aud === audience`, and the deployment contract requires
+// the adopter's `audience` to equal its `authServerUrl`, which is byte-identical to
+// this ISSUER. Omitting `aud` makes jose reject every token the adapter checks.
 const ISSUER = process.env.ISSUER!;
 let warnedAboutDevLookupSecret = false;
 
@@ -66,6 +70,7 @@ export async function signAccessToken(
     .setProtectedHeader({ alg: 'RS256', kid })
     .setIssuedAt()
     .setIssuer(ISSUER)
+    .setAudience(ISSUER)
     .setExpirationTime(access_token_ttl)
     .sign(privateKey);
 
@@ -87,6 +92,7 @@ export async function signRefreshToken(sessionId: string, userId: string) {
     .setProtectedHeader({ alg: 'RS256', kid })
     .setIssuedAt()
     .setIssuer(ISSUER)
+    .setAudience(ISSUER)
     .setExpirationTime(refresh_token_ttl)
     .sign(privateKey);
 
@@ -107,6 +113,7 @@ export async function signEphemeralToken(userId: string) {
       .setProtectedHeader({ alg: 'RS256', kid })
       .setIssuedAt()
       .setIssuer(ISSUER)
+      .setAudience(ISSUER)
       .setExpirationTime('5m')
       .sign(privateKey);
 

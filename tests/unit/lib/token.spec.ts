@@ -11,6 +11,7 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
 }));
 
 const signPayloads = vi.hoisted(() => [] as unknown[]);
+const signAudiences = vi.hoisted(() => [] as unknown[]);
 
 vi.mock('jose', () => {
   class MockSignJWT {
@@ -24,6 +25,10 @@ vi.mock('jose', () => {
       return this;
     }
     setIssuer() {
+      return this;
+    }
+    setAudience(audience: unknown) {
+      signAudiences.push(audience);
       return this;
     }
     setExpirationTime() {
@@ -80,11 +85,14 @@ describe('token utils', () => {
       access_token_ttl: '15m',
     });
 
+    signAudiences.length = 0;
+
     const { signAccessToken } = await import('../../../src/lib/token');
 
     const result = await signAccessToken('sid', 'user', ['admin']);
 
     expect(result).toBe('mock-jwt');
+    expect(signAudiences.at(-1)).toBe('issuer');
   });
 
   it('embeds an organization claim when an organization id is provided', async () => {
@@ -132,11 +140,14 @@ describe('token utils', () => {
       refresh_token_ttl: '1h',
     });
 
+    signAudiences.length = 0;
+
     const { signRefreshToken } = await import('../../../src/lib/token');
 
     const result = await signRefreshToken('sid', 'user');
 
     expect(result).toBe('mock-jwt');
+    expect(signAudiences.at(-1)).toBe('issuer');
   });
 
   it('signs ephemeral token', async () => {
@@ -147,11 +158,14 @@ describe('token utils', () => {
       privateKeyPem: 'pem',
     });
 
+    signAudiences.length = 0;
+
     const { signEphemeralToken } = await import('../../../src/lib/token');
 
     const result = await signEphemeralToken('user');
 
     expect(result).toBe('mock-jwt');
+    expect(signAudiences.at(-1)).toBe('issuer');
   });
 
   it('throws if signing fails', async () => {
