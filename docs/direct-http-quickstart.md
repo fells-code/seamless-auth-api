@@ -55,15 +55,17 @@ EPHEMERAL=<EPHEMERAL_TOKEN>
 `GET /otp/generate-login-email-otp` with the ephemeral token as a Bearer credential sends the code
 to the user's email.
 
-To read the code back in a headless flow, add `x-seamless-auth-delivery-mode: external`. In
-development this returns the code directly in a `delivery` payload. **In production, external
-delivery also requires a valid `x-seamless-service-token` from a trusted server adapter**; without
-it the code is only sent through the configured messaging provider.
+To read the code back in a headless flow, add `x-seamless-auth-delivery-mode: external`. This
+returns the code directly in a `delivery` payload. **External delivery requires a valid
+`x-seamless-service-token` from a trusted server adapter in every environment**; without it the
+code is only sent through the configured messaging provider. For local development you can set
+`ALLOW_UNCREDENTIALED_DELIVERY_SECRETS=true` instead, which is ignored when `NODE_ENV=production`.
 
 ```bash
 curl -sS "$BASE/otp/generate-login-email-otp" \
   -H "Authorization: Bearer $EPHEMERAL" \
-  -H 'x-seamless-auth-delivery-mode: external'
+  -H 'x-seamless-auth-delivery-mode: external' \
+  -H "x-seamless-service-token: Bearer $SERVICE_TOKEN"
 ```
 
 ```json

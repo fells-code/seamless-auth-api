@@ -7,10 +7,14 @@
 import { Request } from 'express';
 
 import { validateInternalServiceToken } from '../middleware/authenticateServiceToken.js';
+import getLogger from '../utils/logger.js';
+
+const logger = getLogger('externalDelivery');
 
 const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
 const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
 const INCLUDE_SENSITIVE_HEADER = 'x-seamless-auth-include-sensitive';
+const UNCREDENTIALED_OPT_IN = 'ALLOW_UNCREDENTIALED_DELIVERY_SECRETS';
 
 function extractBearerToken(headerValue: string | undefined): string | null {
   if (!headerValue) {
@@ -28,12 +32,30 @@ export function wantsExternalDelivery(req: Request) {
   return req.get(EXTERNAL_DELIVERY_HEADER)?.toLowerCase() === 'external';
 }
 
+/**
+ * Opt-in escape hatch for local development, where returning delivery secrets in the
+ * response body replaces a real mail/SMS provider. It must be set deliberately, and it is
+ * refused outright under a production NODE_ENV so it can never become the deployed default.
+ */
+function uncredentialedSecretsAllowed() {
+  if (process.env[UNCREDENTIALED_OPT_IN] !== 'true') {
+    return false;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    logger.error(`${UNCREDENTIALED_OPT_IN} is set in a production environment and was ignored.`);
+    return false;
+  }
+
+  return true;
+}
+
 export async function canReturnExternalDelivery(req: Request) {
   if (!wantsExternalDelivery(req)) {
     return false;
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (uncredentialedSecretsAllowed()) {
     return true;
   }
 
@@ -51,7 +73,7 @@ export async function canReturnExternalDelivery(req: Request) {
 }
 
 export function canReturnSensitiveDevelopmentDetails(req: Request) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!uncredentialedSecretsAllowed()) {
     return false;
   }
 

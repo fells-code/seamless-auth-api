@@ -151,6 +151,8 @@ vi.mock('../../src/middleware/authenticateServiceToken.js', () => ({
   verifyServiceToken: (_req: any, _res: any, next: any) => {
     next();
   },
+  // Defaults to rejecting every token; specs opt in via tests/factories/serviceTokenFactory.
+  validateInternalServiceToken: vi.fn(),
 }));
 
 vi.mock('../../src/middleware/requireAdmin.js', () => ({
