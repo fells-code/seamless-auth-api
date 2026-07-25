@@ -27,3 +27,11 @@ export const StartOAuthLoginResponseSchema = z.object({
 export const OAuthLoginSuccessResponseSchema = RefreshSuccessResponseSchema.omit({
   sessionId: true,
 });
+
+export const OAuthLoginErrorResponseSchema = z.object({
+  message: z.string().optional(),
+  error: z.string(),
+  code: z
+    .enum(['oauth_missing_email', 'oauth_email_not_verified', 'oauth_missing_subject'])
+    .optional(),
+});

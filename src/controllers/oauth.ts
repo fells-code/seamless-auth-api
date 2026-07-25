@@ -18,6 +18,7 @@ import {
   fetchOAuthProfile,
   getEnabledOAuthProviders,
   getOAuthProvider,
+  OAuthProfileError,
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
@@ -157,6 +158,20 @@ export async function finishOAuthLogin(req: Request, res: Response) {
     });
   } catch (error) {
     logger.error(`OAuth callback failed for provider ${provider.id}: ${error}`);
+
+    if (error instanceof OAuthProfileError) {
+      await AuthEventService.log({
+        type: 'oauth_login_failed',
+        req,
+        metadata: { providerId: provider.id, reason: error.code },
+      });
+
+      return res.status(400).json({
+        error: error.message,
+        code: error.code,
+      });
+    }
+
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,

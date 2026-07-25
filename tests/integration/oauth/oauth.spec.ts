@@ -302,4 +302,80 @@ describe('OAuth routes', () => {
       }),
     );
   });
+
+  const callbackWithProfile = async (profile: Record<string, unknown>) => {
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'provider-token' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => profile,
+      });
+
+    return request(app).post('/oauth/google/callback').send({
+      code: 'oauth-code',
+      state: start.body.state,
+    });
+  };
+
+  it('surfaces oauth_missing_email when the profile has no email', async () => {
+    const res = await callbackWithProfile({ sub: 'provider-user', email_verified: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      error: 'OAuth profile did not include an email address',
+      code: 'oauth_missing_email',
+    });
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'oauth_missing_email' },
+      }),
+    );
+  });
+
+  it('surfaces oauth_email_not_verified when the provider reports an unverified email', async () => {
+    const res = await callbackWithProfile({
+      sub: 'provider-user',
+      email: 'person@example.com',
+      email_verified: false,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      error: 'OAuth profile email is not verified',
+      code: 'oauth_email_not_verified',
+    });
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'oauth_email_not_verified' },
+      }),
+    );
+  });
+
+  it('surfaces oauth_missing_subject when the profile has no provider subject', async () => {
+    const res = await callbackWithProfile({ email: 'person@example.com', email_verified: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      error: 'OAuth profile did not include a provider subject',
+      code: 'oauth_missing_subject',
+    });
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'oauth_missing_subject' },
+      }),
+    );
+  });
 });

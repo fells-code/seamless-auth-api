@@ -14,6 +14,7 @@ import {
   StartOAuthLoginRequestSchema,
 } from '../schemas/oauth.requests.js';
 import {
+  OAuthLoginErrorResponseSchema,
   OAuthLoginSuccessResponseSchema,
   OAuthProvidersResponseSchema,
   StartOAuthLoginResponseSchema,
@@ -65,7 +66,7 @@ oauthRouter.post(
       body: FinishOAuthLoginRequestSchema,
       response: {
         200: OAuthLoginSuccessResponseSchema,
-        400: InternalErrorSchema,
+        400: OAuthLoginErrorResponseSchema,
         403: InternalErrorSchema,
         404: InternalErrorSchema,
       },
