@@ -11,8 +11,9 @@ There are two configuration layers:
   OAuth providers, rate limits). These are seeded from environment variables on first boot and
   are the source of truth afterwards.
 
-> Because `system_config` is seeded once, editing an already-seeded value in `.env` does not
-> change running behavior. See [Environment vs system_config](#environment-vs-system_config).
+> Once an admin changes an env-mapped value through the admin system-config endpoints, that row
+> becomes authoritative and its environment variable is no longer consulted. Until then, the env
+> var is re-applied on every boot. See [Environment vs system_config](#environment-vs-system_config).
 
 ## Minimal configuration to boot
 
@@ -244,9 +245,23 @@ Validation is enforced by [`systemConfig.schema.ts`](../src/schemas/systemConfig
 
 ## Environment vs `system_config`
 
-`system_config` is seeded **once**. After first boot, the row is authoritative and the mapped
-environment variable is no longer consulted for that key. To change a seeded value you must update
-the `system_config` row (via the admin system-config endpoints), not just `.env`.
+Each env-mapped `system_config` row is seeded from its environment variable on first boot. After
+that, precedence depends on whether the row has been changed through the admin API:
+
+- **Until an admin changes it** (`updatedBy IS NULL`), the mapped environment variable is
+  re-applied on **every** boot. This keeps env-driven config authoritative and stops a seeded
+  default from permanently shadowing a later `.env` change. When a boot overwrites a stored value
+  that differs, it is logged at `warn`.
+- **Once an admin changes it** through the admin system-config endpoints, the row records who made
+  the change (`updatedBy`) and becomes authoritative. The mapped environment variable is no longer
+  consulted for that key, so the admin change survives restarts and later `.env` edits do not
+  affect it.
+
+Both the whole-config `PATCH /system-config/admin` and the per-provider `/system-config/oauth-providers`
+endpoints set `updatedBy`, whether the caller authenticates with a service token or with an admin
+access token. So a change made in the admin console sticks. To make a seeded value change through
+env again after an admin has taken it over, clear that row's `updatedBy` (or delete the row and let
+it re-seed).
 
 Reads are cached in-process, so a `system_config` write should invalidate the cache to take
 effect immediately. See [`getSystemConfig.ts`](../src/config/getSystemConfig.ts).

@@ -75,6 +75,10 @@ describe('PATCH /system-config/admin', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(invalidateSystemConfigCache).toHaveBeenCalled();
+    expect(SystemConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ updatedBy: 'user-1' }),
+      expect.anything(),
+    );
   });
 
   it('accepts scoped role names', async () => {

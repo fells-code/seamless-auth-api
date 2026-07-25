@@ -6,9 +6,12 @@
 
 import { SystemConfig } from '../models/systemConfig.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
+import getLogger from '../utils/logger.js';
 import { parseSystemConfigEnvValue } from '../utils/parseEnvConfigs.js';
 import { SYSTEM_CONFIG_DEFAULTS } from './systemConfig.defaults.js';
 import { SYSTEM_CONFIG_ENV_MAP } from './systemConfig.envMap.js';
+
+const logger = getLogger('bootstrapSystemConfig');
 
 export async function bootstrapSystemConfig() {
   const resolvedConfig: Record<string, unknown> = {};
@@ -29,6 +32,11 @@ export async function bootstrapSystemConfig() {
         );
 
         if (JSON.stringify(existing.value) !== JSON.stringify(parsed)) {
+          logger.warn(
+            `Overwriting system_config "${key}" from env ${envVar}: the stored value differs and ` +
+              `the row is not marked admin-managed (updatedBy IS NULL). If this value was changed ` +
+              `through the admin console, that change is being reverted here.`,
+          );
           await existing.update({ value: parsed });
         }
 

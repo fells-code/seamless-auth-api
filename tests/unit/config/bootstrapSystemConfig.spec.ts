@@ -24,6 +24,17 @@ vi.mock('../../../src/schemas/systemConfig.schema', () => ({
   },
 }));
 
+const { loggerWarn } = vi.hoisted(() => ({ loggerWarn: vi.fn() }));
+
+vi.mock('../../../src/utils/logger', () => ({
+  default: () => ({
+    warn: loggerWarn,
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
 function resetEnv() {
   delete process.env.APP_NAME;
   delete process.env.RATE_LIMIT;
@@ -101,6 +112,10 @@ describe('bootstrapSystemConfig', () => {
     await bootstrapSystemConfig();
 
     expect(update).toHaveBeenCalledWith({ value: 'parsed' });
+    expect(loggerWarn).toHaveBeenCalledTimes(2);
+    const warnedMessages = loggerWarn.mock.calls.map((call) => call[0]).join('\n');
+    expect(warnedMessages).toContain('app_name');
+    expect(warnedMessages).toContain('rate_limit');
   });
 
   it('does not rewrite an env-backed row whose value already matches', async () => {
@@ -120,6 +135,7 @@ describe('bootstrapSystemConfig', () => {
     await bootstrapSystemConfig();
 
     expect(update).not.toHaveBeenCalled();
+    expect(loggerWarn).not.toHaveBeenCalled();
   });
 
   it('preserves a row that was changed via the admin API (updatedBy set)', async () => {

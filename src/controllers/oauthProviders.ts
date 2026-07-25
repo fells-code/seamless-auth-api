@@ -7,6 +7,7 @@
 import { Response } from 'express';
 
 import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { OAuthProviderConfig, OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -29,7 +30,7 @@ async function persistProviders(
   req: ServiceRequest,
   audit: ProviderAudit,
 ) {
-  const updatedBy = typeof req.clientId === 'function' ? req.clientId() : (req.clientId ?? null);
+  const updatedBy = resolveSystemConfigUpdatedBy(req);
 
   await SystemConfig.sequelize!.transaction(async (tx) => {
     await SystemConfig.upsert(
