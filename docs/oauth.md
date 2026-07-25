@@ -52,6 +52,10 @@ For production providers, configure `redirectUris` as exact callback URLs. When 
 
 Providers without `redirectUris` fall back to configured trusted origins. Exact provider allowlists are preferred for production.
 
+### Admin console callback
+
+When the admin console runs OAuth, its callback is `<origin>/console/oauth/callback`, because the dashboard applies its router basename (`/console`) to the redirect. That is a different path from a typical web app's `/oauth/callback`, and a different host when the console is served or proxied from the API origin. Because `redirectUris` is matched exactly, this URL must be listed explicitly in each provider's `redirectUris`, and it must also be registered as an authorized redirect URI with the identity provider itself. If it is missing here, `POST /oauth/:providerId/start` returns 400 before any redirect; if it is missing at the provider, the consent screen rejects with `redirect_uri_mismatch`. See the admin dashboard prerequisites in [docs/configuration.md](./configuration.md#admin-dashboard-optional).
+
 ## Account Linking
 
 `accountLinking` controls whether a provider identity can attach to an existing local user by email:

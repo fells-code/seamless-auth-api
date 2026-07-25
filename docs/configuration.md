@@ -102,10 +102,10 @@ set and is preferred in containers and hosted environments.
 
 ### WebAuthn
 
-| Variable  | Required | Default | Seeds `system_config` | Notes                                                                         |
-| --------- | -------- | ------- | --------------------- | ----------------------------------------------------------------------------- |
-| `RPID`    | Yes      | -       | `rpid`                | Relying party ID (a domain, no scheme).                                       |
-| `ORIGINS` | Yes      | -       | `origins`             | WebAuthn allowed origins (comma-separated URLs). Distinct from `APP_ORIGINS`. |
+| Variable  | Required | Default | Seeds `system_config` | Notes                                                                                                                                                                                                                                        |
+| --------- | -------- | ------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RPID`    | Yes      | -       | `rpid`                | Relying party ID (a domain, no scheme).                                                                                                                                                                                                      |
+| `ORIGINS` | Yes      | -       | `origins`             | WebAuthn allowed origins (comma-separated URLs). Distinct from `APP_ORIGINS`. When you serve the admin console, the origin it loads from must also appear here, alongside the app origins. See [Admin dashboard](#admin-dashboard-optional). |
 
 ### OAuth
 
@@ -166,6 +166,29 @@ app.use('/console', createSeamlessConsoleProxy({ authServerUrl: opts.authServerU
 
 The proxy forwards `/console` requests to this API's `/console` (so the dashboard version tracks
 the auth image), while the adapter bridges the dashboard's cookie session to Bearer upstream.
+
+**Prerequisites for browser flows started from the console.** Serving the console changes the
+origin that passkey ceremonies carry, and for OAuth it changes the full redirect URI. Two separate
+allowlists validate these, and both fail the same confusing way: the flow starts normally and only
+fails partway through, so the configuration looks correct right up to the point it does not work.
+Both apply to both deployment shapes above (served directly by this API at its own origin, or
+reverse-proxied through `createSeamlessConsoleProxy` at the adopter's origin).
+
+1. **The console's origin must be in `ORIGINS`.** Passkey and step-up ceremonies started in the
+   console carry the origin the console was loaded from, and WebAuthn verification checks it against
+   `origins` in `system_config` (seeded from `ORIGINS`). If it is missing, `start` returns 200 with
+   a challenge and the browser prompts normally, but `finish` fails, so step-up never completes.
+   Add the console's origin (for example `https://api.example.com`) to `ORIGINS` alongside the app
+   origins. `RPID` does not need to change, since the RP ID ignores the port.
+
+2. **The console's callback must be in each provider's `redirectUris`.** The dashboard builds its
+   OAuth redirect with the router basename applied, so the `/console` build sends
+   `<origin>/console/oauth/callback`, a different path (and host) from a typical web app's
+   `/oauth/callback`. `redirectUris` is matched exactly, so this URL must be listed explicitly on
+   each provider, and it must also be registered as an authorized redirect URI with the identity
+   provider itself. If it is missing here, `POST /oauth/:providerId/start` returns 400 before any
+   redirect; if it is missing at the provider, the provider rejects with `redirect_uri_mismatch` at
+   the consent screen. See [docs/oauth.md](./oauth.md).
 
 ### Direct messaging (optional)
 
