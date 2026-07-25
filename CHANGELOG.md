@@ -1,5 +1,48 @@
 # seamless-auth-api
 
+## 0.4.0
+
+### Minor Changes
+
+- 7ea0a9d: Add a `DISABLE_AUTH_RATE_LIMITS` testing escape hatch.
+
+  Beyond the configurable global limiter (`RATE_LIMIT`), dedicated per-IP and
+  per-identity limiters guard the OTP, magic-link, registration, and OAuth routes,
+  plus JWKS. An automated test or conformance suite driving many of these flows from
+  a single IP trips them. Setting `DISABLE_AUTH_RATE_LIMITS=true` now makes every
+  auth limiter skip. It is refused under `NODE_ENV=production` (like
+  `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS`), so it can never weaken a deployed server.
+  Defaults to off.
+
+- 47282ee: Surface actionable OAuth callback failure codes.
+
+  The OAuth callback previously collapsed every profile failure into a generic
+  `400 { error: 'OAuth login failed' }`, so a user whose provider returned no email
+  (the most common case, for example a GitHub account with no public email) had no
+  way to know what to fix. The callback now returns a stable machine-readable `code`
+  alongside the existing `error` string for the curated, user-actionable cases:
+  `oauth_missing_email`, `oauth_email_not_verified`, and `oauth_missing_subject`.
+  Unexpected internal failures still return the generic message with no detail, and
+  the audit event records the specific reason instead of the blanket
+  `callback_failed` for the known cases.
+
+- 8c218c4: Make admin system-config writes authoritative so they survive a restart.
+
+  Env-mapped `system_config` rows are re-seeded from their environment variable on
+  every boot for any row whose `updatedBy` is `NULL`. Admin console writes went
+  through the access-token path, which never populated `updatedBy` (only the
+  service-token path did), so a change made in the console (for example adding an
+  OAuth provider or enabling the `oauth` login method) was silently reverted on the
+  next restart, contradicting the documented contract.
+
+  The whole-config `PATCH /system-config/admin` and the per-provider
+  `/system-config/oauth-providers` endpoints now record the acting admin's id in
+  `updatedBy` on the access-token path, in addition to the existing service-token
+  path, so an admin change is genuinely authoritative and is no longer overwritten
+  from env. Boot now also logs a warning when it overwrites a stored value that
+  differs from the env-derived one, so the reseed is no longer silent.
+  `docs/configuration.md` is updated to describe the real precedence.
+
 ## 0.3.0
 
 ### Minor Changes
