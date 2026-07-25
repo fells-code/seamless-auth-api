@@ -80,7 +80,7 @@ describe('POST /system-config/oauth-providers', () => {
     expect(res.status).toBe(201);
     expect(res.body.provider.id).toBe('github');
     expect(SystemConfig.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ key: 'oauth_providers' }),
+      expect.objectContaining({ key: 'oauth_providers', updatedBy: 'user-1' }),
       expect.anything(),
     );
     expect(invalidateSystemConfigCache).toHaveBeenCalled();

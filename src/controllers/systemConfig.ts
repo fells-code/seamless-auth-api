@@ -7,6 +7,7 @@
 import { Response } from 'express';
 
 import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { User } from '../models/users.js';
 import { createPatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
@@ -73,7 +74,7 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 
   const existingMap = Object.fromEntries(existingRows.map((row) => [row.key, row.value]));
 
-  const updatedBy = typeof req.clientId === 'function' ? req.clientId() : (req.clientId ?? null);
+  const updatedBy = resolveSystemConfigUpdatedBy(req);
 
   await SystemConfig.sequelize!.transaction(async (tx) => {
     for (const [key, value] of Object.entries(updates)) {
