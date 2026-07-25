@@ -36,6 +36,23 @@ export type OAuthProfile = {
   raw: Record<string, unknown>;
 };
 
+export type OAuthProfileErrorCode =
+  | 'oauth_missing_subject'
+  | 'oauth_missing_email'
+  | 'oauth_email_not_verified';
+
+// Curated, user-actionable profile failures. The controller forwards the code
+// to the caller; every other failure stays a bare Error and returns generic.
+export class OAuthProfileError extends Error {
+  readonly code: OAuthProfileErrorCode;
+
+  constructor(code: OAuthProfileErrorCode, message: string) {
+    super(message);
+    this.name = 'OAuthProfileError';
+    this.code = code;
+  }
+}
+
 function stateSecret() {
   const explicit = process.env.OAUTH_STATE_SECRET?.trim();
   if (explicit) return explicit;
@@ -379,11 +396,17 @@ export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessTok
   const name = getJsonPathValue(raw, provider.nameJsonPath);
 
   if (typeof subject !== 'string' && typeof subject !== 'number') {
-    throw new Error('OAuth profile did not include a provider subject');
+    throw new OAuthProfileError(
+      'oauth_missing_subject',
+      'OAuth profile did not include a provider subject',
+    );
   }
 
   if (!email) {
-    throw new Error('OAuth profile did not include an email address');
+    throw new OAuthProfileError(
+      'oauth_missing_email',
+      'OAuth profile did not include an email address',
+    );
   }
 
   const emailVerified =
@@ -394,7 +417,7 @@ export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessTok
         : undefined;
 
   if (emailVerified === false || (provider.requireEmailVerified && emailVerified !== true)) {
-    throw new Error('OAuth profile email is not verified');
+    throw new OAuthProfileError('oauth_email_not_verified', 'OAuth profile email is not verified');
   }
 
   return {
