@@ -171,21 +171,6 @@ feat: add configurable token expiration override
 - Include tests
 - Update docs
 - Pass CI
-- Come from contributors who have starred the repository
-
-## Star Requirement
-
-We only accept pull requests from contributors who have starred this repository on GitHub.
-
-This requirement is enforced automatically for pull requests opened against the public GitHub repository.
-
-If you plan to open a pull request:
-
-1. Visit the repository page on GitHub
-2. Click `Star`
-3. Open your pull request after the star is visible on your account
-
-Pull requests that do not meet this requirement may be closed without review.
 
 ## Licensing
 
