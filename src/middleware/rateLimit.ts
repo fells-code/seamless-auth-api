@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthenticatedRequest } from '../types/types.js';
+import { rateLimitsDisabled } from './rateLimitsDisabled.js';
 
 async function getConfiguredRateLimit() {
   const { rate_limit } = await getSystemConfig();
@@ -61,6 +62,7 @@ const dynamicLimiter = rateLimit({
   limit: getConfiguredRateLimit,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
   message: 'Too many requests, please try again later',
 });
 
@@ -69,6 +71,7 @@ const magicLinkIpCachedLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
 });
 
 const magicLinkIdentityCachedLimiter = rateLimit({
@@ -77,6 +80,7 @@ const magicLinkIdentityCachedLimiter = rateLimit({
   keyGenerator: getMagicLinkIdentityKey,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
 });
 
 const otpIpCachedLimiter = rateLimit({
@@ -84,6 +88,7 @@ const otpIpCachedLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
 });
 
 const otpIdentityCachedLimiter = rateLimit({
@@ -92,6 +97,7 @@ const otpIdentityCachedLimiter = rateLimit({
   keyGenerator: getOtpIdentityKey,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
 });
 
 const oauthIpCachedLimiter = rateLimit({
@@ -99,6 +105,7 @@ const oauthIpCachedLimiter = rateLimit({
   limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
 });
 
 const oauthProviderCachedLimiter = rateLimit({
@@ -107,6 +114,7 @@ const oauthProviderCachedLimiter = rateLimit({
   keyGenerator: getOAuthFlowKey,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitsDisabled,
 });
 
 export function dynamicRateLimit(req: Request, res: Response, next: NextFunction) {

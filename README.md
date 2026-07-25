@@ -272,6 +272,13 @@ attempts. The value is JSON and is also manageable through `system_config`:
 Lockout is checked after Seamless Auth has identified the target user. Keep route-level rate limits
 enabled for unknown identifiers, OTP delivery abuse, and broad IP pressure.
 
+Beyond the configurable global limit (`RATE_LIMIT`), dedicated per-IP and per-identity limiters
+guard the OTP, magic-link, registration, and OAuth routes. An automated test or conformance suite
+that drives many of these flows from a single IP will trip them. For those environments only, set
+`DISABLE_AUTH_RATE_LIMITS=true` to skip every auth limiter. It is refused under
+`NODE_ENV=production` (like `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS`), so it can never weaken a
+deployed server. Never set it in production.
+
 ### Admin-Assisted Device Replacement
 
 Administrators with write access can prepare an account for device replacement with:
