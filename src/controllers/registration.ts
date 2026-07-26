@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
+import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -129,7 +130,11 @@ export const register = async (req: Request, res: Response) => {
       user = await User.create({
         email: normalizedEmail,
         phone: normalizedPhone,
-        roles: systemConfig.default_roles,
+        roles: withOwnerAdminRole(
+          systemConfig.default_roles,
+          normalizedEmail,
+          systemConfig.available_roles,
+        ),
         ...(bootstrapInviteTokenHash
           ? {
               challengeContext: {
