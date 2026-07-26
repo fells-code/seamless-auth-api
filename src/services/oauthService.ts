@@ -7,6 +7,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { OAuthIdentity } from '../models/oauthIdentities.js';
 import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
@@ -459,7 +460,11 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
     user = await User.create({
       email: profile.email,
       phone: null,
-      roles: config.default_roles ?? [],
+      roles: withOwnerAdminRole(
+        config.default_roles ?? [],
+        profile.email,
+        config.available_roles ?? [],
+      ),
       verified: true,
       emailVerified: profile.emailVerified ?? true,
       phoneVerified: false,
