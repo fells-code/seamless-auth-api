@@ -93,24 +93,3 @@ export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect
     throw error;
   }
 };
-
-export const sendBootstrapEmail = async (to: string, url: string) => {
-  logger.debug('Sending bootstrap invitation email');
-
-  if (shouldBypassDirectMessaging()) {
-    logger.debug('Skipping direct bootstrap delivery in development');
-    return;
-  }
-
-  try {
-    const messaging = await getMessagingService();
-
-    await messaging.sendBootstrapInviteEmail({
-      to,
-      inviteUrl: url,
-    });
-  } catch (error) {
-    logger.error(`Failed to send bootstrap invite email ${error}`);
-    throw error;
-  }
-};

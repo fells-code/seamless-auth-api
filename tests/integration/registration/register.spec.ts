@@ -226,43 +226,6 @@ describe('POST /registration/register', () => {
     expect(User.findOne).not.toHaveBeenCalled();
   });
 
-  it('stores a bootstrap token hash for an existing user', async () => {
-    const user = buildUser({ phone: null });
-    (User.findOne as any).mockResolvedValue(user);
-
-    const res = await request(app)
-      .post('/registration/register')
-      .send(buildRegistrationRequest({ bootstrapToken: 'bootstrap-token-value' }));
-
-    expect(res.status).toBe(200);
-    expect(user.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        challengeContext: expect.objectContaining({
-          bootstrapInviteTokenHash: expect.any(String),
-        }),
-      }),
-    );
-  });
-
-  it('stores a bootstrap token hash for a new user', async () => {
-    (User.findOne as any).mockResolvedValue(null);
-    const user = buildUser({ phone: null });
-    (User.create as any).mockResolvedValue(user);
-
-    const res = await request(app)
-      .post('/registration/register')
-      .send(buildRegistrationRequest({ bootstrapToken: 'bootstrap-token-value' }));
-
-    expect(res.status).toBe(200);
-    expect(User.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        challengeContext: expect.objectContaining({
-          bootstrapInviteTokenHash: expect.any(String),
-        }),
-      }),
-    );
-  });
-
   it('handles unexpected errors', async () => {
     (User.findOne as any).mockRejectedValue(new Error('boom'));
 

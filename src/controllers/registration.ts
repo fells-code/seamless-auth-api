@@ -12,10 +12,6 @@ import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import {
-  BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY,
-  createBootstrapInviteTokenHash,
-} from '../services/bootstrapPromotionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { generateEmailOTP, generatePhoneOTP, verifyPhoneOTP } from '../utils/otp.js';
@@ -24,15 +20,11 @@ import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils
 const logger = getLogger('registration');
 
 export const register = async (req: Request, res: Response) => {
-  const { email, phone, bootstrapToken } = req.body;
+  const { email, phone } = req.body;
   const useExternalDelivery = await canReturnExternalDelivery(req);
   const normalizedEmail = email?.toLowerCase();
   const phoneProvided = typeof phone === 'string' && phone.trim().length > 0;
   const normalizedPhone = phoneProvided ? normalizePhoneNumber(phone) : null;
-  const bootstrapInviteTokenHash =
-    typeof bootstrapToken === 'string' && bootstrapToken.length > 10
-      ? createBootstrapInviteTokenHash(bootstrapToken)
-      : null;
 
   const systemConfig = await getSystemConfig();
   logger.info(`Registering email account`);
@@ -111,16 +103,6 @@ export const register = async (req: Request, res: Response) => {
 
       token = await signEphemeralToken(user.id);
 
-      if (bootstrapInviteTokenHash) {
-        await user.update({
-          challengeContext: {
-            ...(user.challengeContext ?? {}),
-            [BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY]: bootstrapInviteTokenHash,
-          },
-        });
-        logger.info('Bootstrap token hash stored for registration flow');
-      }
-
       emailOtp = await generateEmailOTP(user, {
         sendMessage: !useExternalDelivery,
       });
@@ -135,13 +117,6 @@ export const register = async (req: Request, res: Response) => {
           normalizedEmail,
           systemConfig.available_roles,
         ),
-        ...(bootstrapInviteTokenHash
-          ? {
-              challengeContext: {
-                [BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY]: bootstrapInviteTokenHash,
-              },
-            }
-          : {}),
       });
 
       await AuthEventService.log({

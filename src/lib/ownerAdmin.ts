@@ -8,7 +8,7 @@
  * Managed instances are provisioned with an `OWNER_EMAIL` (the tenant owner,
  * optionally a comma separated list). A user who signs up with an owner email is
  * granted the admin role on account creation, so a freshly provisioned instance
- * has a working `/console` admin without a separate bootstrap-promotion step.
+ * has a working `/console` admin as soon as the owner signs up.
  *
  * The grant is safe because both signup paths establish control of the email
  * before the account is created (email OTP verification, or a verified OAuth

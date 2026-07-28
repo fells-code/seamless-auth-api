@@ -25,10 +25,6 @@ import {
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import {
-  getBootstrapInviteTokenHash,
-  maybePromoteBootstrapAdmin,
-} from '../services/bootstrapPromotionService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -250,7 +246,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
     const challengeContext = getRegistrationChallengeContext(user);
-    const bootstrapInviteTokenHash = getBootstrapInviteTokenHash(user);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
 
@@ -289,17 +284,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       lastLogin: new Date(),
       verified: true,
     });
-
-    const bootstrapResult = await maybePromoteBootstrapAdmin({
-      user,
-      req,
-      completionMethod: 'webauthn_registration',
-      bootstrapInviteTokenHash,
-    });
-
-    if (bootstrapResult.promoted) {
-      logger.info('Bootstrap admin granted');
-    }
 
     await AuthEventService.log({
       userId: user.id,

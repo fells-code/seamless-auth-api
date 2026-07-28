@@ -3,12 +3,10 @@ import { vi } from 'vitest';
 const sendOtpEmailMock = vi.fn();
 const sendOtpSmsMock = vi.fn();
 const sendMagicLinkEmailMock = vi.fn();
-const sendBootstrapInviteEmailMock = vi.fn();
 const createDirectAuthMessagingServiceMock = vi.fn(() => ({
   sendOtpEmail: sendOtpEmailMock,
   sendOtpSms: sendOtpSmsMock,
   sendMagicLinkEmail: sendMagicLinkEmailMock,
-  sendBootstrapInviteEmail: sendBootstrapInviteEmailMock,
 }));
 
 vi.unmock('../../../src/services/messagingService');
@@ -137,41 +135,5 @@ describe('messagingService', () => {
 
     await expect(sendOTPSMS('+14155552671', 123456)).resolves.toBeUndefined();
     expect(sendOtpSmsMock).toHaveBeenCalledWith({ to: '+14155552671', token: 123456 });
-  });
-
-  it('does nothing in development (bootstrap invite)', async () => {
-    process.env.NODE_ENV = 'development';
-
-    const { sendBootstrapEmail } = await import('../../../src/services/messagingService');
-
-    await expect(
-      sendBootstrapEmail('admin@example.com', 'https://app.example.com/invite'),
-    ).resolves.toBeUndefined();
-    expect(createDirectAuthMessagingServiceMock).not.toHaveBeenCalled();
-  });
-
-  it('sends bootstrap invite emails in production', async () => {
-    process.env.NODE_ENV = 'production';
-
-    const { sendBootstrapEmail } = await import('../../../src/services/messagingService');
-
-    await expect(
-      sendBootstrapEmail('admin@example.com', 'https://app.example.com/invite'),
-    ).resolves.toBeUndefined();
-    expect(sendBootstrapInviteEmailMock).toHaveBeenCalledWith({
-      to: 'admin@example.com',
-      inviteUrl: 'https://app.example.com/invite',
-    });
-  });
-
-  it('propagates production bootstrap delivery failures', async () => {
-    process.env.NODE_ENV = 'production';
-    sendBootstrapInviteEmailMock.mockRejectedValueOnce(new Error('bootstrap down'));
-
-    const { sendBootstrapEmail } = await import('../../../src/services/messagingService');
-
-    await expect(
-      sendBootstrapEmail('admin@example.com', 'https://app.example.com/invite'),
-    ).rejects.toThrow('bootstrap down');
   });
 });
