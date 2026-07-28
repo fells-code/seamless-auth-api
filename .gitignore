@@ -44,4 +44,5 @@ docs/*
 !docs/extending.md
 !docs/oauth.md
 !docs/production-operations.md
+!docs/security-posture.md
 !docs/webauthn-prf.md

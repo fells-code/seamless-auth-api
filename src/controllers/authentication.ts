@@ -37,6 +37,32 @@ import {
 
 const logger = getLogger('authentication');
 
+/**
+ * The single rejection every failed `/login` takes, whatever the reason.
+ *
+ * An unknown identifier, an unverified account, and an account with no permitted
+ * continuation method used to answer with three distinguishable bodies, which told an
+ * unauthenticated caller which of the three it had hit. The reason is still recorded as
+ * auth-event metadata for operators; it is just no longer disclosed to the caller.
+ *
+ * This does not make `/login` non-enumerable on its own: a valid identifier still gets a
+ * 200 with an ephemeral token. Closing that requires decoy tokens across the continuation
+ * endpoints. See docs/security-posture.md.
+ */
+function rejectLogin(res: Response) {
+  return res.status(401).json({ error: 'Not Allowed' });
+}
+
+/**
+ * The identifier lookup threw, meaning the database is unreachable rather than the
+ * identifier being unknown. The email branch answered 401 and the phone branch 403 for
+ * the same failure, which is what automated scans flag on this handler. Both now report
+ * a server error, so an outage is not reported to the caller as a failed login.
+ */
+function rejectLoginLookupFailure(res: Response) {
+  return res.status(500).json({ error: 'Server error' });
+}
+
 export const login = async (req: Request, res: Response) => {
   // For the initial login step, user either passes in an email or a phone number
   const { identifier, passkeyAvailable } = req.body;
@@ -66,14 +92,14 @@ export const login = async (req: Request, res: Response) => {
       });
       identifierType = 'email';
     } catch {
-      logger.error('Failed to find user');
+      logger.error('Failed to look up user by email');
       await AuthEventService.log({
         userId: null,
         type: 'login_failed',
         req,
-        metadata: { reason: 'No user found for identifier' },
+        metadata: { reason: 'Identifier lookup failed' },
       });
-      return res.status(401).json({ message: 'Not allowed' });
+      return rejectLoginLookupFailure(res);
     }
   } else if (isValidPhoneNumber(identifier) && normalizedIdentifier) {
     try {
@@ -82,14 +108,14 @@ export const login = async (req: Request, res: Response) => {
       });
       identifierType = 'phone';
     } catch {
-      logger.error('Failed to find user');
+      logger.error('Failed to look up user by phone');
       await AuthEventService.log({
         userId: null,
         type: 'login_failed',
         req,
-        metadata: { reason: 'No user found for identifier' },
+        metadata: { reason: 'Identifier lookup failed' },
       });
-      return res.status(403).json({ error: 'Not allowed' });
+      return rejectLoginLookupFailure(res);
     }
   } else {
     logger.error('Invalid login identifier');
@@ -111,7 +137,7 @@ export const login = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'No user found for identifier' },
       });
-      return res.status(401).json({ error: 'Not Allowed' });
+      return rejectLogin(res);
     }
 
     if (await rejectIfUserLocked({ userId: user.id, req, res })) {
@@ -130,7 +156,7 @@ export const login = async (req: Request, res: Response) => {
         metadata: { reason: 'Unverified but valid user' },
       });
 
-      return res.status(401).json({ error: 'Login failed. Need to verify.' });
+      return rejectLogin(res);
     }
 
     const [credential, loginPolicy] = await Promise.all([
@@ -152,7 +178,7 @@ export const login = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'No allowed login methods available' },
       });
-      return res.status(401).json({ error: 'No available login methods' });
+      return rejectLogin(res);
     }
 
     if (token) {
@@ -173,7 +199,7 @@ export const login = async (req: Request, res: Response) => {
         ttl: parseDurationToSeconds(access_token_ttl || '15m'),
       });
     }
-    return res.status(401).json({ error: 'Login failed.' });
+    return rejectLogin(res);
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error during login: ${error.message}`);
