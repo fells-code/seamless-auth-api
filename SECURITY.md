@@ -58,6 +58,12 @@ Seamless Auth API uses modern identity and crypto best practices, but you should
 - Use HTTPS and secure cookie settings in production
 - Isolate your instance from untrusted networks
 
+Some behaviors are deliberate tradeoffs rather than oversights, including the residual user
+enumeration on `/login`, ephemeral token replay within its TTL, and email and phone being stored
+in plaintext. Each is stated with its reasoning and mitigating controls in
+[docs/security-posture.md](./docs/security-posture.md). Please read it before reporting one of
+those as a vulnerability.
+
 ---
 
 Thank you for helping keep Seamless Auth API secure!

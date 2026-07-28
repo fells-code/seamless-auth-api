@@ -490,6 +490,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 - [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
 - [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin and recovery operations
 - [docs/production-operations.md](./docs/production-operations.md) for production deployment guidance
+- [docs/security-posture.md](./docs/security-posture.md) for deliberate security tradeoffs (enumeration, token replay, data at rest)
 
 ## Security
 

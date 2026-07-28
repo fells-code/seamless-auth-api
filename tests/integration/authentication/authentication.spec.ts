@@ -109,7 +109,7 @@ describe('POST /login', () => {
     });
 
     expect(res.status).toBe(401);
-    expect(res.body.error).toBe('No available login methods');
+    expect(res.body).toEqual({ error: 'Not Allowed' });
   });
 
   it('logs in successfully', async () => {
@@ -185,15 +185,16 @@ describe('POST /login', () => {
     expect(User.findOne).toHaveBeenCalledWith({ where: { phone: expect.any(String) } });
   });
 
-  it('rejects when the email lookup throws', async () => {
+  it('reports a server error when the email lookup throws', async () => {
     (User.findOne as any).mockRejectedValue(new Error('db down'));
 
     const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Server error');
   });
 
-  it('returns 401 when the ephemeral token cannot be signed', async () => {
+  it('rejects uniformly when the ephemeral token cannot be signed', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue({});
     (signEphemeralToken as any).mockResolvedValue(null);
@@ -202,7 +203,7 @@ describe('POST /login', () => {
     const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
 
     expect(res.status).toBe(401);
-    expect(res.body.error).toBe('Login failed.');
+    expect(res.body).toEqual({ error: 'Not Allowed' });
   });
 
   it('returns 500 when the post-identifier flow throws', async () => {
@@ -227,13 +228,44 @@ describe('POST /login', () => {
     expect(res.body.error).toBe('Server error');
   });
 
-  it('rejects when the phone lookup throws', async () => {
+  it('reports a server error when the phone lookup throws, matching the email branch', async () => {
     (User.findOne as any).mockRejectedValue(new Error('db down'));
 
     const res = await request(app).post('/login').send({ identifier: '+14155552671' });
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe('Not allowed');
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Server error');
+  });
+
+  it('answers identically for unknown, unverified, and no-method identifiers', async () => {
+    const responses: { status: number; body: unknown }[] = [];
+
+    // Unknown identifier.
+    (User.findOne as any).mockResolvedValue(null);
+    responses.push(await request(app).post('/login').send({ identifier: 'nobody@example.com' }));
+
+    // Known but unverified.
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: false }));
+    (signEphemeralToken as any).mockResolvedValue('token');
+    responses.push(
+      await request(app).post('/login').send({ identifier: 'unverified@example.com' }),
+    );
+
+    // Verified, but the policy leaves no permitted continuation method.
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue(null);
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: false,
+    });
+    responses.push(await request(app).post('/login').send({ identifier: 'nomethods@example.com' }));
+
+    const shapes = responses.map((res) => ({ status: res.status, body: res.body }));
+
+    expect(shapes[0]).toEqual({ status: 401, body: { error: 'Not Allowed' } });
+    expect(shapes[1]).toEqual(shapes[0]);
+    expect(shapes[2]).toEqual(shapes[0]);
   });
 
   it('rejects login for a locked account', async () => {
