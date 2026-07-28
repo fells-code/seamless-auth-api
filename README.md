@@ -334,11 +334,54 @@ This is the fastest way to run **Seamless Auth API** locally using Docker.
 ## Prerequisites
 
 - Docker (Docker Desktop or Docker Engine)
-- A running PostgreSQL instance (local or Docker)
 
 ---
 
-## 1. Pull the public image
+## The whole stack in one command
+
+[`docker-compose.yml`](./docker-compose.yml) brings up Postgres and the API together with
+development defaults, so there is nothing to configure first: no `.env` file, no generated
+secrets, no separate Postgres.
+
+```bash
+docker compose up
+```
+
+That starts the API on `http://localhost:5312`, runs migrations on first boot, generates a
+development signing keypair, and serves the admin console at `http://localhost:5312/console`.
+
+Verify it:
+
+```bash
+curl http://localhost:5312/health/status
+```
+
+To get an admin account, sign up at `/console` with `owner@example.com`. That address is the
+compose file's `OWNER_EMAIL`, so the account is granted the admin role on creation. Override it
+before first boot to use your own:
+
+```bash
+OWNER_EMAIL=you@example.com docker compose up
+```
+
+Other values worth overriding are `API_PORT`, `POSTGRES_PORT`, `APP_ORIGINS`, `ORIGINS`, and
+`SEAMLESS_AUTH_IMAGE` (to pin a specific published tag). Stop the stack with `docker compose down`,
+or `docker compose down -v` to also discard the database.
+
+> The compose defaults are for local development only. They use a well-known shared secret, run
+> with `NODE_ENV=development`, and return OTP codes and magic-link URLs in API responses instead
+> of sending them, which is what makes the stack usable without an email or SMS transport. See
+> [docs/production-operations.md](./docs/production-operations.md) before deploying.
+
+Contributors working on the API itself should use
+[`docker-compose.dev.yml`](./docker-compose.dev.yml) instead, which builds from source and
+hot-reloads. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+---
+
+## Running the image yourself
+
+If you already have Postgres and want to run just the API container:
 
 ```bash
 docker pull ghcr.io/fells-code/seamless-auth-api:latest
@@ -350,11 +393,7 @@ Available tags:
 - `nightly` – latest build from `main`
 - `vX.Y.Z` – specific versioned releases
 
----
-
-## 2. Create an environment file
-
-Copy the example and adjust as needed:
+Create an environment file from the example and adjust as needed:
 
 ```bash
 cp .env.example .env
@@ -362,47 +401,21 @@ cp .env.example .env
 
 ⚠️ Do not commit `.env` files. They are ignored by default.
 
----
-
-## 3. Run PostgreSQL (example with Docker)
-
-If you do not already have Postgres running:
-
-```bash
-docker network create seamless-auth-local
-
-docker run -d \
-  --name seamless-auth-postgres \
-  --network seamless-auth-local \
-  -e POSTGRES_USER=myuser \
-  -e POSTGRES_PASSWORD=mypassword \
-  -e POSTGRES_DB=seamless_auth \
-  -p 5432:5432 \
-  postgres:16
-```
-
-The one-off migration command and API container below override `DB_HOST` to the Docker network name.
-
-## 4. Run database migrations
-
-Run migrations before the first boot and after upgrades that include migrations:
+Run migrations before the first boot and after upgrades that include migrations, then start the
+server:
 
 ```bash
 docker run --rm \
   --env-file .env \
-  --network seamless-auth-local \
-  -e DB_HOST=seamless-auth-postgres \
+  -e DB_HOST=host.docker.internal \
   ghcr.io/fells-code/seamless-auth-api:latest \
   npm run migrate:up
 ```
 
-## 5. Run Seamless Auth Server
-
 ```bash
 docker run --rm \
   --env-file .env \
-  --network seamless-auth-local \
-  -e DB_HOST=seamless-auth-postgres \
+  -e DB_HOST=host.docker.internal \
   -p 5312:5312 \
   ghcr.io/fells-code/seamless-auth-api:latest
 ```
@@ -413,10 +426,10 @@ The server will:
 - Start on port `5312`
 - Expose health and authentication endpoints
 
-## 6. Verify it is running
+Verify it is running:
 
 ```bash
-curl http://localhost:5312/health
+curl http://localhost:5312/health/status
 ```
 
 You should receive a healthy response.

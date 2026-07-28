@@ -1,54 +1,103 @@
+# One-command local stack: `docker compose up`.
+#
+# Brings up Postgres and the published Seamless Auth API image with development
+# defaults, so no .env file and no generated secrets are needed to try the project.
+# The admin console is served by the same container at http://localhost:5312/console.
+#
+# Every value below is a LOCAL DEVELOPMENT default and is not safe for a deployed
+# instance. See docs/configuration.md for the real thing, and
+# docs/production-operations.md before deploying.
+#
+# Contributors working on the API itself want docker-compose.dev.yml instead, which
+# builds from source and hot-reloads.
+
+name: seamless-auth
+
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: seamless-auth
+    image: ${SEAMLESS_AUTH_IMAGE:-ghcr.io/fells-code/seamless-auth-api:latest}
     ports:
-      - '5312:5312'
-    volumes:
-      - .:/app
-      - /app/node_modules
-    env_file:
-      - .env
-    environment:
-      DB_HOST: db
+      - '${API_PORT:-5312}:5312'
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      # The published image ships NODE_ENV=production, which requires externally
+      # managed JWKS signing keys. Development mode generates a local keypair on
+      # first boot instead.
+      NODE_ENV: development
+
+      APP_NAME: Seamless Auth Local
+      APP_ID: local-dev
+      ISSUER: http://localhost:5312
+      # Callers allowed by CORS. The console is same-origin, so it needs no entry here.
+      APP_ORIGINS: ${APP_ORIGINS:-http://localhost:3000,http://localhost:5173}
+
+      DEFAULT_ROLES: user
+      AVAILABLE_ROLES: user,admin
+      LOGIN_METHODS: passkey,magic_link,email_otp
+
+      ACCESS_TOKEN_TTL: 30m
+      REFRESH_TOKEN_TTL: 1h
+      RATE_LIMIT: '100'
+      DELAY_AFTER: '50'
+
+      # WebAuthn. ORIGINS must include the origin the console is loaded from,
+      # otherwise passkey registration from /console fails origin validation.
+      RPID: localhost
+      ORIGINS: ${ORIGINS:-http://localhost:5312,http://localhost:5173,http://localhost:5174}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: seamless_auth
+      DB_USER: seamless
+      DB_PASSWORD: seamless
+      DB_LOGGING: ${DB_LOGGING:-false}
+
+      # Local-only shared secret. Outside development the API derives the refresh-token
+      # lookup, TOTP encryption, and OAuth state secrets from this when they are unset,
+      # so a deployed instance must set real, separate values.
+      API_SERVICE_TOKEN: ${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}
+
+      # Returns OTP codes and magic-link URLs in the response instead of sending them,
+      # so the stack is usable without an email or SMS transport. Ignored when
+      # NODE_ENV=production.
+      ALLOW_UNCREDENTIALED_DELIVERY_SECRETS: 'true'
+
+      # The first account created with this email is granted the admin role, so the
+      # console at /console has a working admin as soon as you sign up.
+      OWNER_EMAIL: ${OWNER_EMAIL:-owner@example.com}
+
+      SERVE_ADMIN_DASHBOARD: 'true'
+
+      # Driving many flows from one host trips the per-IP OTP and magic-link limiters.
+      # Uncomment to turn every auth limiter off while scripting against the stack.
+      # Ignored when NODE_ENV=production.
+      # DISABLE_AUTH_RATE_LIMITS: 'true'
     healthcheck:
-      test: ['CMD', 'node', './healthCheck.js']
+      test: ['CMD', 'node', './dist/healthCheck.js']
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
 
   postgres:
     image: postgres:16
-    restart: always
-    container_name: db
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: postgres
+      POSTGRES_USER: seamless
+      POSTGRES_PASSWORD: seamless
+      POSTGRES_DB: seamless_auth
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U myuser -d postgres']
+      test: ['CMD-SHELL', 'pg_isready -U seamless -d seamless_auth']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  admin:
-    image: seamless-admin:local
-    container_name: seamless-admin
-    ports:
-      - '5174:80'
-    depends_on:
-      - api
-    environment:
-      API_URL: http://localhost:5312
     restart: unless-stopped
 
 volumes:
