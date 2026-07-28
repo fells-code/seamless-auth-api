@@ -39,6 +39,8 @@ require_var ORIGINS
 
 if [ -n "${DATABASE_URL:-}" ]; then
   echo "Using DATABASE_URL for database connectivity"
+elif [ -n "${DB_URI:-}" ]; then
+  echo "Using DB_URI for database connectivity"
 else
   require_var DB_HOST
   require_var DB_PORT

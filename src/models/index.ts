@@ -9,6 +9,7 @@ import path from 'path';
 import { Sequelize } from 'sequelize';
 import { fileURLToPath } from 'url';
 
+import { buildDatabaseUrl, resolveSslOptions } from '../config/database.cjs';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('sequelize');
@@ -20,23 +21,6 @@ const isProduction = process.env.NODE_ENV === 'production';
 const enableDbLogging = !isProduction && process.env.DB_LOGGING === 'true';
 
 let sequelizeInstance: Sequelize | null = null;
-
-function buildDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
-  }
-
-  const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
-
-  if (!DB_HOST || !DB_PORT || !DB_NAME || !DB_USER) {
-    throw new Error('Missing required DB environment variables.');
-  }
-
-  const encodedDbUser = encodeURIComponent(DB_USER);
-  const encodedDbPassword = encodeURIComponent(DB_PASSWORD ?? '');
-
-  return `postgres://${encodedDbUser}:${encodedDbPassword}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
-}
 
 export function getSequelize(): Sequelize {
   if (sequelizeInstance) return sequelizeInstance;
@@ -54,11 +38,13 @@ export function getSequelize(): Sequelize {
   }
 
   const DATABASE_URL = buildDatabaseUrl();
+  const ssl = resolveSslOptions(DATABASE_URL);
 
-  logger.info('Using Postgres database');
+  logger.info(`Using Postgres database (TLS ${ssl ? 'enabled' : 'disabled'})`);
 
   sequelizeInstance = new Sequelize(DATABASE_URL, {
     logging: enableDbLogging ? (msg) => logger.debug(msg) : false,
+    ...(ssl ? { dialectOptions: { ssl } } : {}),
   });
 
   return sequelizeInstance;
