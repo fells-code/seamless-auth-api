@@ -14,6 +14,8 @@ describe('getSequelize database URL building', () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
     delete process.env.DATABASE_URL;
+    delete process.env.DB_URI;
+    delete process.env.DB_SSL;
     delete process.env.TEST_DB;
     process.env.NODE_ENV = 'development';
     process.env.DB_LOGGING = 'false';
@@ -53,6 +55,47 @@ describe('getSequelize database URL building', () => {
       process.env.DATABASE_URL,
       expect.objectContaining({
         logging: false,
+      }),
+    );
+  });
+
+  it('passes no dialectOptions when TLS is not requested', async () => {
+    process.env.DATABASE_URL = 'postgres://user:pass@example.com:5432/auth_db';
+
+    const { getSequelize } = await import('../../../src/models/index.js');
+
+    getSequelize();
+
+    expect(sequelizeConstructor.mock.calls[0][1]).not.toHaveProperty('dialectOptions');
+  });
+
+  it('enables TLS when DB_SSL is set', async () => {
+    process.env.DATABASE_URL = 'postgres://user:pass@example.com:5432/auth_db';
+    process.env.DB_SSL = 'true';
+
+    const { getSequelize } = await import('../../../src/models/index.js');
+
+    getSequelize();
+
+    expect(sequelizeConstructor).toHaveBeenCalledWith(
+      process.env.DATABASE_URL,
+      expect.objectContaining({
+        dialectOptions: { ssl: { rejectUnauthorized: false } },
+      }),
+    );
+  });
+
+  it('uses DB_URI when DATABASE_URL is unset', async () => {
+    process.env.DB_URI = 'postgres://user:pass@example.com:5432/auth_db?sslmode=verify-full';
+
+    const { getSequelize } = await import('../../../src/models/index.js');
+
+    getSequelize();
+
+    expect(sequelizeConstructor).toHaveBeenCalledWith(
+      process.env.DB_URI,
+      expect.objectContaining({
+        dialectOptions: { ssl: { rejectUnauthorized: true } },
       }),
     );
   });

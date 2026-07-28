@@ -35,7 +35,7 @@ For local development, these are the only values you must set (all are present i
 | `RPID`                | `localhost`             | WebAuthn relying party ID                         |
 | `ORIGINS`             | `http://localhost:5173` | WebAuthn allowed origins (comma-separated)        |
 | `API_SERVICE_TOKEN`   | `<32-byte hex>`         | Trusted server-adapter and internal bearer secret |
-| Database connectivity | see below               | `DATABASE_URL` **or** the `DB_*` set              |
+| Database connectivity | see below               | `DATABASE_URL`/`DB_URI` **or** the `DB_*` set     |
 
 Everything else is optional or environment-specific.
 
@@ -88,18 +88,45 @@ first boot.
 
 ### Database
 
-Provide **either** `DATABASE_URL` **or** the discrete `DB_*` variables. `DATABASE_URL` wins when
-set and is preferred in containers and hosted environments.
+Provide **either** a connection string (`DATABASE_URL`, or `DB_URI` as an alias) **or** the
+discrete `DB_*` variables. A connection string wins when set and is preferred in containers and
+hosted environments. The same resolution is shared by the running app and by the startup
+migrations, so both connect the same way.
 
 | Variable       | Required    | Default         | Notes                                                                         |
 | -------------- | ----------- | --------------- | ----------------------------------------------------------------------------- |
 | `DATABASE_URL` | Conditional | -               | Full Postgres connection string. If set, the `DB_*` host set is not required. |
-| `DB_HOST`      | Conditional | `localhost`     | Required when `DATABASE_URL` is unset.                                        |
-| `DB_PORT`      | Conditional | `5432`          | Required when `DATABASE_URL` is unset.                                        |
-| `DB_NAME`      | Conditional | `seamless_auth` | Required when `DATABASE_URL` is unset.                                        |
-| `DB_USER`      | Conditional | -               | Required when `DATABASE_URL` is unset.                                        |
+| `DB_URI`       | Conditional | -               | Alias for `DATABASE_URL`, used when `DATABASE_URL` is unset.                  |
+| `DB_HOST`      | Conditional | `localhost`     | Required when no connection string is set.                                    |
+| `DB_PORT`      | Conditional | `5432`          | Required when no connection string is set.                                    |
+| `DB_NAME`      | Conditional | `seamless_auth` | Required when no connection string is set.                                    |
+| `DB_USER`      | Conditional | -               | Required when no connection string is set.                                    |
 | `DB_PASSWORD`  | No          | -               | Password for `DB_USER`.                                                       |
 | `DB_LOGGING`   | Yes         | `false`         | Logs SQL from the app and startup migrations.                                 |
+
+#### TLS to Postgres
+
+TLS is **off by default**, which suits a local Postgres on loopback. Managed databases should
+turn it on, and it is mandatory when the cluster enforces it (for example Aurora/RDS with
+`rds.force_ssl = 1`).
+
+| Variable                     | Required | Default   | Notes                                                                                            |
+| ---------------------------- | -------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `DB_SSL`                     | No       | off       | `true`/`false`, or an `sslmode` value: `require`, `prefer`, `allow`, `verify-ca`, `verify-full`. |
+| `DB_SSL_CA`                  | No       | -         | Server CA bundle, inline PEM or a file path. Supplying it turns certificate verification on.     |
+| `DB_SSL_REJECT_UNAUTHORIZED` | No       | see below | Forces certificate verification on or off, overriding the default for the selected mode.         |
+
+Resolution order:
+
+1. `DB_SSL` wins when set.
+2. Otherwise an `sslmode` query parameter on the connection string is honored.
+3. Otherwise TLS is off.
+
+Certificate verification follows libpq semantics: `require` (and `DB_SSL=true`) encrypts without
+verifying the server certificate, while `verify-ca` and `verify-full` verify it. Verification is
+also enabled whenever `DB_SSL_CA` is supplied. Amazon's RDS certificates chain to a private CA
+that Node does not trust by default, so verifying against RDS means pointing `DB_SSL_CA` at the
+RDS global bundle.
 
 ### WebAuthn
 
