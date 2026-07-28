@@ -7,11 +7,22 @@
 import { Request, Response } from 'express';
 import { col, fn, literal, Op, WhereOptions } from 'sequelize';
 
+import {
+  AuthEventCategory,
+  AuthEventOutcome,
+  authEventOutcome,
+  categorizeAuthEvent,
+} from '../lib/authEventCategories.js';
 import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
-import { MetricsQuerySchema } from '../schemas/internal.query.js';
+import { MetricsInterval, MetricsQuerySchema } from '../schemas/internal.query.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal-metrics');
+
+const HOUR_MS = 1000 * 60 * 60;
+const DAY_MS = HOUR_MS * 24;
+
+const DEFAULT_BUCKET_COUNT: Record<MetricsInterval, number> = { hour: 24, day: 30 };
 
 type TimeseriesRow = {
   bucket: Date | string;
@@ -27,6 +38,8 @@ type BucketStats = {
   bucket: string;
   success: number;
   failed: number;
+  total: number;
+  categories: Partial<Record<AuthEventCategory, number>>;
 };
 
 type SummaryRow = {
@@ -40,38 +53,87 @@ type SummaryResultInstance = {
   type: string;
 };
 
-export const getAuthEventSummary = async (req: Request, res: Response) => {
+type MetricsQuery = ReturnType<typeof MetricsQuerySchema.parse>;
+
+function truncateToInterval(date: Date, interval: MetricsInterval): Date {
+  const truncated = new Date(date);
+
+  if (interval === 'day') {
+    truncated.setUTCHours(0, 0, 0, 0);
+  } else {
+    truncated.setUTCMinutes(0, 0, 0);
+  }
+
+  return truncated;
+}
+
+// The buckets returned have to match the rows queried, otherwise a requested window is
+// validated and then quietly replaced by a now-relative one in the output.
+function resolveBucketWindow(
+  from: Date | undefined,
+  to: Date | undefined,
+  interval: MetricsInterval,
+) {
+  const step = interval === 'day' ? DAY_MS : HOUR_MS;
+  const last = truncateToInterval(to ?? new Date(), interval);
+  const first = from
+    ? truncateToInterval(from, interval)
+    : new Date(last.getTime() - step * (DEFAULT_BUCKET_COUNT[interval] - 1));
+
+  return { first, last, step };
+}
+
+function scopeWhere(
+  query: MetricsQuery,
+  from: Date | undefined,
+  to: Date | undefined,
+): WhereOptions<AuthEventAttributes> {
+  return {
+    ...(query.userId ? { user_id: query.userId } : {}),
+    ...(from || to
+      ? {
+          created_at: {
+            ...(from ? { [Op.gte]: from } : {}),
+            ...(to ? { [Op.lte]: to } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+function parseMetricsQuery(req: Request) {
   const parsed = MetricsQuerySchema.safeParse(req.query);
 
-  if (!parsed.success) {
+  if (!parsed.success) return null;
+
+  return {
+    query: parsed.data,
+    from: parsed.data.from ? new Date(parsed.data.from) : undefined,
+    to: parsed.data.to ? new Date(parsed.data.to) : undefined,
+  };
+}
+
+async function countByType(where: WhereOptions<AuthEventAttributes>) {
+  const results = (await AuthEvent.findAll({
+    attributes: ['type', [fn('COUNT', col('type')), 'count']],
+    where,
+    group: ['type'],
+  })) as SummaryResultInstance[];
+
+  return results.map((row) => ({ type: row.type, count: Number(row.get('count')) }));
+}
+
+export const getAuthEventSummary = async (req: Request, res: Response) => {
+  const parsed = parseMetricsQuery(req);
+
+  if (!parsed) {
     return res.status(400).json({ message: 'Invalid query params' });
   }
 
-  const { from, to } = parsed.data;
-
-  const where: WhereOptions<AuthEventAttributes> =
-    from || to
-      ? {
-          created_at: {
-            ...(from ? { [Op.gte]: new Date(from) } : {}),
-            ...(to ? { [Op.lte]: new Date(to) } : {}),
-          },
-        }
-      : {};
+  const { query, from, to } = parsed;
 
   try {
-    const results = (await AuthEvent.findAll({
-      attributes: ['type', [fn('COUNT', col('type')), 'count']],
-      where,
-      group: ['type'],
-    })) as SummaryResultInstance[];
-
-    return res.json({
-      summary: results.map((r: SummaryResultInstance) => ({
-        type: r.type,
-        count: Number(r.get('count')),
-      })),
-    });
+    return res.json({ summary: await countByType(scopeWhere(query, from, to)) });
   } catch (err) {
     logger.error(`Failed to fetch auth summary: ${err}`);
     return res.status(500).json({ message: 'Failed to fetch summary' });
@@ -79,40 +141,25 @@ export const getAuthEventSummary = async (req: Request, res: Response) => {
 };
 
 export const getAuthEventTimeseries = async (req: Request, res: Response) => {
-  const parsed = MetricsQuerySchema.safeParse(req.query);
+  const parsed = parseMetricsQuery(req);
 
-  if (!parsed.success) {
+  if (!parsed) {
     return res.status(400).json({ message: 'Invalid query params' });
   }
 
-  const { from, to, interval, userId } = parsed.data;
-
-  // Default to last 24h if not provided
-  const now = new Date();
-  const defaultFrom = new Date(now.getTime() - 1000 * 60 * 60 * 24);
-
-  const createdAtFilter =
-    from || to
-      ? {
-          ...(from ? { [Op.gte]: new Date(from) } : {}),
-          ...(to ? { [Op.lte]: new Date(to) } : {}),
-        }
-      : {
-          [Op.gte]: defaultFrom,
-        };
+  const { query, from, to } = parsed;
+  const { first, last, step } = resolveBucketWindow(from, to, query.interval);
 
   const where: WhereOptions<AuthEventAttributes> = {
-    type: {
-      [Op.in]: ['login_success', 'login_failed'],
+    ...(query.userId ? { user_id: query.userId } : {}),
+    created_at: {
+      [Op.gte]: first,
+      ...(to ? { [Op.lte]: to } : { [Op.lt]: new Date(last.getTime() + step) }),
     },
-
-    ...(userId ? { user_id: userId } : {}),
-
-    created_at: createdAtFilter,
   };
 
   const bucket =
-    interval === 'day'
+    query.interval === 'day'
       ? literal(`DATE_TRUNC('day', created_at)`)
       : literal(`DATE_TRUNC('hour', created_at)`);
 
@@ -127,59 +174,34 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
     const map: Record<string, BucketStats> = {};
 
     for (const r of results as ResultInstance[]) {
-      const bucket = new Date(r.get('bucket')).toISOString();
+      const key = new Date(r.get('bucket')).toISOString();
       const type = r.get('type');
       const count = Number(r.get('count'));
 
-      if (!map[bucket]) {
-        map[bucket] = {
-          bucket,
-          success: 0,
-          failed: 0,
-        };
-      }
+      map[key] ??= { bucket: key, success: 0, failed: 0, total: 0, categories: {} };
+
+      const stats = map[key];
+      const category = categorizeAuthEvent(type);
+
+      stats.total += count;
+      stats.categories[category] = (stats.categories[category] ?? 0) + count;
 
       if (type === 'login_success') {
-        map[bucket].success = count;
+        stats.success = count;
       } else if (type === 'login_failed') {
-        map[bucket].failed = count;
+        stats.failed = count;
       }
     }
 
-    const filled: BucketStats[] = [];
+    const timeseries: BucketStats[] = [];
 
-    if (interval === 'day') {
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(now);
-        d.setUTCDate(d.getUTCDate() - i);
-        d.setUTCHours(0, 0, 0, 0);
+    for (let time = first.getTime(); time <= last.getTime(); time += step) {
+      const key = new Date(time).toISOString();
 
-        const key = d.toISOString();
-
-        filled.push({
-          bucket: key,
-          success: map[key]?.success ?? 0,
-          failed: map[key]?.failed ?? 0,
-        });
-      }
-    } else {
-      for (let i = 23; i >= 0; i--) {
-        const d = new Date(now);
-        d.setUTCHours(d.getUTCHours() - i, 0, 0, 0);
-
-        const key = d.toISOString();
-
-        filled.push({
-          bucket: key,
-          success: map[key]?.success ?? 0,
-          failed: map[key]?.failed ?? 0,
-        });
-      }
+      timeseries.push(map[key] ?? { bucket: key, success: 0, failed: 0, total: 0, categories: {} });
     }
 
-    return res.json({
-      timeseries: filled,
-    });
+    return res.json({ timeseries });
   } catch (err) {
     logger.error(`Failed to fetch timeseries: ${err}`);
     return res.status(500).json({ message: 'Failed to fetch timeseries' });
@@ -187,14 +209,18 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
 };
 
 export const getLoginStats = async (req: Request, res: Response) => {
-  try {
-    const success = await AuthEvent.count({
-      where: { type: 'login_success' },
-    });
+  const parsed = parseMetricsQuery(req);
 
-    const failed = await AuthEvent.count({
-      where: { type: 'login_failed' },
-    });
+  if (!parsed) {
+    return res.status(400).json({ message: 'Invalid query params' });
+  }
+
+  const { query, from, to } = parsed;
+  const scope = scopeWhere(query, from, to);
+
+  try {
+    const success = await AuthEvent.count({ where: { ...scope, type: 'login_success' } });
+    const failed = await AuthEvent.count({ where: { ...scope, type: 'login_failed' } });
 
     return res.json({
       success,
@@ -202,44 +228,40 @@ export const getLoginStats = async (req: Request, res: Response) => {
       successRate: success + failed > 0 ? success / (success + failed) : 0,
     });
   } catch (err) {
-    logger.error(`Failed to get Auth Events timeseries data. Reason: ${err}`);
+    logger.error(`Failed to compute login stats: ${err}`);
     return res.status(500).json({ message: 'Failed to compute login stats' });
   }
 };
 
-export const getGroupedEventSummary = async (_req: Request, res: Response) => {
+export const getGroupedEventSummary = async (req: Request, res: Response) => {
+  const parsed = parseMetricsQuery(req);
+
+  if (!parsed) {
+    return res.status(400).json({ message: 'Invalid query params' });
+  }
+
+  const { query, from, to } = parsed;
+
   try {
-    const events = await AuthEvent.findAll();
+    const byType = await countByType(scopeWhere(query, from, to));
 
-    const grouped = {
-      login: 0,
-      otp: 0,
-      webauthn: 0,
-      magicLink: 0,
-      system: 0,
-      suspicious: 0,
-      other: 0,
-    };
+    const categories = new Map<AuthEventCategory, number>();
+    const outcomes = new Map<AuthEventOutcome, number>();
 
-    for (const e of events) {
-      const type = e.type;
+    for (const { type, count } of byType) {
+      const category = categorizeAuthEvent(type);
+      const outcome = authEventOutcome(type);
 
-      if (type.includes('login')) grouped.login++;
-      else if (type.includes('otp')) grouped.otp++;
-      else if (type.includes('webauthn')) grouped.webauthn++;
-      else if (type.includes('magic_link')) grouped.magicLink++;
-      else if (type.includes('system_config')) grouped.system++;
-      else if (type.includes('suspicious')) grouped.suspicious++;
-      else grouped.other++;
+      categories.set(category, (categories.get(category) ?? 0) + count);
+      outcomes.set(outcome, (outcomes.get(outcome) ?? 0) + count);
     }
 
     return res.json({
-      summary: Object.entries(grouped).map(([type, count]) => ({
-        type,
-        count,
-      })),
+      summary: [...categories].map(([type, count]) => ({ type, count })),
+      outcomes: [...outcomes].map(([type, count]) => ({ type, count })),
     });
-  } catch {
+  } catch (err) {
+    logger.error(`Failed to group auth events: ${err}`);
     return res.status(500).json({ message: 'Failed to group events' });
   }
 };
