@@ -17,16 +17,8 @@ import {
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
-import { maybePromoteBootstrapAdmin } from '../../../src/services/bootstrapPromotionService.js';
 import { sendMagicLinkEmail } from '../../../src/services/messagingService.js';
 import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
-
-vi.mock('../../../src/services/bootstrapPromotionService.js', () => ({
-  maybePromoteBootstrapAdmin: vi.fn(async () => ({
-    promoted: false,
-    reason: 'bootstrap_disabled',
-  })),
-}));
 
 let app: Application;
 
@@ -376,36 +368,6 @@ describe('GET /magic-link/check', () => {
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('login_method_disabled');
     expect(User.findOne).not.toHaveBeenCalled();
-  });
-
-  it('logs when the poll promotes a bootstrap admin', async () => {
-    const user = {
-      id: 'user-1',
-      email: 'test@example.com',
-      roles: ['user'],
-      save: vi.fn(),
-      update: vi.fn(),
-    };
-    (User.findOne as any).mockResolvedValue(user);
-    (MagicLinkToken.findOne as any).mockResolvedValue(
-      buildMagicLink({ used_at: new Date(), expires_at: new Date(Date.now() + 100000) }),
-    );
-    (Session.create as any).mockResolvedValue({ id: 'session-1' });
-    (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
-    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
-    (signAccessToken as any).mockResolvedValue('access-token');
-    (maybePromoteBootstrapAdmin as any).mockResolvedValueOnce({
-      promoted: true,
-      reason: 'success',
-    });
-
-    const res = await request(app).get('/magic-link/check');
-
-    expect(res.status).toBe(200);
-    expect(maybePromoteBootstrapAdmin).toHaveBeenCalledWith(
-      expect.objectContaining({ completionMethod: 'magic_link_fallback' }),
-    );
   });
 
   it('polls with 204 and an empty body while waiting (regression: previously 500)', async () => {

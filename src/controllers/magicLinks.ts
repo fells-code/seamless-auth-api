@@ -13,7 +13,6 @@ import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { maybePromoteBootstrapAdmin } from '../services/bootstrapPromotionService.js';
 import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicyService.js';
 import { sendMagicLinkEmail } from '../services/messagingService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
@@ -258,16 +257,6 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     user.verified = true;
 
     await user.save();
-
-    const bootstrapResult = await maybePromoteBootstrapAdmin({
-      user,
-      req,
-      completionMethod: 'magic_link_fallback',
-    });
-
-    if (bootstrapResult.promoted) {
-      logger.info('Bootstrap admin granted');
-    }
 
     await AuthEventService.log({
       userId: user.id,

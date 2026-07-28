@@ -87,7 +87,8 @@ Provider-agnostic email/SMS adapter contract. **Reverse coupling.**
 
 - This API consumes it at `src/config/directMessaging.ts` (factory + AWS/Twilio transports,
   `MessagingConfigurationError`) and `src/services/messagingService.ts` (calls
-  `sendOtpEmail`, `sendOtpSms`, `sendMagicLinkEmail`, `sendBootstrapInviteEmail` 1:1).
+  `sendOtpEmail`, `sendOtpSms`, `sendMagicLinkEmail` 1:1). `sendBootstrapInviteEmail` is part of the
+  adapter contract but no longer called by this API.
 - Core contract: `EmailTransport` / `SmsTransport` (`send()` + `name`), `AuthMessagingService`
   (the 4 send methods), and the `Send*Input` payload types (`to`, `token`, `magicLinkUrl`, …).
 - **Breaks if changed here:** `AuthMessagingService` method signatures/payloads, transport

@@ -114,13 +114,16 @@ set and is preferred in containers and hosted environments.
 | ----------------- | -------- | ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `OAUTH_PROVIDERS` | No       | `[]`    | `oauth_providers`     | JSON array of provider configs. Provider client secrets stay in env vars referenced by each provider's `clientSecretEnv`, never in this JSON or `system_config`. See [docs/oauth.md](./oauth.md). |
 
-### Admin bootstrap
+### First admin
 
-| Variable                      | Required      | Default | Notes                                                                            |
-| ----------------------------- | ------------- | ------- | -------------------------------------------------------------------------------- |
-| `SEAMLESS_BOOTSTRAP_ENABLED`  | No            | `false` | Enables the first-admin bootstrap invite flow.                                   |
-| `SEAMLESS_BOOTSTRAP_SECRET`   | Conditional   | -       | Required when `SEAMLESS_BOOTSTRAP_ENABLED=true`.                                 |
-| `SEAMLESS_AUTH_DEBUG_SECRETS` | No (dev only) | `false` | Logs bootstrap invite links for local debugging. **Never enable in production.** |
+| Variable      | Required | Default | Notes                                                                                                                      |
+| ------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `OWNER_EMAIL` | No       | -       | Comma separated list of tenant owner emails. A user who signs up with one of these is granted `admin` on account creation. |
+
+The grant is safe because both signup paths establish control of the email before the account is
+created (email OTP verification, or a verified OAuth profile), so only someone who actually receives
+mail at the owner address can claim it. When `OWNER_EMAIL` is unset the grant is a no-op and the
+instance has no admin until one is assigned another way.
 
 ### Admin dashboard (optional)
 

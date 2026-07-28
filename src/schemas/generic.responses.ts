@@ -23,12 +23,6 @@ export const AuthDeliverySchema = z.discriminatedUnion('kind', [
     token: z.string(),
     magicLinkUrl: z.string(),
   }),
-  z.object({
-    kind: z.literal('bootstrap_invite_email'),
-    to: z.string(),
-    token: z.string(),
-    inviteUrl: z.string(),
-  }),
 ]);
 
 export const MessageSchema = z.object({

@@ -298,12 +298,10 @@ tokens, OTPs, magic-link URLs, PRF salts and outputs, OAuth codes/state, bearer 
 configured secrets, email/phone fields inside audit snapshots, and legacy event metadata returned
 through admin endpoints.
 
-Delivery payloads that contain OTPs or magic-link/bootstrap tokens are returned only when callers
+Delivery payloads that contain OTPs or magic-link tokens are returned only when callers
 explicitly request external delivery with `x-seamless-auth-delivery-mode: external`. In production,
 external delivery also requires a valid `x-seamless-service-token` from a trusted server adapter.
 This must be an internal service token, not a SeamlessAuth access or ephemeral token.
-Development-only bootstrap token details require `x-seamless-auth-include-sensitive: true` and are
-never enabled in production.
 
 Admin and user endpoints use explicit minimized response schemas. They do not return WebAuthn
 public keys, refresh-token hashes/lookups, challenge context, verification tokens, PRF output, TOTP

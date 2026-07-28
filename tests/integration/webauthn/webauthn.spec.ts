@@ -18,14 +18,6 @@ import {
   verifyWebAuthn,
   verifyWebAuthnRegistration,
 } from '../../../src/controllers/webauthn';
-import { maybePromoteBootstrapAdmin } from '../../../src/services/bootstrapPromotionService';
-
-vi.mock('../../../src/services/bootstrapPromotionService.js', () => ({
-  getBootstrapInviteTokenHash: vi.fn(() => null),
-  maybePromoteBootstrapAdmin: vi.fn(async () => ({ promoted: false })),
-  createBootstrapInviteTokenHash: vi.fn(() => 'hash'),
-  BOOTSTRAP_INVITE_TOKEN_HASH_CONTEXT_KEY: 'bootstrapInviteTokenHash',
-}));
 
 let app: Application;
 
@@ -82,7 +74,6 @@ beforeEach(() => {
   });
   (Credential.findAll as any).mockResolvedValue([]);
   (Credential.findOne as any).mockResolvedValue(null);
-  (maybePromoteBootstrapAdmin as any).mockResolvedValue({ promoted: false });
 });
 
 describe('GET /webauthn/register/start', () => {
@@ -351,10 +342,9 @@ describe('POST /webauthn/register/finish', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
   });
 
-  it('completes registration when the user is promoted to bootstrap admin', async () => {
+  it('completes registration and issues a session', async () => {
     const user = buildUser({ roles: undefined });
     (User.findOne as any).mockResolvedValue(user);
-    (maybePromoteBootstrapAdmin as any).mockResolvedValue({ promoted: true });
     (Credential.create as any).mockResolvedValue({});
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
@@ -375,9 +365,7 @@ describe('POST /webauthn/register/finish', () => {
       .send({ attestationResponse: {}, metadata: {} });
 
     expect(res.status).toBe(200);
-    expect(maybePromoteBootstrapAdmin).toHaveBeenCalledWith(
-      expect.objectContaining({ completionMethod: 'webauthn_registration' }),
-    );
+    expect(Credential.create).toHaveBeenCalled();
   });
 });
 

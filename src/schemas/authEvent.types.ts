@@ -14,8 +14,6 @@ export const AUTH_EVENT_TYPES = [
   'bearer_token_failed',
   'bearer_token_success',
   'bearer_token_suspicious',
-  'bootstrap_admin_check_skipped',
-  'bootstrap_admin_granted',
   'credentials_deleted',
   'informational',
   'internal_user_updated_by_owner',
