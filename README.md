@@ -150,6 +150,28 @@ curl http://localhost:5312/health
 In development, OpenAPI is available at `http://localhost:5312/openapi.json` and Swagger UI is
 available at `http://localhost:5312/docs`.
 
+### Typed API client
+
+The full OpenAPI document is committed at [`openapi.json`](./openapi.json), and TypeScript types
+generated from it at [`src/generated/api.ts`](./src/generated/api.ts). Both are produced from the
+live route definitions:
+
+```bash
+npm run generate:api
+```
+
+Downstream tooling can consume `openapi.json` directly, or the types can be paired with a typed
+fetch wrapper such as `openapi-fetch`:
+
+```ts
+import type { paths } from 'seamless-auth-api/src/generated/api.js';
+
+type MeResponse = paths['/users/me']['get']['responses'][200]['content']['application/json'];
+```
+
+Both artifacts are checked by the test suite, so a route or schema change that is not regenerated
+fails CI rather than silently drifting.
+
 ### WebAuthn PRF
 
 SeamlessAuth can request PRF-capable passkeys and PRF assertions without ever receiving PRF output.

@@ -54,6 +54,8 @@ generates the OpenAPI metadata from the same schemas. Trace existing behavior
 - Declare `schemas` (request + response) so validation and docs stay aligned.
 - If the route needs auth, use the `auth` option (`ephemeral` | `access`) so security metadata
   is emitted; add `middleware` for admin checks or rate limits.
+- Run `npm run generate:api` and commit the result. `openapi.json` and `src/generated/api.ts` are
+  generated from the route definitions, and a test fails when they drift.
 
 ## Token claims and auth behavior
 
