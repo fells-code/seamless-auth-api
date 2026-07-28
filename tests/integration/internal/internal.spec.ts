@@ -203,21 +203,66 @@ describe('GET /internal/metrics/dashboard', () => {
 });
 
 describe('GET /internal/auth-events/grouped', () => {
-  it('returns grouped summary', async () => {
+  const countRow = (type: string, count: string) => ({
+    type,
+    get: (key: string) => (key === 'count' ? count : type),
+  });
+
+  it('rolls counts up into categories and outcomes', async () => {
     (AuthEvent.findAll as any).mockResolvedValue([
-      { type: 'login_success' },
-      { type: 'otp_success' },
-      { type: 'webauthn_login_success' },
-      { type: 'magic_link_requested' },
-      { type: 'system_config_updated' },
-      { type: 'login_suspicious' },
-      { type: 'unknown' },
+      countRow('login_success', '4'),
+      countRow('otp_success', '3'),
+      countRow('webauthn_login_success', '2'),
+      countRow('magic_link_requested', '1'),
+      countRow('system_config_updated', '1'),
+      countRow('login_suspicious', '5'),
+      countRow('unknown', '1'),
     ]);
 
     const res = await request(app).get('/internal/auth-events/grouped');
+    const byType = Object.fromEntries(
+      res.body.summary.map((row: { type: string; count: number }) => [row.type, row.count]),
+    );
+    const outcomes = Object.fromEntries(
+      res.body.outcomes.map((row: { type: string; count: number }) => [row.type, row.count]),
+    );
 
     expect(res.status).toBe(200);
-    expect(res.body.summary).toBeDefined();
+    expect(byType).toEqual({
+      login: 4,
+      otp: 3,
+      webauthn: 2,
+      magicLink: 1,
+      system: 1,
+      suspicious: 5,
+      other: 1,
+    });
+    expect(outcomes).toEqual({ success: 9, suspicious: 5, other: 3 });
+  });
+
+  it('counts in the database rather than loading every event', async () => {
+    (AuthEvent.findAll as any).mockResolvedValue([]);
+
+    await request(app).get('/internal/auth-events/grouped');
+
+    expect((AuthEvent.findAll as any).mock.calls[0][0].group).toEqual(['type']);
+  });
+
+  it('applies a from/to created_at filter', async () => {
+    (AuthEvent.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .get('/internal/auth-events/grouped')
+      .query({ from: '2026-01-01', to: '2026-02-01' });
+
+    expect(res.status).toBe(200);
+    expect((AuthEvent.findAll as any).mock.calls[0][0].where.created_at).toBeDefined();
+  });
+
+  it('returns 400 for an invalid query', async () => {
+    const res = await request(app).get('/internal/auth-events/grouped?from=bad');
+
+    expect(res.status).toBe(400);
   });
 
   it('returns 500 when grouping fails', async () => {
@@ -253,18 +298,16 @@ describe('GET /internal/auth-events/summary (additional branches)', () => {
 });
 
 describe('GET /internal/auth-events/timeseries (additional branches)', () => {
-  it('fills daily buckets from login_success and login_failed rows', async () => {
-    const day = new Date();
-    day.setUTCHours(0, 0, 0, 0);
-    const key = day.toISOString();
+  const bucketRow = (bucket: string, type: string, count: string) => ({
+    get: (k: string) => (k === 'bucket' ? bucket : k === 'type' ? type : count),
+  });
 
-    const row = (type: string, count: string) => ({
-      get: (k: string) => (k === 'bucket' ? key : k === 'type' ? type : count),
-    });
+  it('fills daily buckets across the requested window', async () => {
+    const key = '2026-01-05T00:00:00.000Z';
 
     (AuthEvent.findAll as any).mockResolvedValue([
-      row('login_success', '5'),
-      row('login_failed', '3'),
+      bucketRow(key, 'login_success', '5'),
+      bucketRow(key, 'login_failed', '3'),
     ]);
 
     const res = await request(app)
@@ -272,10 +315,47 @@ describe('GET /internal/auth-events/timeseries (additional branches)', () => {
       .query({ interval: 'day', from: '2026-01-01', to: '2026-02-01', userId: 'user-1' });
 
     expect(res.status).toBe(200);
-    expect(res.body.timeseries).toHaveLength(30);
+    // Jan 1 through Feb 1 inclusive, rather than a now-relative 30-day window.
+    expect(res.body.timeseries).toHaveLength(32);
+    expect(res.body.timeseries[0].bucket).toBe('2026-01-01T00:00:00.000Z');
+    expect(res.body.timeseries.at(-1).bucket).toBe('2026-02-01T00:00:00.000Z');
+
     const filled = res.body.timeseries.find((b: any) => b.bucket === key);
-    expect(filled).toMatchObject({ success: 5, failed: 3 });
+    expect(filled).toMatchObject({ success: 5, failed: 3, total: 8, categories: { login: 8 } });
     expect((AuthEvent.findAll as any).mock.calls[0][0].where.user_id).toBe('user-1');
+  });
+
+  it('defaults to the last 24 hourly buckets when no window is given', async () => {
+    (AuthEvent.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app).get('/internal/auth-events/timeseries');
+
+    expect(res.status).toBe(200);
+    expect(res.body.timeseries).toHaveLength(24);
+  });
+
+  it('counts non-login activity into categories', async () => {
+    const key = '2026-01-05T00:00:00.000Z';
+
+    (AuthEvent.findAll as any).mockResolvedValue([
+      bucketRow(key, 'otp_success', '4'),
+      bucketRow(key, 'webauthn_login_success', '2'),
+      bucketRow(key, 'magic_link_requested', '1'),
+    ]);
+
+    const res = await request(app)
+      .get('/internal/auth-events/timeseries')
+      .query({ interval: 'day', from: '2026-01-05', to: '2026-01-05' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.timeseries).toHaveLength(1);
+    expect(res.body.timeseries[0]).toMatchObject({
+      bucket: key,
+      success: 0,
+      failed: 0,
+      total: 7,
+      categories: { otp: 4, webauthn: 2, magicLink: 1 },
+    });
   });
 
   it('returns 500 when the timeseries query fails', async () => {

@@ -15,14 +15,23 @@ export const AuthEventSummaryResponseSchema = z.object({
   summary: z.array(AuthEventSummaryItemSchema),
 });
 
+// `success` and `failed` stay login-only for backwards compatibility. `total` and
+// `categories` cover the rest of the auth surface (OTP, WebAuthn, magic link, OAuth, ...).
 export const AuthEventTimeseriesResponseSchema = z.object({
   timeseries: z.array(
     z.object({
       bucket: z.string(),
       success: z.number(),
       failed: z.number(),
+      total: z.number(),
+      categories: z.record(z.string(), z.number()),
     }),
   ),
+});
+
+export const GroupedAuthEventSummaryResponseSchema = z.object({
+  summary: z.array(AuthEventSummaryItemSchema),
+  outcomes: z.array(AuthEventSummaryItemSchema),
 });
 
 export const LoginStatsResponseSchema = z.object({

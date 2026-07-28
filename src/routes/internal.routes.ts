@@ -20,6 +20,7 @@ import {
   AuthEventSummaryResponseSchema,
   AuthEventTimeseriesResponseSchema,
   DashboardMetricsResponseSchema,
+  GroupedAuthEventSummaryResponseSchema,
   LoginStatsResponseSchema,
   SecurityAnomaliesResponseSchema,
 } from '../schemas/internalMetrics.responses.js';
@@ -69,8 +70,10 @@ internalRouter.get(
     middleware: [requireAdmin('read')],
     tags: ['Internal'],
     schemas: {
+      query: MetricsQuerySchema,
       response: {
         200: LoginStatsResponseSchema,
+        400: MessageSchema,
         500: MessageSchema,
       },
     },
@@ -120,8 +123,10 @@ internalRouter.get(
     summary: 'Auth Event metrics grouped',
     tags: ['Internal'],
     schemas: {
+      query: MetricsQuerySchema,
       response: {
-        200: AuthEventSummaryResponseSchema,
+        200: GroupedAuthEventSummaryResponseSchema,
+        400: MessageSchema,
         500: MessageSchema,
       },
     },

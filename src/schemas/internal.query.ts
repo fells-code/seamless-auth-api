@@ -26,14 +26,25 @@ export const AuthEventQuerySchema = z.object({
   to: z.string().optional(),
 });
 
-const MAX_METRICS_WINDOW_MS = 1000 * 60 * 60 * 24 * 366; // ~1 year
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+// A window is capped by the bucket size it would be rendered at, so an hourly
+// timeseries cannot be asked for a year of buckets.
+export const MAX_METRICS_WINDOW_MS: Record<MetricsInterval, number> = {
+  hour: DAY_MS * 31,
+  day: DAY_MS * 366,
+};
+
+const MetricsIntervalEnum = z.enum(['hour', 'day']);
+
+export type MetricsInterval = z.infer<typeof MetricsIntervalEnum>;
 
 export const MetricsQuerySchema = z
   .object({
     userId: z.string().optional(),
     from: z.string().optional(),
     to: z.string().optional(),
-    interval: z.enum(['hour', 'day']).optional().default('hour'),
+    interval: MetricsIntervalEnum.optional().default('hour'),
   })
   .superRefine((data, ctx) => {
     const fromDate = data.from ? new Date(data.from) : undefined;
@@ -50,15 +61,21 @@ export const MetricsQuerySchema = z
       ctx.addIssue({ code: 'custom', path: ['to'], message: 'Invalid to date' });
     }
 
-    if (fromValid && toValid) {
-      if (fromDate!.getTime() > toDate!.getTime()) {
-        ctx.addIssue({ code: 'custom', path: ['to'], message: 'from must be on or before to' });
-      } else if (toDate!.getTime() - fromDate!.getTime() > MAX_METRICS_WINDOW_MS) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['to'],
-          message: 'time range exceeds the maximum window',
-        });
-      }
+    if (!fromValid) return;
+
+    // An open-ended window runs to now, so it is measured and capped the same way.
+    const end = toValid ? toDate!.getTime() : Date.now();
+
+    if (fromDate!.getTime() > end) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'from must be on or before to' });
+      return;
+    }
+
+    if (end - fromDate!.getTime() > MAX_METRICS_WINDOW_MS[data.interval]) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['to'],
+        message: `time range exceeds the maximum window for the ${data.interval} interval`,
+      });
     }
   });
