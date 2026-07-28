@@ -35,20 +35,30 @@ git clone https://github.com/fells-code/seamless-auth-api.git
 
 ## 2. Run the Seamless Auth Server
 
-```bash
-cd seamless-auth-api
-cp .env.example .env
-```
-
 ### If docker and docker compose are avaliable
 
 ```bash
-docker compose up -d
+cd seamless-auth-api
+docker compose -f docker-compose.dev.yml up
 ```
+
+That builds the API from source, generates development signing keys, runs migrations (creating
+the database on first boot), and starts a watcher that reloads on change. No `.env` file is
+needed: the compose file supplies development defaults. If you do create one, its values win, so
+you can point at a real messaging transport or OAuth provider without editing the compose file.
+
+To run the project rather than work on it, use `docker compose up` instead. That uses the
+published image and also serves the admin console at `/console`, which the dev stack does not
+bundle. See the Docker Quickstart in [README.md](./README.md).
 
 > If you are using docker you can stop here and move on to Step 3.
 
 ### If not using docker
+
+```bash
+cd seamless-auth-api
+cp .env.example .env
+```
 
 Start postgres in whatever way your system does e.g. on mac
 
@@ -62,7 +72,7 @@ brew services start postgresql
 npm install
 
 npm run db:create
-npm run db:migrate
+npm run migrate:up
 
 npm run dev
 ```

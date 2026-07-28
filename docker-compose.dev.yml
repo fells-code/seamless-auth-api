@@ -1,0 +1,90 @@
+# Contributor stack: `docker compose -f docker-compose.dev.yml up`.
+#
+# Builds the API from source and hot-reloads on change. Use docker-compose.yml when
+# you only want to run the project rather than work on it: it uses the published
+# image and also serves the admin console at /console, which this file does not
+# bundle.
+#
+# A .env file is optional. When present its values win, so a contributor can point
+# at a different messaging transport or OAuth provider without editing this file.
+
+name: seamless-auth-dev
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - '${API_PORT:-5312}:5312'
+    volumes:
+      - .:/app
+      - /app/node_modules
+    # Dockerfile.dev has no build step, so the compiled entrypoint cannot run from a
+    # fresh clone. Generate dev signing keys, migrate (creating the database on first
+    # boot), then run the watcher against the TypeScript sources.
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >
+        npx tsx src/scripts/initKeys.ts &&
+        (npm run migrate:up || (npm run db:create && npm run migrate:up)) &&
+        npm run dev:container
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+
+      APP_NAME: Seamless Auth Local
+      APP_ID: local-dev
+      ISSUER: http://localhost:5312
+      APP_ORIGINS: ${APP_ORIGINS:-http://localhost:3000,http://localhost:5173}
+
+      DEFAULT_ROLES: user
+      AVAILABLE_ROLES: user,admin
+      LOGIN_METHODS: passkey,magic_link,email_otp
+
+      ACCESS_TOKEN_TTL: 30m
+      REFRESH_TOKEN_TTL: 1h
+      RATE_LIMIT: '100'
+      DELAY_AFTER: '50'
+
+      RPID: localhost
+      ORIGINS: ${ORIGINS:-http://localhost:5312,http://localhost:5173,http://localhost:5174}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: seamless_auth
+      DB_USER: seamless
+      DB_PASSWORD: seamless
+      DB_LOGGING: ${DB_LOGGING:-false}
+
+      API_SERVICE_TOKEN: ${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}
+      ALLOW_UNCREDENTIALED_DELIVERY_SECRETS: 'true'
+      OWNER_EMAIL: ${OWNER_EMAIL:-owner@example.com}
+      SERVE_ADMIN_DASHBOARD: 'false'
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    environment:
+      POSTGRES_USER: seamless
+      POSTGRES_PASSWORD: seamless
+      POSTGRES_DB: seamless_auth
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U seamless -d seamless_auth']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata-dev:
