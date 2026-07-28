@@ -41,6 +41,7 @@ import {
 import {
   AdminUserAnomaliesResponseSchema,
   AdminUserDetailResponseSchema,
+  AdminValidationErrorSchema,
   DeviceReplacementRecoveryResponseSchema,
   UserResponseSchema,
 } from '../schemas/admin.responses.js';
@@ -279,6 +280,8 @@ adminRouter.post(
       body: CreateUserSchema,
       response: {
         201: UserResponseSchema,
+        400: AdminValidationErrorSchema,
+        409: InternalErrorSchema,
       },
     },
   },
@@ -316,7 +319,7 @@ adminRouter.patch(
 
       response: {
         200: UserResponseSchema,
-        400: InternalErrorSchema,
+        400: AdminValidationErrorSchema,
         404: InternalErrorSchema,
       },
     },

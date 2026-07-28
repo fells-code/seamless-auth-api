@@ -33,3 +33,11 @@ export const AdminUserAnomaliesResponseSchema = z.object({
   relatedIps: z.array(z.string()),
   relatedAgents: z.array(z.string()),
 });
+
+// Validation failures on the user endpoints carry a `details` payload naming what was
+// rejected, which a plain error schema would strip before it reached the caller.
+export const AdminValidationErrorSchema = z.object({
+  error: z.string(),
+  message: z.string().optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
+});

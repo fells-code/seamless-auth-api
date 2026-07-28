@@ -17,7 +17,15 @@
  * deployments are unaffected.
  */
 
-const ADMIN_ROLE = 'admin';
+/**
+ * The owner is granted full admin write, not read-only: they paid for the instance
+ * and must be able to run it, including granting admin to teammates. The grant is
+ * expressed as `admin:write` so the owner's authority is stated in the scoped
+ * vocabulary rather than relying on the broad legacy role. Instances that predate
+ * scoped roles and list only `admin` still get `admin`, which is equivalent in
+ * power, so the grant never silently becomes a no-op.
+ */
+const OWNER_ADMIN_ROLES: readonly string[] = ['admin:write', 'admin'];
 
 function ownerEmails(): Set<string> {
   return new Set(
@@ -36,9 +44,10 @@ export function isOwnerEmail(email: string | null | undefined): boolean {
 }
 
 /**
- * Returns `baseRoles` with the admin role appended when `email` is a configured
- * owner email and the instance lists admin as an available role. Idempotent, and
- * a no-op when `OWNER_EMAIL` is unset or admin is not an available role.
+ * Returns `baseRoles` with the owner's admin role appended when `email` is a
+ * configured owner email and the instance lists one of the admin roles as
+ * available. Idempotent, and a no-op when `OWNER_EMAIL` is unset or no admin role
+ * is available.
  */
 export function withOwnerAdminRole(
   baseRoles: string[],
@@ -48,8 +57,12 @@ export function withOwnerAdminRole(
   if (!isOwnerEmail(email)) {
     return baseRoles;
   }
-  if (!availableRoles.includes(ADMIN_ROLE) || baseRoles.includes(ADMIN_ROLE)) {
+
+  if (baseRoles.some((role) => OWNER_ADMIN_ROLES.includes(role))) {
     return baseRoles;
   }
-  return [...baseRoles, ADMIN_ROLE];
+
+  const grant = OWNER_ADMIN_ROLES.find((role) => availableRoles.includes(role));
+
+  return grant ? [...baseRoles, grant] : baseRoles;
 }

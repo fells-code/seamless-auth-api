@@ -51,7 +51,14 @@ describe('ownerAdmin', () => {
       expect(withOwnerAdminRole(DEFAULTS, 'owner@example.com', AVAILABLE)).toEqual(DEFAULTS);
     });
 
-    it('grants admin to a matching owner email', () => {
+    it('grants admin:write to a matching owner email', () => {
+      process.env.OWNER_EMAIL = 'owner@example.com';
+      expect(
+        withOwnerAdminRole(DEFAULTS, 'owner@example.com', [...AVAILABLE, 'admin:write']),
+      ).toEqual([...DEFAULTS, 'admin:write']);
+    });
+
+    it('falls back to admin when the instance predates scoped roles', () => {
       process.env.OWNER_EMAIL = 'owner@example.com';
       expect(withOwnerAdminRole(DEFAULTS, 'owner@example.com', AVAILABLE)).toEqual([
         ...DEFAULTS,
@@ -71,10 +78,17 @@ describe('ownerAdmin', () => {
       );
     });
 
-    it('is idempotent when admin is already present', () => {
+    it('is idempotent when an admin role is already present', () => {
       process.env.OWNER_EMAIL = 'owner@example.com';
-      const base = ['user', 'admin'];
-      expect(withOwnerAdminRole(base, 'owner@example.com', AVAILABLE)).toEqual(base);
+
+      for (const base of [
+        ['user', 'admin'],
+        ['user', 'admin:write'],
+      ]) {
+        expect(
+          withOwnerAdminRole(base, 'owner@example.com', [...AVAILABLE, 'admin:write']),
+        ).toEqual(base);
+      }
     });
 
     it('does not mutate the input array', () => {

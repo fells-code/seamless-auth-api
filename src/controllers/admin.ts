@@ -7,6 +7,8 @@
 import { Request, Response } from 'express';
 import { Op, WhereOptions } from 'sequelize';
 
+import { getSystemConfig } from '../config/getSystemConfig.js';
+import { unavailableRoles } from '../lib/scopedRoles.js';
 import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
 import { getSequelize } from '../models/index.js';
@@ -33,6 +35,39 @@ import { redactMetadata } from '../utils/redaction.js';
 import { isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
 
 const logger = getLogger('admin');
+
+/**
+ * Rejects roles the instance does not list in `available_roles`. Enforcement never
+ * matches an off-list role, so without this a typo like `admin:reed` is stored,
+ * grants nothing, and reports no error.
+ *
+ * An unreadable or empty catalog skips the check rather than rejecting everything.
+ * This is a typo guardrail, not an access control, so failing open cannot grant
+ * access that `roleGrantsAccess` would not already refuse, and it keeps a config
+ * glitch from locking every role assignment out.
+ */
+async function rejectUnavailableRoles(roles: string[] | undefined, res: Response) {
+  if (!roles?.length) return false;
+
+  const available = (await getSystemConfig())?.available_roles ?? [];
+
+  if (!available.length) {
+    logger.warn('available_roles is empty; skipping role assignment validation');
+    return false;
+  }
+
+  const unavailable = unavailableRoles(roles, available);
+
+  if (!unavailable.length) return false;
+
+  res.status(400).json({
+    error: 'Invalid roles',
+    message: `Roles not available on this instance: ${unavailable.join(', ')}`,
+    details: { roles: unavailable, availableRoles: available },
+  });
+
+  return true;
+}
 
 export const getUsers = async (req: ServiceRequest, res: Response) => {
   const { limit = 50, offset = 0, search } = req.query;
@@ -92,6 +127,10 @@ export const createUser = async (req: Request, res: Response) => {
       error: 'Invalid payload',
       details: { phone: 'Invalid phone number' },
     });
+  }
+
+  if (await rejectUnavailableRoles(roles, res)) {
+    return;
   }
 
   try {
@@ -159,6 +198,10 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
       error: 'Invalid update payload',
       details: parsed.error,
     });
+  }
+
+  if (await rejectUnavailableRoles(parsed.data.roles, res)) {
+    return;
   }
 
   try {

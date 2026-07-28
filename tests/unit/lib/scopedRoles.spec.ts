@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasScopedRole, roleGrantsAccess } from '../../../src/lib/scopedRoles.js';
+import { hasScopedRole, roleGrantsAccess, unavailableRoles } from '../../../src/lib/scopedRoles.js';
 
 describe('scoped roles', () => {
   it('matches exact roles', () => {
@@ -46,5 +46,33 @@ describe('scoped roles', () => {
 
   it('coerces a single required role and ignores non-string granted entries', () => {
     expect(hasScopedRole(['admin', 42], 'admin:read')).toBe(true);
+  });
+});
+
+describe('unavailableRoles', () => {
+  const AVAILABLE = ['user', 'admin', 'admin:read', 'admin:write'];
+
+  it('returns nothing when every role is available', () => {
+    expect(unavailableRoles(['user', 'admin:read'], AVAILABLE)).toEqual([]);
+  });
+
+  it('returns the roles that are not listed', () => {
+    expect(unavailableRoles(['user', 'admin:reed', 'betaUser'], AVAILABLE)).toEqual([
+      'admin:reed',
+      'betaUser',
+    ]);
+  });
+
+  it('matches exactly rather than by scope prefix', () => {
+    expect(unavailableRoles(['admin:write:users'], AVAILABLE)).toEqual(['admin:write:users']);
+    expect(unavailableRoles(['admin:*'], AVAILABLE)).toEqual(['admin:*']);
+  });
+
+  it('ignores surrounding whitespace on both sides', () => {
+    expect(unavailableRoles(['  admin:read  '], ['  admin:read'])).toEqual([]);
+  });
+
+  it('treats an empty catalog as allowing nothing', () => {
+    expect(unavailableRoles(['user'], [])).toEqual(['user']);
   });
 });
