@@ -51,6 +51,19 @@ export function roleGrantsAccess(grantedRole: string, requiredRole: string) {
   );
 }
 
+/**
+ * Returns the assigned roles that are not in the instance's `available_roles`.
+ *
+ * The match is exact rather than scope-aware: listing `admin:write` does not make
+ * `admin:write:users` assignable. Enforcement (`roleGrantsAccess`) never matches an
+ * off-list role, so accepting one would store a grant that silently does nothing.
+ */
+export function unavailableRoles(assignedRoles: string[], availableRoles: string[]): string[] {
+  const available = new Set(availableRoles.map(normalizeRole));
+
+  return assignedRoles.filter((role) => !available.has(normalizeRole(role)));
+}
+
 export function hasScopedRole(grantedRoles: unknown, requiredRoles: string | string[]) {
   if (!Array.isArray(grantedRoles)) {
     return false;

@@ -19,6 +19,8 @@ import {
 } from '../../../src/controllers/admin.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
 import { buildSession } from '../../factories/sessionFactory.js';
+import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 
 let app: Application;
 
@@ -374,6 +376,47 @@ describe('POST /admin/users', () => {
     );
   });
 
+  it('rejects a role that is not in available_roles', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ available_roles: ['user', 'admin', 'admin:read', 'admin:write'] }),
+    );
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({ email: 'test@example.com', roles: ['admin:reed'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid roles');
+    expect(res.body.details.roles).toEqual(['admin:reed']);
+    expect(User.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a scoped role that is in available_roles', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ available_roles: ['user', 'admin', 'admin:read', 'admin:write'] }),
+    );
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockResolvedValue(buildUser({ roles: ['admin:read'] }));
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({ email: 'test@example.com', roles: ['admin:read'] });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('skips validation when the role catalog is empty', async () => {
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig({ available_roles: [] }));
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockResolvedValue(buildUser({ roles: ['anything'] }));
+
+    const res = await request(app)
+      .post('/admin/users')
+      .send({ email: 'test@example.com', roles: ['anything'] });
+
+    expect(res.status).toBe(201);
+  });
+
   it('rejects scoped roles with invalid separators', async () => {
     const res = await request(app)
       .post('/admin/users')
@@ -434,6 +477,20 @@ describe('PATCH /admin/users/:userId', () => {
 
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalledWith({ roles: ['admin:write'] });
+  });
+
+  it('rejects an update to a role that is not in available_roles', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ available_roles: ['user', 'admin', 'admin:read', 'admin:write'] }),
+    );
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ roles: ['admin:readonly'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details.roles).toEqual(['admin:readonly']);
+    expect(User.findByPk).not.toHaveBeenCalled();
   });
 
   it('clears phone state when phone is removed', async () => {
