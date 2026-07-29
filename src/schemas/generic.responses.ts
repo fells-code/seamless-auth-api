@@ -31,12 +31,17 @@ export const MessageSchema = z.object({
   delivery: AuthDeliverySchema.optional(),
 });
 
+/**
+ * The canonical error body. Every 4xx and 5xx response uses this shape, enforced by
+ * `tests/unit/routes/errorShapeCoverage.spec.ts`.
+ *
+ * `error` carries the human-readable reason and is always present. `message` is optional
+ * extra detail; it is not a substitute for `error`, so consumers can read one field.
+ */
 export const ErrorSchema = z.object({
   message: z.string().optional(),
   error: z.string(),
 });
 
-export const InternalErrorSchema = z.object({
-  message: z.string().optional(),
-  error: z.string(),
-});
+/** @deprecated Identical to {@link ErrorSchema}. Kept so route definitions need not churn. */
+export const InternalErrorSchema = ErrorSchema;

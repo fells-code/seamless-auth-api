@@ -150,7 +150,7 @@ describe('GET /webauthn/register/start', () => {
     await registerWebAuthn(buildReq({ user: undefined }), res);
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('rejects when the verified user is missing an email', async () => {
@@ -159,7 +159,7 @@ describe('GET /webauthn/register/start', () => {
     await registerWebAuthn(buildReq({ user: { id: 'user-1', email: null } }), res);
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 });
 
@@ -327,7 +327,7 @@ describe('POST /webauthn/register/finish', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('rejects when there is no verified user', async () => {
@@ -339,7 +339,7 @@ describe('POST /webauthn/register/finish', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('completes registration and issues a session', async () => {
@@ -475,7 +475,7 @@ describe('POST /webauthn/login/start', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('rejects when the user has no stored credentials', async () => {
@@ -617,7 +617,7 @@ describe('POST /webauthn/login/finish', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Not allowed' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('rejects when the user challenge is missing', async () => {

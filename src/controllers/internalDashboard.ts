@@ -83,6 +83,6 @@ export const getDashboardMetrics = async (_req: Request, res: Response) => {
       databaseSize: dbSize,
     });
   } catch {
-    return res.status(500).json({ message: 'Failed to fetch dashboard metrics' });
+    return res.status(500).json({ error: 'Failed to fetch dashboard metrics' });
   }
 };

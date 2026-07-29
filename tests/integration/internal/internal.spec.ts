@@ -198,7 +198,7 @@ describe('GET /internal/metrics/dashboard', () => {
     const res = await request(app).get('/internal/metrics/dashboard');
 
     expect(res.status).toBe(500);
-    expect(res.body.message).toBe('Failed to fetch dashboard metrics');
+    expect(res.body.error).toBe('Failed to fetch dashboard metrics');
   });
 });
 
@@ -271,7 +271,7 @@ describe('GET /internal/auth-events/grouped', () => {
     const res = await request(app).get('/internal/auth-events/grouped');
 
     expect(res.status).toBe(500);
-    expect(res.body.message).toBe('Failed to group events');
+    expect(res.body.error).toBe('Failed to group events');
   });
 });
 
@@ -293,7 +293,7 @@ describe('GET /internal/auth-events/summary (additional branches)', () => {
     const res = await request(app).get('/internal/auth-events/summary');
 
     expect(res.status).toBe(500);
-    expect(res.body.message).toBe('Failed to fetch summary');
+    expect(res.body.error).toBe('Failed to fetch summary');
   });
 });
 
@@ -364,7 +364,7 @@ describe('GET /internal/auth-events/timeseries (additional branches)', () => {
     const res = await request(app).get('/internal/auth-events/timeseries');
 
     expect(res.status).toBe(500);
-    expect(res.body.message).toBe('Failed to fetch timeseries');
+    expect(res.body.error).toBe('Failed to fetch timeseries');
   });
 });
 
@@ -375,7 +375,7 @@ describe('GET /internal/auth-events/login-stats (additional branches)', () => {
     const res = await request(app).get('/internal/auth-events/login-stats');
 
     expect(res.status).toBe(500);
-    expect(res.body.message).toBe('Failed to compute login stats');
+    expect(res.body.error).toBe('Failed to compute login stats');
   });
 
   it('reports a zero success rate when there are no logins', async () => {
@@ -395,7 +395,7 @@ describe('GET /internal/security/anomalies (additional branches)', () => {
     const res = await request(app).get('/internal/security/anomalies');
 
     expect(res.status).toBe(500);
-    expect(res.body.message).toBe('Failed to detect anomalies');
+    expect(res.body.error).toBe('Failed to detect anomalies');
   });
 });
 
@@ -413,7 +413,7 @@ describe('internal metrics query guards (direct invocation)', () => {
     await getAuthEventSummary({ query: { from: 'not-a-date' } } as any, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid query params' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid query params' });
   });
 
   it('rejects an invalid timeseries query', async () => {
@@ -422,7 +422,7 @@ describe('internal metrics query guards (direct invocation)', () => {
     await getAuthEventTimeseries({ query: { interval: 'decade' } } as any, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid query params' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid query params' });
   });
 });
 

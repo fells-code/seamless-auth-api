@@ -14,7 +14,7 @@ import {
 import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
-import { MessageSchema } from '../schemas/generic.responses.js';
+import { ErrorSchema } from '../schemas/generic.responses.js';
 import { MetricsQuerySchema } from '../schemas/internal.query.js';
 import {
   AuthEventSummaryResponseSchema,
@@ -37,8 +37,8 @@ internalRouter.get(
       query: MetricsQuerySchema,
       response: {
         200: AuthEventSummaryResponseSchema,
-        400: MessageSchema,
-        500: MessageSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -55,8 +55,8 @@ internalRouter.get(
       query: MetricsQuerySchema,
       response: {
         200: AuthEventTimeseriesResponseSchema,
-        400: MessageSchema,
-        500: MessageSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -73,8 +73,8 @@ internalRouter.get(
       query: MetricsQuerySchema,
       response: {
         200: LoginStatsResponseSchema,
-        400: MessageSchema,
-        500: MessageSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -91,7 +91,7 @@ internalRouter.get(
     schemas: {
       response: {
         200: SecurityAnomaliesResponseSchema,
-        500: MessageSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -108,7 +108,7 @@ internalRouter.get(
     schemas: {
       response: {
         200: DashboardMetricsResponseSchema,
-        500: MessageSchema,
+        500: ErrorSchema,
       },
     },
   },
@@ -126,8 +126,8 @@ internalRouter.get(
       query: MetricsQuerySchema,
       response: {
         200: GroupedAuthEventSummaryResponseSchema,
-        400: MessageSchema,
-        500: MessageSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
       },
     },
   },

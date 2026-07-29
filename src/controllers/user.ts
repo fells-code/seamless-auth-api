@@ -60,7 +60,7 @@ export const getUser = async (req: Request, res: Response) => {
           organizations.find((organization) => organization.id === activeOrganizationId) ?? null,
       });
     } else {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
   } catch (error) {
     logger.error(`Error occured getting user: ${error}`);
@@ -70,7 +70,7 @@ export const getUser = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Error occured' },
     });
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
     return;
   }
 };
@@ -80,7 +80,7 @@ export const deleteUser = async (req: Request, res: Response) => {
   const authUser = authReq.user;
 
   if (!authUser) {
-    return res.status(404).json({ message: 'User not found.' });
+    return res.status(404).json({ error: 'User not found.' });
   }
 
   logger.info('Authenticated user triggered account deletion');
@@ -126,7 +126,7 @@ export const deleteUser = async (req: Request, res: Response) => {
     return res.status(200).json({ message: 'Success' });
   } catch (error: unknown) {
     logger.error(`Failed to delete user: ${error}`);
-    return res.status(500).json({ message: 'Failed' });
+    return res.status(500).json({ error: 'Failed' });
   }
 };
 
