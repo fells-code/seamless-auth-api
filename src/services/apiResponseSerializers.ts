@@ -4,8 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { TransportSchema } from '@seamless-auth/types';
-import { z } from 'zod';
+import { type Transport, TransportSchema } from '@seamless-auth/types';
 
 type SerializableRecord = Record<string, unknown>;
 
@@ -94,17 +93,14 @@ function credentialDeviceTypeField(
   return value === 'singleDevice' || value === 'multiDevice' ? value : undefined;
 }
 
-type AuthenticatorTransport = z.infer<typeof TransportSchema>;
-
-function transportField(credential: unknown): AuthenticatorTransport[] | undefined {
+function transportField(credential: unknown): Transport[] | undefined {
   const transports = optionalStringArrayField(credential, 'transports');
   if (transports === undefined) return undefined;
 
   // Filtered against the shared transport set so a malformed stored value cannot break
   // a response, while hybrid, cable, and smart-card all survive.
   return transports.filter(
-    (transport): transport is AuthenticatorTransport =>
-      TransportSchema.safeParse(transport).success,
+    (transport): transport is Transport => TransportSchema.safeParse(transport).success,
   );
 }
 
