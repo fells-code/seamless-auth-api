@@ -4,6 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
+import {
+  AUTHENTICATOR_TRANSPORTS,
+  AuthenticatorTransport,
+} from '../lib/authenticatorTransports.js';
+
 type SerializableRecord = Record<string, unknown>;
 
 function isRecord(value: unknown): value is SerializableRecord {
@@ -91,15 +96,12 @@ function credentialDeviceTypeField(
   return value === 'singleDevice' || value === 'multiDevice' ? value : undefined;
 }
 
-function transportField(
-  credential: unknown,
-): Array<'usb' | 'ble' | 'nfc' | 'internal'> | undefined {
+function transportField(credential: unknown): AuthenticatorTransport[] | undefined {
   const transports = optionalStringArrayField(credential, 'transports');
   if (transports === undefined) return undefined;
 
-  return transports.filter(
-    (transport): transport is 'usb' | 'ble' | 'nfc' | 'internal' =>
-      transport === 'usb' || transport === 'ble' || transport === 'nfc' || transport === 'internal',
+  return transports.filter((transport): transport is AuthenticatorTransport =>
+    (AUTHENTICATOR_TRANSPORTS as readonly string[]).includes(transport),
   );
 }
 

@@ -163,6 +163,16 @@ describe('api response serializers', () => {
     expect(invalidType).not.toHaveProperty('createdAt');
   });
 
+  it('preserves hybrid and other post-2019 transports', () => {
+    const credential = serializeCredential({
+      id: 'credential-hybrid',
+      // A cross-device passkey (phone authenticating a desktop browser).
+      transports: ['hybrid', 'cable', 'smart-card'],
+    });
+
+    expect(credential.transports).toEqual(['hybrid', 'cable', 'smart-card']);
+  });
+
   it('filters webauthn transports and device type to known values', () => {
     const credential = serializeCredential({
       id: 'credential-2',
