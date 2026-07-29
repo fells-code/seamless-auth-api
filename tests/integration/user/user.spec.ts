@@ -234,6 +234,6 @@ describe('user not-found branches', () => {
     const res = await request(app).delete('/users/delete').set('x-omit-user', 'true');
 
     expect(res.status).toBe(404);
-    expect(res.body.message).toBe('User not found.');
+    expect(res.body.error).toBe('User not found.');
   });
 });

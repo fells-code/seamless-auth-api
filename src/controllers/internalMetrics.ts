@@ -127,7 +127,7 @@ export const getAuthEventSummary = async (req: Request, res: Response) => {
   const parsed = parseMetricsQuery(req);
 
   if (!parsed) {
-    return res.status(400).json({ message: 'Invalid query params' });
+    return res.status(400).json({ error: 'Invalid query params' });
   }
 
   const { query, from, to } = parsed;
@@ -136,7 +136,7 @@ export const getAuthEventSummary = async (req: Request, res: Response) => {
     return res.json({ summary: await countByType(scopeWhere(query, from, to)) });
   } catch (err) {
     logger.error(`Failed to fetch auth summary: ${err}`);
-    return res.status(500).json({ message: 'Failed to fetch summary' });
+    return res.status(500).json({ error: 'Failed to fetch summary' });
   }
 };
 
@@ -144,7 +144,7 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
   const parsed = parseMetricsQuery(req);
 
   if (!parsed) {
-    return res.status(400).json({ message: 'Invalid query params' });
+    return res.status(400).json({ error: 'Invalid query params' });
   }
 
   const { query, from, to } = parsed;
@@ -204,7 +204,7 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
     return res.json({ timeseries });
   } catch (err) {
     logger.error(`Failed to fetch timeseries: ${err}`);
-    return res.status(500).json({ message: 'Failed to fetch timeseries' });
+    return res.status(500).json({ error: 'Failed to fetch timeseries' });
   }
 };
 
@@ -212,7 +212,7 @@ export const getLoginStats = async (req: Request, res: Response) => {
   const parsed = parseMetricsQuery(req);
 
   if (!parsed) {
-    return res.status(400).json({ message: 'Invalid query params' });
+    return res.status(400).json({ error: 'Invalid query params' });
   }
 
   const { query, from, to } = parsed;
@@ -229,7 +229,7 @@ export const getLoginStats = async (req: Request, res: Response) => {
     });
   } catch (err) {
     logger.error(`Failed to compute login stats: ${err}`);
-    return res.status(500).json({ message: 'Failed to compute login stats' });
+    return res.status(500).json({ error: 'Failed to compute login stats' });
   }
 };
 
@@ -237,7 +237,7 @@ export const getGroupedEventSummary = async (req: Request, res: Response) => {
   const parsed = parseMetricsQuery(req);
 
   if (!parsed) {
-    return res.status(400).json({ message: 'Invalid query params' });
+    return res.status(400).json({ error: 'Invalid query params' });
   }
 
   const { query, from, to } = parsed;
@@ -262,6 +262,6 @@ export const getGroupedEventSummary = async (req: Request, res: Response) => {
     });
   } catch (err) {
     logger.error(`Failed to group auth events: ${err}`);
-    return res.status(500).json({ message: 'Failed to group events' });
+    return res.status(500).json({ error: 'Failed to group events' });
   }
 };

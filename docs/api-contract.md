@@ -61,8 +61,27 @@ protocol in [ecosystem.md](./ecosystem.md).
 
 ### Error body
 
-Error responses use `ErrorSchema`: `{ "error": string, "message"?: string }`. (Note: some
-handlers historically returned `{ message }` instead; standardizing this is tracked separately.)
+Every `4xx` and `5xx` response uses one shape:
+
+```json
+{ "error": "User already exists", "message": "optional extra detail" }
+```
+
+- **`error`** is always present and carries the human-readable reason. Read this field.
+- **`message`** is optional extra detail. It is never a substitute for `error`, so a consumer
+  never has to check two fields to find out why a call failed.
+
+Some handlers used to return `{ message }` with no `error`, which left the shape ambiguous. They
+now all set `error`. `tests/unit/routes/errorShapeCoverage.spec.ts` walks every registered route
+and fails if any failure response declares a schema without a required `error` string, so a new
+route cannot reintroduce the split.
+
+`ErrorSchema` in [`src/schemas/generic.responses.ts`](../src/schemas/generic.responses.ts) is the
+canonical definition. `InternalErrorSchema` is a deprecated alias of it and is identical on the
+wire.
+
+Success responses are unaffected: `{ "message": "Success" }` on a `200` is a success payload, not
+an error body, and clients that branch on it keep working.
 
 ## A note on login responses
 

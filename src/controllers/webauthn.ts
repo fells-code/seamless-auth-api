@@ -83,7 +83,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'No verified user on the request.' },
       });
 
-      return res.status(403).json({ message: 'Not allowed' });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
     if (!verifiedUser.id || !verifiedUser.email) {
@@ -94,7 +94,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'No verified user on the request.' },
       });
-      return res.status(403).json({ message: 'Not allowed' });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
     const existingCredentials = await Credential.findAll({
@@ -149,7 +149,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       req,
       metadata: { reason: `Server error: ${err}` },
     });
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
@@ -169,7 +169,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'No verified user' },
       });
-      return res.status(403).json({ message: 'Not allowed' });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
     if (!verifiedUser.email || !attestationResponse) {
@@ -180,7 +180,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'No verified user' },
       });
-      return res.status(403).json({ message: 'Not allowed' });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
     const user = await User.findOne({
@@ -195,7 +195,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Verified user with no user record' },
       });
-      return res.status(403).json({ message: 'Not allowed' });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
     const expectedChallenge = user.challenge;
@@ -207,7 +207,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing challenge for registration' },
       });
-      return res.status(403).json({ message: 'Missing challenge' });
+      return res.status(403).json({ error: 'Missing challenge' });
     }
 
     let verification;
@@ -228,7 +228,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Verification failed' },
       });
-      return res.status(500).json({ message: 'An error occured will verifying. Try again' });
+      return res.status(500).json({ error: 'An error occured will verifying. Try again' });
     }
 
     const { verified, registrationInfo } = verification;
@@ -241,7 +241,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Verification failed' },
       });
-      return res.status(403).json({ message: 'Registration failed verification' });
+      return res.status(403).json({ error: 'Registration failed verification' });
     }
 
     const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
@@ -333,7 +333,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'No identifier' },
     });
-    return res.status(403).json({ message: 'Not allowed' });
+    return res.status(403).json({ error: 'Not allowed' });
   }
 
   creds = await Credential.findAll({ where: { userId: user.id } });
@@ -391,7 +391,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Catch all error' },
     });
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -430,7 +430,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'No identifier' },
       });
-      return res.status(403).json({ message: 'Not allowed' });
+      return res.status(403).json({ error: 'Not allowed' });
     }
 
     if (!user || !user.challenge) {

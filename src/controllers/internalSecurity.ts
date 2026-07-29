@@ -60,6 +60,6 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
     });
   } catch {
     logger.error(`Failed to get security events`);
-    return res.status(500).json({ message: 'Failed to detect anomalies' });
+    return res.status(500).json({ error: 'Failed to detect anomalies' });
   }
 };
