@@ -4,67 +4,18 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-const OrganizationMembershipUserSchema = z.object({
-  id: z.string(),
-  email: z.email(),
-  phone: z.string().nullable(),
-  roles: z.array(z.string()),
-});
-
-export const OrganizationMembershipResponseSchema = z.object({
-  id: z.string(),
-  organizationId: z.string(),
-  userId: z.string(),
-  roles: z.array(z.string()),
-  scopes: z.array(z.string()),
-  createdAt: z.any(),
-  updatedAt: z.any(),
-  user: OrganizationMembershipUserSchema.optional(),
-});
-
-export const OrganizationResponseSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  slug: z.string(),
-  createdByUserId: z.string().nullable(),
-  metadata: z.record(z.string(), z.unknown()).nullable(),
-  createdAt: z.any(),
-  updatedAt: z.any(),
-  membership: OrganizationMembershipResponseSchema.optional(),
-  memberCount: z.number().int().nonnegative().optional(),
-});
-
-export const OrganizationEnvelopeResponseSchema = z.object({
-  organization: OrganizationResponseSchema,
-});
-
-export const OrganizationListResponseSchema = z.object({
-  organizations: z.array(OrganizationResponseSchema),
-  activeOrganizationId: z.string().nullable(),
-});
-
-export const AdminOrganizationListResponseSchema = z.object({
-  organizations: z.array(OrganizationResponseSchema),
-  total: z.number().int().nonnegative(),
-});
-
-export const OrganizationMembersResponseSchema = z.object({
-  members: z.array(OrganizationMembershipResponseSchema),
-  total: z.number().int().nonnegative(),
-});
-
-export const OrganizationMembershipEnvelopeResponseSchema = z.object({
-  membership: OrganizationMembershipResponseSchema,
-});
-
-export const OrganizationSwitchResponseSchema = z.object({
-  message: z.string(),
-  token: z.string(),
-  sub: z.string(),
-  sessionId: z.string(),
-  organizationId: z.string(),
-  organization: OrganizationResponseSchema,
-  ttl: z.number(),
-});
+// Local names predate the shared package: it calls these OrganizationSchema and
+// OrganizationMembershipSchema. Unlike the old local copies, their timestamps are
+// parsed as ISO dates rather than z.any(), so createdAt/updatedAt serialize as strings.
+export {
+  OrganizationMembershipSchema as OrganizationMembershipResponseSchema,
+  OrganizationSchema as OrganizationResponseSchema,
+} from '@seamless-auth/types';
+export {
+  AdminOrganizationListResponseSchema,
+  OrganizationEnvelopeResponseSchema,
+  OrganizationListResponseSchema,
+  OrganizationMembershipEnvelopeResponseSchema,
+  OrganizationMembersResponseSchema,
+  OrganizationSwitchResponseSchema,
+} from '@seamless-auth/types';

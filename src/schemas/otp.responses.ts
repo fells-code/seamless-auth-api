@@ -4,8 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { RefreshSuccessResponseSchema } from './auth.responses.js';
-
-export const OTPVerifyTokenSuccessSchema = RefreshSuccessResponseSchema.omit({
-  sessionId: true,
-});
+export { OTPVerifyTokenSuccessSchema } from '@seamless-auth/types';

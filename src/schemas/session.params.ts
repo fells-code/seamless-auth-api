@@ -4,8 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-export const SessionIdParamsSchema = z.object({
-  id: z.string(),
-});
+export { SessionIdParamsSchema } from '@seamless-auth/types';

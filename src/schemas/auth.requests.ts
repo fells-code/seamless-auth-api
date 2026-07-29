@@ -4,11 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-export const LoginRequestSchema = z.object({
-  identifier: z.string(),
-  passkeyAvailable: z.boolean().optional(),
-});
-
-export const RefreshRequestSchema = z.object({});
+export { LoginRequestSchema, RefreshRequestSchema } from '@seamless-auth/types';
