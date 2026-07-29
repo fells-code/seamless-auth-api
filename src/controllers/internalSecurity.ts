@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 
 import { AuthEvent } from '../models/authEvents.js';
+import { FAILURE_EVENT_TYPES } from '../schemas/authEvent.types.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import getLogger from '../utils/logger.js';
 
@@ -18,20 +19,11 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
   const windowStart = new Date(now.getTime() - 60 * 60 * 1000 * 24);
 
   try {
-    const FAILURE_TYPES = [
-      'login_failed',
-      'bearer_token_failed',
-      'jwks_failed',
-      'mfa_otp_failed',
-      'otp_failed',
-      'recovery_otp_failed',
-      'refresh_token_failed',
-      'registration_failed',
-      'service_token_failed',
-      'user_data_failed',
-      'webauthn_login_failed',
-      'webauthn_registration_failed',
-    ];
+    // Derived from AUTH_EVENT_TYPES. The hand-maintained list searched for five names
+    // nothing emitted (bearer_token_failed, jwks_failed, otp_failed,
+    // recovery_otp_failed, user_data_failed) while missing verify_otp_failed,
+    // totp_failed, magic_link_failed, and logout_failed, which are emitted.
+    const FAILURE_TYPES = FAILURE_EVENT_TYPES;
 
     const events = await AuthEvent.findAll({
       where: {
