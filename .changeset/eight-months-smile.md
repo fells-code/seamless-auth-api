@@ -2,7 +2,7 @@
 'seamless-auth-api': minor
 ---
 
-Adopt `@seamless-auth/types@0.2.0` as the source for the shared contract. 88 schema definitions
+Adopt `@seamless-auth/types@0.3.0` as the source for the shared contract. 88 schema definitions
 across 30 files become re-exports, removing roughly 900 lines of definitions this repo maintained
 in parallel with the SDKs, the dashboard, and the CLI. `roleGrantsAccess`, `hasScopedRole`, and
 `ROLE_NAME_PATTERN` now come from the package too, and the local transport widening shim added
