@@ -152,7 +152,8 @@ This ensures changes remain aligned with real authentication flows and infrastru
 - **Scoped** to one change; unrelated cleanups go in their own PR.
 - **Schemas + tests for new or changed routes.** Use the `schemas` option in the route
   definition (request + response) so validation and OpenAPI stay aligned, and add a test under
-  `tests/`.
+  `tests/`. Run `npm run generate:api` and commit `openapi.json` plus `src/generated/api.ts`;
+  a test fails when they drift from the routes.
 - **A changeset** for user-facing changes (`npm run changeset`). Do not hand-edit `CHANGELOG.md`
   or the version in `package.json`.
 - **The AGPL license header** on every new `src/**/*.ts` file (eslint enforces this).
