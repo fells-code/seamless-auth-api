@@ -20,6 +20,7 @@ import {
   DeviceReplacementRecoverySchema,
   UpdateUserSchema,
 } from '../schemas/admin.requests.js';
+import { authEventTypesFor, SUSPICIOUS_EVENT_TYPES } from '../schemas/authEvent.types.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
 import {
   serializeApiUser,
@@ -569,22 +570,22 @@ export const getDatabaseSize = async () => {
   return Number((result as { size: string }[])[0].size);
 };
 
+/**
+ * Expands a shorthand filter into the event types it covers.
+ *
+ * The groups are derived from AUTH_EVENT_TYPES rather than hand-listed. The previous
+ * literals named types nothing emits (`otp_failed`, `webauthn_login_suspicious`,
+ * `service_token_suspicious`) while omitting emitted ones, so the `otp` filter missed
+ * every `verify_otp_*` and `mfa_otp_*` event and `suspicious` missed most of the set.
+ */
 function expandType(type?: string): string[] {
   if (!type) return [];
 
-  if (type === 'login') return ['login_success', 'login_failed'];
-  if (type === 'otp') return ['otp_success', 'otp_failed'];
-  if (type === 'webauthn') return ['webauthn_login_success', 'webauthn_login_failed'];
-  if (type === 'magicLink') return ['magic_link_success', 'magic_link_requested'];
-
-  if (type === 'suspicious')
-    return [
-      'login_suspicious',
-      'otp_suspicious',
-      'webauthn_login_suspicious',
-      'verify_otp_suspicious',
-      'service_token_suspicious',
-    ];
+  if (type === 'login') return authEventTypesFor('login');
+  if (type === 'otp') return authEventTypesFor('otp', 'verify_otp', 'mfa_otp');
+  if (type === 'webauthn') return authEventTypesFor('webauthn');
+  if (type === 'magicLink') return authEventTypesFor('magic_link');
+  if (type === 'suspicious') return [...SUSPICIOUS_EVENT_TYPES];
 
   return [type];
 }
