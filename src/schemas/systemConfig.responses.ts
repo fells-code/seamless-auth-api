@@ -6,17 +6,14 @@
 
 import { z } from 'zod';
 
-import { SystemConfigSchema } from './systemConfig.schema.js';
+export {
+  AvailableRolesResponseSchema,
+  GetSystemConfigResponseSchema,
+  UpdateSystemConfigResponseSchema,
+} from '@seamless-auth/types';
 
-export const UpdateSystemConfigResponseSchema = z.object({
-  success: z.boolean(),
-  updatedKeys: z.array(z.string()),
-});
-
-export const AvailableRolesResponseSchema = z.object({
-  roles: z.array(z.string()),
-});
-
+// The shared package models these as the generic error envelope. They stay local so the
+// system-config routes keep declaring the exact bodies their handlers return.
 export const UnauthorizedSchema = z.object({
   error: z.string(),
 });
@@ -29,5 +26,3 @@ export const InvalidPayloadSchema = z.object({
 export const SystemConfigErrorSchema = z.object({
   error: z.string(),
 });
-
-export const GetSystemConfigResponseSchema = SystemConfigSchema;

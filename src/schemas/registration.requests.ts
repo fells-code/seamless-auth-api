@@ -4,13 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-export const RegistrationRequestSchema = z.object({
-  email: z.email(),
-  phone: z.string().nullish(),
-});
-
-export const RegisterPhoneRequestSchema = z.object({
-  phone: z.string(),
-});
+export { RegisterPhoneRequestSchema, RegistrationRequestSchema } from '@seamless-auth/types';

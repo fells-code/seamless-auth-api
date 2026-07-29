@@ -4,20 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-import { AuthDeliverySchema } from './generic.responses.js';
-
-export const RegistrationSuccessSchema = z.object({
-  message: z.string(),
-  sub: z.string().optional(),
-  token: z.string().optional(),
-  ttl: z.string().optional(),
-  delivery: AuthDeliverySchema.optional(),
-});
-
-export const RegisterPhoneSuccessSchema = z.object({
-  message: z.string(),
-  phone: z.string(),
-  delivery: AuthDeliverySchema.optional(),
-});
+export { RegisterPhoneSuccessSchema, RegistrationSuccessSchema } from '@seamless-auth/types';

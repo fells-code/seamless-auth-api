@@ -4,21 +4,6 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthEventSchema } from '@seamless-auth/types';
-import { z } from 'zod';
-
-import { ApiUserSchema } from './user.schema.js';
-
-export const UsersListResponseSchema = z.object({
-  users: z.array(ApiUserSchema),
-  total: z.number(),
-});
-
-export const AuthEventsResponseSchema = z.object({
-  events: z.array(AuthEventSchema),
-  total: z.number(),
-});
-
-export const CredentialCountSchema = z.object({
-  count: z.number(),
-});
+// Named CredentialCountSchema locally since before the shared package existed.
+export { CredentialCountResponseSchema as CredentialCountSchema } from '@seamless-auth/types';
+export { AuthEventsResponseSchema, UsersListResponseSchema } from '@seamless-auth/types';

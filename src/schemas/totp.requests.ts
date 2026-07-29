@@ -4,8 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-export const TotpVerifyRequestSchema = z.object({
-  code: z.string().regex(/^\d{6}$/),
-});
+export { TotpVerifyRequestSchema } from '@seamless-auth/types';

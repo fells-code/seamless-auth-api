@@ -52,16 +52,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -149,16 +153,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -249,16 +257,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -369,16 +381,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -454,8 +470,10 @@ export interface paths {
                 userId: string;
                 roles: string[];
                 scopes: string[];
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 user?: {
                   id: string;
                   /** Format: email */
@@ -550,8 +568,10 @@ export interface paths {
                 userId: string;
                 roles: string[];
                 scopes: string[];
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 user?: {
                   id: string;
                   /** Format: email */
@@ -649,21 +669,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -767,8 +787,10 @@ export interface paths {
                 userId: string;
                 roles: string[];
                 scopes: string[];
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 user?: {
                   id: string;
                   /** Format: email */
@@ -1029,21 +1051,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -1973,21 +1995,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -2076,21 +2098,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -2295,21 +2317,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -2348,21 +2370,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -2432,21 +2454,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -2949,7 +2971,7 @@ export interface paths {
               suspiciousEvents: {
                 id?: string;
                 user_id?: string | null;
-                type: string;
+                type?: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
                 metadata?: {
@@ -3272,21 +3294,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -3408,21 +3430,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -3530,21 +3552,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -3937,16 +3959,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -4034,16 +4060,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -4134,16 +4164,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -4254,16 +4288,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -4381,16 +4419,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -4489,8 +4531,10 @@ export interface paths {
                 userId: string;
                 roles: string[];
                 scopes: string[];
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 user?: {
                   id: string;
                   /** Format: email */
@@ -4585,8 +4629,10 @@ export interface paths {
                 userId: string;
                 roles: string[];
                 scopes: string[];
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 user?: {
                   id: string;
                   /** Format: email */
@@ -4684,21 +4730,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -4802,8 +4848,10 @@ export interface paths {
                 userId: string;
                 roles: string[];
                 scopes: string[];
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 user?: {
                   id: string;
                   /** Format: email */
@@ -4891,21 +4939,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -4993,21 +5041,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -5095,21 +5143,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -5179,21 +5227,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -5733,21 +5781,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -5859,21 +5907,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -6160,21 +6208,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -6246,21 +6294,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -7749,21 +7797,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -8041,7 +8089,8 @@ export interface paths {
                 email: string;
                 phone: string | null;
                 roles: string[];
-                lastLogin?: unknown;
+                /** Format: date-time */
+                lastLogin?: string | null;
                 activeOrganizationId?: string | null;
               };
               credentials: {
@@ -8078,16 +8127,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -8106,16 +8159,20 @@ export interface paths {
                 metadata: {
                   [key: string]: unknown;
                 } | null;
-                createdAt?: unknown;
-                updatedAt?: unknown;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
                 membership?: {
                   id: string;
                   organizationId: string;
                   userId: string;
                   roles: string[];
                   scopes: string[];
-                  createdAt?: unknown;
-                  updatedAt?: unknown;
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
                   user?: {
                     id: string;
                     /** Format: email */
@@ -8262,21 +8319,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };
@@ -8328,21 +8385,21 @@ export interface paths {
               delivery?:
                 | {
                     /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                  }
-                | {
-                    /** @enum {string} */
                     kind: 'otp_email';
                     to: string;
                     token: string;
                   }
                 | {
                     /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
                     kind: 'magic_link_email';
                     to: string;
-                    token: string;
+                    token?: string;
                     magicLinkUrl: string;
                   };
             };

@@ -4,68 +4,46 @@
  * See LICENSE file in the project root for full license information
  */
 
+import {
+  WebAuthnAssertionStartSchema as SharedAssertionStartSchema,
+  WebAuthnPrfRequestSchema as SharedPrfRequestSchema,
+} from '@seamless-auth/types';
 import { z } from 'zod';
 
 import { assertValidPrfSalt } from '../lib/webauthnPrf.js';
 
-const BooleanQuerySchema = z.preprocess((value) => {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  return value;
-}, z.boolean().optional());
+export {
+  WebAuthnLoginFinishSchema,
+  WebAuthnRegisterFinishSchema,
+  WebAuthnRegisterStartQuerySchema,
+} from '@seamless-auth/types';
 
-export const WebAuthnPrfRequestSchema = z.object({
-  salt: z.string().superRefine((value, ctx) => {
-    try {
-      assertValidPrfSalt(value);
-    } catch (error) {
-      ctx.addIssue({
-        code: 'custom',
-        message: error instanceof Error ? error.message : 'Invalid PRF salt',
-      });
-    }
-  }),
-  secondSalt: z
-    .string()
-    .superRefine((value, ctx) => {
-      try {
-        assertValidPrfSalt(value);
-      } catch (error) {
-        ctx.addIssue({
-          code: 'custom',
-          message: error instanceof Error ? error.message : 'Invalid PRF salt',
-        });
-      }
-    })
-    .optional(),
+function checkSalt(value: string | undefined, ctx: z.RefinementCtx, path: string) {
+  if (value === undefined) return;
+
+  try {
+    assertValidPrfSalt(value);
+  } catch (error) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [path],
+      message: error instanceof Error ? error.message : 'Invalid PRF salt',
+    });
+  }
+}
+
+/**
+ * The shared schema asserts the wire shape only. PRF salts also have to satisfy this
+ * server's own rules (length and encoding), which `assertValidPrfSalt` owns, so the
+ * runtime check is layered on top rather than duplicated into the shared contract.
+ */
+export const WebAuthnPrfRequestSchema = SharedPrfRequestSchema.superRefine((value, ctx) => {
+  checkSalt(value.salt, ctx, 'salt');
+  checkSalt(value.secondSalt, ctx, 'secondSalt');
 });
 
-export const WebAuthnRegisterStartQuerySchema = z.object({
-  requestPrf: BooleanQuerySchema,
-  requirePrf: BooleanQuerySchema,
-});
-
-export const WebAuthnAssertionStartSchema = z
-  .object({
-    credentialId: z.string().optional(),
-    prf: WebAuthnPrfRequestSchema.optional(),
-  })
+// Rebuilt rather than re-exported: the shared version embeds the unvalidated PRF schema.
+// It ships wrapped in a default, so unwrap before swapping the field back in.
+export const WebAuthnAssertionStartSchema = SharedAssertionStartSchema.unwrap()
+  .extend({ prf: WebAuthnPrfRequestSchema.optional() })
   .default({});
-
-export const WebAuthnRegisterFinishSchema = z.object({
-  attestationResponse: z.record(z.string(), z.unknown()),
-
-  metadata: z
-    .object({
-      friendlyName: z.string().optional(),
-      platform: z.string().optional(),
-      browser: z.string().optional(),
-      deviceInfo: z.string().optional(),
-      prfCapable: z.boolean().optional(),
-    })
-    .optional(),
-});
-
-export const WebAuthnLoginFinishSchema = z.object({
-  assertionResponse: z.record(z.string(), z.unknown()),
-});

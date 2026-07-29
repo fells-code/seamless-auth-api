@@ -36,8 +36,16 @@
                             "nullable": true,
                             "additionalProperties": { "nullable": true }
                           },
-                          "createdAt": { "nullable": true },
-                          "updatedAt": { "nullable": true },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
                           "membership": {
                             "type": "object",
                             "properties": {
@@ -46,8 +54,16 @@
                               "userId": { "type": "string" },
                               "roles": { "type": "array", "items": { "type": "string" } },
                               "scopes": { "type": "array", "items": { "type": "string" } },
-                              "createdAt": { "nullable": true },
-                              "updatedAt": { "nullable": true },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
                               "user": {
                                 "type": "object",
                                 "properties": {
@@ -59,11 +75,27 @@
                                 "required": ["id", "email", "phone", "roles"]
                               }
                             },
-                            "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                            "required": [
+                              "id",
+                              "organizationId",
+                              "userId",
+                              "roles",
+                              "scopes",
+                              "createdAt",
+                              "updatedAt"
+                            ]
                           },
                           "memberCount": { "type": "integer", "minimum": 0 }
                         },
-                        "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "createdByUserId",
+                          "metadata",
+                          "createdAt",
+                          "updatedAt"
+                        ]
                       }
                     },
                     "total": { "type": "integer", "minimum": 0 }
@@ -119,8 +151,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -129,8 +161,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -142,11 +182,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["organization"]
@@ -217,8 +273,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -227,8 +283,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -240,11 +304,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["organization"]
@@ -344,8 +424,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -354,8 +434,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -367,11 +455,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["organization"]
@@ -453,8 +557,16 @@
                           "userId": { "type": "string" },
                           "roles": { "type": "array", "items": { "type": "string" } },
                           "scopes": { "type": "array", "items": { "type": "string" } },
-                          "createdAt": { "nullable": true },
-                          "updatedAt": { "nullable": true },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
                           "user": {
                             "type": "object",
                             "properties": {
@@ -466,7 +578,15 @@
                             "required": ["id", "email", "phone", "roles"]
                           }
                         },
-                        "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                        "required": [
+                          "id",
+                          "organizationId",
+                          "userId",
+                          "roles",
+                          "scopes",
+                          "createdAt",
+                          "updatedAt"
+                        ]
                       }
                     },
                     "total": { "type": "integer", "minimum": 0 }
@@ -541,8 +661,8 @@
                         "userId": { "type": "string" },
                         "roles": { "type": "array", "items": { "type": "string" } },
                         "scopes": { "type": "array", "items": { "type": "string" } },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "user": {
                           "type": "object",
                           "properties": {
@@ -554,7 +674,15 @@
                           "required": ["id", "email", "phone", "roles"]
                         }
                       },
-                      "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                      "required": [
+                        "id",
+                        "organizationId",
+                        "userId",
+                        "roles",
+                        "scopes",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["membership"]
@@ -662,8 +790,8 @@
                         "userId": { "type": "string" },
                         "roles": { "type": "array", "items": { "type": "string" } },
                         "scopes": { "type": "array", "items": { "type": "string" } },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "user": {
                           "type": "object",
                           "properties": {
@@ -675,7 +803,15 @@
                           "required": ["id", "email", "phone", "roles"]
                         }
                       },
-                      "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                      "required": [
+                        "id",
+                        "organizationId",
+                        "userId",
+                        "roles",
+                        "scopes",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["membership"]
@@ -761,18 +897,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -784,7 +920,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -1026,18 +1162,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -1049,7 +1185,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -1922,18 +2058,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -1945,7 +2081,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -2007,18 +2143,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2030,7 +2166,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -2185,18 +2321,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2208,7 +2344,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -2240,18 +2376,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2263,7 +2399,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -2310,18 +2446,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2333,7 +2469,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -2705,8 +2841,7 @@
                             "nullable": true,
                             "format": "date-time"
                           }
-                        },
-                        "required": ["type"]
+                        }
                       }
                     },
                     "total": { "type": "integer", "minimum": 0 }
@@ -2953,18 +3088,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2976,7 +3111,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -3069,18 +3204,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -3092,7 +3227,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -3167,18 +3302,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -3190,7 +3325,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -3503,8 +3638,16 @@
                             "nullable": true,
                             "additionalProperties": { "nullable": true }
                           },
-                          "createdAt": { "nullable": true },
-                          "updatedAt": { "nullable": true },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
                           "membership": {
                             "type": "object",
                             "properties": {
@@ -3513,8 +3656,16 @@
                               "userId": { "type": "string" },
                               "roles": { "type": "array", "items": { "type": "string" } },
                               "scopes": { "type": "array", "items": { "type": "string" } },
-                              "createdAt": { "nullable": true },
-                              "updatedAt": { "nullable": true },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
                               "user": {
                                 "type": "object",
                                 "properties": {
@@ -3526,11 +3677,27 @@
                                 "required": ["id", "email", "phone", "roles"]
                               }
                             },
-                            "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                            "required": [
+                              "id",
+                              "organizationId",
+                              "userId",
+                              "roles",
+                              "scopes",
+                              "createdAt",
+                              "updatedAt"
+                            ]
                           },
                           "memberCount": { "type": "integer", "minimum": 0 }
                         },
-                        "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "createdByUserId",
+                          "metadata",
+                          "createdAt",
+                          "updatedAt"
+                        ]
                       }
                     },
                     "activeOrganizationId": { "type": "string", "nullable": true }
@@ -3586,8 +3753,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -3596,8 +3763,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -3609,11 +3784,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["organization"]
@@ -3684,8 +3875,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -3694,8 +3885,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -3707,11 +3906,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["organization"]
@@ -3811,8 +4026,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -3821,8 +4036,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -3834,11 +4057,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["organization"]
@@ -3927,8 +4166,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -3937,8 +4176,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -3950,11 +4197,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     },
                     "ttl": { "type": "number" }
                   },
@@ -4064,8 +4327,16 @@
                           "userId": { "type": "string" },
                           "roles": { "type": "array", "items": { "type": "string" } },
                           "scopes": { "type": "array", "items": { "type": "string" } },
-                          "createdAt": { "nullable": true },
-                          "updatedAt": { "nullable": true },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
                           "user": {
                             "type": "object",
                             "properties": {
@@ -4077,7 +4348,15 @@
                             "required": ["id", "email", "phone", "roles"]
                           }
                         },
-                        "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                        "required": [
+                          "id",
+                          "organizationId",
+                          "userId",
+                          "roles",
+                          "scopes",
+                          "createdAt",
+                          "updatedAt"
+                        ]
                       }
                     },
                     "total": { "type": "integer", "minimum": 0 }
@@ -4152,8 +4431,8 @@
                         "userId": { "type": "string" },
                         "roles": { "type": "array", "items": { "type": "string" } },
                         "scopes": { "type": "array", "items": { "type": "string" } },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "user": {
                           "type": "object",
                           "properties": {
@@ -4165,7 +4444,15 @@
                           "required": ["id", "email", "phone", "roles"]
                         }
                       },
-                      "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                      "required": [
+                        "id",
+                        "organizationId",
+                        "userId",
+                        "roles",
+                        "scopes",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["membership"]
@@ -4273,8 +4560,8 @@
                         "userId": { "type": "string" },
                         "roles": { "type": "array", "items": { "type": "string" } },
                         "scopes": { "type": "array", "items": { "type": "string" } },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "user": {
                           "type": "object",
                           "properties": {
@@ -4286,7 +4573,15 @@
                           "required": ["id", "email", "phone", "roles"]
                         }
                       },
-                      "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                      "required": [
+                        "id",
+                        "organizationId",
+                        "userId",
+                        "roles",
+                        "scopes",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["membership"]
@@ -4372,18 +4667,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4395,7 +4690,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -4455,18 +4750,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4478,7 +4773,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -4538,18 +4833,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4561,7 +4856,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -4621,18 +4916,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4644,7 +4939,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -4691,18 +4986,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4714,7 +5009,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -5126,18 +5421,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -5149,7 +5444,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -5239,18 +5534,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -5262,7 +5557,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -5480,18 +5775,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -5503,7 +5798,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -5553,18 +5848,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -5576,7 +5871,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -6943,18 +7238,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6966,7 +7261,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -7154,7 +7449,7 @@
                             "pattern": "^(?!.*[_/\\\\\\s])(?=.{1,80}$)[A-Za-z0-9-]+(?::[A-Za-z0-9-]+)*$"
                           }
                         },
-                        "lastLogin": { "nullable": true },
+                        "lastLogin": { "type": "string", "nullable": true, "format": "date-time" },
                         "activeOrganizationId": { "type": "string", "nullable": true }
                       },
                       "required": ["id", "email", "phone", "roles"]
@@ -7220,8 +7515,16 @@
                             "nullable": true,
                             "additionalProperties": { "nullable": true }
                           },
-                          "createdAt": { "nullable": true },
-                          "updatedAt": { "nullable": true },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
                           "membership": {
                             "type": "object",
                             "properties": {
@@ -7230,8 +7533,16 @@
                               "userId": { "type": "string" },
                               "roles": { "type": "array", "items": { "type": "string" } },
                               "scopes": { "type": "array", "items": { "type": "string" } },
-                              "createdAt": { "nullable": true },
-                              "updatedAt": { "nullable": true },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
                               "user": {
                                 "type": "object",
                                 "properties": {
@@ -7243,11 +7554,27 @@
                                 "required": ["id", "email", "phone", "roles"]
                               }
                             },
-                            "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                            "required": [
+                              "id",
+                              "organizationId",
+                              "userId",
+                              "roles",
+                              "scopes",
+                              "createdAt",
+                              "updatedAt"
+                            ]
                           },
                           "memberCount": { "type": "integer", "minimum": 0 }
                         },
-                        "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "createdByUserId",
+                          "metadata",
+                          "createdAt",
+                          "updatedAt"
+                        ]
                       }
                     },
                     "activeOrganization": {
@@ -7263,8 +7590,8 @@
                           "nullable": true,
                           "additionalProperties": { "nullable": true }
                         },
-                        "createdAt": { "nullable": true },
-                        "updatedAt": { "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "membership": {
                           "type": "object",
                           "properties": {
@@ -7273,8 +7600,16 @@
                             "userId": { "type": "string" },
                             "roles": { "type": "array", "items": { "type": "string" } },
                             "scopes": { "type": "array", "items": { "type": "string" } },
-                            "createdAt": { "nullable": true },
-                            "updatedAt": { "nullable": true },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "user": {
                               "type": "object",
                               "properties": {
@@ -7286,11 +7621,27 @@
                               "required": ["id", "email", "phone", "roles"]
                             }
                           },
-                          "required": ["id", "organizationId", "userId", "roles", "scopes"]
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
                         },
                         "memberCount": { "type": "integer", "minimum": 0 }
                       },
-                      "required": ["id", "name", "slug", "createdByUserId", "metadata"]
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": ["user", "credentials"]
@@ -7456,18 +7807,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -7479,7 +7830,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }
@@ -7513,18 +7864,18 @@
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "type": "string" }
                           },
                           "required": ["kind", "to", "token"]
                         },
                         {
                           "type": "object",
                           "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -7536,7 +7887,7 @@
                             "token": { "type": "string" },
                             "magicLinkUrl": { "type": "string" }
                           },
-                          "required": ["kind", "to", "token", "magicLinkUrl"]
+                          "required": ["kind", "to", "magicLinkUrl"]
                         }
                       ]
                     }

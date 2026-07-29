@@ -4,10 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { SessionSchema } from '@seamless-auth/types';
-import { z } from 'zod';
-
-export const SessionListResponseSchema = z.object({
-  sessions: z.array(SessionSchema),
-  total: z.number(),
-});
+export { SessionListResponseSchema } from '@seamless-auth/types';

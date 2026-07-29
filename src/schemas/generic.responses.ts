@@ -4,27 +4,17 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { AuthDeliverySchema, ErrorResponseSchema } from '@seamless-auth/types';
 import z from 'zod';
 
-export const AuthDeliverySchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('otp_sms'),
-    to: z.string(),
-    token: z.union([z.string(), z.number()]),
-  }),
-  z.object({
-    kind: z.literal('otp_email'),
-    to: z.string(),
-    token: z.string(),
-  }),
-  z.object({
-    kind: z.literal('magic_link_email'),
-    to: z.string(),
-    token: z.string(),
-    magicLinkUrl: z.string(),
-  }),
-]);
+export { AuthDeliverySchema } from '@seamless-auth/types';
 
+/**
+ * Success envelope for the flows that hand back a token or an external-delivery payload.
+ *
+ * Deliberately not the shared `MessageResponseSchema`, which is `{ message }` alone and
+ * would strip `token` and `delivery` from OTP and magic-link responses.
+ */
 export const MessageSchema = z.object({
   message: z.string(),
   token: z.string().optional(),
@@ -38,10 +28,7 @@ export const MessageSchema = z.object({
  * `error` carries the human-readable reason and is always present. `message` is optional
  * extra detail; it is not a substitute for `error`, so consumers can read one field.
  */
-export const ErrorSchema = z.object({
-  message: z.string().optional(),
-  error: z.string(),
-});
+export const ErrorSchema = ErrorResponseSchema;
 
 /** @deprecated Identical to {@link ErrorSchema}. Kept so route definitions need not churn. */
 export const InternalErrorSchema = ErrorSchema;

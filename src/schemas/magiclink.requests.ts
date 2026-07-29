@@ -4,8 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { z } from 'zod';
-
-export const MagicLinkVerifyParamsSchema = z.object({
-  token: z.string(),
-});
+export { MagicLinkVerifyParamsSchema } from '@seamless-auth/types';
