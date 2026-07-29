@@ -5,7 +5,7 @@
  */
 
 import {
-  MetricsIntervalSchema,
+  type MetricsInterval,
   MetricsQuerySchema as SharedMetricsQuerySchema,
 } from '@seamless-auth/types';
 import { z } from 'zod';
@@ -34,7 +34,7 @@ export const AuthEventQuerySchema = z.object({
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
-export type MetricsInterval = z.infer<typeof MetricsIntervalSchema>;
+export type { MetricsInterval };
 
 // A window is capped by the bucket size it would be rendered at, so an hourly
 // timeseries cannot be asked for a year of buckets.
