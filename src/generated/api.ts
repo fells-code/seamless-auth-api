@@ -1437,7 +1437,15 @@ export interface paths {
               }[];
               credentials: {
                 id: string;
-                transports?: ('usb' | 'ble' | 'nfc' | 'internal')[];
+                transports?: (
+                  | 'ble'
+                  | 'cable'
+                  | 'hybrid'
+                  | 'internal'
+                  | 'nfc'
+                  | 'smart-card'
+                  | 'usb'
+                )[];
                 /** @enum {string} */
                 deviceType?: 'singleDevice' | 'multiDevice';
                 backedUp: boolean;
@@ -8068,7 +8076,15 @@ export interface paths {
               };
               credentials: {
                 id: string;
-                transports?: ('usb' | 'ble' | 'nfc' | 'internal')[];
+                transports?: (
+                  | 'ble'
+                  | 'cable'
+                  | 'hybrid'
+                  | 'internal'
+                  | 'nfc'
+                  | 'smart-card'
+                  | 'usb'
+                )[];
                 /** @enum {string} */
                 deviceType?: 'singleDevice' | 'multiDevice';
                 backedUp: boolean;
@@ -8212,7 +8228,15 @@ export interface paths {
               message: string;
               credential: {
                 id: string;
-                transports?: ('usb' | 'ble' | 'nfc' | 'internal')[];
+                transports?: (
+                  | 'ble'
+                  | 'cable'
+                  | 'hybrid'
+                  | 'internal'
+                  | 'nfc'
+                  | 'smart-card'
+                  | 'usb'
+                )[];
                 /** @enum {string} */
                 deviceType?: 'singleDevice' | 'multiDevice';
                 backedUp: boolean;

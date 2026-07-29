@@ -1534,7 +1534,18 @@
                           "id": { "type": "string" },
                           "transports": {
                             "type": "array",
-                            "items": { "type": "string", "enum": ["usb", "ble", "nfc", "internal"] }
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "ble",
+                                "cable",
+                                "hybrid",
+                                "internal",
+                                "nfc",
+                                "smart-card",
+                                "usb"
+                              ]
+                            }
                           },
                           "deviceType": {
                             "type": "string",
@@ -7186,7 +7197,18 @@
                           "id": { "type": "string" },
                           "transports": {
                             "type": "array",
-                            "items": { "type": "string", "enum": ["usb", "ble", "nfc", "internal"] }
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "ble",
+                                "cable",
+                                "hybrid",
+                                "internal",
+                                "nfc",
+                                "smart-card",
+                                "usb"
+                              ]
+                            }
                           },
                           "deviceType": {
                             "type": "string",
@@ -7381,7 +7403,18 @@
                         "id": { "type": "string" },
                         "transports": {
                           "type": "array",
-                          "items": { "type": "string", "enum": ["usb", "ble", "nfc", "internal"] }
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "ble",
+                              "cable",
+                              "hybrid",
+                              "internal",
+                              "nfc",
+                              "smart-card",
+                              "usb"
+                            ]
+                          }
                         },
                         "deviceType": { "type": "string", "enum": ["singleDevice", "multiDevice"] },
                         "backedUp": { "type": "boolean" },
