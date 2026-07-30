@@ -93,7 +93,7 @@ export const generateEmailOTP = async (
     return emailToken;
   } catch (error) {
     logger.error(`Error generate email OTP: ${error}`);
-    throw new Error('Failed to set user OTP');
+    throw new Error('Failed to set user OTP', { cause: error });
   }
 };
 
@@ -129,7 +129,7 @@ export const generatePhoneOTP = async (
     return phoneToken;
   } catch (error) {
     logger.error(`Error generate phone OTP: ${error}`);
-    throw new Error('Failed to set user OTP');
+    throw new Error('Failed to set user OTP', { cause: error });
   }
 };
 
@@ -157,7 +157,7 @@ export const verifyPhoneOTP = async (
       await user.save();
     } catch (error) {
       logger.error(`Error verifying phone OTP: ${error}`);
-      throw new Error('Failed to update user verfication via phone OTP');
+      throw new Error('Failed to update user verfication via phone OTP', { cause: error });
     }
   } else {
     return { user, verified: false };
@@ -190,7 +190,7 @@ export const verifyEmailOTP = async (
       await user.save();
     } catch (error) {
       logger.error(`Error verifying email OTP: ${error}`);
-      throw new Error('Failed to update user verfication via phone OTP');
+      throw new Error('Failed to update user verfication via phone OTP', { cause: error });
     }
   } else {
     return { user, verified: false };
