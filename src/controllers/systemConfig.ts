@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
 import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
@@ -13,6 +13,7 @@ import { User } from '../models/users.js';
 import { createPatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { getLoginPolicy } from '../services/loginPolicyService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -140,4 +141,21 @@ export const getAvailableRoles = async (_req: Request, res: Response) => {
   return res.json({
     roles: config.available_roles ?? [],
   });
+};
+
+/**
+ * The configuration a signed-out client is allowed to read.
+ *
+ * Served through getLoginPolicy rather than off the raw config so a tainted or
+ * partially written config still answers with the defaults. The sign-in screens
+ * call this before anyone has a session, so failing here would leave a client
+ * with no methods to offer at all.
+ *
+ * Only add a key to this response when a signed-out client genuinely cannot work
+ * without it. Everything else belongs on the admin routes.
+ */
+export const getPublicSystemConfig = async (_req: Request, res: Response) => {
+  const { loginMethods } = await getLoginPolicy();
+
+  return res.json({ loginMethods });
 };

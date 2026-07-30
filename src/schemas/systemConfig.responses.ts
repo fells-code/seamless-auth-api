@@ -9,6 +9,7 @@ import { z } from 'zod';
 export {
   AvailableRolesResponseSchema,
   GetSystemConfigResponseSchema,
+  PublicSystemConfigResponseSchema,
   UpdateSystemConfigResponseSchema,
 } from '@seamless-auth/types';
 

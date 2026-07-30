@@ -6628,6 +6628,51 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/system-config/public': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read the publicly visible system configuration */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "loginMethods": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              loginMethods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/system-config/roles': {
     parameters: {
       query?: never;

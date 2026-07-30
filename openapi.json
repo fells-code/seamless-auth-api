@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.5.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.6.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -6119,6 +6119,36 @@
                   "required": ["error"]
                 },
                 "example": { "message": "string", "error": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/public": {
+      "get": {
+        "summary": "Read the publicly visible system configuration",
+        "tags": ["SystemConfig"],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "loginMethods": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "required": ["loginMethods"]
+                },
+                "example": { "loginMethods": [null] }
               }
             }
           }
