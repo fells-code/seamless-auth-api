@@ -98,7 +98,7 @@ export async function signEphemeralToken(userId: string) {
     return jwt;
   } catch (error) {
     logger.error(`Failed to create JWT token. Ephemeral. Reason: ${error}.`);
-    throw new Error('Failed to sign Ephemeral Token');
+    throw new Error('Failed to sign Ephemeral Token', { cause: error });
   }
 }
 
