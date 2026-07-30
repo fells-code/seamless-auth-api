@@ -308,7 +308,7 @@ describe('OTP verification save failures', () => {
     });
 
     await expect(verifyPhoneOTP(user as any, '123456')).rejects.toThrow(
-      'Failed to update user verfication via phone OTP',
+      'Failed to update user verification via phone OTP',
     );
     expect(user.save).toHaveBeenCalled();
   });
@@ -322,7 +322,7 @@ describe('OTP verification save failures', () => {
     });
 
     await expect(verifyEmailOTP(user as any, 'abcdef')).rejects.toThrow(
-      'Failed to update user verfication via phone OTP',
+      'Failed to update user verification via email OTP',
     );
     expect(user.save).toHaveBeenCalled();
   });
