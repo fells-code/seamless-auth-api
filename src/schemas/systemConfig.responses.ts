@@ -12,17 +12,9 @@ export {
   UpdateSystemConfigResponseSchema,
 } from '@seamless-auth/types';
 
-// The shared package models these as the generic error envelope. They stay local so the
-// system-config routes keep declaring the exact bodies their handlers return.
-export const UnauthorizedSchema = z.object({
-  error: z.string(),
-});
-
+// The shared package models this as the generic error envelope. It stays local so the
+// system-config routes keep declaring the exact body their handlers return.
 export const InvalidPayloadSchema = z.object({
   error: z.string(),
   details: z.unknown().optional(),
-});
-
-export const SystemConfigErrorSchema = z.object({
-  error: z.string(),
 });

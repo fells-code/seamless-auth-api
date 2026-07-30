@@ -6,8 +6,6 @@
 
 export type { LockoutPolicy, OAuthProviderConfig, SystemConfig } from '@seamless-auth/types';
 export {
-  DefaultLockoutPolicy,
-  LockoutPolicySchema,
   LoginMethodSchema,
   OAuthProviderConfigSchema,
   SystemConfigSchema,

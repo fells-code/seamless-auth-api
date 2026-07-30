@@ -8,6 +8,5 @@ export {
   OAuthLoginErrorResponseSchema,
   OAuthLoginSuccessResponseSchema,
   OAuthProvidersResponseSchema,
-  PublicOAuthProviderSchema,
   StartOAuthLoginResponseSchema,
 } from '@seamless-auth/types';

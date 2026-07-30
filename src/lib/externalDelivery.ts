@@ -13,7 +13,6 @@ const logger = getLogger('externalDelivery');
 
 const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
 const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
-const INCLUDE_SENSITIVE_HEADER = 'x-seamless-auth-include-sensitive';
 const UNCREDENTIALED_OPT_IN = 'ALLOW_UNCREDENTIALED_DELIVERY_SECRETS';
 
 function extractBearerToken(headerValue: string | undefined): string | null {
@@ -70,12 +69,4 @@ export async function canReturnExternalDelivery(req: Request) {
   return Boolean(
     decoded?.sub && decoded.iss === 'seamless-portal-api' && decoded.aud === 'seamless-auth',
   );
-}
-
-export function canReturnSensitiveDevelopmentDetails(req: Request) {
-  if (!uncredentialedSecretsAllowed()) {
-    return false;
-  }
-
-  return req.get(INCLUDE_SENSITIVE_HEADER)?.toLowerCase() === 'true';
 }
