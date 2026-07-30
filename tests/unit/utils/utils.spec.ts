@@ -10,7 +10,6 @@ import {
   parseDurationToSeconds,
   hashSha256,
   hashDeviceFingerprint,
-  validateRedirectUrl,
 } from '../../../src/utils/utils';
 
 describe('utils', () => {
@@ -107,34 +106,6 @@ describe('utils', () => {
 
       expect(result.ip_hash).toBeNull();
       expect(result.user_agent_hash).toBeNull();
-    });
-  });
-
-  describe('validateRedirectUrl', () => {
-    const allowed = ['http://localhost:3000'];
-
-    it('returns valid url if allowed', () => {
-      const result = validateRedirectUrl('http://localhost:3000/path', allowed);
-
-      expect(result).toBe('http://localhost:3000/path');
-    });
-
-    it('returns null if not allowed', () => {
-      const result = validateRedirectUrl('http://evil.com', allowed);
-
-      expect(result).toBeNull();
-    });
-
-    it('returns null if invalid url', () => {
-      const result = validateRedirectUrl('///', allowed);
-
-      expect(result).toBeNull();
-    });
-
-    it('returns null if undefined', () => {
-      const result = validateRedirectUrl(undefined, allowed);
-
-      expect(result).toBeNull();
     });
   });
 });

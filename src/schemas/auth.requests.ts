@@ -4,4 +4,4 @@
  * See LICENSE file in the project root for full license information
  */
 
-export { LoginRequestSchema, RefreshRequestSchema } from '@seamless-auth/types';
+export { LoginRequestSchema } from '@seamless-auth/types';

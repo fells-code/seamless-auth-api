@@ -77,28 +77,6 @@ export async function signAccessToken(
   return jwt;
 }
 
-export async function signRefreshToken(sessionId: string, userId: string) {
-  const { kid, privateKeyPem } = await getSigningKey();
-
-  const privateKey = await importPKCS8(privateKeyPem, 'RS256');
-  const { refresh_token_ttl } = await getSystemConfig();
-
-  const jwt = await new SignJWT({
-    sid: sessionId,
-    sub: userId,
-    iss: process.env.ISSUER,
-    typ: 'refresh',
-  })
-    .setProtectedHeader({ alg: 'RS256', kid })
-    .setIssuedAt()
-    .setIssuer(ISSUER)
-    .setAudience(ISSUER)
-    .setExpirationTime(refresh_token_ttl)
-    .sign(privateKey);
-
-  return jwt;
-}
-
 export async function signEphemeralToken(userId: string) {
   try {
     const { kid, privateKeyPem } = await getSigningKey();

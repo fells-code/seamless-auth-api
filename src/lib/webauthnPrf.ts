@@ -13,32 +13,8 @@ type PrfRequest = {
   secondSalt?: string;
 };
 
-type PrfCredentialResult = {
-  id: string;
-  getClientExtensionResults: () => {
-    prf?: {
-      results?: {
-        first?: ArrayBuffer | ArrayBufferView;
-        second?: ArrayBuffer | ArrayBufferView;
-      };
-    };
-  };
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function toBase64Url(bytes: Uint8Array) {
-  return Buffer.from(bytes).toString('base64url');
-}
-
-function toUint8Array(value: ArrayBuffer | ArrayBufferView) {
-  if (value instanceof ArrayBuffer) {
-    return new Uint8Array(value);
-  }
-
-  return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
 }
 
 export function assertValidPrfSalt(salt: string) {
@@ -126,20 +102,4 @@ export function containsPrfOutput(credentialResponse: unknown) {
   }
 
   return isRecord(prf.results);
-}
-
-export function extractPasskeyPrfResult(credential: PrfCredentialResult) {
-  const first = credential.getClientExtensionResults().prf?.results?.first;
-
-  if (!first) {
-    return null;
-  }
-
-  const output = toUint8Array(first);
-
-  return {
-    credentialId: credential.id,
-    output,
-    outputBase64url: toBase64Url(output),
-  };
 }

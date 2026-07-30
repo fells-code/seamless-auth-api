@@ -127,29 +127,6 @@ describe('token utils', () => {
     expect(signPayloads.at(-1)).not.toHaveProperty('org_id');
   });
 
-  it('signs refresh token', async () => {
-    const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-
-    (getSigningKey as any).mockResolvedValue({
-      kid: 'kid',
-      privateKeyPem: 'pem',
-    });
-
-    (getSystemConfig as any).mockResolvedValue({
-      refresh_token_ttl: '1h',
-    });
-
-    signAudiences.length = 0;
-
-    const { signRefreshToken } = await import('../../../src/lib/token');
-
-    const result = await signRefreshToken('sid', 'user');
-
-    expect(result).toBe('mock-jwt');
-    expect(signAudiences.at(-1)).toBe('issuer');
-  });
-
   it('signs ephemeral token', async () => {
     const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
 

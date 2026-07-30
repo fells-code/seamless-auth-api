@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-export { hasScopedRole, ROLE_NAME_PATTERN, roleGrantsAccess } from '@seamless-auth/types';
+export { hasScopedRole, roleGrantsAccess } from '@seamless-auth/types';
 
 function normalizeRole(value: string) {
   return value.trim();

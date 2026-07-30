@@ -5,10 +5,7 @@ vi.mock('../../../src/middleware/authenticateServiceToken.js', () => ({
 }));
 
 import { validateInternalServiceToken } from '../../../src/middleware/authenticateServiceToken.js';
-import {
-  canReturnExternalDelivery,
-  canReturnSensitiveDevelopmentDetails,
-} from '../../../src/lib/externalDelivery.js';
+import { canReturnExternalDelivery } from '../../../src/lib/externalDelivery.js';
 
 function req(headers: Record<string, string | undefined>) {
   return {
@@ -214,41 +211,5 @@ describe('external delivery gates', () => {
     ).resolves.toBe(false);
 
     expect(validateInternalServiceToken).not.toHaveBeenCalled();
-  });
-
-  it('does not return sensitive details on the header alone', () => {
-    expect(
-      canReturnSensitiveDevelopmentDetails(
-        req({
-          'x-seamless-auth-include-sensitive': 'true',
-        }),
-      ),
-    ).toBe(false);
-  });
-
-  it('returns sensitive details only with the header and the local opt-in', () => {
-    process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = 'true';
-
-    expect(canReturnSensitiveDevelopmentDetails(req({}))).toBe(false);
-    expect(
-      canReturnSensitiveDevelopmentDetails(
-        req({
-          'x-seamless-auth-include-sensitive': 'true',
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it('never returns sensitive details in production', () => {
-    process.env.NODE_ENV = 'production';
-    process.env.ALLOW_UNCREDENTIALED_DELIVERY_SECRETS = 'true';
-
-    expect(
-      canReturnSensitiveDevelopmentDetails(
-        req({
-          'x-seamless-auth-include-sensitive': 'true',
-        }),
-      ),
-    ).toBe(false);
   });
 });

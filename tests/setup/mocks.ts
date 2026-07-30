@@ -148,9 +148,6 @@ vi.mock('../../src/middleware/attachAuthMiddleware.js', async (importOriginal) =
 });
 
 vi.mock('../../src/middleware/authenticateServiceToken.js', () => ({
-  verifyServiceToken: (_req: any, _res: any, next: any) => {
-    next();
-  },
   // Defaults to rejecting every token; specs opt in via tests/factories/serviceTokenFactory.
   validateInternalServiceToken: vi.fn(),
 }));

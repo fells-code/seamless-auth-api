@@ -72,24 +72,3 @@ export function hashDeviceFingerprint(ip?: string, userAgent?: string) {
     user_agent_hash: userAgent ? hashSha256(userAgent) : null,
   };
 }
-
-export function validateRedirectUrl(
-  redirectUrl: string | undefined,
-  allowedOrigins: string[],
-): string | null {
-  if (!redirectUrl) return null;
-
-  try {
-    const url = new URL(redirectUrl, allowedOrigins[0]);
-
-    const isAllowed = allowedOrigins.some((origin) => url.origin === origin);
-
-    if (!isAllowed || !url) {
-      return null;
-    }
-
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
