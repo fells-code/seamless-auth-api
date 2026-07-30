@@ -11,38 +11,61 @@
 
 It provides the backend services for passkeys (WebAuthn) and other passwordless flows, issuing secure sessions and tokens while giving teams full transparency into how authentication is implemented.
 
-> Looking for the managed experience (hosting, upgrades, dashboards, metrics, backups, SLAs)? See **https://seamlessauth.com** for managed services.
+> Looking for the managed experience (hosting, upgrades, metrics, backups, SLAs)? See **https://seamlessauth.com** for managed services.
 
-## Scope and Non-Goals
+## Contents
+
+- [Scope and non-goals](#scope-and-non-goals)
+- [Why Seamless Auth API](#why-seamless-auth-api)
+- [High-level architecture](#high-level-architecture)
+- [Bearer token contract](#bearer-token-contract)
+- [Local development quickstart](#local-development-quickstart)
+- [Typed API client](#typed-api-client)
+- [Capabilities and configuration](#capabilities-and-configuration)
+- [Docker quickstart](#docker-quickstart)
+- [Running the image yourself](#running-the-image-yourself)
+- [Production guidance](#production-guidance)
+- [Contributing](#contributing)
+- [Public docs](#public-docs)
+- [Security](#security)
+- [License](#license)
+
+## Scope and non-goals
 
 Seamless Auth API is the **open-source authentication engine** that powers SeamlessAuth. Its goal is to provide secure, auditable, and self-hostable passwordless authentication primitives.
 
-This repository intentionally focuses on **authentication only**.
-
 ### What this repository includes
 
-- Passwordless authentication flows (e.g. passkeys, OTP where configured)
+- Passwordless authentication flows (passkeys, OTP, and magic links where configured)
 - Optional OAuth login through configured external identity providers
 - Secure session and token handling
 - User registration and authentication APIs
-- WebAuthn / Passkeys support
-- WebAuthn PRF-capable passkey primitives for browser-local key derivation
+- WebAuthn / passkeys support, including PRF-capable primitives for browser-local key derivation
 - JWKS and token verification endpoints
 - Database models and migrations required for auth
+- The self-hostable admin console, served at `/console` (see below)
 - Local development and self-hosting support
 
-Everything in this repository can be:
+Everything in this repository can be audited, modified, self-hosted, and run without any
+SeamlessAuth-managed services.
 
-- Audited
-- Modified
-- Self-hosted
-- Run without any SeamlessAuth-managed services
+### The admin console
 
-### What this repository does **not** include
+The published Docker image bundles the [admin dashboard SPA](https://github.com/fells-code/seamless-auth-admin-dashboard)
+at a pinned release and serves it from the API's own origin at `/console`. It is enabled by
+default; set `SERVE_ADMIN_DASHBOARD=false` to turn it off. Serving is additive, so the `/admin/*`
+API routes always keep priority. See
+[docs/configuration.md](./docs/configuration.md#admin-dashboard-optional) for the variables and the
+version-pinning model.
+
+The console is a single-instance operator UI. The multi-tenant portal described below is a
+different product.
+
+### What this repository does not include
 
 The following are **intentionally out of scope** and are part of the managed SeamlessAuth service:
 
-- Admin portal or dashboard UI
+- The multi-tenant control plane and hosted portal
 - Billing, subscriptions, or plan enforcement
 - Tenant provisioning or lifecycle management
 - Hosted metrics, analytics, or usage dashboards
@@ -53,44 +76,44 @@ The following are **intentionally out of scope** and are part of the managed Sea
   operated delivery service.
 - Support SLAs or operational monitoring
 
-Self-hosted users are free to implement any of the above on their own, but they are not required to use SeamlessAuth Managed Service.
+Self-hosted users are free to implement any of the above on their own, and are never required to use
+the SeamlessAuth managed service.
 
 ### About secrets and infrastructure
 
-Seamless Auth API expects secrets to be provided by the environment or by a user-supplied secret store.
-
-This repository does **not** assume any specific cloud provider, billing system, or control plane.
+Seamless Auth API expects secrets to be provided by the environment or by a user-supplied secret
+store. This repository does **not** assume any specific cloud provider, billing system, or control
+plane.
 
 ## Why Seamless Auth API
 
 - Passwordless-first design (no passwords to steal)
 - Bearer/JSON auth API with opaque refresh tokens and signed access tokens
-- WebAuthn / passkeys support
-- Optional WebAuthn PRF support for products that need browser-local key material
-- JWKS publication for access-token verification and separate service-token guards for trusted
+- WebAuthn / passkeys support, with optional PRF for products that need browser-local key material
+- JWKS publication for access-token verification, and separate service-token guards for trusted
   server adapters
 - Built for inspection, auditability, and self-hosting
 
-This repository contains **only the auth server**. The admin portal, billing system, and hosted control plane are proprietary and offered as a managed service.
-
-## Who this is for
+### Who this is for
 
 - Teams that want to **self-host** authentication infrastructure
 - Security-conscious organizations that require code transparency
 - Developers evaluating SeamlessAuth internals before using the hosted offering
-
-If you want hosted auth with a full control plane and operational support, use the managed service instead.
 
 ## High-level architecture
 
 - Auth server (this repository)
 - Postgres for persistence
 - Your application integrates via:
-  - SeamlessAuth server SDK (recommended)
-  - Direct HTTP APIs (advanced) - see [docs/direct-http-quickstart.md](./docs/direct-http-quickstart.md)
-    for an end-to-end `curl` login, token, and refresh walkthrough
+  - A SeamlessAuth adapter, which bridges browser cookies to this API's bearer contract:
+    [`@seamless-auth/express`](https://www.npmjs.com/package/@seamless-auth/express) for the server
+    side and [`@seamless-auth/react`](https://www.npmjs.com/package/@seamless-auth/react) for the
+    browser (recommended)
+  - Direct HTTP APIs (advanced), see
+    [docs/direct-http-quickstart.md](./docs/direct-http-quickstart.md) for an end-to-end `curl`
+    login, token, and refresh walkthrough
 
-## Bearer Token Contract
+## Bearer token contract
 
 Seamless Auth API returns JSON tokens instead of browser auth cookies.
 
@@ -103,23 +126,24 @@ Seamless Auth API returns JSON tokens instead of browser auth cookies.
   paths or headers such as external delivery support, not as user access or ephemeral bearer tokens.
   Do not send SeamlessAuth access or ephemeral JWTs as `x-seamless-service-token`.
 
----
+Full per-flow status codes and terminology live in
+[docs/api-contract.md](./docs/api-contract.md).
 
-## Local Development Quickstart
+## Local development quickstart
 
 ### Prerequisites
 
-- Node.js (LTS recommended)
+- Node.js 24 (the `engines` field requires `>=24 <25`; see `.nvmrc`)
 - Postgres (local, Docker, or managed)
 
 ### Configuration
 
-Copy the `.env.example` to an `.env` file and populate values for your local environment.
+Copy `.env.example` to `.env` and populate values for your local environment. Never commit real
+secrets.
 
-Never commit real secrets. Use `.env.example` for documentation.
-
-For a full reference of every environment variable and `system_config` key (which are required,
-their defaults, and where each takes effect), see [docs/configuration.md](./docs/configuration.md).
+For a full reference of every environment variable and `system_config` key, including which are
+required, their defaults, and where each takes effect, see
+[docs/configuration.md](./docs/configuration.md).
 
 For a default local Postgres instance, `.env.example` expects:
 
@@ -131,7 +155,7 @@ DB_USER=myuser
 DB_PASSWORD=mypassword
 ```
 
-### Run Locally
+### Run locally
 
 ```bash
 npm install
@@ -144,15 +168,15 @@ The server starts on `http://localhost:5312` by default.
 Verify it:
 
 ```bash
-curl http://localhost:5312/health
+curl http://localhost:5312/health/status
 ```
 
-In development, OpenAPI is available at `http://localhost:5312/openapi.json` and Swagger UI is
-available at `http://localhost:5312/docs`.
+In development, OpenAPI is available at `http://localhost:5312/openapi.json` and Swagger UI at
+`http://localhost:5312/docs`. Both are disabled when `NODE_ENV=production`.
 
-### Typed API client
+## Typed API client
 
-The full OpenAPI document is committed at [`openapi.json`](./openapi.json), and TypeScript types
+The full OpenAPI document is committed at [`openapi.json`](./openapi.json), with TypeScript types
 generated from it at [`src/generated/api.ts`](./src/generated/api.ts). Both are produced from the
 live route definitions:
 
@@ -160,210 +184,118 @@ live route definitions:
 npm run generate:api
 ```
 
-Downstream tooling can consume `openapi.json` directly, or the types can be paired with a typed
-fetch wrapper such as `openapi-fetch`:
+This package is not published to npm, so downstream projects should consume the committed
+`openapi.json` and generate types into their own tree:
+
+```bash
+npx openapi-typescript https://raw.githubusercontent.com/fells-code/seamless-auth-api/main/openapi.json -o src/seamless-auth.ts
+```
+
+Those types can then be paired with a typed fetch wrapper such as `openapi-fetch`:
 
 ```ts
-import type { paths } from 'seamless-auth-api/src/generated/api.js';
+import type { paths } from './seamless-auth.js';
 
 type MeResponse = paths['/users/me']['get']['responses'][200]['content']['application/json'];
 ```
 
-Both artifacts are checked by the test suite, so a route or schema change that is not regenerated
-fails CI rather than silently drifting.
+Both committed artifacts are checked by the test suite, so a route or schema change that is not
+regenerated fails CI rather than silently drifting.
+
+## Capabilities and configuration
+
+Each capability below is summarized here and documented in full under [`docs/`](./docs).
+
+### Login method policy
+
+Administrators control which methods may continue after `/login` creates a pre-authenticated
+session. `LOGIN_METHODS` accepts any of `passkey`, `magic_link`, `email_otp`, `phone_otp`, or
+`oauth`, and defaults to `passkey,magic_link`. Set `PASSKEY_LOGIN_FALLBACK_ENABLED=false` when
+passkey-capable sessions should continue with passkeys only. When fallback is enabled, `/login`
+returns `loginMethods` so clients can offer only the allowed continuations for that user and device.
+
+See [docs/configuration.md](./docs/configuration.md).
+
+### OAuth login
+
+OAuth lets adopters offer login with external providers such as Google, GitHub, or Facebook, or any
+provider supporting an authorization-code exchange and a userinfo endpoint. Seamless Auth still
+issues the final SeamlessAuth session. Provider access tokens are used only during the callback to
+fetch the profile; they are never logged, stored, or returned to clients.
+
+Enable it by adding `oauth` to `LOGIN_METHODS` and configuring `oauth_providers` in `system_config`
+or the `OAUTH_PROVIDERS` environment variable. Client secrets are referenced by environment variable
+name through `clientSecretEnv` and never stored in system config. The browser flow runs through
+`GET /oauth/providers`, `POST /oauth/:providerId/start`, and `POST /oauth/:providerId/callback`.
+
+Provider JSON, redirect and PKCE policy, account-linking rules, and the full security notes are in
+[docs/oauth.md](./docs/oauth.md).
+
+### Lockout policy and rate limits
+
+`LOCKOUT_POLICY` configures account lockout for identified users after repeated failed login
+attempts, and is manageable through `system_config`. Lockout applies only after Seamless Auth has
+identified the target user, so route-level rate limits remain the defense for unknown identifiers,
+OTP delivery abuse, and broad IP pressure.
+
+Beyond the configurable global limit (`RATE_LIMIT`), dedicated per-IP and per-identity limiters
+guard the OTP, magic-link, registration, and OAuth routes. An automated test or conformance suite
+driving many of these flows from a single IP will trip them. For those environments only,
+`DISABLE_AUTH_RATE_LIMITS=true` skips every auth limiter. It is refused under `NODE_ENV=production`,
+like `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS`, so it can never weaken a deployed server.
+
+See [docs/admin-operations.md](./docs/admin-operations.md#lockout-policy).
+
+### Scoped roles
+
+Global roles may be plain names such as `admin` or scoped names such as `admin:read` and
+`admin:write`. The legacy `admin` role remains a broad administrator role and satisfies both scoped
+admin checks. `admin:write` also satisfies `admin:read`; `admin:read` does not satisfy write checks.
+Use `available_roles` to publish the assignable catalog and `default_roles` for new users.
+
+See [docs/admin-operations.md](./docs/admin-operations.md#scoped-admin-roles).
+
+### Admin-assisted device replacement
+
+Administrators with write access can prepare an account for device replacement with
+`POST /admin/users/:userId/recovery/device-replacement`. The endpoint requires a fresh step-up
+session and can revoke active sessions, remove registered passkeys, and disable enabled TOTP
+credentials. It returns counts only, never secrets, credential private material, TOTP secrets, or
+recovery codes.
+
+See [docs/admin-operations.md](./docs/admin-operations.md#device-replacement-recovery).
 
 ### WebAuthn PRF
 
 SeamlessAuth can request PRF-capable passkeys and PRF assertions without ever receiving PRF output.
-See [docs/webauthn-prf.md](./docs/webauthn-prf.md) for API usage, browser limitations, SDK
-contract guidance, and local key-material handling rules.
+See [docs/webauthn-prf.md](./docs/webauthn-prf.md) for API usage, browser limitations, SDK contract
+guidance, and local key-material handling rules.
 
-### Login Method Policy
-
-Administrators can control which methods may continue after `/login` creates a pre-authenticated
-session. Configure `LOGIN_METHODS` with any of `passkey`, `magic_link`, `email_otp`, `phone_otp`,
-or `oauth`. The default is `passkey,magic_link`.
-
-Set `PASSKEY_LOGIN_FALLBACK_ENABLED=false` when passkey-capable sessions should continue with
-passkeys only. When fallback is enabled, `/login` returns `loginMethods` so clients can show only
-the allowed continuations for that user and device.
-
-### OAuth Login
-
-OAuth support lets adopters offer login with external providers such as Google, GitHub, Facebook,
-or any compatible provider that supports an authorization-code exchange and a userinfo endpoint.
-Seamless Auth still issues the final SeamlessAuth session. Provider access tokens are used only
-during the callback to fetch the profile; they are not logged, stored, returned to clients, or
-included in API responses.
-
-Enable OAuth by adding `oauth` to `LOGIN_METHODS` and configuring `oauth_providers` in
-`system_config` or the `OAUTH_PROVIDERS` environment variable. `OAUTH_PROVIDERS` is JSON. Secrets
-are referenced by environment variable name through `clientSecretEnv`; do not put client secrets in
-system config.
-
-```json
-[
-  {
-    "id": "google",
-    "name": "Google",
-    "enabled": true,
-    "clientId": "google-oauth-client-id",
-    "clientSecretEnv": "GOOGLE_CLIENT_SECRET",
-    "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
-    "tokenUrl": "https://oauth2.googleapis.com/token",
-    "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
-    "scopes": ["openid", "email", "profile"],
-    "redirectUri": "https://app.example.com/oauth/callback",
-    "redirectUris": ["https://app.example.com/oauth/callback"],
-    "subjectJsonPath": "sub",
-    "emailJsonPath": "email",
-    "emailVerifiedJsonPath": "email_verified",
-    "nameJsonPath": "name",
-    "allowSignup": true,
-    "accountLinking": "email",
-    "requireEmailVerified": true,
-    "pkce": true
-  }
-]
-```
-
-The browser/client flow is:
-
-1. `GET /oauth/providers` returns enabled public provider metadata.
-2. `POST /oauth/:providerId/start` returns a signed `state` and provider `authorizationUrl`.
-3. The browser redirects to `authorizationUrl`.
-4. The provider redirects back to your `redirectUri` with `code` and `state`.
-5. The client posts `{ code, state }` to `POST /oauth/:providerId/callback`.
-6. Seamless Auth validates state, exchanges the code, fetches userinfo, links or creates the local
-   user, and issues the normal SeamlessAuth access/refresh JSON payload.
-
-Example direct API start request:
-
-```bash
-curl -X POST http://localhost:5312/oauth/google/start \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "redirectUri": "http://localhost:5173/oauth/callback",
-    "returnTo": "http://localhost:5173/dashboard"
-  }'
-```
-
-Example callback request after the provider redirects back:
-
-```bash
-curl -X POST http://localhost:5312/oauth/google/callback \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "code": "provider-authorization-code",
-    "state": "signed-state-from-start"
-  }'
-```
-
-Security notes:
-
-- OAuth `state` is signed and expires after a short window.
-- OAuth callback state is consumed in-process after first use. Use sticky callback routing or shared
-  state storage if you need replay detection across multiple API instances.
-- PKCE is enabled by default; set `pkce: false` only for providers that cannot accept PKCE
-  parameters.
-- `redirectUri` must exactly match a provider `redirectUris` entry when configured. Providers
-  without a redirect allowlist fall back to trusted configured origins.
-- `returnTo` must match configured `origins`.
-- OIDC providers that request the `openid` scope receive a nonce bound into the signed state.
-- Provider access tokens are never persisted.
-- OAuth identities are stored as provider id + provider subject in `oauth_identities`.
-- Existing users are linked by email only when `accountLinking` is `email`; set
-  `accountLinking: "disabled"` to require an existing provider identity.
-- New users are created only when `allowSignup` is enabled for that provider.
-- Set `requireEmailVerified: true` for providers that expose a reliable email verification claim.
-
-### Lockout Policy
-
-`LOCKOUT_POLICY` configures account lockout for identified users after repeated failed login
-attempts. The value is JSON and is also manageable through `system_config`:
-
-```json
-{
-  "enabled": true,
-  "maxFailures": 10,
-  "windowSeconds": 900,
-  "lockoutSeconds": 900
-}
-```
-
-Lockout is checked after Seamless Auth has identified the target user. Keep route-level rate limits
-enabled for unknown identifiers, OTP delivery abuse, and broad IP pressure.
-
-Beyond the configurable global limit (`RATE_LIMIT`), dedicated per-IP and per-identity limiters
-guard the OTP, magic-link, registration, and OAuth routes. An automated test or conformance suite
-that drives many of these flows from a single IP will trip them. For those environments only, set
-`DISABLE_AUTH_RATE_LIMITS=true` to skip every auth limiter. It is refused under
-`NODE_ENV=production` (like `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS`), so it can never weaken a
-deployed server. Never set it in production.
-
-### Admin-Assisted Device Replacement
-
-Administrators with write access can prepare an account for device replacement with:
-
-```http
-POST /admin/users/:userId/recovery/device-replacement
-```
-
-The endpoint requires a fresh step-up session and can revoke active sessions, remove registered
-passkeys, and disable enabled TOTP credentials. It returns counts only; it never returns secrets,
-credential private material, TOTP secrets, or recovery codes.
-
-### Sensitive Data Redaction
+### Sensitive data redaction
 
 SeamlessAuth redacts sensitive data from logs and auth-event metadata by default. This includes
-tokens, OTPs, magic-link URLs, PRF salts and outputs, OAuth codes/state, bearer credentials,
-configured secrets, email/phone fields inside audit snapshots, and legacy event metadata returned
-through admin endpoints.
+tokens, OTPs, magic-link URLs, PRF salts and outputs, OAuth codes and state, bearer credentials,
+configured secrets, email and phone fields inside audit snapshots, and legacy event metadata
+returned through admin endpoints.
 
-Delivery payloads that contain OTPs or magic-link tokens are returned only when callers
-explicitly request external delivery with `x-seamless-auth-delivery-mode: external`. In production,
-external delivery also requires a valid `x-seamless-service-token` from a trusted server adapter.
-This must be an internal service token, not a SeamlessAuth access or ephemeral token.
+Delivery payloads containing OTPs or magic-link tokens are returned only when callers explicitly
+request external delivery with `x-seamless-auth-delivery-mode: external`. In production, external
+delivery also requires a valid `x-seamless-service-token` from a trusted server adapter. This must
+be an internal service token, not a SeamlessAuth access or ephemeral token.
 
-Admin and user endpoints use explicit minimized response schemas. They do not return WebAuthn
-public keys, refresh-token hashes/lookups, challenge context, verification tokens, PRF output, TOTP
+Admin and user endpoints use explicit minimized response schemas. They do not return WebAuthn public
+keys, refresh-token hashes or lookups, challenge context, verification tokens, PRF output, TOTP
 secrets, or provider tokens.
 
-### Scoped Roles
+See [docs/security-posture.md](./docs/security-posture.md).
 
-Global roles may be plain names such as `admin` or scoped names such as `admin:read` and
-`admin:write`. The legacy `admin` role remains a broad administrator role and grants both scoped
-admin checks. `admin:write` also satisfies `admin:read`; `admin:read` does not satisfy write checks.
+## Docker quickstart
 
-Use `available_roles` to publish the assignable role catalog and `default_roles` for new users.
-Role names may contain letters, numbers, and hyphens, with optional colon-separated scope segments.
-Whitespace, underscores, slashes, and backslashes are rejected.
-
-Admin routes are split by intent:
-
-- read routes accept `admin`, `admin:read`, or `admin:write`
-- write routes accept `admin` or `admin:write`
-- plain `admin` checks remain exact for backwards compatibility
-
----
-
-# Docker Quickstart
-
-This is the fastest way to run **Seamless Auth API** locally using Docker.
-
----
-
-## Prerequisites
-
-- Docker (Docker Desktop or Docker Engine)
-
----
-
-## The whole stack in one command
+This is the fastest way to run Seamless Auth API locally. It requires only Docker.
 
 [`docker-compose.yml`](./docker-compose.yml) brings up Postgres and the API together with
-development defaults, so there is nothing to configure first: no `.env` file, no generated
-secrets, no separate Postgres.
+development defaults, so there is nothing to configure first: no `.env` file, no generated secrets,
+no separate Postgres.
 
 ```bash
 docker compose up
@@ -378,9 +310,9 @@ Verify it:
 curl http://localhost:5312/health/status
 ```
 
-To get an admin account, sign up at `/console` with `owner@example.com`. That address is the
-compose file's `OWNER_EMAIL`, so the account is granted the admin role on creation. Override it
-before first boot to use your own:
+To get an admin account, sign up at `/console` with `owner@example.com`. That address is the compose
+file's `OWNER_EMAIL`, so the account is granted the `admin:write` and `admin` roles on creation.
+Override it before first boot to use your own:
 
 ```bash
 OWNER_EMAIL=you@example.com docker compose up
@@ -390,16 +322,14 @@ Other values worth overriding are `API_PORT`, `POSTGRES_PORT`, `APP_ORIGINS`, `O
 `SEAMLESS_AUTH_IMAGE` (to pin a specific published tag). Stop the stack with `docker compose down`,
 or `docker compose down -v` to also discard the database.
 
-> The compose defaults are for local development only. They use a well-known shared secret, run
-> with `NODE_ENV=development`, and return OTP codes and magic-link URLs in API responses instead
-> of sending them, which is what makes the stack usable without an email or SMS transport. See
+> The compose defaults are for local development only. They use a well-known shared secret, run with
+> `NODE_ENV=development`, and return OTP codes and magic-link URLs in API responses instead of
+> sending them, which is what makes the stack usable without an email or SMS transport. See
 > [docs/production-operations.md](./docs/production-operations.md) before deploying.
 
 Contributors working on the API itself should use
 [`docker-compose.dev.yml`](./docker-compose.dev.yml) instead, which builds from source and
 hot-reloads. See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
----
 
 ## Running the image yourself
 
@@ -411,27 +341,14 @@ docker pull ghcr.io/fells-code/seamless-auth-api:latest
 
 Available tags:
 
-- `latest` – latest stable release
-- `nightly` – latest build from `main`
-- `vX.Y.Z` – specific versioned releases
+- `latest`, the most recent published release
+- `vX.Y.Z`, specific versioned releases
 
-Create an environment file from the example and adjust as needed:
+Create an environment file from the example and adjust as needed. Do not commit `.env` files; they
+are ignored by default.
 
 ```bash
 cp .env.example .env
-```
-
-⚠️ Do not commit `.env` files. They are ignored by default.
-
-Run migrations before the first boot and after upgrades that include migrations, then start the
-server:
-
-```bash
-docker run --rm \
-  --env-file .env \
-  -e DB_HOST=host.docker.internal \
-  ghcr.io/fells-code/seamless-auth-api:latest \
-  npm run migrate:up
 ```
 
 ```bash
@@ -442,11 +359,9 @@ docker run --rm \
   ghcr.io/fells-code/seamless-auth-api:latest
 ```
 
-The server will:
-
-- Validate required environment variables
-- Start on port `5312`
-- Expose health and authentication endpoints
+On start the container validates required environment variables, generates or loads signing keys,
+**runs any pending migrations**, and then starts the server on port `5312`. Migrations are applied
+on every boot, so upgrades that include them need no separate step.
 
 Verify it is running:
 
@@ -454,53 +369,37 @@ Verify it is running:
 curl http://localhost:5312/health/status
 ```
 
-You should receive a healthy response.
+## Production guidance
 
-## Notes for self-hosting
-
-- Secrets are provided via environment variables
-- Development keys can be generated automatically; production signing keys should be generated,
-  rotated, and mounted or provided through environment-backed secret management
-- This image contains only the open-source authentication server
-- No admin portal, billing, or managed infrastructure is included
-
-For production deployments:
-
-- Use HTTPS
-- Use a trusted server adapter or backend when exposing auth flows to browsers
-- Rotate signing keys
-- Back up your database
-- Monitor authentication failures
-- Treat `system_config` values as runtime configuration, not a secret store
-
-See [docs/production-operations.md](./docs/production-operations.md) for key, secret, rotation,
-lockout, and deployment guidance.
-
-## Prefer not to self-host?
-
-SeamlessAuth managed services provides a fully managed experience built on top of this same open-source core, including hosting, upgrades, dashboards, backups, and SLAs.
-
-## Production notes
-
-Authentication infrastructure is security-sensitive.
-
-For production deployments:
+Authentication infrastructure is security-sensitive. For production deployments:
 
 - Use HTTPS end-to-end
 - Keep access and refresh tokens out of browser-readable storage. This API does not set or read
   browser auth cookies; browser-facing apps should integrate through a trusted server adapter or
   backend.
 - Restrict CORS origins
-- Rotate signing keys and secrets regularly
+- Generate, rotate, and mount production signing keys through environment-backed secret management
+  rather than relying on the development keypair
 - Enable database backups and test restores
-- Monitor auth failures and suspicious behavior
+- Monitor authentication failures and suspicious behavior
 - Treat `system_config` values as runtime configuration, not a secret store
+
+This image contains only the open-source authentication server and its admin console. No billing or
+managed infrastructure is included.
+
+See [docs/production-operations.md](./docs/production-operations.md) for key, secret, rotation,
+lockout, and deployment guidance.
+
+### Prefer not to self-host?
+
+SeamlessAuth managed services provide a fully managed experience built on this same open-source
+core, including hosting, upgrades, backups, and SLAs.
 
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-## Public Docs
+## Public docs
 
 - [AGENTS.md](./AGENTS.md) for a fast codebase briefing aimed at coding agents and maintainers
 - [docs/architecture.md](./docs/architecture.md) for runtime structure and request flow
@@ -525,6 +424,7 @@ Include reproduction steps, affected versions, and impact if known.
 
 Licensed under **GNU Affero General Public License v3.0 (AGPL-3.0-only)**.
 
-If you want to embed Seamless Auth Server into a proprietary product or offer it as a managed service without AGPL obligations, commercial licenses may be available.
+If you want to embed Seamless Auth API into a proprietary product or offer it as a managed service
+without AGPL obligations, commercial licenses may be available.
 
 Contact: support@seamlessauth.com
