@@ -6,7 +6,14 @@ import licenseHeader from 'eslint-plugin-license-header';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**.config.**', 'tests/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      '**.config.**',
+      'tests/**',
+      '.claude/worktrees/**',
+    ],
   },
   {
     files: ['**/*.spec.js', '**/*.test.js', '**/*.spec.ts', '**/*.test.ts'],
@@ -20,7 +27,7 @@ export default [
   },
   {
     files: ['**/*.ts'],
-    ignores: ['./dist/**', 'node_modules/**', '**.config.**'],
+    ignores: ['./dist/**', 'node_modules/**', '**.config.**', '.claude/worktrees/**'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
