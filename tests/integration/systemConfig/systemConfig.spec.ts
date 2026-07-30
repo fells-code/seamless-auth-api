@@ -174,3 +174,35 @@ describe('GET /system-config/roles (additional branches)', () => {
     expect(res.body.roles).toEqual([]);
   });
 });
+
+describe('GET /system-config/public', () => {
+  it('returns the configured login methods', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey', 'phone_otp'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res = await request(app).get('/system-config/public');
+
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey', 'phone_otp']);
+  });
+
+  // A client with no methods has nothing to render, so a config that never had
+  // login_methods written answers with the defaults rather than an empty list.
+  it('falls back to the defaults when the stored config has no login methods', async () => {
+    const res = await request(app).get('/system-config/public');
+
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey', 'magic_link']);
+  });
+
+  it('exposes nothing but the login methods', async () => {
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
+
+    const res = await request(app).get('/system-config/public');
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body)).toEqual(['loginMethods']);
+  });
+});
