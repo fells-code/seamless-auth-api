@@ -157,7 +157,7 @@ export const verifyPhoneOTP = async (
       await user.save();
     } catch (error) {
       logger.error(`Error verifying phone OTP: ${error}`);
-      throw new Error('Failed to update user verfication via phone OTP', { cause: error });
+      throw new Error('Failed to update user verification via phone OTP', { cause: error });
     }
   } else {
     return { user, verified: false };
@@ -171,7 +171,7 @@ export const verifyEmailOTP = async (
   verificationToken: string,
 ): Promise<{ user: User; verified: boolean }> => {
   if (!user || !user.emailVerificationToken || !user.emailVerificationTokenExpiry) {
-    throw new Error('Cannot verify phone OTP due to incomplete user data');
+    throw new Error('Cannot verify email OTP due to incomplete user data');
   }
 
   if (
@@ -190,7 +190,7 @@ export const verifyEmailOTP = async (
       await user.save();
     } catch (error) {
       logger.error(`Error verifying email OTP: ${error}`);
-      throw new Error('Failed to update user verfication via phone OTP', { cause: error });
+      throw new Error('Failed to update user verification via email OTP', { cause: error });
     }
   } else {
     return { user, verified: false };
