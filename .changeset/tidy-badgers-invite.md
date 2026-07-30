@@ -1,5 +1,5 @@
 ---
-'seamless-auth-api': major
+'seamless-auth-api': minor
 ---
 
 Remove the admin bootstrap invite flow. `POST /internal/bootstrap/admin-invite` is gone, along with
