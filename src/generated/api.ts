@@ -5769,7 +5769,7 @@ export interface paths {
              *       "message": "string",
              *       "sub": "string",
              *       "token": "string",
-             *       "ttl": "string",
+             *       "ttl": 0,
              *       "delivery": null
              *     }
              */
@@ -5777,7 +5777,7 @@ export interface paths {
               message: string;
               sub?: string;
               token?: string;
-              ttl?: string;
+              ttl?: number;
               delivery?:
                 | {
                     /** @enum {string} */
