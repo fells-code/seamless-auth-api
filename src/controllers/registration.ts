@@ -158,7 +158,10 @@ export const register = async (req: Request, res: Response) => {
       message: 'Success',
       sub: user.id,
       token,
-      ttl: '300',
+      // Seconds, and it has to match the `5m` in signEphemeralToken. A caller
+      // sets its registration cookie from this, so a larger value here leaves a
+      // cookie outliving the token it carries.
+      ttl: 300,
       ...(delivery ? { delivery } : {}),
     });
   } catch (error: unknown) {

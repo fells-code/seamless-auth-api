@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.6.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.7.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -5415,7 +5415,7 @@
                     "message": { "type": "string" },
                     "sub": { "type": "string" },
                     "token": { "type": "string" },
-                    "ttl": { "type": "string" },
+                    "ttl": { "type": "number" },
                     "delivery": {
                       "oneOf": [
                         {
@@ -5455,7 +5455,7 @@
                   "message": "string",
                   "sub": "string",
                   "token": "string",
-                  "ttl": "string",
+                  "ttl": 0,
                   "delivery": null
                 }
               }
