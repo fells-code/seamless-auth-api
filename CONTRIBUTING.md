@@ -47,6 +47,19 @@ the database on first boot), and starts a watcher that reloads on change. No `.e
 needed: the compose file supplies development defaults. If you do create one, its values win, so
 you can point at a real messaging transport or OAuth provider without editing the compose file.
 
+The container installs its own `node_modules` into a volume rather than using the one on your
+machine, which is built for your platform rather than the container's. Every boot checks that
+volume against `package-lock.json` and reinstalls when the two have diverged, so pulling a branch
+that adds or bumps a dependency needs nothing beyond a restart. To throw the volume away and
+start from a clean install:
+
+```bash
+docker compose -f docker-compose.dev.yml down
+docker volume rm seamless-auth-dev_node-modules-dev
+```
+
+`docker compose -f docker-compose.dev.yml down -v` removes it too, along with the database.
+
 To run the project rather than work on it, use `docker compose up` instead. That uses the
 published image and also serves the admin console at `/console`, which the dev stack does not
 bundle. See the Docker Quickstart in [README.md](./README.md).

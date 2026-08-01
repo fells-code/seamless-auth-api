@@ -19,13 +19,18 @@ services:
       - '${API_PORT:-5312}:5312'
     volumes:
       - .:/app
-      - /app/node_modules
+      # node_modules stays out of the bind mount: the host tree is built for the host's
+      # platform. syncDevDeps.sh reinstalls into this volume whenever package-lock.json
+      # has moved on, since the volume itself outlives `up --build`.
+      - node-modules-dev:/app/node_modules
     # Dockerfile.dev has no build step, so the compiled entrypoint cannot run from a
-    # fresh clone. Generate dev signing keys, migrate (creating the database on first
-    # boot), then run the watcher against the TypeScript sources.
+    # fresh clone. Install any dependencies added since this container last booted,
+    # generate dev signing keys, migrate (creating the database on first boot), then
+    # run the watcher against the TypeScript sources.
     entrypoint: ['/bin/sh', '-c']
     command:
       - >
+        ./syncDevDeps.sh &&
         npx tsx src/scripts/initKeys.ts &&
         (npm run migrate:up || (npm run db:create && npm run migrate:up)) &&
         npm run dev:container
@@ -88,3 +93,4 @@ services:
 
 volumes:
   pgdata-dev:
+  node-modules-dev:
