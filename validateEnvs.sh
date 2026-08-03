@@ -50,10 +50,6 @@ fi
 
 require_var API_SERVICE_TOKEN
 
-if [ "${SEAMLESS_BOOTSTRAP_ENABLED:-false}" = "true" ]; then
-  require_var SEAMLESS_BOOTSTRAP_SECRET
-fi
-
 if [ "${NODE_ENV:-development}" = "production" ]; then
   require_var SEAMLESS_JWKS_ACTIVE_KID
   require_var JWKS_PUBLIC_KEYS
