@@ -184,6 +184,6 @@ describe('issueSessionAndRespond', () => {
     });
 
     expect(parseDurationToSeconds).toHaveBeenCalledWith('15m');
-    expect(parseDurationToSeconds).toHaveBeenCalledWith('1h');
+    expect(parseDurationToSeconds).toHaveBeenCalledWith('1d');
   });
 });
