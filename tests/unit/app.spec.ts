@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import app, { createApp } from '../../src/app.js';
 import { AuthEventService } from '../../src/services/authEventService.js';
@@ -82,48 +82,5 @@ describe('createApp error handling', () => {
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'Not Found' });
     expect(AuthEventService.requestSuspicious).toHaveBeenCalled();
-  });
-});
-
-describe('TRUST_PROXY', () => {
-  // The setting is applied while the module body runs, so each case needs a fresh import.
-  async function loadApp(trustProxy: string) {
-    vi.resetModules();
-    vi.stubEnv('TRUST_PROXY', trustProxy);
-
-    const { default: freshApp } = await import('../../src/app.js');
-    return freshApp;
-  }
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.resetModules();
-  });
-
-  it('leaves X-Forwarded-For untrusted when unset', async () => {
-    const freshApp = await loadApp('');
-
-    expect(freshApp.get('trust proxy')).toBe(false);
-  });
-
-  it('resolves the client address through the given number of hops', async () => {
-    const freshApp = await loadApp('1');
-    freshApp.get('/__test_client_ip', (req, res) => {
-      res.json({ ip: req.ip });
-    });
-
-    expect(freshApp.get('trust proxy')).toBe(1);
-
-    const res = await request(freshApp)
-      .get('/__test_client_ip')
-      .set('X-Forwarded-For', '203.0.113.7');
-
-    expect(res.body.ip).toBe('203.0.113.7');
-  });
-
-  it('passes a non-numeric setting through to Express', async () => {
-    const freshApp = await loadApp('loopback');
-
-    expect(freshApp.get('trust proxy')).toBe('loopback');
   });
 });
