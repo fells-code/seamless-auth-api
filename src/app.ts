@@ -22,6 +22,16 @@ import getLogger from './utils/logger.js';
 const logger = getLogger('app');
 const app = express();
 
+// Express ignores X-Forwarded-For unless it is told how far to trust it, so behind a load
+// balancer every request looks like it came from the balancer and the rate limiters bucket
+// all clients together. Opt in per deployment: direct-to-internet installs must leave this
+// unset, otherwise a client could forge the header and choose its own rate-limit bucket.
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy) {
+  const hops = Number(trustProxy);
+  app.set('trust proxy', Number.isNaN(hops) ? trustProxy : hops);
+}
+
 const rawOrigin = process.env.APP_ORIGINS!.split(',');
 
 const corsOptions: CorsOptions = {
