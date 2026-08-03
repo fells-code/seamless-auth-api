@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HUSKY: 0
+    outputs:
+      new_tag: ${{ steps.tag.outputs.new_tag }}
+      version: ${{ steps.tag.outputs.version }}
 
     steps:
       - name: Checkout repo
@@ -40,6 +43,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check formatting
+        run: npm run format:check
+
       - name: Test
         run: npm run test:run
 
@@ -50,6 +56,7 @@ jobs:
         run: npm run build
 
       - name: Create or update version and changelog PR
+        id: changesets
         uses: changesets/action@v1
         with:
           version: npm run version-packages
@@ -57,3 +64,61 @@ jobs:
           commit: 'chore: update version and changelog'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Once the version PR is merged there are no changesets left, so the
+      # version in package.json is the one to release. Tag it (idempotently) so
+      # a versioned image is published. The tag is created here rather than
+      # relying on the tag-push event because pushes made with GITHUB_TOKEN do
+      # not trigger other workflows; the image build is invoked directly below.
+      - name: Tag release
+        id: tag
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists; nothing to release."
+            echo "new_tag=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "${TAG}"
+            git push origin "${TAG}"
+            echo "new_tag=true" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Publish a GitHub Release for the freshly created tag, using the notes
+      # changesets already wrote to CHANGELOG.md so the release body matches the
+      # changelog rather than a raw commit list.
+      - name: Create GitHub Release
+        if: steps.tag.outputs.new_tag == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          awk -v header="## ${VERSION}" '
+            $0 == header { capture = 1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            gh release create "${TAG}" --title "${TAG}" --notes-file release-notes.md
+          else
+            echo "No CHANGELOG section for ${VERSION}; using generated notes."
+            gh release create "${TAG}" --title "${TAG}" --generate-notes
+          fi
+
+  publish-image:
+    name: Publish versioned image
+    needs: version-changelog
+    if: needs.version-changelog.outputs.new_tag == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      image_tag: ${{ needs.version-changelog.outputs.version }}
