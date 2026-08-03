@@ -109,7 +109,7 @@ describe('E2E Auth Flow', () => {
         sub: 'user-1',
         roles: ['user'],
         ttl: 900,
-        refreshTtl: 3600,
+        refreshTtl: 86400,
       }),
     );
 

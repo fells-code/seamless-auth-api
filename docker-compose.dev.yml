@@ -50,7 +50,7 @@ services:
       LOGIN_METHODS: passkey,magic_link,email_otp
 
       ACCESS_TOKEN_TTL: 30m
-      REFRESH_TOKEN_TTL: 1h
+      REFRESH_TOKEN_TTL: 1d
       RATE_LIMIT: '100'
       DELAY_AFTER: '50'
 

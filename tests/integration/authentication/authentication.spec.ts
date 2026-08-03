@@ -560,6 +560,6 @@ describe('POST /refresh', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ttl).toBe(900);
-    expect(res.body.refreshTtl).toBe(3600);
+    expect(res.body.refreshTtl).toBe(86400);
   });
 });

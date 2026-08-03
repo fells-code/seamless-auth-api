@@ -402,7 +402,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       email: user.email,
       phone: user.phone,
       ttl: parseDurationToSeconds(access_token_ttl || '15m'),
-      refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1h'),
+      refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1d'),
     });
   }
 
