@@ -361,7 +361,11 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'invalid_session' });
   }
 
-  const { expiresAt, idleExpiresAt } = computeSessionTimes(now);
+  const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
+  const { expiresAt, idleExpiresAt } = computeSessionTimes(
+    { absoluteTtl: refresh_token_ttl || '1d', idleTtl: session_idle_ttl || '8h' },
+    now,
+  );
   const newRefreshToken = generateRefreshToken();
   const newRefreshTokenHash = await hashRefreshToken(newRefreshToken);
   const newRefreshTokenLookup = createRefreshTokenLookup(newRefreshToken);
@@ -390,7 +394,6 @@ export const refreshSession = async (req: Request, res: Response) => {
     );
     await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
 
-    const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
     return res.status(200).json({
       message: 'Success',
       token,

@@ -13,6 +13,7 @@ export const SYSTEM_CONFIG_ENV_MAP = {
   authenticator_policy: 'AUTHENTICATOR_POLICY',
   passkey_login_fallback_enabled: 'PASSKEY_LOGIN_FALLBACK_ENABLED',
   access_token_ttl: 'ACCESS_TOKEN_TTL',
+  session_idle_ttl: 'SESSION_IDLE_TTL',
   refresh_token_ttl: 'REFRESH_TOKEN_TTL',
   rate_limit: 'RATE_LIMIT',
   delay_after: 'DELAY_AFTER',

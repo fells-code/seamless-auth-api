@@ -34,7 +34,11 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = await hashRefreshToken(refreshToken);
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
-  const { expiresAt, idleExpiresAt } = computeSessionTimes();
+  const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
+  const { expiresAt, idleExpiresAt } = computeSessionTimes({
+    absoluteTtl: refresh_token_ttl || '1d',
+    idleTtl: session_idle_ttl || '8h',
+  });
   const organizationId = await getDefaultOrganizationIdForUser(user.id);
 
   const session = await Session.create({
@@ -56,8 +60,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   if (!token || !refreshToken) {
     throw new Error('Failed to issue session tokens');
   }
-
-  const { access_token_ttl, refresh_token_ttl } = await getSystemConfig();
 
   res.status(200).json({
     message: 'Success',

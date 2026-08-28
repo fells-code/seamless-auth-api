@@ -6311,6 +6311,11 @@
                       "default": { "attachment": "any" }
                     },
                     "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
+                    "session_idle_ttl": {
+                      "type": "string",
+                      "pattern": "^\\d+[smhd]$",
+                      "default": "8h"
+                    },
                     "refresh_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                     "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
                     "delay_after": { "type": "integer", "minimum": 0 },
@@ -6346,6 +6351,7 @@
                   "lockout_policy": null,
                   "authenticator_policy": null,
                   "access_token_ttl": "string",
+                  "session_idle_ttl": null,
                   "refresh_token_ttl": "string",
                   "rate_limit": 0,
                   "delay_after": 0,
@@ -6507,6 +6513,7 @@
                     }
                   },
                   "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
+                  "session_idle_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                   "refresh_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                   "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
                   "delay_after": { "type": "integer", "minimum": 0 },

@@ -11,6 +11,7 @@ import {
   hashSha256,
   hashDeviceFingerprint,
 } from '../../../src/utils/utils';
+import { SYSTEM_CONFIG_DEFAULTS } from '../../../src/config/systemConfig.defaults';
 
 describe('utils', () => {
   describe('isValidEmail', () => {
@@ -44,12 +45,46 @@ describe('utils', () => {
   });
 
   describe('computeSessionTimes', () => {
+    const now = new Date('2024-01-01T00:00:00Z');
+
     it('returns valid dates', () => {
-      const now = new Date('2024-01-01T00:00:00Z');
-      const { expiresAt, idleExpiresAt } = computeSessionTimes(now);
+      const { expiresAt, idleExpiresAt } = computeSessionTimes(
+        { absoluteTtl: '1d', idleTtl: '8h' },
+        now,
+      );
 
       expect(expiresAt.getTime()).toBeGreaterThan(now.getTime());
       expect(idleExpiresAt.getTime()).toBeGreaterThan(now.getTime());
+    });
+
+    it('derives each bound from its own duration', () => {
+      const { expiresAt, idleExpiresAt } = computeSessionTimes(
+        { absoluteTtl: '1d', idleTtl: '8h' },
+        now,
+      );
+
+      expect(expiresAt.toISOString()).toBe('2024-01-02T00:00:00.000Z');
+      expect(idleExpiresAt.toISOString()).toBe('2024-01-01T08:00:00.000Z');
+    });
+
+    // The bug this replaced: both bounds came from equal hardcoded constants, so the
+    // idle bound could never fire before absolute expiry.
+    it('keeps the idle bound strictly inside the absolute bound on the shipped defaults', () => {
+      const { expiresAt, idleExpiresAt } = computeSessionTimes(
+        {
+          absoluteTtl: SYSTEM_CONFIG_DEFAULTS.refresh_token_ttl ?? '1d',
+          idleTtl: SYSTEM_CONFIG_DEFAULTS.session_idle_ttl!,
+        },
+        now,
+      );
+
+      expect(idleExpiresAt.getTime()).toBeLessThan(expiresAt.getTime());
+    });
+
+    it('rejects a malformed duration rather than silently defaulting', () => {
+      expect(() => computeSessionTimes({ absoluteTtl: '1d', idleTtl: 'eight hours' }, now)).toThrow(
+        /Invalid duration/,
+      );
     });
   });
 

@@ -422,6 +422,7 @@ describe('POST /refresh', () => {
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
       refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
     });
 
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
@@ -526,6 +527,7 @@ describe('POST /refresh', () => {
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
       refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
     });
 
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');

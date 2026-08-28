@@ -8,9 +8,6 @@ import crypto from 'crypto';
 import parsePhoneNumberFromString from 'libphonenumber-js';
 import validator from 'validator';
 
-const MAX_SESSION_LIFETIME_DAYS = 1;
-const IDLE_TIMEOUT_DAYS = 1;
-
 export const isValidEmail = (email: string): boolean => {
   return validator.isEmail(email);
 };
@@ -30,9 +27,16 @@ export const normalizePhoneNumber = (phone: string): string | null => {
   return phoneNumber.number;
 };
 
-export function computeSessionTimes(now = new Date()) {
-  const expiresAt = new Date(now.getTime() + MAX_SESSION_LIFETIME_DAYS * 24 * 60 * 60 * 1000);
-  const idleExpiresAt = new Date(now.getTime() + IDLE_TIMEOUT_DAYS * 24 * 60 * 60 * 1000);
+export interface SessionTtls {
+  /** Absolute session lifetime. The refresh token is the session credential, so this is `refresh_token_ttl`. */
+  absoluteTtl: string;
+  /** How long the session may go unrefreshed. Only binds while it is the shorter of the two. */
+  idleTtl: string;
+}
+
+export function computeSessionTimes({ absoluteTtl, idleTtl }: SessionTtls, now = new Date()) {
+  const expiresAt = new Date(now.getTime() + parseDurationToSeconds(absoluteTtl) * 1000);
+  const idleExpiresAt = new Date(now.getTime() + parseDurationToSeconds(idleTtl) * 1000);
   return { expiresAt, idleExpiresAt };
 }
 

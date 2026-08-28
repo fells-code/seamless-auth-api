@@ -138,6 +138,7 @@ describe('refreshSession', () => {
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
       refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
     });
 
     await refreshSession(req, res);
