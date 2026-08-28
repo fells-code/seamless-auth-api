@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.7.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.7.4" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -7947,6 +7947,12 @@
             "schema": { "type": "boolean" },
             "required": false,
             "name": "requirePrf",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["platform", "cross-platform"] },
+            "required": false,
+            "name": "attachment",
             "in": "query"
           }
         ],
