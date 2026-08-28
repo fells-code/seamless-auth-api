@@ -46,3 +46,7 @@ docs/*
 !docs/production-operations.md
 !docs/security-posture.md
 !docs/webauthn-prf.md
+!docs/public-sector/
+docs/public-sector/*
+!docs/public-sector/README.md
+!docs/public-sector/CERTIFICATION-READINESS.md
