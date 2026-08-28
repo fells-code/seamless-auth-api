@@ -71,6 +71,7 @@ beforeEach(() => {
     origins: ['http://localhost:5137'],
     access_token_ttl: '15m',
     refresh_token_ttl: '1h',
+    authenticator_policy: { attachment: 'any' },
   });
   (Credential.findAll as any).mockResolvedValue([]);
   (Credential.findOne as any).mockResolvedValue(null);
@@ -82,6 +83,7 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
+      authenticator_policy: { attachment: 'any' },
     });
 
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -101,6 +103,7 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
+      authenticator_policy: { attachment: 'any' },
     });
 
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -189,6 +192,61 @@ describe('GET /webauthn/register/start', () => {
       .query({ attachment: 'usb-only' });
 
     expect(res.status).toBe(400);
+  });
+
+  it('pins the attachment when the deployment policy names one', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      authenticator_policy: { attachment: 'cross-platform' },
+    });
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).get('/webauthn/register/start');
+
+    expect(res.status).toBe(200);
+    expect(generateRegistrationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authenticatorSelection: expect.objectContaining({
+          authenticatorAttachment: 'cross-platform',
+        }),
+      }),
+    );
+  });
+
+  it('lets a request agree with the pinned policy', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      authenticator_policy: { attachment: 'cross-platform' },
+    });
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app)
+      .get('/webauthn/register/start')
+      .query({ attachment: 'cross-platform' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses a request that contradicts the pinned policy', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      authenticator_policy: { attachment: 'cross-platform' },
+    });
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app)
+      .get('/webauthn/register/start')
+      .query({ attachment: 'platform' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'attachment_not_allowed' });
+    expect(generateRegistrationOptions).not.toHaveBeenCalled();
   });
 
   it('returns 500 when credential lookup fails', async () => {

@@ -24,6 +24,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
       return z.array(OAuthProviderConfigSchema).parse(JSON.parse(raw));
 
     case 'lockout_policy':
+    case 'authenticator_policy':
       return JSON.parse(raw);
 
     case 'rate_limit':

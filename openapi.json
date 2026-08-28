@@ -6299,6 +6299,17 @@
                         "lockoutSeconds": 900
                       }
                     },
+                    "authenticator_policy": {
+                      "type": "object",
+                      "properties": {
+                        "attachment": {
+                          "type": "string",
+                          "enum": ["any", "platform", "cross-platform"],
+                          "default": "any"
+                        }
+                      },
+                      "default": { "attachment": "any" }
+                    },
                     "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                     "refresh_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                     "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
@@ -6333,6 +6344,7 @@
                   "passkey_login_fallback_enabled": true,
                   "oauth_providers": null,
                   "lockout_policy": null,
+                  "authenticator_policy": null,
                   "access_token_ttl": "string",
                   "refresh_token_ttl": "string",
                   "rate_limit": 0,
@@ -6481,6 +6493,16 @@
                         "minimum": 0,
                         "exclusiveMinimum": true,
                         "default": 900
+                      }
+                    }
+                  },
+                  "authenticator_policy": {
+                    "type": "object",
+                    "properties": {
+                      "attachment": {
+                        "type": "string",
+                        "enum": ["any", "platform", "cross-platform"],
+                        "default": "any"
                       }
                     }
                   },
@@ -7963,6 +7985,19 @@
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": { "nullable": true } },
                 "example": null
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                },
+                "example": { "message": "string", "error": "string" }
               }
             }
           },

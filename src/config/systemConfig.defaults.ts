@@ -15,5 +15,8 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
     windowSeconds: 15 * 60,
     lockoutSeconds: 15 * 60,
   },
+  authenticator_policy: {
+    attachment: 'any',
+  },
   passkey_login_fallback_enabled: true,
 };

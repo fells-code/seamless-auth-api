@@ -6756,6 +6756,7 @@ export interface paths {
              *       "passkey_login_fallback_enabled": true,
              *       "oauth_providers": null,
              *       "lockout_policy": null,
+             *       "authenticator_policy": null,
              *       "access_token_ttl": "string",
              *       "refresh_token_ttl": "string",
              *       "rate_limit": 0,
@@ -6828,6 +6829,18 @@ export interface paths {
                 windowSeconds: number;
                 /** @default 900 */
                 lockoutSeconds: number;
+              };
+              /**
+               * @default {
+               *       "attachment": "any"
+               *     }
+               */
+              authenticator_policy: {
+                /**
+                 * @default any
+                 * @enum {string}
+                 */
+                attachment: 'any' | 'platform' | 'cross-platform';
               };
               access_token_ttl: string;
               refresh_token_ttl: string;
@@ -6945,6 +6958,13 @@ export interface paths {
               windowSeconds?: number;
               /** @default 900 */
               lockoutSeconds?: number;
+            };
+            authenticator_policy?: {
+              /**
+               * @default any
+               * @enum {string}
+               */
+              attachment?: 'any' | 'platform' | 'cross-platform';
             };
             access_token_ttl?: string;
             refresh_token_ttl?: string;
@@ -8487,6 +8507,24 @@ export interface paths {
             /** @example null */
             'application/json': {
               [key: string]: unknown;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
             };
           };
         };
