@@ -7,16 +7,13 @@
 import {
   WebAuthnAssertionStartSchema as SharedAssertionStartSchema,
   WebAuthnPrfRequestSchema as SharedPrfRequestSchema,
+  WebAuthnRegisterStartQuerySchema as SharedRegisterStartQuerySchema,
 } from '@seamless-auth/types';
 import { z } from 'zod';
 
 import { assertValidPrfSalt } from '../lib/webauthnPrf.js';
 
-export {
-  WebAuthnLoginFinishSchema,
-  WebAuthnRegisterFinishSchema,
-  WebAuthnRegisterStartQuerySchema,
-} from '@seamless-auth/types';
+export { WebAuthnLoginFinishSchema, WebAuthnRegisterFinishSchema } from '@seamless-auth/types';
 
 function checkSalt(value: string | undefined, ctx: z.RefinementCtx, path: string) {
   if (value === undefined) return;
@@ -47,3 +44,17 @@ export const WebAuthnPrfRequestSchema = SharedPrfRequestSchema.superRefine((valu
 export const WebAuthnAssertionStartSchema = SharedAssertionStartSchema.unwrap()
   .extend({ prf: WebAuthnPrfRequestSchema.optional() })
   .default({});
+
+/**
+ * Which kind of authenticator the browser should offer at registration. Omitting it
+ * offers both, which is what a deployment that issues hardware security keys needs;
+ * naming one narrows the picker to that kind.
+ */
+export const WebAuthnAuthenticatorAttachmentSchema = z.enum(['platform', 'cross-platform']);
+
+export type WebAuthnAuthenticatorAttachment = z.infer<typeof WebAuthnAuthenticatorAttachmentSchema>;
+
+// Extended rather than re-exported: the shared query schema covers the PRF flags only.
+export const WebAuthnRegisterStartQuerySchema = SharedRegisterStartQuerySchema.extend({
+  attachment: WebAuthnAuthenticatorAttachmentSchema.optional(),
+});

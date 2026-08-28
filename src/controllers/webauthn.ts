@@ -24,6 +24,7 @@ import {
 } from '../lib/webauthnPrf.js';
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
+import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
@@ -67,9 +68,14 @@ const registerWebAuthn = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const verifiedUser = authReq.user;
-    const { requestPrf = false, requirePrf = false } = req.query as {
+    const {
+      requestPrf = false,
+      requirePrf = false,
+      attachment,
+    } = req.query as {
       requestPrf?: boolean;
       requirePrf?: boolean;
+      attachment?: WebAuthnAuthenticatorAttachment;
     };
     const prfRequested = requestPrf || requirePrf;
     logger.info('Registering passwordless mechanism');
@@ -113,10 +119,13 @@ const registerWebAuthn = async (req: Request, res: Response) => {
         id: cred.id,
         transports: cred.transports,
       })),
+      // Left unset unless the caller asks for a specific kind. Pinning this to
+      // 'platform' hides roaming authenticators from the browser picker entirely,
+      // which makes issued security keys impossible to enrol.
       authenticatorSelection: {
         userVerification: 'preferred',
         residentKey: 'preferred',
-        authenticatorAttachment: 'platform',
+        ...(attachment ? { authenticatorAttachment: attachment } : {}),
       },
       extensions: buildPrfRegistrationExtensions(prfRequested),
     });

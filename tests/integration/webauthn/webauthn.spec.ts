@@ -136,6 +136,61 @@ describe('GET /webauthn/register/start', () => {
     );
   });
 
+  it('offers both authenticator kinds when no attachment is requested', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).get('/webauthn/register/start');
+
+    expect(res.status).toBe(200);
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+    expect(options.authenticatorSelection).not.toHaveProperty('authenticatorAttachment');
+  });
+
+  it('narrows to roaming authenticators when a security key is requested', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app)
+      .get('/webauthn/register/start')
+      .query({ attachment: 'cross-platform' });
+
+    expect(res.status).toBe(200);
+    expect(generateRegistrationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authenticatorSelection: expect.objectContaining({
+          authenticatorAttachment: 'cross-platform',
+        }),
+      }),
+    );
+  });
+
+  it('narrows to platform authenticators when asked for', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app)
+      .get('/webauthn/register/start')
+      .query({ attachment: 'platform' });
+
+    expect(res.status).toBe(200);
+    expect(generateRegistrationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authenticatorSelection: expect.objectContaining({
+          authenticatorAttachment: 'platform',
+        }),
+      }),
+    );
+  });
+
+  it('rejects an unknown attachment', async () => {
+    const res = await request(app)
+      .get('/webauthn/register/start')
+      .query({ attachment: 'usb-only' });
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 500 when credential lookup fails', async () => {
     (Credential.findAll as any).mockRejectedValue(new Error('db down'));
 

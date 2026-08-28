@@ -8470,6 +8470,7 @@ export interface paths {
         query?: {
           requestPrf?: boolean;
           requirePrf?: boolean;
+          attachment?: 'platform' | 'cross-platform';
         };
         header?: never;
         path?: never;
