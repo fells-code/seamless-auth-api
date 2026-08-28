@@ -135,6 +135,16 @@ describe('parseSystemConfigEnvValue', () => {
     });
   });
 
+  describe('authenticator_policy parsing', () => {
+    it('parses the authenticator policy JSON object', () => {
+      const raw = JSON.stringify({ attachment: 'cross-platform' });
+
+      expect(parseSystemConfigEnvValue('authenticator_policy', raw)).toEqual({
+        attachment: 'cross-platform',
+      });
+    });
+  });
+
   describe('invalid key', () => {
     it('throws for unknown key', () => {
       expect(() => parseSystemConfigEnvValue('invalid_key' as any, 'value')).toThrow(

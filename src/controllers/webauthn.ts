@@ -107,7 +107,29 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       where: { userId: verifiedUser.id },
     });
 
-    const { app_name, rpid } = await getSystemConfig();
+    const { app_name, rpid, authenticator_policy } = await getSystemConfig();
+    const pinnedAttachment =
+      authenticator_policy.attachment === 'any' ? null : authenticator_policy.attachment;
+
+    // A pinned deployment policy bounds the request, so a caller cannot widen it by
+    // asking for the kind the agency has chosen not to enrol.
+    if (pinnedAttachment && attachment && attachment !== pinnedAttachment) {
+      logger.warn('Registration requested an attachment the deployment policy does not allow');
+      await AuthEventService.log({
+        userId: verifiedUser.id,
+        type: 'webauthn_registration_failed',
+        req,
+        metadata: {
+          reason: 'Requested attachment is not allowed by the authenticator policy',
+          requested: attachment,
+          allowed: pinnedAttachment,
+        },
+      });
+
+      return res.status(400).json({ error: 'attachment_not_allowed' });
+    }
+
+    const effectiveAttachment = pinnedAttachment ?? attachment;
 
     const options = await generateRegistrationOptions({
       rpName: app_name,
@@ -119,13 +141,13 @@ const registerWebAuthn = async (req: Request, res: Response) => {
         id: cred.id,
         transports: cred.transports,
       })),
-      // Left unset unless the caller asks for a specific kind. Pinning this to
-      // 'platform' hides roaming authenticators from the browser picker entirely,
-      // which makes issued security keys impossible to enrol.
+      // Left unset unless the policy pins a kind or the caller asks for one. Pinning
+      // this to 'platform' hides roaming authenticators from the browser picker
+      // entirely, which makes issued security keys impossible to enrol.
       authenticatorSelection: {
         userVerification: 'preferred',
         residentKey: 'preferred',
-        ...(attachment ? { authenticatorAttachment: attachment } : {}),
+        ...(effectiveAttachment ? { authenticatorAttachment: effectiveAttachment } : {}),
       },
       extensions: buildPrfRegistrationExtensions(prfRequested),
     });

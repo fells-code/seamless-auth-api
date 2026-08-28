@@ -74,6 +74,7 @@ first boot.
 | `LOGIN_METHODS`                  | No       | `passkey,magic_link`                                                         | `login_methods`                  | Any of `passkey,magic_link,email_otp,phone_otp,oauth`. `.env.example` ships `passkey,magic_link,email_otp` so a stock instance is CLI/headless-loginable; `email_otp` needs a configured messaging transport or the external-delivery path. |
 | `PASSKEY_LOGIN_FALLBACK_ENABLED` | No       | `true`                                                                       | `passkey_login_fallback_enabled` | When `false`, passkey-capable sessions continue with passkey only.                                                                                                                                                                          |
 | `LOCKOUT_POLICY`                 | No       | `{"enabled":true,"maxFailures":10,"windowSeconds":900,"lockoutSeconds":900}` | `lockout_policy`                 | JSON. Set `enabled:false` only when an upstream policy handles lockout.                                                                                                                                                                     |
+| `AUTHENTICATOR_POLICY`           | No       | `{"attachment":"any"}`                                                       | `authenticator_policy`           | JSON. `attachment` is `any`, `platform` or `cross-platform`. `any` offers both built-in authenticators and roaming security keys at registration. Naming one narrows the browser picker and rejects a request asking for the other.         |
 
 ### Service tokens and secrets
 
@@ -267,6 +268,7 @@ Validation is enforced by [`systemConfig.schema.ts`](../src/schemas/systemConfig
 | `passkey_login_fallback_enabled` | boolean              | `PASSKEY_LOGIN_FALLBACK_ENABLED` | `true`                                                          |
 | `oauth_providers`                | provider[]           | `OAUTH_PROVIDERS`                | `[]`                                                            |
 | `lockout_policy`                 | object               | `LOCKOUT_POLICY`                 | `{enabled,maxFailures:10,windowSeconds:900,lockoutSeconds:900}` |
+| `authenticator_policy`           | object               | `AUTHENTICATOR_POLICY`           | `{attachment:"any"}`                                            |
 | `access_token_ttl`               | string (`\d+[smhd]`) | `ACCESS_TOKEN_TTL`               | -                                                               |
 | `refresh_token_ttl`              | string (`\d+[smhd]`) | `REFRESH_TOKEN_TTL`              | -                                                               |
 | `rate_limit`                     | integer > 0          | `RATE_LIMIT`                     | -                                                               |

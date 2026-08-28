@@ -37,6 +37,7 @@ webauthnRouter.get(
 
       response: {
         200: WebAuthnChallengeSchema,
+        400: ErrorSchema,
         403: ErrorSchema,
         500: ErrorSchema,
       },
