@@ -35,6 +35,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
       return raw.trim().toLowerCase() === 'true';
 
     case 'access_token_ttl':
+    case 'session_idle_ttl':
     case 'refresh_token_ttl':
     case 'rpid':
     case 'app_name':

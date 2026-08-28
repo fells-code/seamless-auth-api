@@ -77,6 +77,7 @@ beforeEach(() => {
   (getSystemConfig as any).mockResolvedValue({
     access_token_ttl: '15m',
     refresh_token_ttl: '1h',
+    session_idle_ttl: '8h',
   });
 
   (parseDurationToSeconds as any).mockImplementation((v: string) => (v === '15m' ? 900 : 3600));
@@ -114,6 +115,26 @@ describe('issueSessionAndRespond', () => {
       phone: mockUser.phone,
       ttl: 900,
       refreshTtl: 3600,
+    });
+  });
+
+  it('derives the session bounds from configured TTLs', async () => {
+    await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
+
+    expect(computeSessionTimes).toHaveBeenCalledWith({
+      absoluteTtl: '1h',
+      idleTtl: '8h',
+    });
+  });
+
+  it('falls back to a default idle bound when config omits it', async () => {
+    (getSystemConfig as any).mockResolvedValue({ refresh_token_ttl: '1h' });
+
+    await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
+
+    expect(computeSessionTimes).toHaveBeenCalledWith({
+      absoluteTtl: '1h',
+      idleTtl: '8h',
     });
   });
 

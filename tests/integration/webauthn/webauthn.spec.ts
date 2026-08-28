@@ -71,6 +71,7 @@ beforeEach(() => {
     origins: ['http://localhost:5137'],
     access_token_ttl: '15m',
     refresh_token_ttl: '1h',
+    session_idle_ttl: '8h',
     authenticator_policy: { attachment: 'any' },
   });
   (Credential.findAll as any).mockResolvedValue([]);

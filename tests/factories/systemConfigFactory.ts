@@ -8,6 +8,7 @@ export function buildSystemConfig(overrides: any = {}) {
     passkey_login_fallback_enabled: true,
     access_token_ttl: '15m',
     refresh_token_ttl: '7d',
+    session_idle_ttl: '8h',
     rate_limit: 100,
     delay_after: 50,
     rpid: 'localhost',

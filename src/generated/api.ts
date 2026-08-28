@@ -6758,6 +6758,7 @@ export interface paths {
              *       "lockout_policy": null,
              *       "authenticator_policy": null,
              *       "access_token_ttl": "string",
+             *       "session_idle_ttl": null,
              *       "refresh_token_ttl": "string",
              *       "rate_limit": 0,
              *       "delay_after": 0,
@@ -6843,6 +6844,8 @@ export interface paths {
                 attachment: 'any' | 'platform' | 'cross-platform';
               };
               access_token_ttl: string;
+              /** @default 8h */
+              session_idle_ttl: string;
               refresh_token_ttl: string;
               rate_limit: number;
               delay_after: number;
@@ -6967,6 +6970,7 @@ export interface paths {
               attachment?: 'any' | 'platform' | 'cross-platform';
             };
             access_token_ttl?: string;
+            session_idle_ttl?: string;
             refresh_token_ttl?: string;
             rate_limit?: number;
             delay_after?: number;
