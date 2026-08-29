@@ -289,7 +289,7 @@ describe('device replacement identity proofing', () => {
     expect(res.status).toBe(200);
   });
 
-  it('records the proofing and the acting admin, intact through redaction', async () => {
+  it('records the proofing and names the actor separately from the target', async () => {
     await request(app)
       .post(`/admin/users/${testGuid}/recovery/device-replacement`)
       .send({ proofing: validProofing });
@@ -303,8 +303,9 @@ describe('device replacement identity proofing', () => {
       method: 'in_person',
       evidenceRef: 'TICKET-1042',
     });
-    expect(call.metadata.actingAdmin).toBeTruthy();
-    expect(call.metadata.actingAdmin).not.toBe(testGuid);
+    expect(call.actorUserId).toBeTruthy();
+    expect(call.actorUserId).not.toBe(testGuid);
+    expect(call.userId).toBe(testGuid);
   });
 
   it('distinguishes a remote exception in the audit trail', async () => {
@@ -326,7 +327,62 @@ describe('device replacement identity proofing', () => {
   });
 });
 
+describe('admin actions are attributed', () => {
+  function adminEventsOfType(type: string) {
+    return (AuthEventService.log as any).mock.calls
+      .map(([arg]: [any]) => arg)
+      .filter((arg: any) => arg.type === type);
+  }
+
+  it('records a user deletion, naming the actor and the target', async () => {
+    const user = buildUser({ id: testGuid });
+    (User.findOne as any).mockResolvedValue(user);
+
+    const res = await request(app).delete('/admin/users').send({ userId: testGuid });
+
+    expect(res.status).toBe(200);
+    expect(user.destroy).toHaveBeenCalled();
+
+    const [event] = adminEventsOfType('user_deleted');
+    expect(event).toBeDefined();
+    expect(event.userId).toBe(testGuid);
+    expect(event.actorUserId).toBeTruthy();
+    expect(event.actorUserId).not.toBe(testGuid);
+  });
+
+  it('records a bulk session revoke', async () => {
+    (Session.findAll as any).mockResolvedValue([
+      buildSession({ id: 's1' }),
+      buildSession({ id: 's2' }),
+    ]);
+
+    const res = await request(app).delete(`/admin/sessions/${testGuid}/revoke-all`);
+
+    expect(res.status).toBe(200);
+
+    const [event] = adminEventsOfType('admin_session_revoked');
+    expect(event).toBeDefined();
+    expect(event.userId).toBe(testGuid);
+    expect(event.actorUserId).toBeTruthy();
+    expect(event.metadata).toMatchObject({ revokedSessions: 2, scope: 'all' });
+  });
+});
+
 describe('GET /admin/auth-events', () => {
+  it('filters by acting administrator', async () => {
+    (AuthEvent.findAll as any).mockResolvedValue([]);
+    (AuthEvent.count as any).mockResolvedValue(0);
+
+    const res = await request(app).get('/admin/auth-events').query({ actorUserId: 'admin-9' });
+
+    expect(res.status).toBe(200);
+    expect(AuthEvent.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ actor_user_id: 'admin-9' }),
+      }),
+    );
+  });
+
   it('returns events', async () => {
     (AuthEvent.findAll as any).mockResolvedValue([]);
     (AuthEvent.count as any).mockResolvedValue(0);

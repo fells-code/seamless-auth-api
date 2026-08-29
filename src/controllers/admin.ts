@@ -71,6 +71,16 @@ async function rejectUnavailableRoles(roles: string[] | undefined, res: Response
   return true;
 }
 
+/**
+ * The administrator behind an admin request.
+ *
+ * Admin routes run behind bearer auth, so this is present in practice. It stays
+ * nullable because service-token callers have no user attached.
+ */
+function actingAdminId(req: Request): string | null {
+  return (req as AuthenticatedRequest).user?.id ?? null;
+}
+
 export const getUsers = async (req: ServiceRequest, res: Response) => {
   const { limit = 50, offset = 0, search } = req.query;
 
@@ -171,8 +181,18 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
     });
 
     if (user) {
-      user.destroy();
+      // Awaited so the audit event below records a deletion that actually happened,
+      // and so a failure surfaces as a 500 rather than a success with the row intact.
+      await user.destroy();
       logger.info('User deleted from database through the seamless auth portal.');
+
+      await AuthEventService.log({
+        userId,
+        actorUserId: actingAdminId(req),
+        type: 'user_deleted',
+        req,
+        metadata: { targetUser: userId },
+      });
     } else {
       logger.error(`Failed to destory a seemingly valid user via the portal`);
     }
@@ -263,6 +283,8 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
       await user.update(updateData);
 
       await AuthEventService.log({
+        userId,
+        actorUserId: actingAdminId(req),
         type: 'internal_user_updated_by_owner',
         req,
         metadata: {
@@ -407,6 +429,18 @@ export const revokeAllUserSessions = async (req: Request, res: Response) => {
 
     logger.info('All sessions revoked for user');
 
+    await AuthEventService.log({
+      userId,
+      actorUserId: actingAdminId(req),
+      type: 'admin_session_revoked',
+      req,
+      metadata: {
+        targetUser: userId,
+        revokedSessions: sessions.length,
+        scope: 'all',
+      },
+    });
+
     return res.json({ message: 'Success' });
   } catch (err) {
     logger.error(`Failed to revoke sessions: ${err}`);
@@ -433,6 +467,7 @@ export const revokeUserSessionById = async (req: Request, res: Response) => {
 
     await AuthEventService.log({
       userId: session.userId,
+      actorUserId: actingAdminId(req),
       type: 'admin_session_revoked',
       req,
       metadata: {
@@ -509,18 +544,13 @@ export const recoverUserForDeviceReplacement = async (req: Request, res: Respons
     disabledTotpCredentials = count;
   }
 
-  // The acting admin rides in metadata until auth_events grows a first-class actor
-  // column (#159). Without it a recovery reads as self-inflicted, which makes the
-  // proofing record below unreviewable.
-  const actingAdminId = (req as AuthenticatedRequest).user?.id ?? null;
-
   await AuthEventService.log({
     userId,
+    actorUserId: actingAdminId(req),
     type: 'admin_device_replacement_recovery',
     req,
     metadata: {
       targetUser: userId,
-      actingAdmin: actingAdminId,
       proofing: {
         method: proofing.method,
         evidenceRef: proofing.evidenceRef,
@@ -609,7 +639,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
     return res.status(400).json({ error: 'Invalid query params' });
   }
 
-  const { limit, offset, userId, type, from, to } = parsed.data;
+  const { limit, offset, userId, actorUserId, type, from, to } = parsed.data;
 
   const where: WhereOptions<AuthEventAttributes> = {};
 
@@ -636,6 +666,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
   }
 
   if (userId) where.user_id = userId;
+  if (actorUserId) where.actor_user_id = actorUserId;
 
   try {
     const [events, total] = await Promise.all([

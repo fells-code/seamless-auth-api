@@ -1109,6 +1109,7 @@ export interface paths {
           limit?: number;
           offset?: number | null;
           userId?: string;
+          actorUserId?: string;
           type?:
             | (
                 | 'auth_action_incremented'
@@ -1263,6 +1264,7 @@ export interface paths {
               events: {
                 id: string;
                 user_id?: string | null;
+                actor_user_id?: string | null;
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
@@ -1456,6 +1458,7 @@ export interface paths {
               events: {
                 id: string;
                 user_id?: string | null;
+                actor_user_id?: string | null;
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
@@ -1786,6 +1789,7 @@ export interface paths {
               suspiciousEvents: {
                 id: string;
                 user_id?: string | null;
+                actor_user_id?: string | null;
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
@@ -2977,6 +2981,7 @@ export interface paths {
               suspiciousEvents: {
                 id?: string;
                 user_id?: string | null;
+                actor_user_id?: string | null;
                 type?: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
