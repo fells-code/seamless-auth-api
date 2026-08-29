@@ -33,6 +33,27 @@ import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('webauthn');
+
+/**
+ * The COSE algorithms this server will register a credential for, most preferred
+ * first. `pubKeyCredParams` is an ordered preference list, so the position of
+ * each entry matters as much as its presence.
+ *
+ * FIDO Server Requirements v2.3 requires all four. RS1 is RSASSA-PKCS1-v1_5 with
+ * SHA-1, which is why it sits last: it is advertised because the specification
+ * requires support for it, and ordered so that no authenticator with a better
+ * option available will ever choose it.
+ *
+ * Set explicitly rather than left to the library default, which is
+ * `[-8, -7, -257]` and therefore omits RS1, and which could change under a minor
+ * upgrade without anything here noticing.
+ */
+const SUPPORTED_ALGORITHM_IDS = [
+  -8, // EdDSA
+  -7, // ES256
+  -257, // RS256
+  -65535, // RS1
+];
 function getRegistrationChallengeContext(context: Record<string, unknown> | null | undefined) {
   if (!context) {
     return { prfRequested: false, requirePrf: false };
@@ -134,6 +155,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       userName: verifiedUser.email,
       timeout: 60000,
       attestationType: 'none',
+      supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       excludeCredentials: existingCredentials.map((cred) => ({
         id: cred.id,
         transports: cred.transports,
@@ -249,6 +271,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         expectedChallenge,
         expectedOrigin: origins,
         expectedRPID: rpid,
+        // Pinned to the advertised set. The library default here is every
+        // algorithm it knows, which would accept a credential using something
+        // this server never offered.
+        supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       });
     } catch (error) {
       logger.error(`Error perfroming webAuthn verification ${error}`);

@@ -270,6 +270,39 @@ describe('GET /webauthn/register/start', () => {
     expect(types).not.toContain('registration_success');
   });
 
+  // FIDO Server Requirements v2.3 requires RS1, RS256, ES256 and EdDSA. This pins
+  // the advertised set so a library upgrade cannot quietly change what is offered:
+  // the SimpleWebAuthn default is [-8, -7, -257] and omits RS1 entirely.
+  it('advertises every algorithm the specification requires, weakest last', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).get('/webauthn/register/start');
+
+    expect(res.status).toBe(200);
+
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+
+    expect(options.supportedAlgorithmIDs).toEqual([-8, -7, -257, -65535]);
+    // RS1 is SHA-1 based. It is offered because the specification requires it,
+    // and ordered last so nothing picks it while a better option is available.
+    expect(options.supportedAlgorithmIDs.at(-1)).toBe(-65535);
+  });
+
+  it('accepts only the algorithms it advertised', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({ verified: false });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    const [options] = (verifyRegistrationResponse as any).mock.calls.at(-1);
+
+    expect(options.supportedAlgorithmIDs).toEqual([-8, -7, -257, -65535]);
+  });
+
   it('returns 500 when credential lookup fails', async () => {
     (Credential.findAll as any).mockRejectedValue(new Error('db down'));
 
