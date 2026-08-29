@@ -1633,6 +1633,12 @@ export interface paths {
             removePasskeys?: boolean;
             /** @default true */
             disableTotp?: boolean;
+            proofing: {
+              /** @enum {string} */
+              method: 'in_person' | 'remote_exception';
+              evidenceRef: string;
+              approver?: string;
+            };
           };
         };
       };
