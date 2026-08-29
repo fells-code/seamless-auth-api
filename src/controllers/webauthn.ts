@@ -126,6 +126,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
     });
 
     const { app_name, rpid, authenticator_policy } = await getSystemConfig();
+    const userVerification = authenticator_policy.userVerification;
     const pinnedAttachment =
       authenticator_policy.attachment === 'any' ? null : authenticator_policy.attachment;
 
@@ -164,7 +165,9 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       // this to 'platform' hides roaming authenticators from the browser picker
       // entirely, which makes issued security keys impossible to enrol.
       authenticatorSelection: {
-        userVerification: 'preferred',
+        // The same value is enforced at verification below, so the browser is
+        // never asked for less than the server will accept.
+        userVerification,
         residentKey: 'preferred',
         ...(effectiveAttachment ? { authenticatorAttachment: effectiveAttachment } : {}),
       },
@@ -264,13 +267,14 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     let verification;
     try {
-      const { origins, rpid } = await getSystemConfig();
+      const { origins, rpid, authenticator_policy } = await getSystemConfig();
 
       verification = await verifyRegistrationResponse({
         response: attestationResponse,
         expectedChallenge,
         expectedOrigin: origins,
         expectedRPID: rpid,
+        requireUserVerification: authenticator_policy.userVerification === 'required',
         // Pinned to the advertised set. The library default here is every
         // algorithm it knows, which would accept a credential using something
         // this server never offered.
@@ -413,7 +417,8 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       return res.status(401).send('Credentials not found');
     }
 
-    const { rpid } = await getSystemConfig();
+    const { rpid, authenticator_policy } = await getSystemConfig();
+    const userVerification = authenticator_policy.userVerification;
 
     const options: PublicKeyCredentialRequestOptionsJSON = await generateAuthenticationOptions({
       allowCredentials: assertionCredentials.map((cred) => {
@@ -422,7 +427,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
           transports: cred.transports,
         };
       }),
-      userVerification: 'required',
+      userVerification,
       timeout: 60000,
       rpID: rpid,
       extensions: buildPrfAuthenticationExtensions(prf),
@@ -532,12 +537,13 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     let verification;
 
     try {
-      const { origins, rpid } = await getSystemConfig();
+      const { origins, rpid, authenticator_policy } = await getSystemConfig();
       verification = await verifyAuthenticationResponse({
         response: assertionResponse,
         expectedChallenge,
         expectedOrigin: origins,
         expectedRPID: rpid,
+        requireUserVerification: authenticator_policy.userVerification === 'required',
         credential: {
           id: cred.id,
           // @ts-expect-error Needed to work.

@@ -106,6 +106,11 @@ export const startWebAuthnStepUp = async (req: Request, res: Response) => {
         id: credential.id,
         transports: credential.transports,
       })),
+      // Deliberately not the deployment's authenticator_policy. Step-up exists to
+      // re-verify the human; without user verification it is a second signature
+      // from a key the session already proved it holds, which proves nothing
+      // extra. A deployment that relaxes verification generally should still get
+      // a real check when elevating.
       userVerification: 'required',
       timeout: 60000,
       rpID: rpid,
@@ -199,6 +204,9 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
     const { origins, rpid } = await getSystemConfig();
     const verification = await verifyAuthenticationResponse({
       response: assertionResponse,
+      // Matches the 'required' asked for above rather than relying on a library
+      // default, so the ask and the enforcement cannot drift apart.
+      requireUserVerification: true,
       expectedChallenge,
       expectedOrigin: origins,
       expectedRPID: rpid,

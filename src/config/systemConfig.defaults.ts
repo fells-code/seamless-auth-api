@@ -17,6 +17,7 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   },
   authenticator_policy: {
     attachment: 'any',
+    userVerification: 'required',
   },
   session_idle_ttl: '8h',
   passkey_login_fallback_enabled: true,
