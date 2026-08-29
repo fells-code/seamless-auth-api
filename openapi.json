@@ -1647,6 +1647,7 @@
                         "type": "object",
                         "properties": {
                           "id": { "type": "string" },
+                          "aaguid": { "type": "string", "nullable": true },
                           "transports": {
                             "type": "array",
                             "items": {
@@ -7545,6 +7546,7 @@
                         "type": "object",
                         "properties": {
                           "id": { "type": "string" },
+                          "aaguid": { "type": "string", "nullable": true },
                           "transports": {
                             "type": "array",
                             "items": {
@@ -7807,6 +7809,7 @@
                       "type": "object",
                       "properties": {
                         "id": { "type": "string" },
+                        "aaguid": { "type": "string", "nullable": true },
                         "transports": {
                           "type": "array",
                           "items": {
@@ -7843,6 +7846,7 @@
                   "message": "string",
                   "credential": {
                     "id": "string",
+                    "aaguid": "string",
                     "transports": [null],
                     "deviceType": null,
                     "backedUp": true,
