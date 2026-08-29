@@ -29,6 +29,12 @@ function normalizeAuthEventType(type: LoggableAuthEventType): AuthEventType {
 
 export interface AuthEventOptions {
   userId?: string | null;
+  /**
+   * Who performed the action, when that is not the subject of it. Set this on
+   * anything an administrator does to another account; without it the event
+   * reads as though the user did it to themselves.
+   */
+  actorUserId?: string | null;
   type: LoggableAuthEventType;
   req: Request;
   metadata?: Record<string, unknown> | null;
@@ -36,6 +42,7 @@ export interface AuthEventOptions {
 
 interface AuthEventContextOptions {
   userId?: string | null;
+  actorUserId?: string | null;
   type: LoggableAuthEventType;
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -45,6 +52,7 @@ interface AuthEventContextOptions {
 export class AuthEventService {
   static async logContext({
     userId = null,
+    actorUserId = null,
     type,
     ipAddress = 'unknown',
     userAgent = 'unknown',
@@ -53,6 +61,7 @@ export class AuthEventService {
     try {
       await AuthEvent.create({
         user_id: userId,
+        actor_user_id: actorUserId,
         type: normalizeAuthEventType(type),
         ip_address: ipAddress || 'unknown',
         user_agent: userAgent || 'unknown',
@@ -63,9 +72,16 @@ export class AuthEventService {
     }
   }
 
-  static async log({ userId = null, type, req, metadata = null }: AuthEventOptions) {
+  static async log({
+    userId = null,
+    actorUserId = null,
+    type,
+    req,
+    metadata = null,
+  }: AuthEventOptions) {
     return this.logContext({
       userId,
+      actorUserId,
       type,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],

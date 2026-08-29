@@ -47,6 +47,7 @@ describe('AuthEventService', () => {
 
     expect(AuthEvent.create).toHaveBeenCalledWith({
       user_id: 'user-1',
+      actor_user_id: null,
       type: 'login_success',
       ip_address: '127.0.0.1',
       user_agent: 'agent',
@@ -301,6 +302,7 @@ describe('AuthEventService', () => {
 
     expect(AuthEvent.create).toHaveBeenCalledWith({
       user_id: null,
+      actor_user_id: null,
       type: 'request_suspicious',
       ip_address: '10.0.0.1',
       user_agent: 'probe',
@@ -337,6 +339,7 @@ describe('AuthEventService', () => {
 
     expect(AuthEvent.create).toHaveBeenCalledWith({
       user_id: null,
+      actor_user_id: null,
       type: 'request_suspicious',
       ip_address: '127.0.0.1',
       user_agent: 'agent',
