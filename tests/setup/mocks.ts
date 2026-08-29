@@ -37,6 +37,15 @@ vi.mock('../../src/models/credentials.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/webauthnChallenges.js', () => ({
+  WebAuthnChallenge: {
+    create: vi.fn(),
+    findOne: vi.fn(),
+    update: vi.fn(),
+    destroy: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/totpCredentials.js', () => ({
   TotpCredential: {
     create: vi.fn(),

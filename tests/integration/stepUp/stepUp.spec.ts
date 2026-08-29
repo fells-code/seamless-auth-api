@@ -1,3 +1,5 @@
+import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges';
+import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
 import { Application } from 'express';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +16,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
 });
 
 describe('GET /step-up/status', () => {
