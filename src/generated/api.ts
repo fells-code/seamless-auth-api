@@ -1169,8 +1169,8 @@ export interface paths {
                 | 'verify_otp_suspicious'
                 | 'webauthn_login_failed'
                 | 'webauthn_login_success'
+                | 'webauthn_registration_challenge'
                 | 'webauthn_registration_failed'
-                | 'webauthn_registration_success'
                 | 'webauthn_registration_suspicious'
               )
             | string
@@ -1232,8 +1232,8 @@ export interface paths {
                     | 'verify_otp_suspicious'
                     | 'webauthn_login_failed'
                     | 'webauthn_login_success'
+                    | 'webauthn_registration_challenge'
                     | 'webauthn_registration_failed'
-                    | 'webauthn_registration_success'
                     | 'webauthn_registration_suspicious'
                   )
                 | string

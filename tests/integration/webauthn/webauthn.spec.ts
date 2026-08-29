@@ -12,6 +12,7 @@ import { buildUser } from '../../factories/userFactory';
 import { buildCredential } from '../../factories/credentialFactory';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
+import { AuthEventService } from '../../../src/services/authEventService';
 import {
   generateWebAuthn,
   registerWebAuthn,
@@ -250,6 +251,22 @@ describe('GET /webauthn/register/start', () => {
     expect(generateRegistrationOptions).not.toHaveBeenCalled();
   });
 
+  it('records a challenge rather than a success when options are issued', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).get('/webauthn/register/start');
+
+    expect(res.status).toBe(200);
+
+    const types = (AuthEventService.log as any).mock.calls.map(([arg]: [any]) => arg.type);
+
+    expect(types).toContain('webauthn_registration_challenge');
+    // Abandoning here must leave no trace of a registration that never happened.
+    expect(types).not.toContain('webauthn_registration_success');
+    expect(types).not.toContain('registration_success');
+  });
+
   it('returns 500 when credential lookup fails', async () => {
     (Credential.findAll as any).mockRejectedValue(new Error('db down'));
 
@@ -322,6 +339,41 @@ describe('POST /webauthn/register/finish', () => {
         prfCapable: true,
       }),
     );
+  });
+
+  it('records exactly one success for a completed registration', async () => {
+    const user = buildUser();
+
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+    (User.findOne as any).mockResolvedValue(user);
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    const res = await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    expect(res.status).toBe(200);
+
+    const successes = (AuthEventService.log as any).mock.calls
+      .map(([arg]: [any]) => arg.type)
+      .filter((type: string) => type.endsWith('_success'));
+
+    expect(successes).toEqual(['registration_success']);
   });
 
   it('rejects PRF-required registration when credential is not PRF-capable', async () => {

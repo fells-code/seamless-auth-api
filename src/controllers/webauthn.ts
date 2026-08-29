@@ -165,9 +165,11 @@ const registerWebAuthn = async (req: Request, res: Response) => {
 
     logger.info('Generated registration options for user');
 
+    // Issuing options is not a registration. The credential does not exist until
+    // /register/finish verifies the attestation, which logs registration_success.
     await AuthEventService.log({
       userId: verifiedUser.id,
-      type: 'webauthn_registration_success',
+      type: 'webauthn_registration_challenge',
       req,
     });
 
