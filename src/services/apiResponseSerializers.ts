@@ -132,6 +132,7 @@ export function serializeCredential(credential: unknown) {
 
   return omitUndefined({
     id: stringField(credential, 'id'),
+    aaguid: nullableStringField(credential, 'aaguid'),
     transports: transportField(credential),
     deviceType: credentialDeviceTypeField(credential),
     backedup: backedUp,

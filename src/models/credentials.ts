@@ -16,6 +16,8 @@ export class Credential extends Model {
   declare counter: number;
   declare transports?: AuthenticatorTransportFuture[];
   declare deviceType: CredentialDeviceType;
+  /** The authenticator's model identifier, as it reported at registration. */
+  declare aaguid: string | null;
   declare backedup: boolean;
   declare prfCapable: boolean;
 
@@ -74,6 +76,11 @@ export default (sequelize: Sequelize) => {
       deviceType: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      aaguid: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
       },
       friendlyName: {
         type: DataTypes.STRING,

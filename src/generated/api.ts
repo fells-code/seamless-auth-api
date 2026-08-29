@@ -1433,6 +1433,7 @@ export interface paths {
               }[];
               credentials: {
                 id: string;
+                aaguid?: string | null;
                 transports?: (
                   | 'ble'
                   | 'cable'
@@ -8180,6 +8181,7 @@ export interface paths {
               };
               credentials: {
                 id: string;
+                aaguid?: string | null;
                 transports?: (
                   | 'ble'
                   | 'cable'
@@ -8319,6 +8321,7 @@ export interface paths {
              *       "message": "string",
              *       "credential": {
              *         "id": "string",
+             *         "aaguid": "string",
              *         "transports": [
              *           null
              *         ],
@@ -8340,6 +8343,7 @@ export interface paths {
               message: string;
               credential: {
                 id: string;
+                aaguid?: string | null;
                 transports?: (
                   | 'ble'
                   | 'cable'

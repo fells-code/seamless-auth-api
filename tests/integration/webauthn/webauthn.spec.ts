@@ -398,6 +398,62 @@ describe('POST /webauthn/register/finish', () => {
     );
   });
 
+  it('records the authenticator model the credential came from', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        aaguid: 'ee882879-721c-4913-9775-3dfcce97072a',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    expect(Credential.create).toHaveBeenCalledWith(
+      expect.objectContaining({ aaguid: 'ee882879-721c-4913-9775-3dfcce97072a' }),
+    );
+  });
+
+  it('keeps an all-zero model rather than treating it as missing', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        // An authenticator declining to identify itself, which is different from
+        // never having recorded one.
+        aaguid: '00000000-0000-0000-0000-000000000000',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    expect(Credential.create).toHaveBeenCalledWith(
+      expect.objectContaining({ aaguid: '00000000-0000-0000-0000-000000000000' }),
+    );
+  });
+
   it('records exactly one success for a completed registration', async () => {
     const user = buildUser();
 

@@ -274,7 +274,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Registration failed verification' });
     }
 
-    const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
+    const { aaguid, credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
     const challengeContext = getRegistrationChallengeContext(issued?.context);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
@@ -300,6 +300,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       backedup: credentialBackedUp,
       transports: credential.transports,
       deviceType: credentialDeviceType,
+      // An all-zero value is kept rather than nulled: it means the authenticator
+      // declined to identify itself, which is a different fact from never having
+      // recorded one, and policy has to tell them apart.
+      aaguid: aaguid ?? null,
       friendlyName: metadata.friendlyName || null,
       platform: metadata.platform || null,
       browser: metadata.browser || null,
