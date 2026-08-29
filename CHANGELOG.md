@@ -1,5 +1,183 @@
 # seamless-auth-api
 
+## 1.0.0
+
+### Major Changes
+
+- 1f5d98c: Require identity proofing on admin-assisted device replacement.
+
+  **Breaking.** `POST /admin/users/:userId/recovery/device-replacement` now
+  requires a `proofing` object and answers 400 without one:
+
+  ```json
+  {
+    "proofing": {
+      "method": "in_person",
+      "evidenceRef": "TICKET-1042"
+    }
+  }
+  ```
+
+  `method` is `in_person` or `remote_exception`. A remote exception is refused
+  unless it names an `approver`, so taking the weaker path is deliberate and
+  attributable. `evidenceRef` is a pointer such as a ticket number, not the
+  evidence itself, because it is written to the audit trail where identifiers are
+  redacted.
+
+  This endpoint revokes every session, removes every passkey and disables TOTP. It
+  previously recorded nothing about how the operator established who they were
+  talking to, which made a recovery impossible to review afterwards.
+
+  The audit event now carries the proofing record and the acting administrator.
+  The acting admin currently rides in event metadata; it moves to a first-class
+  column when `auth_events` gains one.
+
+  Callers sending an empty body and relying on the clearing defaults must now send
+  proofing. Those defaults are unchanged. Requires `@seamless-auth/types` 0.9.0.
+
+### Minor Changes
+
+- 642b823: Allow hardware security keys to be enrolled.
+
+  `GET /webauthn/register/start` pinned `authenticatorAttachment` to `platform`, which
+  hid roaming authenticators from the browser picker entirely, so USB and NFC security
+  keys could not be registered at all. Only built-in authenticators (Touch ID, Windows
+  Hello, Android biometrics) were reachable.
+
+  Registration now leaves the attachment unset by default, so the browser offers both
+  kinds. Callers that want to narrow the picker can pass `?attachment=platform` or
+  `?attachment=cross-platform` on `register/start`; anything else is rejected with a 400.
+
+  This changes the default enrolment experience: users who previously saw only the
+  built-in authenticator will now also be offered a security key. Deployments that
+  genuinely want the old behaviour should pass `?attachment=platform`.
+
+- fdf9613: Correlate audit events to the session they happened in.
+
+  Audit events gain `session_id`, and `GET /admin/auth-events` accepts a
+  `sessionId` filter, so a suspicious session can be turned into its event history
+  and an event traced back to the session it came from.
+
+  The session is read from the request rather than passed at each of the 135 log
+  call sites. The bearer middleware already sets it for any access-token call, so
+  authenticated events correlate without any of those sites changing, and anything
+  before a session exists stays null. A caller can still name a session
+  explicitly, which is what an administrator acting on someone else's session
+  needs.
+
+  The column is nullable and not backfilled. The session for historical events is
+  unrecoverable.
+
+  Requires `@seamless-auth/types` 0.11.0.
+
+- 30c3971: Record who performed an administrative action.
+
+  Audit events gain `actor_user_id`. An administrator acting on someone else's
+  account is now recorded with the target in `user_id` and the administrator in
+  `actor_user_id`, so the trail no longer reads as though the user did it to
+  themselves. `GET /admin/auth-events` accepts an `actorUserId` filter, which
+  answers "what did this administrator do" rather than only "what happened to this
+  user".
+
+  Two administrative actions that previously wrote no audit event at all now write
+  one:
+  - Deleting a user through the admin API
+  - Revoking every session for a user
+
+  The user deletion is now awaited before the response, so a failure surfaces as a
+  500 rather than a success with the account still present, and the audit event
+  records a deletion that actually happened.
+
+  The column is nullable and not backfilled. The actor for historical events is
+  genuinely unknown, and inventing one would be worse than leaving it empty.
+
+  Requires `@seamless-auth/types` 0.10.0.
+
+- e58ef6c: Stop recording a WebAuthn registration success before anything is registered.
+
+  `GET /webauthn/register/start` logged `webauthn_registration_success` at the end
+  of options generation, before the client had done anything and before any
+  credential existed. Every abandoned or failed registration produced a success
+  event, so registration counts, dashboards and anomaly detection were all
+  measuring the wrong thing. Because outcome is derived from the `_success`
+  suffix, those events were also counted as successful WebAuthn activity in the
+  metrics.
+
+  Issuing options now logs `webauthn_registration_challenge`, matching
+  `login_challenge` on the login path. It categorises as `webauthn` with outcome
+  `other`, so it no longer inflates the success figures. The real
+  `registration_success` stays where it belongs, on verified registration in
+  `/webauthn/register/finish`.
+
+  `webauthn_registration_success` is removed from the declared event types, since
+  it is now emitted nowhere and this repository deliberately prunes types nobody
+  writes so consumers do not filter and alert on names that never arrive. Stored
+  events keep that type and remain readable and filterable by exact type; they are
+  no longer swept into the `webauthn` category filter.
+
+- 15005f2: Make session lifetimes configurable, and give the idle bound a chance to fire.
+
+  Session expiry came from two hardcoded constants, both one day. Because they
+  were equal, `idleExpiresAt` and `expiresAt` always landed on the same instant,
+  so the idle bound could never fire before absolute expiry. In practice there was
+  no idle timeout at all, despite the session model carrying the column and the
+  lookup queries filtering on it.
+
+  Two changes:
+  - The absolute session lifetime now comes from `refresh_token_ttl`, which
+    already existed and was already reported to clients as `refreshTtl`. It was
+    not previously applied to the session row, so an instance with
+    `REFRESH_TOKEN_TTL=30d` told clients thirty days and expired the session after
+    one. Setting it now does what it says.
+  - The idle bound comes from the new `session_idle_ttl`
+    (`SESSION_IDLE_TTL`), default `8h`.
+
+  **Behaviour change.** On stock configuration a session that goes unrefreshed
+  now ends after 8 hours rather than 24. Any client refreshing normally is
+  unaffected, because rotation resets the bound and access tokens are far shorter
+  lived; only genuinely idle sessions end sooner. Instances that want the previous
+  behaviour can set `SESSION_IDLE_TTL=1d`, and deployments with a stricter posture
+  typically want 15m to 30m.
+
+  An instance that previously relied on `REFRESH_TOKEN_TTL` being longer than one
+  day will see sessions live as long as that value now actually says, which is
+  longer than before. Check that value if it was set to something large on the
+  assumption it was inert.
+
+  Requires `@seamless-auth/types` 0.8.0.
+
+- 429cfd2: Let a deployment choose which authenticators it will enrol.
+
+  Adds the `authenticator_policy` system config key, settable from
+  `AUTHENTICATOR_POLICY` as JSON:
+
+  ```json
+  { "attachment": "any" }
+  ```
+
+  `attachment` accepts `any`, `platform` or `cross-platform`. `any`, the default,
+  offers both built-in authenticators and roaming security keys at registration,
+  which is what an agency issuing hardware keys needs. Naming one narrows the
+  browser picker for every registration on the instance.
+
+  The `?attachment=` parameter on `GET /webauthn/register/start` still works, and
+  is now bounded by the policy: a request asking for a kind a pinned policy
+  excludes is refused with `400 { "error": "attachment_not_allowed" }` rather than
+  silently overriding it. A request that agrees with the policy is fine.
+
+  Existing deployments are unaffected. The key defaults to `{ "attachment": "any" }`,
+  which is the behaviour they already had.
+
+  Requires `@seamless-auth/types` 0.7.0, which carries the shared schema.
+
+### Patch Changes
+
+- 52503b3: Resolve the high severity advisories in the dependency tree.
+
+  `npm audit fix` cleared six high severity findings, all transitive, with no
+  change to `package.json` and no change in behaviour. Two moderate advisories
+  remain from `sequelize`, whose only offered fix is a downgrade to version 3.
+
 ## 0.7.4
 
 ### Patch Changes
