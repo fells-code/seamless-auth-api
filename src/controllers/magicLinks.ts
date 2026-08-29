@@ -16,6 +16,7 @@ import { AuthEventService } from '../services/authEventService.js';
 import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicyService.js';
 import { sendMagicLinkEmail } from '../services/messagingService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { invalidateChallengesForUser } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { hashDeviceFingerprint, hashSha256 } from '../utils/utils.js';
@@ -253,10 +254,13 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       req,
     });
 
-    user.challenge = '';
     user.verified = true;
 
     await user.save();
+
+    // A different route completed the sign-in, so any half-finished WebAuthn
+    // ceremony for this user should not still be redeemable.
+    await invalidateChallengesForUser(user.id);
 
     await AuthEventService.log({
       userId: user.id,
@@ -278,7 +282,6 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
 
     await user.update({
       lastLogin: new Date(),
-      challengeContext: null,
     });
 
     return;

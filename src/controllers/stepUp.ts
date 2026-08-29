@@ -22,6 +22,7 @@ import {
   recordStepUpVerification,
   serializeStepUpStatus,
 } from '../services/stepUpService.js';
+import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -111,7 +112,9 @@ export const startWebAuthnStepUp = async (req: Request, res: Response) => {
       extensions: buildPrfAuthenticationExtensions(prf),
     });
 
-    await user.update({
+    await issueChallenge({
+      userId: user.id,
+      purpose: 'step_up',
       challenge: options.challenge,
     });
 
@@ -162,7 +165,11 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'prf_output_not_allowed' });
   }
 
-  if (!user.challenge || typeof assertionId !== 'string') {
+  // Consumed before the credential lookup, so every exit below leaves the
+  // challenge spent rather than live.
+  const issued = await consumeChallenge({ userId: user.id, purpose: 'step_up' });
+
+  if (!issued || typeof assertionId !== 'string') {
     await AuthEventService.log({
       userId: user.id,
       type: 'step_up_failed',
@@ -186,8 +193,7 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'step_up_failed' });
   }
 
-  const expectedChallenge = user.challenge;
-  await user.update({ challenge: null });
+  const expectedChallenge = issued.challenge;
 
   try {
     const { origins, rpid } = await getSystemConfig();

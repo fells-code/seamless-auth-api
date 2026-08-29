@@ -28,18 +28,15 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('webauthn');
-function getRegistrationChallengeContext(user: User) {
-  const webauthnRegistration = user.challengeContext?.webauthnRegistration;
-
-  if (typeof webauthnRegistration !== 'object' || webauthnRegistration === null) {
+function getRegistrationChallengeContext(context: Record<string, unknown> | null | undefined) {
+  if (!context) {
     return { prfRequested: false, requirePrf: false };
   }
-
-  const context = webauthnRegistration as Record<string, unknown>;
 
   return {
     prfRequested: context.prfRequested === true,
@@ -152,15 +149,11 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       extensions: buildPrfRegistrationExtensions(prfRequested),
     });
 
-    await verifiedUser.update({
+    await issueChallenge({
+      userId: verifiedUser.id,
+      purpose: 'registration',
       challenge: options.challenge,
-      challengeContext: {
-        ...(verifiedUser.challengeContext ?? {}),
-        webauthnRegistration: {
-          prfRequested,
-          requirePrf,
-        },
-      },
+      context: { prfRequested, requirePrf },
     });
 
     logger.info('Generated registration options for user');
@@ -231,7 +224,11 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    const expectedChallenge = user.challenge;
+    // Consumed before verification, so the challenge is spent however this
+    // attempt turns out and a failure cannot leave one live to replay against.
+    const issued = await consumeChallenge({ userId: user.id, purpose: 'registration' });
+    const expectedChallenge = issued?.challenge;
+
     if (!expectedChallenge) {
       logger.error('Unexpected user challegnge supplied.');
       await AuthEventService.log({
@@ -278,7 +275,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     }
 
     const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
-    const challengeContext = getRegistrationChallengeContext(user);
+    const challengeContext = getRegistrationChallengeContext(issued?.context);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
 
@@ -312,8 +309,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     });
 
     await user.update({
-      challenge: null,
-      challengeContext: null,
       lastLogin: new Date(),
       verified: true,
     });
@@ -403,7 +398,9 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       extensions: buildPrfAuthenticationExtensions(prf),
     });
 
-    await user.update({
+    await issueChallenge({
+      userId: user.id,
+      purpose: 'authentication',
       challenge: options.challenge,
     });
 
@@ -466,7 +463,13 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    if (!user || !user.challenge) {
+    // Consumed before anything else can fail, so this path cannot leave a live
+    // challenge behind for an assertion to be replayed against.
+    const issued = user
+      ? await consumeChallenge({ userId: user.id, purpose: 'authentication' })
+      : null;
+
+    if (!user || !issued) {
       logger.error('User or user challenge missing');
       await AuthEventService.log({
         userId: user.id,
@@ -495,7 +498,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication failed.' });
     }
 
-    const expectedChallenge = user.challenge;
+    const expectedChallenge = issued.challenge;
     let verification;
 
     try {

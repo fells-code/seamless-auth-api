@@ -9,6 +9,8 @@ import { buildSystemConfig } from '../../factories/systemConfigFactory';
 import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
+import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges';
+import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
 import { buildCredential } from '../../factories/credentialFactory';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
@@ -65,6 +67,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
   (AuthEvent.count as any).mockResolvedValue(0);
   (getSystemConfig as any).mockResolvedValue({
     app_name: 'SeamlessAuth',
@@ -294,6 +297,60 @@ describe('GET /webauthn/register/start', () => {
   });
 });
 
+describe('challenge is spent on every login outcome', () => {
+  // The login path previously never cleared the challenge, so a captured
+  // assertion stayed replayable until some later flow happened to overwrite it.
+  it('spends the challenge even when verification fails', async () => {
+    const record = buildWebAuthnChallenge({ purpose: 'authentication' });
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(record);
+    (Credential.findOne as any).mockResolvedValue(buildCredential({ id: 'cred-1' }));
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockRejectedValue(new Error('bad assertion'));
+
+    await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(record.update).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    );
+  });
+
+  it('spends the challenge on a successful login', async () => {
+    const record = buildWebAuthnChallenge({ purpose: 'authentication' });
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(record);
+    (Credential.findOne as any).mockResolvedValue(
+      buildCredential({ id: 'cred-1', update: vi.fn() }),
+    );
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockResolvedValue({
+      verified: true,
+      authenticationInfo: { newCounter: 1 },
+    });
+
+    await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(record.update).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    );
+  });
+
+  it('refuses a second attempt once the challenge is spent', async () => {
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('POST /webauthn/register/finish', () => {
   it('creates credential and session', async () => {
     const user = buildUser();
@@ -377,16 +434,16 @@ describe('POST /webauthn/register/finish', () => {
   });
 
   it('rejects PRF-required registration when credential is not PRF-capable', async () => {
-    const user = buildUser({
-      challengeContext: {
-        webauthnRegistration: {
-          prfRequested: true,
-          requirePrf: true,
-        },
-      },
-    });
+    const user = buildUser();
 
     (User.findOne as any).mockResolvedValue(user);
+    // The flow's PRF requirement travels with the challenge it was issued for.
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(
+      buildWebAuthnChallenge({
+        purpose: 'registration',
+        context: { prfRequested: true, requirePrf: true },
+      }),
+    );
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
 
     (verifyRegistrationResponse as any).mockResolvedValue({
@@ -429,8 +486,9 @@ describe('POST /webauthn/register/finish', () => {
     expect(res.status).toBe(403);
   });
 
-  it('rejects verification when the stored challenge is missing', async () => {
-    (User.findOne as any).mockResolvedValue(buildUser({ challenge: null }));
+  it('rejects verification when no live challenge exists', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(null);
 
     const res = await request(app)
       .post('/webauthn/register/finish')
