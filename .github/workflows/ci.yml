@@ -21,6 +21,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Fails on a new high or critical in anything that ships. Two moderates
+      # remain from sequelize, whose only offered fix is a downgrade to v3, so
+      # the gate sits above them rather than being disabled outright.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Development dependencies do not ship, so a finding here is reported
+      # rather than blocking. Dependabot opens the pull request that fixes it.
+      - name: Audit development dependencies
+        run: npm audit --audit-level=high || true
+
       - name: Lint
         run: npm run lint
 
