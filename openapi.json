@@ -1236,6 +1236,7 @@
             "name": "actorUserId",
             "in": "query"
           },
+          { "schema": { "type": "string" }, "required": false, "name": "sessionId", "in": "query" },
           {
             "schema": {
               "anyOf": [
@@ -1401,6 +1402,7 @@
                           "id": { "type": "string" },
                           "user_id": { "type": "string", "nullable": true },
                           "actor_user_id": { "type": "string", "nullable": true },
+                          "session_id": { "type": "string", "nullable": true },
                           "type": { "type": "string" },
                           "ip_address": { "type": "string", "nullable": true },
                           "user_agent": { "type": "string", "nullable": true },
@@ -1694,6 +1696,7 @@
                           "id": { "type": "string" },
                           "user_id": { "type": "string", "nullable": true },
                           "actor_user_id": { "type": "string", "nullable": true },
+                          "session_id": { "type": "string", "nullable": true },
                           "type": { "type": "string" },
                           "ip_address": { "type": "string", "nullable": true },
                           "user_agent": { "type": "string", "nullable": true },
@@ -1897,6 +1900,7 @@
                           "id": { "type": "string" },
                           "user_id": { "type": "string", "nullable": true },
                           "actor_user_id": { "type": "string", "nullable": true },
+                          "session_id": { "type": "string", "nullable": true },
                           "type": { "type": "string" },
                           "ip_address": { "type": "string", "nullable": true },
                           "user_agent": { "type": "string", "nullable": true },
@@ -2844,6 +2848,7 @@
                           "id": { "type": "string" },
                           "user_id": { "type": "string", "nullable": true },
                           "actor_user_id": { "type": "string", "nullable": true },
+                          "session_id": { "type": "string", "nullable": true },
                           "type": { "type": "string" },
                           "ip_address": { "type": "string", "nullable": true },
                           "user_agent": { "type": "string", "nullable": true },

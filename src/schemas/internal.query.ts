@@ -26,6 +26,8 @@ export const AuthEventQuerySchema = z.object({
   userId: z.string().optional(),
   /** Filters to what one administrator did, rather than what happened to one user. */
   actorUserId: z.string().optional(),
+  /** Filters to everything that happened in one session. */
+  sessionId: z.string().optional(),
   type: z
     .union([AuthEventTypeEnum, z.string(), z.array(z.union([AuthEventTypeEnum, z.string()]))])
     .optional(),

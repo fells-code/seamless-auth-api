@@ -48,6 +48,7 @@ describe('AuthEventService', () => {
     expect(AuthEvent.create).toHaveBeenCalledWith({
       user_id: 'user-1',
       actor_user_id: null,
+      session_id: null,
       type: 'login_success',
       ip_address: '127.0.0.1',
       user_agent: 'agent',
@@ -303,6 +304,7 @@ describe('AuthEventService', () => {
     expect(AuthEvent.create).toHaveBeenCalledWith({
       user_id: null,
       actor_user_id: null,
+      session_id: null,
       type: 'request_suspicious',
       ip_address: '10.0.0.1',
       user_agent: 'probe',
@@ -340,6 +342,7 @@ describe('AuthEventService', () => {
     expect(AuthEvent.create).toHaveBeenCalledWith({
       user_id: null,
       actor_user_id: null,
+      session_id: null,
       type: 'request_suspicious',
       ip_address: '127.0.0.1',
       user_agent: 'agent',
@@ -393,6 +396,47 @@ describe('AuthEventService', () => {
           message: 'Token: [REDACTED] [REDACTED]',
         },
       }),
+    );
+  });
+});
+
+describe('AuthEventService session correlation', () => {
+  it('takes the session from the request, so call sites do not have to pass it', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.log({
+      userId: 'user-1',
+      type: 'login_success',
+      req: buildReq({ sessionId: 'sess-7' }),
+    });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ session_id: 'sess-7' }),
+    );
+  });
+
+  it('leaves a pre-auth event uncorrelated', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.log({ type: 'login_challenge', req: buildReq() });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(expect.objectContaining({ session_id: null }));
+  });
+
+  it('lets a caller name a session the request does not carry', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.log({
+      type: 'admin_session_revoked',
+      sessionId: 'sess-other',
+      req: buildReq({ sessionId: 'sess-admin' }),
+    });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ session_id: 'sess-other' }),
     );
   });
 });

@@ -1110,6 +1110,7 @@ export interface paths {
           offset?: number | null;
           userId?: string;
           actorUserId?: string;
+          sessionId?: string;
           type?:
             | (
                 | 'auth_action_incremented'
@@ -1265,6 +1266,7 @@ export interface paths {
                 id: string;
                 user_id?: string | null;
                 actor_user_id?: string | null;
+                session_id?: string | null;
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
@@ -1459,6 +1461,7 @@ export interface paths {
                 id: string;
                 user_id?: string | null;
                 actor_user_id?: string | null;
+                session_id?: string | null;
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
@@ -1790,6 +1793,7 @@ export interface paths {
                 id: string;
                 user_id?: string | null;
                 actor_user_id?: string | null;
+                session_id?: string | null;
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
@@ -2982,6 +2986,7 @@ export interface paths {
                 id?: string;
                 user_id?: string | null;
                 actor_user_id?: string | null;
+                session_id?: string | null;
                 type?: string;
                 ip_address?: string | null;
                 user_agent?: string | null;

@@ -639,7 +639,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
     return res.status(400).json({ error: 'Invalid query params' });
   }
 
-  const { limit, offset, userId, actorUserId, type, from, to } = parsed.data;
+  const { limit, offset, userId, actorUserId, sessionId, type, from, to } = parsed.data;
 
   const where: WhereOptions<AuthEventAttributes> = {};
 
@@ -667,6 +667,7 @@ export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
 
   if (userId) where.user_id = userId;
   if (actorUserId) where.actor_user_id = actorUserId;
+  if (sessionId) where.session_id = sessionId;
 
   try {
     const [events, total] = await Promise.all([

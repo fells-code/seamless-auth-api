@@ -14,6 +14,8 @@ export interface AuthEventAttributes {
   user_id?: string | null;
   /** Who performed the action, when that is not the subject of it. */
   actor_user_id?: string | null;
+  /** The session the action was taken from. Null before a session exists. */
+  session_id?: string | null;
   type: string;
   ip_address?: string | null;
   user_agent?: string | null;
@@ -24,7 +26,7 @@ export interface AuthEventAttributes {
 
 type AuthEventCreationAttributes = Optional<
   AuthEventAttributes,
-  'id' | 'created_at' | 'updated_at' | 'actor_user_id'
+  'id' | 'created_at' | 'updated_at' | 'actor_user_id' | 'session_id'
 >;
 
 export class AuthEvent
@@ -34,6 +36,7 @@ export class AuthEvent
   declare id: string;
   declare user_id?: string | null;
   declare actor_user_id?: string | null;
+  declare session_id?: string | null;
   declare type: string;
   declare ip_address?: string | null;
   declare user_agent?: string | null;
@@ -65,6 +68,10 @@ const initializeAuthEventModel = (sequelize: Sequelize) => {
         allowNull: true,
       },
       actor_user_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      session_id: {
         type: DataTypes.UUID,
         allowNull: true,
       },
