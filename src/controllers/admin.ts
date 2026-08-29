@@ -30,6 +30,7 @@ import {
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
+import type { AuthenticatedRequest } from '../types/types.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { redactMetadata } from '../utils/redaction.js';
@@ -464,7 +465,7 @@ export const recoverUserForDeviceReplacement = async (req: Request, res: Respons
     return res.status(404).json({ error: 'User not found' });
   }
 
-  const { revokeSessions, removePasskeys, disableTotp } = parsed.data;
+  const { revokeSessions, removePasskeys, disableTotp, proofing } = parsed.data;
   let revokedSessions = 0;
   let removedCredentials = 0;
   let disabledTotpCredentials = 0;
@@ -508,12 +509,23 @@ export const recoverUserForDeviceReplacement = async (req: Request, res: Respons
     disabledTotpCredentials = count;
   }
 
+  // The acting admin rides in metadata until auth_events grows a first-class actor
+  // column (#159). Without it a recovery reads as self-inflicted, which makes the
+  // proofing record below unreviewable.
+  const actingAdminId = (req as AuthenticatedRequest).user?.id ?? null;
+
   await AuthEventService.log({
     userId,
     type: 'admin_device_replacement_recovery',
     req,
     metadata: {
       targetUser: userId,
+      actingAdmin: actingAdminId,
+      proofing: {
+        method: proofing.method,
+        evidenceRef: proofing.evidenceRef,
+        ...(proofing.approver ? { approver: proofing.approver } : {}),
+      },
       actions: {
         revokeSessions,
         removePasskeys,

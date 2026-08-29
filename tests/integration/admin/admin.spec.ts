@@ -8,6 +8,7 @@ import { Credential } from '../../../src/models/credentials.js';
 import { User } from '../../../src/models/users.js';
 import { buildUser, testGuid } from '../../factories/userFactory';
 import { AuthEvent } from '../../../src/models/authEvents.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import { Session } from '../../../src/models/sessions.js';
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
@@ -197,6 +198,8 @@ describe('DELETE /admin/sessions/:userId/revoke-all', () => {
   });
 });
 
+const validProofing = { method: 'in_person', evidenceRef: 'TICKET-1042' };
+
 describe('POST /admin/users/:userId/recovery/device-replacement', () => {
   it('revokes sessions, removes passkeys, and disables TOTP for device replacement', async () => {
     const sessions = [buildSession({ id: 's1' }), buildSession({ id: 's2' })];
@@ -212,7 +215,7 @@ describe('POST /admin/users/:userId/recovery/device-replacement', () => {
 
     const res = await request(app)
       .post(`/admin/users/${testGuid}/recovery/device-replacement`)
-      .send({});
+      .send({ proofing: validProofing });
 
     expect(res.status).toBe(200);
     expect(hardRevokeSession).toHaveBeenCalledTimes(2);
@@ -239,11 +242,87 @@ describe('POST /admin/users/:userId/recovery/device-replacement', () => {
 
     const res = await request(app)
       .post(`/admin/users/${testGuid}/recovery/device-replacement`)
-      .send({});
+      .send({ proofing: validProofing });
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('step_up_required');
     expect(User.findByPk).not.toHaveBeenCalled();
+  });
+});
+
+describe('device replacement identity proofing', () => {
+  beforeEach(() => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
+    );
+    (User.findByPk as any).mockResolvedValue(buildUser({ id: testGuid }));
+    (Session.findAll as any).mockResolvedValue([]);
+    (Credential.findAll as any).mockResolvedValue([]);
+    (TotpCredential.update as any).mockResolvedValue([0]);
+  });
+
+  it('refuses a recovery that records no proofing', async () => {
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(hardRevokeSession).not.toHaveBeenCalled();
+  });
+
+  it('refuses a remote exception with no named approver', async () => {
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({ proofing: { method: 'remote_exception', evidenceRef: 'TICKET-7' } });
+
+    expect(res.status).toBe(400);
+    expect(hardRevokeSession).not.toHaveBeenCalled();
+  });
+
+  it('accepts a remote exception once an approver is named', async () => {
+    const res = await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({
+        proofing: { method: 'remote_exception', evidenceRef: 'TICKET-7', approver: 'j.reyes' },
+      });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('records the proofing and the acting admin, intact through redaction', async () => {
+    await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({ proofing: validProofing });
+
+    const call = (AuthEventService.log as any).mock.calls
+      .map(([arg]: [any]) => arg)
+      .find((arg: any) => arg.type === 'admin_device_replacement_recovery');
+
+    expect(call).toBeDefined();
+    expect(call.metadata.proofing).toEqual({
+      method: 'in_person',
+      evidenceRef: 'TICKET-1042',
+    });
+    expect(call.metadata.actingAdmin).toBeTruthy();
+    expect(call.metadata.actingAdmin).not.toBe(testGuid);
+  });
+
+  it('distinguishes a remote exception in the audit trail', async () => {
+    await request(app)
+      .post(`/admin/users/${testGuid}/recovery/device-replacement`)
+      .send({
+        proofing: { method: 'remote_exception', evidenceRef: 'TICKET-7', approver: 'j.reyes' },
+      });
+
+    const call = (AuthEventService.log as any).mock.calls
+      .map(([arg]: [any]) => arg)
+      .find((arg: any) => arg.type === 'admin_device_replacement_recovery');
+
+    expect(call.metadata.proofing).toEqual({
+      method: 'remote_exception',
+      evidenceRef: 'TICKET-7',
+      approver: 'j.reyes',
+    });
   });
 });
 
@@ -736,7 +815,7 @@ describe('POST /admin/users/:userId/recovery/device-replacement (additional bran
 
     const res = await request(app)
       .post(`/admin/users/${testGuid}/recovery/device-replacement`)
-      .send({});
+      .send({ proofing: validProofing });
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('User not found');
@@ -750,7 +829,12 @@ describe('POST /admin/users/:userId/recovery/device-replacement (additional bran
 
     const res = await request(app)
       .post(`/admin/users/${testGuid}/recovery/device-replacement`)
-      .send({ revokeSessions: false, removePasskeys: false, disableTotp: false });
+      .send({
+        proofing: validProofing,
+        revokeSessions: false,
+        removePasskeys: false,
+        disableTotp: false,
+      });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({

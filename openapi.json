@@ -1764,8 +1764,19 @@
                 "properties": {
                   "revokeSessions": { "type": "boolean", "default": true },
                   "removePasskeys": { "type": "boolean", "default": true },
-                  "disableTotp": { "type": "boolean", "default": true }
+                  "disableTotp": { "type": "boolean", "default": true },
+                  "proofing": {
+                    "type": "object",
+                    "properties": {
+                      "method": { "type": "string", "enum": ["in_person", "remote_exception"] },
+                      "evidenceRef": { "type": "string", "minLength": 1, "maxLength": 200 },
+                      "approver": { "type": "string", "minLength": 1, "maxLength": 200 }
+                    },
+                    "required": ["method", "evidenceRef"],
+                    "additionalProperties": false
+                  }
                 },
+                "required": ["proofing"],
                 "additionalProperties": false
               }
             }

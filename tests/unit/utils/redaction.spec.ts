@@ -74,6 +74,33 @@ describe('redaction utilities', () => {
     expect(redactMetadata(undefined)).toBeUndefined();
   });
 
+  // #158 requires the recovery proofing record to be readable in the audit trail.
+  // Redaction strips identifiers from metadata, so the field names and the shape of
+  // an evidence reference have to survive it or the record is worthless.
+  describe('recovery proofing metadata', () => {
+    it('keeps a proofing record intact', () => {
+      const metadata = {
+        targetUser: 'user-1',
+        actingAdmin: 'admin-9',
+        proofing: {
+          method: 'remote_exception',
+          evidenceRef: 'TICKET-1042',
+          approver: 'j.reyes',
+        },
+      };
+
+      expect(redactMetadata(metadata)).toEqual(metadata);
+    });
+
+    it('still redacts personal data if an operator puts it in the evidence reference', () => {
+      const redacted = redactMetadata({
+        proofing: { method: 'in_person', evidenceRef: 'checked id for jane@example.gov' },
+      }) as { proofing: { evidenceRef: string } };
+
+      expect(redacted.proofing.evidenceRef).not.toContain('jane@example.gov');
+    });
+  });
+
   describe('redactSensitiveValue', () => {
     it('returns null and undefined unchanged', () => {
       expect(redactSensitiveValue(null)).toBeNull();
