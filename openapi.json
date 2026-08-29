@@ -6333,9 +6333,14 @@
                           "type": "string",
                           "enum": ["any", "platform", "cross-platform"],
                           "default": "any"
+                        },
+                        "userVerification": {
+                          "type": "string",
+                          "enum": ["required", "preferred", "discouraged"],
+                          "default": "required"
                         }
                       },
-                      "default": { "attachment": "any" }
+                      "default": { "attachment": "any", "userVerification": "required" }
                     },
                     "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                     "session_idle_ttl": {
@@ -6536,6 +6541,11 @@
                         "type": "string",
                         "enum": ["any", "platform", "cross-platform"],
                         "default": "any"
+                      },
+                      "userVerification": {
+                        "type": "string",
+                        "enum": ["required", "preferred", "discouraged"],
+                        "default": "required"
                       }
                     }
                   },

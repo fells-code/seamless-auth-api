@@ -269,7 +269,7 @@ Validation is enforced by [`systemConfig.schema.ts`](../src/schemas/systemConfig
 | `passkey_login_fallback_enabled` | boolean              | `PASSKEY_LOGIN_FALLBACK_ENABLED` | `true`                                                          |
 | `oauth_providers`                | provider[]           | `OAUTH_PROVIDERS`                | `[]`                                                            |
 | `lockout_policy`                 | object               | `LOCKOUT_POLICY`                 | `{enabled,maxFailures:10,windowSeconds:900,lockoutSeconds:900}` |
-| `authenticator_policy`           | object               | `AUTHENTICATOR_POLICY`           | `{attachment:"any"}`                                            |
+| `authenticator_policy`           | object               | `AUTHENTICATOR_POLICY`           | `{attachment:"any",userVerification:"required"}`                |
 | `session_idle_ttl`               | string (`\d+[smhd]`) | `SESSION_IDLE_TTL`               | `8h`                                                            |
 | `access_token_ttl`               | string (`\d+[smhd]`) | `ACCESS_TOKEN_TTL`               | -                                                               |
 | `refresh_token_ttl`              | string (`\d+[smhd]`) | `REFRESH_TOKEN_TTL`              | -                                                               |

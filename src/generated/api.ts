@@ -6850,7 +6850,8 @@ export interface paths {
               };
               /**
                * @default {
-               *       "attachment": "any"
+               *       "attachment": "any",
+               *       "userVerification": "required"
                *     }
                */
               authenticator_policy: {
@@ -6859,6 +6860,11 @@ export interface paths {
                  * @enum {string}
                  */
                 attachment: 'any' | 'platform' | 'cross-platform';
+                /**
+                 * @default required
+                 * @enum {string}
+                 */
+                userVerification: 'required' | 'preferred' | 'discouraged';
               };
               access_token_ttl: string;
               /** @default 8h */
@@ -6985,6 +6991,11 @@ export interface paths {
                * @enum {string}
                */
               attachment?: 'any' | 'platform' | 'cross-platform';
+              /**
+               * @default required
+               * @enum {string}
+               */
+              userVerification?: 'required' | 'preferred' | 'discouraged';
             };
             access_token_ttl?: string;
             session_idle_ttl?: string;
