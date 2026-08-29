@@ -8,6 +8,7 @@ import { Request } from 'express';
 
 import { AuthEvent } from '../models/authEvents.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
+import type { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { redactMetadata } from '../utils/redaction.js';
 
@@ -35,6 +36,12 @@ export interface AuthEventOptions {
    * reads as though the user did it to themselves.
    */
   actorUserId?: string | null;
+  /**
+   * The session the action was taken from. Defaults to the session on the
+   * request, which the bearer middleware sets for any access-token call, so
+   * authenticated events correlate without every call site passing it.
+   */
+  sessionId?: string | null;
   type: LoggableAuthEventType;
   req: Request;
   metadata?: Record<string, unknown> | null;
@@ -43,6 +50,7 @@ export interface AuthEventOptions {
 interface AuthEventContextOptions {
   userId?: string | null;
   actorUserId?: string | null;
+  sessionId?: string | null;
   type: LoggableAuthEventType;
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -53,6 +61,7 @@ export class AuthEventService {
   static async logContext({
     userId = null,
     actorUserId = null,
+    sessionId = null,
     type,
     ipAddress = 'unknown',
     userAgent = 'unknown',
@@ -62,6 +71,7 @@ export class AuthEventService {
       await AuthEvent.create({
         user_id: userId,
         actor_user_id: actorUserId,
+        session_id: sessionId,
         type: normalizeAuthEventType(type),
         ip_address: ipAddress || 'unknown',
         user_agent: userAgent || 'unknown',
@@ -75,6 +85,7 @@ export class AuthEventService {
   static async log({
     userId = null,
     actorUserId = null,
+    sessionId,
     type,
     req,
     metadata = null,
@@ -82,6 +93,7 @@ export class AuthEventService {
     return this.logContext({
       userId,
       actorUserId,
+      sessionId: sessionId ?? (req as AuthenticatedRequest).sessionId ?? null,
       type,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],

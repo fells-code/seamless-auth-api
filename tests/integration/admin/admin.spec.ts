@@ -369,6 +369,20 @@ describe('admin actions are attributed', () => {
 });
 
 describe('GET /admin/auth-events', () => {
+  it('filters to everything that happened in one session', async () => {
+    (AuthEvent.findAll as any).mockResolvedValue([]);
+    (AuthEvent.count as any).mockResolvedValue(0);
+
+    const res = await request(app).get('/admin/auth-events').query({ sessionId: 'sess-7' });
+
+    expect(res.status).toBe(200);
+    expect(AuthEvent.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ session_id: 'sess-7' }),
+      }),
+    );
+  });
+
   it('filters by acting administrator', async () => {
     (AuthEvent.findAll as any).mockResolvedValue([]);
     (AuthEvent.count as any).mockResolvedValue(0);
