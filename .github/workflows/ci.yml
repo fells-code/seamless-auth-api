@@ -32,6 +32,11 @@ jobs:
       - name: Audit development dependencies
         run: npm audit --audit-level=high || true
 
+      # The package is pre-1.0. A major changeset would release 1.0.0 as a side
+      # effect of landing a breaking change rather than as a decision.
+      - name: Check changeset bump level
+        run: npm run check:changeset-bump
+
       - name: Lint
         run: npm run lint
 

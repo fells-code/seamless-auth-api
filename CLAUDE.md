@@ -43,6 +43,10 @@ when specifically exercising real DB behavior.
   (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`, …). Husky also runs lint-staged.
 - **Releases** — managed by Changesets. User-facing changes need a changeset
   (`npm run changeset`); don't hand-edit `CHANGELOG.md` or the version in `package.json`.
+- **Never write a `major` changeset.** This package is pre-1.0 and stays there until
+  cutting 1.0 is a deliberate decision, not a side effect of landing a breaking change.
+  Under 0.x a `minor` bump already signals a break, so use `minor` and describe the break
+  in the changeset body. CI enforces this (`npm run check:changeset-bump`).
 - **No `any`** (`@typescript-eslint/no-explicit-any` is an error) and imports/exports are
   auto-sorted (`simple-import-sort`).
 - **Comments** — keep them minimal. Comment only when the code genuinely needs explaining

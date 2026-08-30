@@ -39,6 +39,22 @@ export function redactSensitiveText(value: string) {
   );
 }
 
+/**
+ * A log entry is one line, so a newline in an interpolated value lets a caller forge a
+ * second entry. Request paths, provider ids and the like reach log messages through
+ * template strings across the codebase, so this runs centrally in the logger format
+ * rather than at each call site, where one missed interpolation reopens the hole.
+ */
+export function escapeLogControlCharacters(value: string) {
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\u0000-\u001f\u007f]/g, (character) => {
+    if (character === '\n') return '\\n';
+    if (character === '\r') return '\\r';
+    if (character === '\t') return '\\t';
+    return `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}`;
+  });
+}
+
 export function redactSensitiveValue(value: unknown, depth = 0): unknown {
   if (value === null || value === undefined) {
     return value;
@@ -64,7 +80,11 @@ export function redactSensitiveValue(value: unknown, depth = 0): unknown {
     return value.slice(0, MAX_ARRAY_ITEMS).map((item) => redactSensitiveValue(item, depth + 1));
   }
 
-  const redacted: Record<string, unknown> = {};
+  // Null prototype because the keys come from untrusted audit metadata. On a normal
+  // object a `__proto__` key hits the setter instead of creating an own property, so
+  // it vanishes from the output unredacted and swaps the prototype for whatever the
+  // caller sent.
+  const redacted = Object.create(null) as Record<string, unknown>;
 
   for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
     redacted[key] = isSensitiveKey(key) ? REDACTED : redactSensitiveValue(nestedValue, depth + 1);

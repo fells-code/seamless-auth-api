@@ -14,6 +14,11 @@ on:
 permissions:
   contents: read
   packages: write
+  # Keyless cosign signing exchanges the workflow's OIDC token for a
+  # short-lived certificate, so there is no signing key to store or rotate.
+  id-token: write
+  # Lets the vulnerability scan publish to the security tab.
+  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -54,7 +59,61 @@ jobs:
             type=raw,value=${{ env.IMAGE_TAG }}
             type=raw,value=latest
 
+      # Built for one platform and loaded locally so the image can be scanned
+      # before anyone can pull it. A multi-platform build cannot be loaded into
+      # the local daemon, which is why this is separate from the push below.
+      # Buildx caches the layers, so the second build is cheap.
+      - name: Build image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:scan
+          platforms: linux/amd64
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:scan
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          # Only findings someone can actually act on block a release. An
+          # unfixed advisory in the base image is real, but failing on it means
+          # the release is blocked by something no change here can resolve.
+          ignore-unfixed: true
+          # npm's own bundled dependencies inside the node base image. The
+          # container runs `node dist/server.js` and never invokes npm, and
+          # nothing here can patch them ahead of an upstream image rebuild.
+          # Verified against node:24-slim: without this the gate fails on four
+          # HIGH findings in npm's brace-expansion, ip-address and tar, none of
+          # which the service loads. The application's own dependencies under
+          # /app/node_modules are still scanned and still block.
+          skip-dirs: /usr/local/lib/node_modules/npm
+
+      - name: Report scan findings to the security tab
+        # Runs even when the gate above failed, so the findings that blocked the
+        # release are visible rather than only in the job log.
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          skip-dirs: /usr/local/lib/node_modules/npm
+
+      - name: Upload scan findings
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
       - name: Build and push Docker image
+        id: push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -62,3 +121,44 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          # Attaches an SPDX SBOM and a max-detail provenance statement to the
+          # image itself, so an adopter can ask the registry what is inside a
+          # tag and where it was built. Inspect with:
+          #   docker buildx imagetools inspect <image> --format '{{ json .SBOM }}'
+          sbom: true
+          provenance: mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the published image
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign sign --yes "ghcr.io/${IMAGE_NAME}@${DIGEST}"
+
+      - name: Record how to verify the image
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "### Published image"
+            echo
+            echo '```'
+            echo "ghcr.io/${IMAGE_NAME}@${DIGEST}"
+            echo '```'
+            echo
+            echo "Verify the signature:"
+            echo
+            echo '```bash'
+            echo "cosign verify ghcr.io/${IMAGE_NAME}@${DIGEST} \\"
+            echo "  --certificate-identity-regexp '^https://github.com/${GITHUB_REPOSITORY}/' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo '```'
+            echo
+            echo "Read the SBOM:"
+            echo
+            echo '```bash'
+            echo "docker buildx imagetools inspect ghcr.io/${IMAGE_NAME}@${DIGEST} --format '{{ json .SBOM }}'"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

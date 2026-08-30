@@ -10,6 +10,7 @@ import { createApp } from './app.js';
 import { bootstrapSystemConfig } from './config/bootstrapSystemConfig.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
+import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import getLogger from './utils/logger.js';
 
 const logger = getLogger('server');
@@ -23,6 +24,11 @@ async function startServer() {
 
     await connectToDb(models);
     await bootstrapSystemConfig();
+
+    // After config is bootstrapped, since it decides whether attestation is
+    // requested at all. Never throws: a metadata blob that cannot be fetched is
+    // a degraded state, not a reason to refuse to start.
+    await initializeMetadataService();
 
     const app: Application = await createApp();
 

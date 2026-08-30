@@ -1,3 +1,4 @@
+import { isoCBOR } from '@simplewebauthn/server/helpers';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
@@ -9,6 +10,8 @@ import { buildSystemConfig } from '../../factories/systemConfigFactory';
 import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
+import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges';
+import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
 import { buildCredential } from '../../factories/credentialFactory';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
@@ -21,6 +24,22 @@ import {
 } from '../../../src/controllers/webauthn';
 
 let app: Application;
+
+// Packed with no certificate chain, which is self attestation: the credential
+// signed its own statement, so there is nothing behind it to check.
+const SELF_ATTESTED = isoCBOR.encode(
+  new Map<string, unknown>([
+    ['fmt', 'packed'],
+    [
+      'attStmt',
+      new Map<string, unknown>([
+        ['alg', -7],
+        ['sig', new Uint8Array([9])],
+      ]),
+    ],
+    ['authData', new Uint8Array([1, 2, 3])],
+  ]) as never,
+);
 
 function prfSalt(byte = 1) {
   return Buffer.alloc(32, byte).toString('base64url');
@@ -65,6 +84,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
   (AuthEvent.count as any).mockResolvedValue(0);
   (getSystemConfig as any).mockResolvedValue({
     app_name: 'SeamlessAuth',
@@ -73,7 +93,15 @@ beforeEach(() => {
     access_token_ttl: '15m',
     refresh_token_ttl: '1h',
     session_idle_ttl: '8h',
-    authenticator_policy: { attachment: 'any' },
+    authenticator_policy: {
+      attachment: 'any',
+      userVerification: 'required',
+      attestation: 'none',
+      requireKnownAuthenticator: false,
+      syncedPasskeys: 'allow',
+      aaguidAllowList: [],
+      aaguidDenyList: [],
+    },
   });
   (Credential.findAll as any).mockResolvedValue([]);
   (Credential.findOne as any).mockResolvedValue(null);
@@ -85,7 +113,15 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
-      authenticator_policy: { attachment: 'any' },
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
 
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -105,7 +141,15 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
-      authenticator_policy: { attachment: 'any' },
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
 
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -122,6 +166,23 @@ describe('GET /webauthn/register/start', () => {
         extensions: { prf: {} },
       }),
     );
+  });
+
+  // The reported case in #222: an unrecognised value never reaches the controller,
+  // so the refusal comes from request validation rather than the policy check.
+  it('refuses an unrecognised attachment with the documented error body', async () => {
+    const res = await request(app).get('/webauthn/register/start').query({ attachment: 'bogus' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: 'invalid_request',
+      details: {
+        issues: [expect.objectContaining({ path: ['attachment'] })],
+      },
+    });
+    // A consumer reads `error` alone to learn why a call failed, so the raw
+    // ZodError shape must not come back.
+    expect(res.body).not.toHaveProperty('name', 'ZodError');
   });
 
   it('excludes existing credentials from the registration options', async () => {
@@ -200,7 +261,15 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
-      authenticator_policy: { attachment: 'cross-platform' },
+      authenticator_policy: {
+        attachment: 'cross-platform',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
     (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
@@ -221,7 +290,15 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
-      authenticator_policy: { attachment: 'cross-platform' },
+      authenticator_policy: {
+        attachment: 'cross-platform',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
     (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
@@ -237,7 +314,15 @@ describe('GET /webauthn/register/start', () => {
     (getSystemConfig as any).mockResolvedValue({
       app_name: 'SeamlessAuth',
       rpid: 'localhost',
-      authenticator_policy: { attachment: 'cross-platform' },
+      authenticator_policy: {
+        attachment: 'cross-platform',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
     (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
@@ -267,6 +352,114 @@ describe('GET /webauthn/register/start', () => {
     expect(types).not.toContain('registration_success');
   });
 
+  // FIDO Server Requirements v2.3 requires RS1, RS256, ES256 and EdDSA. This pins
+  // the advertised set so a library upgrade cannot quietly change what is offered:
+  // the SimpleWebAuthn default is [-8, -7, -257] and omits RS1 entirely.
+  it('advertises every algorithm the specification requires, weakest last', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).get('/webauthn/register/start');
+
+    expect(res.status).toBe(200);
+
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+
+    expect(options.supportedAlgorithmIDs).toEqual([-8, -7, -257, -65535]);
+    // RS1 is SHA-1 based. It is offered because the specification requires it,
+    // and ordered last so nothing picks it while a better option is available.
+    expect(options.supportedAlgorithmIDs.at(-1)).toBe(-65535);
+  });
+
+  it('accepts only the algorithms it advertised', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({ verified: false });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    const [options] = (verifyRegistrationResponse as any).mock.calls.at(-1);
+
+    expect(options.supportedAlgorithmIDs).toEqual([-8, -7, -257, -65535]);
+  });
+
+  // Registration used to ask for 'preferred' while the library default enforced
+  // 'required', so a user on an authenticator that skips verification completed
+  // the whole ceremony and was rejected at the last step.
+  it('asks for exactly the verification it will enforce', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).get('/webauthn/register/start');
+
+    expect(res.status).toBe(200);
+
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+
+    expect(options.authenticatorSelection.userVerification).toBe('required');
+  });
+
+  it('follows a deployment that relaxes verification', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'discouraged',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
+    });
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    await request(app).get('/webauthn/register/start');
+
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+
+    expect(options.authenticatorSelection.userVerification).toBe('discouraged');
+  });
+
+  it('asks for no attestation by default', async () => {
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    await request(app).get('/webauthn/register/start');
+
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+
+    expect(options.attestationType).toBe('none');
+  });
+
+  it('requests attestation when the deployment asks for it', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'direct',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
+    });
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    (generateRegistrationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    await request(app).get('/webauthn/register/start');
+
+    const [options] = (generateRegistrationOptions as any).mock.calls.at(-1);
+
+    expect(options.attestationType).toBe('direct');
+  });
+
   it('returns 500 when credential lookup fails', async () => {
     (Credential.findAll as any).mockRejectedValue(new Error('db down'));
 
@@ -291,6 +484,202 @@ describe('GET /webauthn/register/start', () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
+  });
+});
+
+describe('challenge is spent on every login outcome', () => {
+  // The login path previously never cleared the challenge, so a captured
+  // assertion stayed replayable until some later flow happened to overwrite it.
+  it('spends the challenge even when verification fails', async () => {
+    const record = buildWebAuthnChallenge({ purpose: 'authentication' });
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(record);
+    (Credential.findOne as any).mockResolvedValue(buildCredential({ id: 'cred-1' }));
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockRejectedValue(new Error('bad assertion'));
+
+    await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(record.update).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    );
+  });
+
+  it('spends the challenge on a successful login', async () => {
+    const record = buildWebAuthnChallenge({ purpose: 'authentication' });
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(record);
+    (Credential.findOne as any).mockResolvedValue(
+      buildCredential({ id: 'cred-1', update: vi.fn() }),
+    );
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockResolvedValue({
+      verified: true,
+      authenticationInfo: { newCounter: 1 },
+    });
+
+    await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(record.update).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    );
+  });
+
+  it('refuses a second attempt once the challenge is spent', async () => {
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('verification policy reaches both verifiers', () => {
+  it('enforces user verification at registration when the policy requires it', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({ verified: false });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    const [options] = (verifyRegistrationResponse as any).mock.calls.at(-1);
+
+    expect(options.requireUserVerification).toBe(true);
+  });
+
+  it('stops enforcing it when the deployment relaxes the policy', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      origins: ['http://localhost:5137'],
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'discouraged',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
+    });
+    (User.findOne as any).mockResolvedValue(buildUser());
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({ verified: false });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    const [options] = (verifyRegistrationResponse as any).mock.calls.at(-1);
+
+    expect(options.requireUserVerification).toBe(false);
+  });
+});
+
+describe('authenticator policy at registration', () => {
+  function policyConfig(overrides: Record<string, unknown>) {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      origins: ['http://localhost:5137'],
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'direct',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+        ...overrides,
+      },
+    });
+  }
+
+  async function registerWith(registrationInfo: Record<string, unknown>) {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        fmt: 'packed',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'singleDevice',
+        ...registrationInfo,
+      },
+    });
+
+    return request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+  }
+
+  it('refuses a credential that can leave the device when syncing is blocked', async () => {
+    policyConfig({ syncedPasskeys: 'block' });
+
+    const res = await registerWith({ credentialDeviceType: 'multiDevice' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'synced_passkey_not_allowed' });
+    expect(Credential.create).not.toHaveBeenCalled();
+  });
+
+  it('admits a device-bound credential under the same policy', async () => {
+    policyConfig({ syncedPasskeys: 'block' });
+
+    const res = await registerWith({ credentialDeviceType: 'singleDevice' });
+
+    expect(res.status).toBe(200);
+    expect(Credential.create).toHaveBeenCalled();
+  });
+
+  it('refuses a model that is not on the allow list', async () => {
+    policyConfig({ aaguidAllowList: ['ee882879-721c-4913-9775-3dfcce97072a'] });
+
+    const res = await registerWith({ aaguid: 'deadbeef-0000-0000-0000-000000000000' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'authenticator_not_allowed' });
+  });
+
+  it('admits a model that is on it', async () => {
+    policyConfig({ aaguidAllowList: ['ee882879-721c-4913-9775-3dfcce97072a'] });
+
+    const res = await registerWith({ aaguid: 'ee882879-721c-4913-9775-3dfcce97072a' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('distinguishes the two refusals in the audit trail', async () => {
+    policyConfig({ syncedPasskeys: 'block' });
+    await registerWith({ credentialDeviceType: 'multiDevice' });
+
+    const failure = (AuthEventService.log as any).mock.calls
+      .map(([arg]: [any]) => arg)
+      .find((arg: any) => arg.type === 'webauthn_registration_failed');
+
+    expect(failure).toBeDefined();
+    expect(failure.metadata.reason).toContain('backup eligible');
+    expect(failure.metadata.deviceType).toBe('multiDevice');
   });
 });
 
@@ -341,6 +730,126 @@ describe('POST /webauthn/register/finish', () => {
     );
   });
 
+  it('records how the credential identified itself', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        fmt: 'packed',
+        aaguid: 'ee882879-721c-4913-9775-3dfcce97072a',
+        attestationObject: SELF_ATTESTED,
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    // The format alone cannot say which of the two 'packed' statements this was,
+    // which is why the type is recorded beside it.
+    expect(Credential.create).toHaveBeenCalledWith(
+      expect.objectContaining({ attestationFormat: 'packed', attestationType: 'self' }),
+    );
+  });
+
+  it('does not claim an unattested credential was verified against metadata', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        // What a deployment on the default posture gets: no statement to check.
+        fmt: 'none',
+        aaguid: '00000000-0000-0000-0000-000000000000',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    expect(Credential.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attestationFormat: 'none',
+        attestationType: 'none',
+        attestationVerified: false,
+      }),
+    );
+  });
+
+  it('records the authenticator model the credential came from', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        aaguid: 'ee882879-721c-4913-9775-3dfcce97072a',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    expect(Credential.create).toHaveBeenCalledWith(
+      expect.objectContaining({ aaguid: 'ee882879-721c-4913-9775-3dfcce97072a' }),
+    );
+  });
+
+  it('keeps an all-zero model rather than treating it as missing', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        // An authenticator declining to identify itself, which is different from
+        // never having recorded one.
+        aaguid: '00000000-0000-0000-0000-000000000000',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'platform',
+      },
+    });
+
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+
+    await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    expect(Credential.create).toHaveBeenCalledWith(
+      expect.objectContaining({ aaguid: '00000000-0000-0000-0000-000000000000' }),
+    );
+  });
+
   it('records exactly one success for a completed registration', async () => {
     const user = buildUser();
 
@@ -377,16 +886,16 @@ describe('POST /webauthn/register/finish', () => {
   });
 
   it('rejects PRF-required registration when credential is not PRF-capable', async () => {
-    const user = buildUser({
-      challengeContext: {
-        webauthnRegistration: {
-          prfRequested: true,
-          requirePrf: true,
-        },
-      },
-    });
+    const user = buildUser();
 
     (User.findOne as any).mockResolvedValue(user);
+    // The flow's PRF requirement travels with the challenge it was issued for.
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(
+      buildWebAuthnChallenge({
+        purpose: 'registration',
+        context: { prfRequested: true, requirePrf: true },
+      }),
+    );
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
 
     (verifyRegistrationResponse as any).mockResolvedValue({
@@ -429,8 +938,9 @@ describe('POST /webauthn/register/finish', () => {
     expect(res.status).toBe(403);
   });
 
-  it('rejects verification when the stored challenge is missing', async () => {
-    (User.findOne as any).mockResolvedValue(buildUser({ challenge: null }));
+  it('rejects verification when no live challenge exists', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(null);
 
     const res = await request(app)
       .post('/webauthn/register/finish')
@@ -748,6 +1258,15 @@ describe('POST /webauthn/login/finish', () => {
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5137'],
       rpid: 'localhost',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockRejectedValue(new Error('bad assertion'));
@@ -806,6 +1325,15 @@ describe('POST /webauthn/login/finish', () => {
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5137'],
       rpid: 'localhost',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
     });
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({

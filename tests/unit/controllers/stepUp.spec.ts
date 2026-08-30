@@ -11,6 +11,8 @@ import { Session } from '../../../src/models/sessions.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
+import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges';
+import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
 
 function prfSalt(byte = 1) {
   return Buffer.alloc(32, byte).toString('base64url');
@@ -36,7 +38,11 @@ function buildRes() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  challengeRecord.update = vi.fn();
+  (WebAuthnChallenge.findOne as any).mockResolvedValue(challengeRecord);
 });
+
+const challengeRecord = buildWebAuthnChallenge({ purpose: 'step_up' });
 
 describe('step-up controller', () => {
   it('starts a WebAuthn step-up challenge for authenticated users with credentials', async () => {
@@ -60,7 +66,9 @@ describe('step-up controller', () => {
         rpID: 'localhost',
       }),
     );
-    expect(user.update).toHaveBeenCalledWith({ challenge: 'challenge' });
+    expect(WebAuthnChallenge.create).toHaveBeenCalledWith(
+      expect.objectContaining({ purpose: 'step_up', challenge: 'challenge' }),
+    );
     expect(res.json).toHaveBeenCalledWith({ challenge: 'challenge' });
   });
 
@@ -99,7 +107,7 @@ describe('step-up controller', () => {
   });
 
   it('finishes WebAuthn step-up and records freshness on the current session', async () => {
-    const user = buildUser({ challenge: 'challenge' });
+    const user = buildUser();
     const credential = buildCredential({ id: 'cred-1', userId: user.id });
     const session = buildSession({ stepUpVerifiedAt: null, stepUpMethod: null });
 
@@ -124,7 +132,9 @@ describe('step-up controller', () => {
 
     await finishWebAuthnStepUp(req, res);
 
-    expect(user.update).toHaveBeenCalledWith({ challenge: null });
+    expect(challengeRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    );
     expect(credential.update).toHaveBeenCalledWith(
       expect.objectContaining({
         counter: 2,
@@ -143,7 +153,7 @@ describe('step-up controller', () => {
   });
 
   it('does not update session freshness when verification fails', async () => {
-    const user = buildUser({ challenge: 'challenge' });
+    const user = buildUser();
     const credential = buildCredential({ id: 'cred-1', userId: user.id });
 
     (Credential.findOne as any).mockResolvedValue(credential);
@@ -173,7 +183,7 @@ describe('step-up controller', () => {
   });
 
   it('rejects WebAuthn step-up responses that include PRF output', async () => {
-    const user = buildUser({ challenge: 'challenge' });
+    const user = buildUser();
     const req = buildReq({
       user,
       body: {
@@ -322,7 +332,8 @@ describe('step-up controller', () => {
   });
 
   it('rejects finishing step-up when the challenge or assertion id is missing', async () => {
-    const user = buildUser({ challenge: null });
+    const user = buildUser();
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(null);
     const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });
     const res = buildRes();
 
@@ -334,7 +345,7 @@ describe('step-up controller', () => {
   });
 
   it('rejects finishing step-up when the credential is not found', async () => {
-    const user = buildUser({ challenge: 'challenge' });
+    const user = buildUser();
     (Credential.findOne as any).mockResolvedValue(null);
 
     const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });
@@ -347,7 +358,7 @@ describe('step-up controller', () => {
   });
 
   it('rejects finishing step-up when the session cannot be recorded', async () => {
-    const user = buildUser({ challenge: 'challenge' });
+    const user = buildUser();
     const credential = buildCredential({ id: 'cred-1', userId: user.id });
 
     (Credential.findOne as any).mockResolvedValue(credential);
@@ -374,7 +385,7 @@ describe('step-up controller', () => {
   });
 
   it('returns 401 when verification throws during finish', async () => {
-    const user = buildUser({ challenge: 'challenge' });
+    const user = buildUser();
     const credential = buildCredential({ id: 'cred-1', userId: user.id });
 
     (Credential.findOne as any).mockResolvedValue(credential);
@@ -391,7 +402,9 @@ describe('step-up controller', () => {
 
     await finishWebAuthnStepUp(req, res);
 
-    expect(user.update).toHaveBeenCalledWith({ challenge: null });
+    expect(challengeRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
   });

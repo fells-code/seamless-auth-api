@@ -16,6 +16,8 @@ import base64url from 'base64url';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { classifyAttestation } from '../lib/attestationType.js';
+import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
 import {
   buildPrfAuthenticationExtensions,
   buildPrfRegistrationExtensions,
@@ -25,21 +27,21 @@ import {
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
+import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
+import { hasMetadataStatement } from '../services/metadataServiceBootstrap.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('webauthn');
-function getRegistrationChallengeContext(user: User) {
-  const webauthnRegistration = user.challengeContext?.webauthnRegistration;
 
-  if (typeof webauthnRegistration !== 'object' || webauthnRegistration === null) {
+function getRegistrationChallengeContext(context: Record<string, unknown> | null | undefined) {
+  if (!context) {
     return { prfRequested: false, requirePrf: false };
   }
-
-  const context = webauthnRegistration as Record<string, unknown>;
 
   return {
     prfRequested: context.prfRequested === true,
@@ -108,6 +110,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
     });
 
     const { app_name, rpid, authenticator_policy } = await getSystemConfig();
+    const userVerification = authenticator_policy.userVerification;
     const pinnedAttachment =
       authenticator_policy.attachment === 'any' ? null : authenticator_policy.attachment;
 
@@ -136,7 +139,8 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       rpID: rpid,
       userName: verifiedUser.email,
       timeout: 60000,
-      attestationType: 'none',
+      attestationType: authenticator_policy.attestation,
+      supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       excludeCredentials: existingCredentials.map((cred) => ({
         id: cred.id,
         transports: cred.transports,
@@ -145,22 +149,20 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       // this to 'platform' hides roaming authenticators from the browser picker
       // entirely, which makes issued security keys impossible to enrol.
       authenticatorSelection: {
-        userVerification: 'preferred',
+        // The same value is enforced at verification below, so the browser is
+        // never asked for less than the server will accept.
+        userVerification,
         residentKey: 'preferred',
         ...(effectiveAttachment ? { authenticatorAttachment: effectiveAttachment } : {}),
       },
       extensions: buildPrfRegistrationExtensions(prfRequested),
     });
 
-    await verifiedUser.update({
+    await issueChallenge({
+      userId: verifiedUser.id,
+      purpose: 'registration',
       challenge: options.challenge,
-      challengeContext: {
-        ...(verifiedUser.challengeContext ?? {}),
-        webauthnRegistration: {
-          prfRequested,
-          requirePrf,
-        },
-      },
+      context: { prfRequested, requirePrf },
     });
 
     logger.info('Generated registration options for user');
@@ -231,7 +233,11 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    const expectedChallenge = user.challenge;
+    // Consumed before verification, so the challenge is spent however this
+    // attempt turns out and a failure cannot leave one live to replay against.
+    const issued = await consumeChallenge({ userId: user.id, purpose: 'registration' });
+    const expectedChallenge = issued?.challenge;
+
     if (!expectedChallenge) {
       logger.error('Unexpected user challegnge supplied.');
       await AuthEventService.log({
@@ -245,13 +251,18 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
 
     let verification;
     try {
-      const { origins, rpid } = await getSystemConfig();
+      const { origins, rpid, authenticator_policy } = await getSystemConfig();
 
       verification = await verifyRegistrationResponse({
         response: attestationResponse,
         expectedChallenge,
         expectedOrigin: origins,
         expectedRPID: rpid,
+        requireUserVerification: authenticator_policy.userVerification === 'required',
+        // Pinned to the advertised set. The library default here is every
+        // algorithm it knows, which would accept a credential using something
+        // this server never offered.
+        supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       });
     } catch (error) {
       logger.error(`Error perfroming webAuthn verification ${error}`);
@@ -277,8 +288,34 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Registration failed verification' });
     }
 
-    const { credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
-    const challengeContext = getRegistrationChallengeContext(user);
+    const { aaguid, attestationObject, credential, credentialBackedUp, credentialDeviceType, fmt } =
+      registrationInfo;
+    const { authenticator_policy } = await getSystemConfig();
+    const attestationType = classifyAttestation(fmt, attestationObject);
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: authenticator_policy,
+      aaguid,
+      deviceType: credentialDeviceType,
+      attestationType,
+    });
+
+    if (!verdict.allowed) {
+      logger.warn(`Registration refused by authenticator policy: ${verdict.detail}`);
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_registration_failed',
+        req,
+        metadata: {
+          reason: verdict.detail,
+          aaguid: aaguid ?? null,
+          deviceType: credentialDeviceType ?? null,
+        },
+      });
+
+      return res.status(403).json({ error: verdict.reason });
+    }
+
+    const challengeContext = getRegistrationChallengeContext(issued?.context);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
 
@@ -303,6 +340,22 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       backedup: credentialBackedUp,
       transports: credential.transports,
       deviceType: credentialDeviceType,
+      // An all-zero value is kept rather than nulled: it means the authenticator
+      // declined to identify itself, which is a different fact from never having
+      // recorded one, and policy has to tell them apart.
+      aaguid: aaguid ?? null,
+      // 'none' when this deployment did not ask. Recording it means a later
+      // audit can tell an unattested credential from one whose attestation was
+      // checked, which is not recoverable after the fact.
+      attestationFormat: fmt ?? null,
+      // Whether the statement carried a certificate chain. Kept alongside the
+      // format because 'packed' alone does not say: the same format covers both a
+      // manufacturer-signed statement and one the credential signed for itself.
+      attestationType,
+      // A real lookup, not an inference from the service being up. A self
+      // attested or unattested credential is never looked up at all, so deriving
+      // this from the format claimed a check that had not happened.
+      attestationVerified: attestationType === 'basic' && (await hasMetadataStatement(aaguid)),
       friendlyName: metadata.friendlyName || null,
       platform: metadata.platform || null,
       browser: metadata.browser || null,
@@ -312,8 +365,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     });
 
     await user.update({
-      challenge: null,
-      challengeContext: null,
       lastLogin: new Date(),
       verified: true,
     });
@@ -388,7 +439,8 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       return res.status(401).send('Credentials not found');
     }
 
-    const { rpid } = await getSystemConfig();
+    const { rpid, authenticator_policy } = await getSystemConfig();
+    const userVerification = authenticator_policy.userVerification;
 
     const options: PublicKeyCredentialRequestOptionsJSON = await generateAuthenticationOptions({
       allowCredentials: assertionCredentials.map((cred) => {
@@ -397,13 +449,15 @@ const generateWebAuthn = async (req: Request, res: Response) => {
           transports: cred.transports,
         };
       }),
-      userVerification: 'required',
+      userVerification,
       timeout: 60000,
       rpID: rpid,
       extensions: buildPrfAuthenticationExtensions(prf),
     });
 
-    await user.update({
+    await issueChallenge({
+      userId: user.id,
+      purpose: 'authentication',
       challenge: options.challenge,
     });
 
@@ -466,7 +520,13 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    if (!user || !user.challenge) {
+    // Consumed before anything else can fail, so this path cannot leave a live
+    // challenge behind for an assertion to be replayed against.
+    const issued = user
+      ? await consumeChallenge({ userId: user.id, purpose: 'authentication' })
+      : null;
+
+    if (!user || !issued) {
       logger.error('User or user challenge missing');
       await AuthEventService.log({
         userId: user.id,
@@ -495,16 +555,17 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication failed.' });
     }
 
-    const expectedChallenge = user.challenge;
+    const expectedChallenge = issued.challenge;
     let verification;
 
     try {
-      const { origins, rpid } = await getSystemConfig();
+      const { origins, rpid, authenticator_policy } = await getSystemConfig();
       verification = await verifyAuthenticationResponse({
         response: assertionResponse,
         expectedChallenge,
         expectedOrigin: origins,
         expectedRPID: rpid,
+        requireUserVerification: authenticator_policy.userVerification === 'required',
         credential: {
           id: cred.id,
           // @ts-expect-error Needed to work.

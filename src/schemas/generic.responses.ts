@@ -32,3 +32,30 @@ export const ErrorSchema = ErrorResponseSchema;
 
 /** @deprecated Identical to {@link ErrorSchema}. Kept so route definitions need not churn. */
 export const InternalErrorSchema = ErrorSchema;
+
+/**
+ * The error body for a request that fails schema validation in `defineRoute`.
+ *
+ * A superset of {@link ErrorSchema}: `error` stays required and carries the stable
+ * code, and `details` names which fields were rejected. Kept separate because a
+ * plain error schema would strip that list before it reached the caller, which is
+ * the same reason `AdminValidationErrorSchema` exists for the user endpoints.
+ *
+ * `defineRoute` declares this for any route that validates a request, so the
+ * documented 400 matches what validation actually answers with.
+ */
+export const ValidationErrorSchema = z.object({
+  error: z.string(),
+  message: z.string().optional(),
+  details: z
+    .object({
+      issues: z.array(
+        z.object({
+          path: z.array(z.union([z.string(), z.number()])),
+          code: z.string(),
+          message: z.string(),
+        }),
+      ),
+    })
+    .optional(),
+});

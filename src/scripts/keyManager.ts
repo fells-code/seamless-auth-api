@@ -5,8 +5,7 @@
  */
 
 import crypto from 'crypto';
-import * as fs from 'fs';
-import { mkdir, writeFile } from 'fs/promises';
+import { access, mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 
 import getLogger from '../utils/logger.js';
@@ -19,13 +18,22 @@ const localKeyDir = path.resolve('./keys');
 const localPrivate = path.join(localKeyDir, 'private.pem');
 const localPublic = path.join(localKeyDir, 'public.pem');
 
+// A fast path only: the exclusive write below is what actually settles a race, so a
+// stale answer here costs a wasted keypair, never a clobbered one.
+async function pathExists(target: string) {
+  try {
+    await access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Create local keys if needed
 async function ensureLocalDevKeys() {
-  if (!fs.existsSync(localKeyDir)) {
-    await mkdir(localKeyDir, { recursive: true });
-  }
+  await mkdir(localKeyDir, { recursive: true });
 
-  if (fs.existsSync(localPrivate) && fs.existsSync(localPublic)) {
+  if (await pathExists(localPrivate)) {
     logger.info('Dev keys already exist.');
     return;
   }
@@ -37,7 +45,19 @@ async function ensureLocalDevKeys() {
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   });
 
-  await writeFile(localPrivate, privateKey);
+  try {
+    // Exclusive create rather than exists-then-write: the pair must come from one
+    // generation, and a concurrent run must not replace a private key whose public
+    // half has already been published.
+    await writeFile(localPrivate, privateKey, { flag: 'wx' });
+  } catch (error) {
+    if ((error as { code?: string }).code === 'EEXIST') {
+      logger.info('Dev keys already exist.');
+      return;
+    }
+    throw error;
+  }
+
   await writeFile(localPublic, publicKey);
   logger.info('Dev keypair created in ./keys/');
 }

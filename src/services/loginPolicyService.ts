@@ -78,12 +78,23 @@ export function resolveAvailableLoginMethods({
   hasPasskeyCredential: boolean;
   passkeyAvailable?: boolean;
 }) {
-  const passkeyUsable =
-    passkeyAvailable !== false && hasPasskeyCredential && isLoginMethodEnabled(policy, 'passkey');
+  // What the deployment permits, which is policy plus whether the account has a
+  // passkey at all. Deliberately excludes passkeyAvailable: that is the client
+  // describing itself, and a caller does not get to choose how strongly it
+  // authenticates.
+  const passkeyPermitted = hasPasskeyCredential && isLoginMethodEnabled(policy, 'passkey');
 
-  if (passkeyUsable && !policy.passkeyFallbackEnabled) {
+  // Passkey-only, so the hint cannot add a weaker method here. A client that
+  // genuinely cannot run the ceremony fails at it, which is what this setting
+  // means: the alternative offers email OTP to anyone who claims not to support
+  // passkeys, which is the whole guarantee gone for the cost of one request field.
+  if (passkeyPermitted && !policy.passkeyFallbackEnabled) {
     return ['passkey'] satisfies LoginMethod[];
   }
+
+  // Fallback is allowed, so the hint does its real job: drop a method the client
+  // has said it cannot complete, from a set the policy already permits.
+  const passkeyUsable = passkeyPermitted && passkeyAvailable !== false;
 
   return LOGIN_METHOD_ORDER.filter((method) => {
     if (!isLoginMethodEnabled(policy, method)) {

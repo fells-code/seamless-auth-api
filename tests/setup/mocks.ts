@@ -1,6 +1,13 @@
-import { vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 
-vi.stubEnv('APP_ORIGINS', 'http://localhost:5137');
+// Handlers answer the request before their fire-and-forget audit logging settles, so
+// supertest resolves with continuations still queued. Draining them here keeps those
+// calls inside the test that caused them: otherwise one lands mid-way through the next
+// test and breaks a toHaveBeenCalledTimes or a toHaveBeenNthCalledWith on a shared mock.
+// A single turn is enough because the mocks resolve without real I/O.
+afterEach(async () => {
+  await new Promise((resolve) => setImmediate(resolve));
+});
 
 export let mockUser: any = {
   id: 'user-1',
@@ -37,6 +44,15 @@ vi.mock('../../src/models/credentials.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/webauthnChallenges.js', () => ({
+  WebAuthnChallenge: {
+    create: vi.fn(),
+    findOne: vi.fn(),
+    update: vi.fn(),
+    destroy: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/totpCredentials.js', () => ({
   TotpCredential: {
     create: vi.fn(),
@@ -69,7 +85,7 @@ vi.mock('../../src/models/organizations.js', () => ({
 vi.mock('../../src/models/organizationMemberships.js', () => ({
   OrganizationMembership: {
     create: vi.fn(),
-    findAll: vi.fn().mockResolvedValue([]),
+    findAll: vi.fn(async () => []),
     findOne: vi.fn(),
     count: vi.fn(),
   },

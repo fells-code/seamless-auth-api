@@ -1,5 +1,7 @@
 process.env.NODE_ENV = 'test';
-process.env.APP_ORIGINS = 'http://localhost:5174';
+// Set here rather than stubbed in mocks.ts: unstubEnvs reverts stubs before every test,
+// which would drop this after the first test of each file.
+process.env.APP_ORIGINS = 'http://localhost:5137';
 
 // Default: use mock DB mode
 process.env.TEST_DB = process.env.TEST_DB || 'mock';

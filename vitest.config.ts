@@ -6,18 +6,30 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.spec.ts'],
 
-    // Model mocks in tests/setup/mocks.ts are shared module singletons. Running spec files in
-    // parallel forks lets one file's mock return values bleed into another's, so the full
-    // suite flakes on a different spec each run even though every spec passes in isolation.
-    // The coverage script already runs sequentially for this reason; do it for every run so
-    // results are deterministic. The suite is small, so the wall-clock cost is minor.
-    fileParallelism: false,
+    // mockClear() empties call history but leaves the mockResolvedValueOnce queue intact, so a
+    // value queued by one test and never consumed is returned to a later, unrelated one. That
+    // shifts every subsequent Once value by a place and shows up as a wrong status, a wrong
+    // body, or a request that never settles. mockReset is what drains the queue.
+    //
+    // Mocks in tests/setup/mocks.ts must therefore pass their implementation to vi.fn() rather
+    // than chain .mockResolvedValue(), because reset restores the former and drops the latter.
+    mockReset: true,
+
+    // Both stub kinds write to the process (process.env, globalThis), which isolate: true does
+    // not roll back between files: it resets the module registry, not the worker. Without these
+    // a stubbed NODE_ENV or a stubbed global fetch outlives the file that set it.
+    unstubEnvs: true,
+    unstubGlobals: true,
 
     // Headroom for the async supertest integration tests; a genuine hang still fails, later.
     testTimeout: 20000,
     hookTimeout: 20000,
 
-    setupFiles: ['./tests/setup/env.ts', './tests/setup/mocks.ts'],
+    setupFiles: [
+      './tests/setup/env.ts',
+      './tests/setup/mocks.ts',
+      './tests/setup/supertestServer.ts',
+    ],
 
     globalSetup: ['./tests/setup/globalSetup.ts'],
 

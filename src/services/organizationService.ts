@@ -42,12 +42,17 @@ export interface SerializedOrganization {
 }
 
 function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      // Single dash rather than `-+`: the collapse above leaves no two adjacent, so one is
+      // all there can be, and matching a run would backtrack over an input of many dashes
+      // for a repetition that cannot occur.
+      .replace(/^-|-$/g, '')
+      .slice(0, 80)
+  );
 }
 
 export function normalizeOrganizationSlug(name: string, slug?: string | null) {

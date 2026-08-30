@@ -61,7 +61,8 @@ protocol in [ecosystem.md](./ecosystem.md).
 
 ### Error body
 
-Every `4xx` and `5xx` response uses one shape:
+Every `4xx` and `5xx` response uses one shape, with one additive extension for schema
+validation failures covered below:
 
 ```json
 { "error": "User already exists", "message": "optional extra detail" }
@@ -79,6 +80,30 @@ route cannot reintroduce the split.
 `ErrorSchema` in [`src/schemas/generic.responses.ts`](../src/schemas/generic.responses.ts) is the
 canonical definition. `InternalErrorSchema` is a deprecated alias of it and is identical on the
 wire.
+
+#### Schema validation failures
+
+A request that fails its route's `params`, `query` or `body` schema is refused by
+`defineRoute` before the handler runs, and answers with the same shape plus a `details` list
+naming the fields that were rejected:
+
+```json
+{
+  "error": "invalid_request",
+  "message": "Request failed schema validation.",
+  "details": { "issues": [{ "path": ["attachment"], "code": "invalid_value", "message": "..." }] }
+}
+```
+
+`error` is the stable code `invalid_request`, so a client branches on that rather than on prose.
+`details` is additive: a consumer reading only `error` is unaffected. Issues are mapped field by
+field rather than passed through from the validator, so the response names which field was wrong
+without echoing back the value that was sent.
+
+`ValidationErrorSchema` is the definition, and `defineRoute` declares it as the `400` for any
+route that validates a request, so the documented response matches what validation actually
+returns. A route that already declares a richer `400` of its own, such as
+`AdminValidationErrorSchema`, keeps it.
 
 Success responses are unaffected: `{ "message": "Success" }` on a `200` is a success payload, not
 an error body, and clients that branch on it keep working.

@@ -55,13 +55,9 @@ describe('GET /users/me', () => {
   });
 
   it('returns 404 when no user', async () => {
-    // override auth middleware behavior indirectly by mocking credential call
-    const { attachAuthMiddleware } = await import('../../../src/middleware/attachAuthMiddleware');
+    const res = await request(app).get('/users/me').set('x-omit-user', 'true');
 
-    // hack: simulate no user
-    const res = await request(app).get('/users/me');
-
-    expect([200, 404]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it('handles error path', async () => {

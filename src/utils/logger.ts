@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { createLogger, format, Logger, transports } from 'winston';
 
-import { redactSensitiveText } from './redaction.js';
+import { escapeLogControlCharacters, redactSensitiveText } from './redaction.js';
 
 const { combine, timestamp, printf } = format;
 
@@ -25,10 +25,9 @@ export default function getLogger(moduleName: string): Logger {
   const isProd = process.env.NODE_ENV === 'production';
 
   const logFormat = printf(({ level, message, timestamp }) => {
-    const renderedMessage =
-      typeof message === 'string'
-        ? redactSensitiveText(message)
-        : redactSensitiveText(String(message));
+    const renderedMessage = escapeLogControlCharacters(
+      redactSensitiveText(typeof message === 'string' ? message : String(message)),
+    );
     return `${timestamp} [${moduleName}] ${level.toUpperCase()} - ${renderedMessage}`;
   });
 
