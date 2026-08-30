@@ -112,6 +112,27 @@ describe('POST /login', () => {
     expect(res.body).toEqual({ error: 'Not Allowed' });
   });
 
+  it('does not let the request body downgrade a passkey-only policy', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue({});
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['passkey', 'magic_link', 'email_otp'],
+      passkey_login_fallback_enabled: false,
+    });
+
+    const res = await request(app).post('/login').send({
+      identifier: 'test@example.com',
+      passkeyAvailable: false,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey']);
+    expect(res.body.loginMethods).not.toContain('email_otp');
+    expect(res.body.loginMethods).not.toContain('magic_link');
+  });
+
   it('logs in successfully', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue({});
