@@ -6851,7 +6851,9 @@ export interface paths {
               /**
                * @default {
                *       "attachment": "any",
-               *       "userVerification": "required"
+               *       "userVerification": "required",
+               *       "attestation": "none",
+               *       "requireKnownAuthenticator": false
                *     }
                */
               authenticator_policy: {
@@ -6865,6 +6867,13 @@ export interface paths {
                  * @enum {string}
                  */
                 userVerification: 'required' | 'preferred' | 'discouraged';
+                /**
+                 * @default none
+                 * @enum {string}
+                 */
+                attestation: 'none' | 'direct';
+                /** @default false */
+                requireKnownAuthenticator: boolean;
               };
               access_token_ttl: string;
               /** @default 8h */
@@ -6996,6 +7005,13 @@ export interface paths {
                * @enum {string}
                */
               userVerification?: 'required' | 'preferred' | 'discouraged';
+              /**
+               * @default none
+               * @enum {string}
+               */
+              attestation?: 'none' | 'direct';
+              /** @default false */
+              requireKnownAuthenticator?: boolean;
             };
             access_token_ttl?: string;
             session_idle_ttl?: string;

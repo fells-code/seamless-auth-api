@@ -27,6 +27,7 @@ import { User } from '../models/users.js';
 import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
+import { isMetadataServiceReady } from '../services/metadataServiceBootstrap.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -155,7 +156,7 @@ const registerWebAuthn = async (req: Request, res: Response) => {
       rpID: rpid,
       userName: verifiedUser.email,
       timeout: 60000,
-      attestationType: 'none',
+      attestationType: authenticator_policy.attestation,
       supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       excludeCredentials: existingCredentials.map((cred) => ({
         id: cred.id,
@@ -304,7 +305,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Registration failed verification' });
     }
 
-    const { aaguid, credential, credentialBackedUp, credentialDeviceType } = registrationInfo;
+    const { aaguid, credential, credentialBackedUp, credentialDeviceType, fmt } = registrationInfo;
     const challengeContext = getRegistrationChallengeContext(issued?.context);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;
@@ -334,6 +335,11 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       // declined to identify itself, which is a different fact from never having
       // recorded one, and policy has to tell them apart.
       aaguid: aaguid ?? null,
+      // 'none' when this deployment did not ask. Recording it means a later
+      // audit can tell an unattested credential from one whose attestation was
+      // checked, which is not recoverable after the fact.
+      attestationFormat: fmt ?? null,
+      attestationVerified: fmt !== undefined && fmt !== 'none' && isMetadataServiceReady(),
       friendlyName: metadata.friendlyName || null,
       platform: metadata.platform || null,
       browser: metadata.browser || null,
