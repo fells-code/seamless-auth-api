@@ -271,6 +271,16 @@ SeamlessAuth can request PRF-capable passkeys and PRF assertions without ever re
 See [docs/webauthn-prf.md](./docs/webauthn-prf.md) for API usage, browser limitations, SDK contract
 guidance, and local key-material handling rules.
 
+### FIDO2 conformance interface
+
+The FIDO2 conformance test tools drive a server through a fixed message interface rather than
+through its own API. That interface is served at `/conformance`, and only when
+`FIDO_CONFORMANCE_MODE=true`. The flag is refused under `NODE_ENV=production`, and with it unset the
+routes are never registered, so the paths answer the ordinary 404.
+
+It takes no authentication and issues no sessions by design, so it must never be enabled in a
+customer deployment. See [docs/fido-conformance.md](./docs/fido-conformance.md).
+
 ### Sensitive data redaction
 
 SeamlessAuth redacts sensitive data from logs and auth-event metadata by default. This includes
@@ -409,6 +419,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 - [docs/extending.md](./docs/extending.md) for message-delivery providers and extension points
 - [docs/oauth.md](./docs/oauth.md) for OAuth provider setup and security behavior
 - [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
+- [docs/fido-conformance.md](./docs/fido-conformance.md) for running the FIDO2 conformance tools locally
 - [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin and recovery operations
 - [docs/production-operations.md](./docs/production-operations.md) for production deployment guidance
 - [docs/security-posture.md](./docs/security-posture.md) for deliberate security tradeoffs (enumeration, token replay, data at rest)

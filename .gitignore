@@ -42,6 +42,7 @@ docs/*
 !docs/configuration.md
 !docs/ecosystem.md
 !docs/extending.md
+!docs/fido-conformance.md
 !docs/oauth.md
 !docs/production-operations.md
 !docs/security-posture.md
