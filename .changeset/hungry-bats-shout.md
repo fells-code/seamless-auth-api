@@ -1,5 +1,5 @@
 ---
-'seamless-auth-api': major
+'seamless-auth-api': minor
 ---
 
 Refuse synced passkeys by default, and let a deployment restrict authenticator models.
