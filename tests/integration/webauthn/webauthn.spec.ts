@@ -1,3 +1,4 @@
+import { isoCBOR } from '@simplewebauthn/server/helpers';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
@@ -23,6 +24,22 @@ import {
 } from '../../../src/controllers/webauthn';
 
 let app: Application;
+
+// Packed with no certificate chain, which is self attestation: the credential
+// signed its own statement, so there is nothing behind it to check.
+const SELF_ATTESTED = isoCBOR.encode(
+  new Map<string, unknown>([
+    ['fmt', 'packed'],
+    [
+      'attStmt',
+      new Map<string, unknown>([
+        ['alg', -7],
+        ['sig', new Uint8Array([9])],
+      ]),
+    ],
+    ['authData', new Uint8Array([1, 2, 3])],
+  ]) as never,
+);
 
 function prfSalt(byte = 1) {
   return Buffer.alloc(32, byte).toString('base64url');
@@ -706,6 +723,7 @@ describe('POST /webauthn/register/finish', () => {
       registrationInfo: {
         fmt: 'packed',
         aaguid: 'ee882879-721c-4913-9775-3dfcce97072a',
+        attestationObject: SELF_ATTESTED,
         credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
         credentialBackedUp: false,
         credentialDeviceType: 'platform',
@@ -719,8 +737,10 @@ describe('POST /webauthn/register/finish', () => {
       .post('/webauthn/register/finish')
       .send({ attestationResponse: {}, metadata: {} });
 
+    // The format alone cannot say which of the two 'packed' statements this was,
+    // which is why the type is recorded beside it.
     expect(Credential.create).toHaveBeenCalledWith(
-      expect.objectContaining({ attestationFormat: 'packed' }),
+      expect.objectContaining({ attestationFormat: 'packed', attestationType: 'self' }),
     );
   });
 
@@ -749,7 +769,11 @@ describe('POST /webauthn/register/finish', () => {
       .send({ attestationResponse: {}, metadata: {} });
 
     expect(Credential.create).toHaveBeenCalledWith(
-      expect.objectContaining({ attestationFormat: 'none', attestationVerified: false }),
+      expect.objectContaining({
+        attestationFormat: 'none',
+        attestationType: 'none',
+        attestationVerified: false,
+      }),
     );
   });
 

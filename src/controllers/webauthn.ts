@@ -16,6 +16,7 @@ import base64url from 'base64url';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { classifyAttestation } from '../lib/attestationType.js';
 import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
 import {
   buildPrfAuthenticationExtensions,
@@ -29,7 +30,7 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
-import { isMetadataServiceReady } from '../services/metadataServiceBootstrap.js';
+import { hasMetadataStatement } from '../services/metadataServiceBootstrap.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -287,12 +288,15 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Registration failed verification' });
     }
 
-    const { aaguid, credential, credentialBackedUp, credentialDeviceType, fmt } = registrationInfo;
+    const { aaguid, attestationObject, credential, credentialBackedUp, credentialDeviceType, fmt } =
+      registrationInfo;
     const { authenticator_policy } = await getSystemConfig();
+    const attestationType = classifyAttestation(fmt, attestationObject);
     const verdict = evaluateAuthenticatorPolicy({
       policy: authenticator_policy,
       aaguid,
       deviceType: credentialDeviceType,
+      attestationType,
     });
 
     if (!verdict.allowed) {
@@ -344,7 +348,14 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       // audit can tell an unattested credential from one whose attestation was
       // checked, which is not recoverable after the fact.
       attestationFormat: fmt ?? null,
-      attestationVerified: fmt !== undefined && fmt !== 'none' && isMetadataServiceReady(),
+      // Whether the statement carried a certificate chain. Kept alongside the
+      // format because 'packed' alone does not say: the same format covers both a
+      // manufacturer-signed statement and one the credential signed for itself.
+      attestationType,
+      // A real lookup, not an inference from the service being up. A self
+      // attested or unattested credential is never looked up at all, so deriving
+      // this from the format claimed a check that had not happened.
+      attestationVerified: attestationType === 'basic' && (await hasMetadataStatement(aaguid)),
       friendlyName: metadata.friendlyName || null,
       platform: metadata.platform || null,
       browser: metadata.browser || null,
