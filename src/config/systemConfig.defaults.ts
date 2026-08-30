@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { AuthenticatorPolicySchema } from '@seamless-auth/types';
+
 import type { SystemConfig } from '../schemas/systemConfig.schema.js';
 
 export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
@@ -15,15 +17,9 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
     windowSeconds: 15 * 60,
     lockoutSeconds: 15 * 60,
   },
-  authenticator_policy: {
-    attachment: 'any',
-    userVerification: 'required',
-    attestation: 'none',
-    requireKnownAuthenticator: false,
-    syncedPasskeys: 'block',
-    aaguidAllowList: [],
-    aaguidDenyList: [],
-  },
+  // Parsed from the schema rather than restated, so a field added upstream arrives with
+  // the default the schema gives it instead of being absent here until someone notices.
+  authenticator_policy: AuthenticatorPolicySchema.parse({}),
   session_idle_ttl: '8h',
   passkey_login_fallback_enabled: true,
 };
