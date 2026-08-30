@@ -180,6 +180,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -280,6 +310,36 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
               };
             };
           };
@@ -408,6 +468,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 404 */
         404: {
           headers: {
@@ -483,6 +573,36 @@ export interface paths {
                 };
               }[];
               total: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -579,6 +699,36 @@ export interface paths {
                   phone: string | null;
                   roles: string[];
                 };
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
               };
             };
           };
@@ -697,13 +847,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -810,13 +972,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -1282,6 +1456,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
       };
     };
     put?: never;
@@ -1474,6 +1678,36 @@ export interface paths {
                 /** Format: date-time */
                 updated_at: string | null;
               }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -1680,13 +1914,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -1811,6 +2057,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 500 */
         500: {
           headers: {
@@ -1886,6 +2162,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
       };
     };
     put?: never;
@@ -1939,6 +2245,36 @@ export interface paths {
                 current: boolean;
               }[];
               total: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -2027,6 +2363,36 @@ export interface paths {
                     token?: string;
                     magicLinkUrl: string;
                   };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -2133,6 +2499,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 500 */
         500: {
           headers: {
@@ -2221,13 +2617,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -2733,13 +3141,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -2826,13 +3246,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -2913,13 +3345,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -3166,13 +3610,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -3597,13 +4053,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -3771,13 +4239,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -4104,6 +4584,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -4204,6 +4714,36 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
               };
             };
           };
@@ -4328,6 +4868,36 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
               };
             };
           };
@@ -4472,13 +5042,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -4561,6 +5143,36 @@ export interface paths {
                 };
               }[];
               total: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -4657,6 +5269,36 @@ export interface paths {
                   phone: string | null;
                   roles: string[];
                 };
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
               };
             };
           };
@@ -4775,13 +5417,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -4888,13 +5542,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -5353,6 +6019,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -5473,6 +6169,36 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -5599,6 +6325,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -5701,6 +6457,36 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -5826,13 +6612,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -5952,13 +6750,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -6082,6 +6892,36 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -6331,6 +7171,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -6485,6 +7355,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -6591,13 +7491,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -7440,6 +8352,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -7861,6 +8803,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -7951,6 +8923,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -8038,6 +9040,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 401 */
         401: {
           headers: {
@@ -8113,6 +9145,36 @@ export interface paths {
               verifiedAt: string;
               expiresAt: string;
               maxAgeSeconds: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -8419,6 +9481,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
       };
     };
     /** Delete credential */
@@ -8473,6 +9565,36 @@ export interface paths {
                     token?: string;
                     magicLinkUrl: string;
                   };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -8590,13 +9712,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -8716,6 +9850,36 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
         /** @description HTTP 403 */
         403: {
           headers: {
@@ -8798,6 +9962,36 @@ export interface paths {
             /** @example null */
             'application/json': {
               [key: string]: unknown;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -8934,13 +10128,25 @@ export interface paths {
           content: {
             /**
              * @example {
+             *       "error": "string",
              *       "message": "string",
-             *       "error": "string"
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
