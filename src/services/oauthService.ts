@@ -38,9 +38,7 @@ export type OAuthProfile = {
 };
 
 export type OAuthProfileErrorCode =
-  | 'oauth_missing_subject'
-  | 'oauth_missing_email'
-  | 'oauth_email_not_verified';
+  'oauth_missing_subject' | 'oauth_missing_email' | 'oauth_email_not_verified';
 
 // Curated, user-actionable profile failures. The controller forwards the code
 // to the caller; every other failure stays a bare Error and returns generic.

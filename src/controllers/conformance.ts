@@ -186,9 +186,7 @@ const assertionOptions = async (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const username = asString(body.username);
     const userVerification = (asString(body.userVerification) ?? 'preferred') as
-      | 'required'
-      | 'preferred'
-      | 'discouraged';
+      'required' | 'preferred' | 'discouraged';
 
     // No username means a discoverable-credential ceremony, which the tools also
     // drive. `allowCredentials` is left undefined there so the authenticator
