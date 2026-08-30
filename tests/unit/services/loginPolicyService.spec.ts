@@ -101,7 +101,7 @@ describe('loginPolicyService', () => {
   it('allows configured fallback methods when passkey is unavailable on the client', () => {
     const policy = normalizeLoginPolicy({
       login_methods: ['passkey', 'magic_link', 'phone_otp'],
-      passkey_login_fallback_enabled: false,
+      passkey_login_fallback_enabled: true,
     });
 
     expect(
@@ -112,5 +112,72 @@ describe('loginPolicyService', () => {
         passkeyAvailable: false,
       }),
     ).toEqual(['magic_link', 'phone_otp']);
+  });
+
+  describe('passkey-only policy', () => {
+    const passkeyOnly = () =>
+      normalizeLoginPolicy({
+        login_methods: ['passkey', 'magic_link', 'phone_otp'],
+        passkey_login_fallback_enabled: false,
+      });
+
+    it('ignores a client claiming it cannot use a passkey', () => {
+      expect(
+        resolveAvailableLoginMethods({
+          policy: passkeyOnly(),
+          user: { email: 'test@example.com', phone: '+14155552671' },
+          hasPasskeyCredential: true,
+          passkeyAvailable: false,
+        }),
+      ).toEqual(['passkey']);
+    });
+
+    it('offers passkey only when the client says it can use one', () => {
+      expect(
+        resolveAvailableLoginMethods({
+          policy: passkeyOnly(),
+          user: { email: 'test@example.com', phone: '+14155552671' },
+          hasPasskeyCredential: true,
+          passkeyAvailable: true,
+        }),
+      ).toEqual(['passkey']);
+    });
+
+    it('offers passkey only when the client says nothing at all', () => {
+      expect(
+        resolveAvailableLoginMethods({
+          policy: passkeyOnly(),
+          user: { email: 'test@example.com', phone: '+14155552671' },
+          hasPasskeyCredential: true,
+        }),
+      ).toEqual(['passkey']);
+    });
+
+    // The policy binds an account that can actually use a passkey. Without a
+    // credential there is nothing to enforce, so the configured methods stand.
+    it('still offers fallback methods to a user with no passkey', () => {
+      expect(
+        resolveAvailableLoginMethods({
+          policy: passkeyOnly(),
+          user: { email: 'test@example.com', phone: '+14155552671' },
+          hasPasskeyCredential: false,
+          passkeyAvailable: false,
+        }),
+      ).toEqual(['magic_link', 'phone_otp']);
+    });
+
+    it('does not enforce passkey when the deployment has not enabled it', () => {
+      expect(
+        resolveAvailableLoginMethods({
+          policy: normalizeLoginPolicy({
+            login_methods: ['magic_link', 'phone_otp'],
+            passkey_login_fallback_enabled: false,
+          }),
+          user: { email: 'test@example.com', phone: '+14155552671' },
+          hasPasskeyCredential: true,
+          passkeyAvailable: false,
+        }),
+      ).toEqual(['magic_link', 'phone_otp']);
+    });
   });
 });

@@ -88,7 +88,10 @@ Supported login methods are controlled by `login_methods` system config:
 - `phone_otp`
 - `oauth`
 
-Passkey-capable sessions can be restricted to passkey-only continuation by disabling `passkey_login_fallback_enabled`.
+Accounts holding a passkey can be restricted to passkey-only continuation by disabling
+`passkey_login_fallback_enabled`. The client sends a `passkeyAvailable` capability hint on
+`POST /login`, but it is advisory: it can remove passkey from a set the policy already permits,
+never add a weaker method to a passkey-only one.
 
 ## System Configuration
 
