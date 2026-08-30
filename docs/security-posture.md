@@ -127,6 +127,53 @@ refuse everything. That combination is refused deliberately rather than waved
 through, since admitting an unidentified authenticator would make the list
 advisory, and the server logs the misconfiguration at startup.
 
+### Requiring a known authenticator refuses self attestation
+
+**Posture: if it cannot be looked up, it is not known.**
+
+`requireKnownAuthenticator` refuses a credential whose attestation the FIDO
+Metadata Service cannot be consulted about, which means self attestation and no
+attestation, not only a model the service does not list.
+
+The reason is a detail of how attestation works. Metadata is consulted per
+attestation format, and only for a statement carrying a certificate chain. Every
+format requires one except `packed`, which is also defined without: a statement
+the credential signs with its own key. Nothing stands behind such a statement, and
+nothing can be looked up for it, so a credential presenting one was previously
+admitted without the setting ever being consulted. That made
+`requireKnownAuthenticator` do nothing for precisely the authenticators it exists
+to keep out.
+
+The cost is real and worth stating: an authenticator that ships no attestation
+certificate cannot enrol on a deployment that requires known authenticators. That
+is what the setting means. A deployment that wants those authenticators leaves it
+`false`, which is the default.
+
+It applies only under `attestation: 'direct'`. Under `none` no credential presents
+a chain, so the rule would refuse every registration rather than restrict
+anything; the server logs that misconfiguration at startup instead.
+
+One limit, carried over rather than introduced. When the metadata blob cannot be
+fetched at startup the server continues without metadata validation, because
+refusing every registration on a transient network failure is worse than the risk
+it guards against. In that degraded state a certificate chain is checked for
+structure and signature but is not traced to any trust anchor, so a self-signed
+attestation certificate satisfies this rule where a self attested statement would
+not. `credentials.attestationVerified` is false either way, so the audit trail
+still shows that nothing was checked. Changing the degraded posture to fail closed
+is a separate decision from this one.
+
+### What `attestationVerified` records
+
+`credentials.attestationVerified` is true only when the FIDO Metadata Service held
+a statement for the credential's AAGUID. It used to be derived from the attestation
+format and whether the service had come up, which claimed a check for credentials
+that were never looked up at all.
+
+`credentials.attestationType` sits beside the format and records `none`, `self` or
+`basic`. The format alone cannot separate the last two: a manufacturer-signed
+statement and one a credential signed for itself are both `packed`.
+
 ## Token audience
 
 **Posture: `aud` is the deployment's own issuer URL.**
@@ -145,3 +192,34 @@ The internal service-token path
 does use `aud: seamless-auth` with `iss: seamless-portal-api`. That is a different token family:
 machine-to-machine credentials minted by the portal API, not user tokens minted here. The two
 schemes are intentionally separate, and neither verifier accepts the other's tokens.
+
+## Requests from an origin that is not allowlisted
+
+**Posture: refused by the server, not left to the browser.**
+
+A cross-origin request whose `Origin` is not in `APP_ORIGINS` is answered `403 { "message": "CORS
+policy does not allow this origin." }` and the route never runs
+([`src/app.ts`](../src/app.ts)).
+
+The alternative, and what this server used to do, is to omit the
+`Access-Control-Allow-Origin` header and carry on. The browser then discards the response, so the
+caller learns nothing, but the request has already been executed. For an authentication server that
+is the wrong way round: a disallowed origin should not be able to make the server act, only to be
+denied a reading of what it did.
+
+Two kinds of request are deliberately not refused:
+
+- **No `Origin` header at all.** Server adapters, backends and command-line callers send none, and
+  this API's contract is bearer credentials from a trusted server adapter. CORS has nothing to say
+  about a caller that is not a browser.
+- **Same-origin.** A browser sends `Origin` on every state-changing request, including same-origin
+  ones, so without this the admin console at `/console` would need its own host in `APP_ORIGINS`
+  despite being served by this very process. The comparison is on host, not scheme, so that it does
+  not silently depend on `TRUST_PROXY` being set behind a TLS-terminating proxy.
+
+The refusal carries no `Access-Control-Allow-Origin` header. Naming an allowed origin to a caller
+that is not one discloses part of the allowlist and helps the browser not at all.
+
+The refusal is recorded as one `request_suspicious` auth event with the real client address and user
+agent, and the rejected origin in an `origin` metadata field. It used to be recorded with the origin
+string in the `ipAddress` field, which made the trail hard to read.

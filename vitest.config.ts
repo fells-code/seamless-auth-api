@@ -25,7 +25,11 @@ export default defineConfig({
     testTimeout: 20000,
     hookTimeout: 20000,
 
-    setupFiles: ['./tests/setup/env.ts', './tests/setup/mocks.ts'],
+    setupFiles: [
+      './tests/setup/env.ts',
+      './tests/setup/mocks.ts',
+      './tests/setup/supertestServer.ts',
+    ],
 
     globalSetup: ['./tests/setup/globalSetup.ts'],
 

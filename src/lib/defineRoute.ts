@@ -13,6 +13,7 @@ import {
   getSecuritySchemeName,
 } from '../middleware/attachAuthMiddleware.js';
 import { registry } from '../openapi/registry.js';
+import { ErrorSchema, ValidationErrorSchema } from '../schemas/generic.responses.js';
 import { AuthTokenType } from '../services/sessionService.js';
 import getLogger from '../utils/logger.js';
 import { expressToOpenAPI } from './convertPath.js';
@@ -53,6 +54,67 @@ function isZodSchema(value: unknown): value is ZodTypeAny {
   return Boolean(
     value && typeof value === 'object' && typeof (value as ZodTypeAny).safeParse === 'function',
   );
+}
+
+/**
+ * The stable code a schema-validation failure answers with. Callers branch on this
+ * rather than on prose, the same way they do for the codes controllers return.
+ */
+const VALIDATION_ERROR_CODE = 'invalid_request';
+
+/**
+ * Reshapes a `ZodError` into the documented error body.
+ *
+ * Issues are mapped field by field rather than passed through. A raw `ZodError`
+ * serializes to `{ name, message }` with the issues JSON-encoded inside `message`
+ * and no `error` key at all, which violates the declared schema and leaves a client
+ * with nothing to branch on. Only `path`, `code` and `message` are carried over, so
+ * the caller learns which field it got wrong without the response echoing back
+ * whatever value it sent.
+ */
+function toValidationErrorBody(error: ZodError) {
+  return {
+    error: VALIDATION_ERROR_CODE,
+    message: 'Request failed schema validation.',
+    details: {
+      issues: error.issues.map((issue) => ({
+        path: issue.path.filter(
+          (segment): segment is string | number =>
+            typeof segment === 'string' || typeof segment === 'number',
+        ),
+        code: issue.code,
+        message: issue.message,
+      })),
+    },
+  };
+}
+
+/**
+ * A route that validates a request can answer `400` from `defineRoute` itself, before
+ * its handler runs, so that response has to be documented even though no controller
+ * produces it.
+ *
+ * Only an absent or canonical `ErrorSchema` declaration is replaced. A route that has
+ * already declared something richer, such as `AdminValidationErrorSchema`, keeps it:
+ * that shape carries `details` of its own and overwriting it would lose detail rather
+ * than add any.
+ */
+function withValidationResponse(
+  response: ZodTypeAny | Record<number, ZodTypeAny> | undefined,
+  validatesRequest: boolean,
+): ZodTypeAny | Record<number, ZodTypeAny> | undefined {
+  if (!validatesRequest || (response && isZodSchema(response))) {
+    return response;
+  }
+
+  const responseMap = (response ?? {}) as Record<number, ZodTypeAny>;
+  const declared = responseMap[400];
+
+  if (declared && declared !== ErrorSchema) {
+    return response;
+  }
+
+  return { ...responseMap, 400: ValidationErrorSchema };
 }
 
 function buildResponses(
@@ -129,6 +191,7 @@ export function defineRoute<S extends RouteSchemas>(
   const query = schemas?.query;
   const body = schemas?.body;
   const response = schemas?.response;
+  const validatesRequest = Boolean(params || query || body);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const basePath = (router as any).__basePath ?? '';
 
@@ -151,7 +214,7 @@ export function defineRoute<S extends RouteSchemas>(
           }
         : undefined,
     },
-    responses: buildResponses(response),
+    responses: buildResponses(withValidationResponse(response, validatesRequest)),
   });
 
   const validate: RequestHandler = (req, res, next) => {
@@ -170,7 +233,12 @@ export function defineRoute<S extends RouteSchemas>(
 
       return next();
     } catch (error: unknown) {
-      return res.status(400).json(error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(toValidationErrorBody(error));
+      }
+
+      // Not a validation failure, so it has no place being reported as one.
+      return next(error);
     }
   };
 

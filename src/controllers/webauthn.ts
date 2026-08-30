@@ -16,6 +16,8 @@ import base64url from 'base64url';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { classifyAttestation } from '../lib/attestationType.js';
+import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
 import {
   buildPrfAuthenticationExtensions,
   buildPrfRegistrationExtensions,
@@ -28,7 +30,7 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
-import { isMetadataServiceReady } from '../services/metadataServiceBootstrap.js';
+import { hasMetadataStatement } from '../services/metadataServiceBootstrap.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -36,26 +38,6 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('webauthn');
 
-/**
- * The COSE algorithms this server will register a credential for, most preferred
- * first. `pubKeyCredParams` is an ordered preference list, so the position of
- * each entry matters as much as its presence.
- *
- * FIDO Server Requirements v2.3 requires all four. RS1 is RSASSA-PKCS1-v1_5 with
- * SHA-1, which is why it sits last: it is advertised because the specification
- * requires support for it, and ordered so that no authenticator with a better
- * option available will ever choose it.
- *
- * Set explicitly rather than left to the library default, which is
- * `[-8, -7, -257]` and therefore omits RS1, and which could change under a minor
- * upgrade without anything here noticing.
- */
-const SUPPORTED_ALGORITHM_IDS = [
-  -8, // EdDSA
-  -7, // ES256
-  -257, // RS256
-  -65535, // RS1
-];
 function getRegistrationChallengeContext(context: Record<string, unknown> | null | undefined) {
   if (!context) {
     return { prfRequested: false, requirePrf: false };
@@ -306,12 +288,15 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Registration failed verification' });
     }
 
-    const { aaguid, credential, credentialBackedUp, credentialDeviceType, fmt } = registrationInfo;
+    const { aaguid, attestationObject, credential, credentialBackedUp, credentialDeviceType, fmt } =
+      registrationInfo;
     const { authenticator_policy } = await getSystemConfig();
+    const attestationType = classifyAttestation(fmt, attestationObject);
     const verdict = evaluateAuthenticatorPolicy({
       policy: authenticator_policy,
       aaguid,
       deviceType: credentialDeviceType,
+      attestationType,
     });
 
     if (!verdict.allowed) {
@@ -363,7 +348,14 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       // audit can tell an unattested credential from one whose attestation was
       // checked, which is not recoverable after the fact.
       attestationFormat: fmt ?? null,
-      attestationVerified: fmt !== undefined && fmt !== 'none' && isMetadataServiceReady(),
+      // Whether the statement carried a certificate chain. Kept alongside the
+      // format because 'packed' alone does not say: the same format covers both a
+      // manufacturer-signed statement and one the credential signed for itself.
+      attestationType,
+      // A real lookup, not an inference from the service being up. A self
+      // attested or unattested credential is never looked up at all, so deriving
+      // this from the format claimed a check that had not happened.
+      attestationVerified: attestationType === 'basic' && (await hasMetadataStatement(aaguid)),
       friendlyName: metadata.friendlyName || null,
       platform: metadata.platform || null,
       browser: metadata.browser || null,

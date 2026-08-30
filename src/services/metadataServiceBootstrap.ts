@@ -6,9 +6,14 @@
 
 import { MetadataService } from '@simplewebauthn/server';
 
+import { conformanceModeEnabled } from '../config/conformanceMode.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import getLogger from '../utils/logger.js';
-import { allowListNeedsAttestation } from './authenticatorPolicyService.js';
+import {
+  allowListNeedsAttestation,
+  requireKnownNeedsAttestation,
+} from './authenticatorPolicyService.js';
+import { applyConformanceMetadataOverrides } from './conformanceMetadata.js';
 
 const logger = getLogger('metadataService');
 
@@ -27,6 +32,32 @@ export function isMetadataServiceReady() {
 /** Test seam. Startup calls this once, so state has to be resettable. */
 export function resetMetadataServiceForTests() {
   initialized = false;
+}
+
+/**
+ * Whether the FIDO Metadata Service holds a statement for this authenticator
+ * model.
+ *
+ * This is the question `attestationVerified` is supposed to answer. Asking the
+ * service directly is the only honest way to answer it: the library consults
+ * metadata inside the individual attestation verifiers, and only for a statement
+ * that carries a certificate chain, so a self attested or unattested credential
+ * reaches this server having never been looked up.
+ *
+ * Never throws. Under a `strict` verification mode `getStatement` raises for an
+ * unlisted model, which here is an answer rather than a failure.
+ */
+export async function hasMetadataStatement(aaguid: string | null | undefined): Promise<boolean> {
+  if (!isMetadataServiceReady() || !aaguid) {
+    return false;
+  }
+
+  try {
+    return Boolean(await MetadataService.getStatement(aaguid));
+  } catch (error) {
+    logger.info(`No metadata statement for aaguid ${aaguid}: ${error}`);
+    return false;
+  }
 }
 
 /**
@@ -62,12 +93,27 @@ export async function initializeMetadataService(): Promise<boolean> {
           'can identify itself, so every registration will be refused. Set attestation to "direct".',
       );
     }
+
+    // Said out loud for the same reason: the setting reads like it is doing
+    // something, and under 'none' it is not.
+    if (requireKnownNeedsAttestation(authenticator_policy)) {
+      logger.error(
+        'authenticator_policy sets requireKnownAuthenticator while attestation is "none". No ' +
+          'authenticator identifies itself, so nothing can be matched against the metadata ' +
+          'service and the setting has no effect. Set attestation to "direct".',
+      );
+    }
   } catch (error) {
     logger.error(`Could not read the authenticator policy, skipping metadata setup: ${error}`);
     return false;
   }
 
-  if (attestation !== 'direct') {
+  // A conformance run drives attestation through its own surface, which honours
+  // the conveyance the tools ask for rather than the deployment policy, so the
+  // metadata tests need the service up whatever this deployment has configured.
+  const conformance = conformanceModeEnabled();
+
+  if (attestation !== 'direct' && !conformance) {
     logger.info('Attestation is not requested, so the metadata service is not initialized.');
     return false;
   }
@@ -77,6 +123,7 @@ export async function initializeMetadataService(): Promise<boolean> {
       // 'strict' makes the library refuse an authenticator the blob does not
       // list; 'permissive' registers it anyway.
       verificationMode: requireKnown ? 'strict' : 'permissive',
+      ...(conformance ? applyConformanceMetadataOverrides() : {}),
     });
 
     initialized = true;

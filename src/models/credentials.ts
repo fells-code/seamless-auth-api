@@ -20,6 +20,8 @@ export class Credential extends Model {
   declare aaguid: string | null;
   /** The attestation statement format, or 'none' when none was requested. */
   declare attestationFormat: string | null;
+  /** Whether the statement carried a certificate chain: 'none', 'self' or 'basic'. */
+  declare attestationType: string | null;
   /** Whether that statement was checked against the FIDO Metadata Service. */
   declare attestationVerified: boolean | null;
   declare backedup: boolean;
@@ -87,6 +89,11 @@ export default (sequelize: Sequelize) => {
         defaultValue: null,
       },
       attestationFormat: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
+      },
+      attestationType: {
         type: DataTypes.STRING,
         allowNull: true,
         defaultValue: null,
