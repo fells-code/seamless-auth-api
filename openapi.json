@@ -19,6 +19,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "organizations": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -101,8 +102,7 @@
                     "total": { "type": "integer", "minimum": 0 }
                   },
                   "required": ["organizations", "total"]
-                },
-                "example": { "organizations": [null], "total": 0 }
+                }
               }
             }
           }
@@ -136,6 +136,33 @@
             "description": "HTTP 201",
             "content": {
               "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -206,33 +233,6 @@
                     }
                   },
                   "required": ["organization"]
-                },
-                "example": {
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -241,6 +241,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -269,11 +274,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -299,6 +299,33 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -369,33 +396,6 @@
                     }
                   },
                   "required": ["organization"]
-                },
-                "example": {
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -404,6 +404,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -432,11 +437,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -445,12 +445,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -491,6 +491,33 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -561,33 +588,6 @@
                     }
                   },
                   "required": ["organization"]
-                },
-                "example": {
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -596,6 +596,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -624,11 +629,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -637,12 +637,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -667,6 +667,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "members": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -715,8 +716,7 @@
                     "total": { "type": "integer", "minimum": 0 }
                   },
                   "required": ["members", "total"]
-                },
-                "example": { "members": [null], "total": 0 }
+                }
               }
             }
           },
@@ -724,6 +724,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -752,11 +757,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -765,12 +765,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -814,6 +814,23 @@
             "description": "HTTP 201",
             "content": {
               "application/json": {
+                "example": {
+                  "membership": {
+                    "id": "string",
+                    "organizationId": "string",
+                    "userId": "string",
+                    "roles": [null],
+                    "scopes": [null],
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "user": {
+                      "id": "string",
+                      "email": "example@fellscode.com",
+                      "phone": "string",
+                      "roles": [null]
+                    }
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -850,23 +867,6 @@
                     }
                   },
                   "required": ["membership"]
-                },
-                "example": {
-                  "membership": {
-                    "id": "string",
-                    "organizationId": "string",
-                    "userId": "string",
-                    "roles": [null],
-                    "scopes": [null],
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "user": {
-                      "id": "string",
-                      "email": "example@fellscode.com",
-                      "phone": "string",
-                      "roles": [null]
-                    }
-                  }
                 }
               }
             }
@@ -875,6 +875,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -903,11 +908,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -916,12 +916,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -929,12 +929,12 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -984,6 +984,23 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "membership": {
+                    "id": "string",
+                    "organizationId": "string",
+                    "userId": "string",
+                    "roles": [null],
+                    "scopes": [null],
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "user": {
+                      "id": "string",
+                      "email": "example@fellscode.com",
+                      "phone": "string",
+                      "roles": [null]
+                    }
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1020,23 +1037,6 @@
                     }
                   },
                   "required": ["membership"]
-                },
-                "example": {
-                  "membership": {
-                    "id": "string",
-                    "organizationId": "string",
-                    "userId": "string",
-                    "roles": [null],
-                    "scopes": [null],
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "user": {
-                      "id": "string",
-                      "email": "example@fellscode.com",
-                      "phone": "string",
-                      "roles": [null]
-                    }
-                  }
                 }
               }
             }
@@ -1045,6 +1045,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1073,11 +1078,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -1086,12 +1086,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1120,6 +1120,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1159,8 +1160,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -1168,6 +1168,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1196,11 +1201,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -1209,12 +1209,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1231,6 +1231,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "users": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1273,8 +1274,7 @@
                     "total": { "type": "number" }
                   },
                   "required": ["users", "total"]
-                },
-                "example": { "users": [null], "total": 0 }
+                }
               }
             }
           },
@@ -1282,12 +1282,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1323,6 +1323,21 @@
             "description": "HTTP 201",
             "content": {
               "application/json": {
+                "example": {
+                  "user": {
+                    "id": "string",
+                    "email": "example@fellscode.com",
+                    "phone": "string",
+                    "roles": null,
+                    "revoked": true,
+                    "emailVerified": true,
+                    "phoneVerified": true,
+                    "verified": true,
+                    "lastLogin": null,
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1353,21 +1368,6 @@
                     }
                   },
                   "required": ["user"]
-                },
-                "example": {
-                  "user": {
-                    "id": "string",
-                    "email": "example@fellscode.com",
-                    "phone": "string",
-                    "roles": null,
-                    "revoked": true,
-                    "emailVerified": true,
-                    "phoneVerified": true,
-                    "verified": true,
-                    "lastLogin": null,
-                    "createdAt": null,
-                    "updatedAt": null
-                  }
                 }
               }
             }
@@ -1376,6 +1376,7 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "error": "string", "message": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1384,8 +1385,7 @@
                     "details": { "type": "object", "additionalProperties": { "nullable": true } }
                   },
                   "required": ["error"]
-                },
-                "example": { "error": "string", "message": "string", "details": null }
+                }
               }
             }
           },
@@ -1393,12 +1393,12 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1413,6 +1413,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1452,8 +1453,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -1461,12 +1461,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1652,6 +1652,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "events": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1689,8 +1690,7 @@
                     "total": { "type": "number" }
                   },
                   "required": ["events", "total"]
-                },
-                "example": { "events": [null], "total": 0 }
+                }
               }
             }
           },
@@ -1698,6 +1698,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1726,11 +1731,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -1748,12 +1748,12 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "count": 0 },
                 "schema": {
                   "type": "object",
                   "properties": { "count": { "type": "number" } },
                   "required": ["count"]
-                },
-                "example": { "count": 0 }
+                }
               }
             }
           },
@@ -1761,12 +1761,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1807,6 +1807,21 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "user": {
+                    "id": "string",
+                    "email": "example@fellscode.com",
+                    "phone": "string",
+                    "roles": null,
+                    "revoked": true,
+                    "emailVerified": true,
+                    "phoneVerified": true,
+                    "verified": true,
+                    "lastLogin": null,
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1837,21 +1852,6 @@
                     }
                   },
                   "required": ["user"]
-                },
-                "example": {
-                  "user": {
-                    "id": "string",
-                    "email": "example@fellscode.com",
-                    "phone": "string",
-                    "roles": null,
-                    "revoked": true,
-                    "emailVerified": true,
-                    "phoneVerified": true,
-                    "verified": true,
-                    "lastLogin": null,
-                    "createdAt": null,
-                    "updatedAt": null
-                  }
                 }
               }
             }
@@ -1860,6 +1860,7 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "error": "string", "message": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1868,8 +1869,7 @@
                     "details": { "type": "object", "additionalProperties": { "nullable": true } }
                   },
                   "required": ["error"]
-                },
-                "example": { "error": "string", "message": "string", "details": null }
+                }
               }
             }
           },
@@ -1877,12 +1877,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -1899,6 +1899,24 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "user": {
+                    "id": "string",
+                    "email": "example@fellscode.com",
+                    "phone": "string",
+                    "roles": null,
+                    "revoked": true,
+                    "emailVerified": true,
+                    "phoneVerified": true,
+                    "verified": true,
+                    "lastLogin": null,
+                    "createdAt": null,
+                    "updatedAt": null
+                  },
+                  "sessions": [null],
+                  "credentials": [null],
+                  "events": [null]
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2024,24 +2042,6 @@
                     }
                   },
                   "required": ["user", "sessions", "credentials", "events"]
-                },
-                "example": {
-                  "user": {
-                    "id": "string",
-                    "email": "example@fellscode.com",
-                    "phone": "string",
-                    "roles": null,
-                    "revoked": true,
-                    "emailVerified": true,
-                    "phoneVerified": true,
-                    "verified": true,
-                    "lastLogin": null,
-                    "createdAt": null,
-                    "updatedAt": null
-                  },
-                  "sessions": [null],
-                  "credentials": [null],
-                  "events": [null]
                 }
               }
             }
@@ -2050,6 +2050,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2078,11 +2083,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2091,12 +2091,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2142,6 +2142,12 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "userId": "string",
+                  "revokedSessions": 0,
+                  "removedCredentials": 0,
+                  "disabledTotpCredentials": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2156,12 +2162,6 @@
                     "removedCredentials",
                     "disabledTotpCredentials"
                   ]
-                },
-                "example": {
-                  "userId": "string",
-                  "revokedSessions": 0,
-                  "removedCredentials": 0,
-                  "disabledTotpCredentials": 0
                 }
               }
             }
@@ -2170,6 +2170,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2198,11 +2203,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2211,12 +2211,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -2224,12 +2224,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -2237,12 +2237,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2261,6 +2261,11 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "suspiciousEvents": [null],
+                  "relatedIps": [null],
+                  "relatedAgents": [null]
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2299,11 +2304,6 @@
                     "relatedAgents": { "type": "array", "items": { "type": "string" } }
                   },
                   "required": ["suspiciousEvents", "relatedIps", "relatedAgents"]
-                },
-                "example": {
-                  "suspiciousEvents": [null],
-                  "relatedIps": [null],
-                  "relatedAgents": [null]
                 }
               }
             }
@@ -2312,6 +2312,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2340,11 +2345,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2353,12 +2353,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2388,6 +2388,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "sessions": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2410,8 +2411,7 @@
                     "total": { "type": "number" }
                   },
                   "required": ["sessions", "total"]
-                },
-                "example": { "sessions": [null], "total": 0 }
+                }
               }
             }
           },
@@ -2419,6 +2419,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2447,11 +2452,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2471,6 +2471,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "sessions": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2493,8 +2494,7 @@
                     "total": { "type": "number" }
                   },
                   "required": ["sessions", "total"]
-                },
-                "example": { "sessions": [null], "total": 0 }
+                }
               }
             }
           },
@@ -2502,6 +2502,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2530,11 +2535,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2543,12 +2543,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2567,6 +2567,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2606,8 +2607,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -2615,6 +2615,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2643,11 +2648,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2656,12 +2656,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -2669,12 +2669,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2693,6 +2693,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2732,8 +2733,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -2741,6 +2741,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2769,11 +2774,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2782,12 +2782,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2817,6 +2817,14 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "sub": "string",
+                  "identifierType": null,
+                  "loginMethods": [null],
+                  "ttl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2834,14 +2842,6 @@
                     "ttl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "sub": "string",
-                  "identifierType": null,
-                  "loginMethods": [null],
-                  "ttl": 0
                 }
               }
             }
@@ -2850,6 +2850,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2878,11 +2883,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -2891,12 +2891,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -2904,12 +2904,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -2917,12 +2917,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -2940,6 +2940,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -2979,8 +2980,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           }
@@ -2995,6 +2995,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3034,8 +3035,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -3043,12 +3043,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3065,6 +3065,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3104,8 +3105,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           }
@@ -3121,6 +3121,19 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "sessionId": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3137,19 +3150,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "sessionId": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -3158,12 +3158,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -3171,12 +3171,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3192,12 +3192,12 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" } },
                   "required": ["message"]
-                },
-                "example": { "message": "string" }
+                }
               }
             }
           }
@@ -3213,11 +3213,11 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string", "nullable": true } }
-                },
-                "example": { "message": "string" }
+                }
               }
             }
           }
@@ -3244,6 +3244,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "summary": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3260,8 +3261,7 @@
                     }
                   },
                   "required": ["summary"]
-                },
-                "example": { "summary": [null] }
+                }
               }
             }
           },
@@ -3269,6 +3269,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3297,11 +3302,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -3310,12 +3310,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3342,6 +3342,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "timeseries": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3364,8 +3365,7 @@
                     }
                   },
                   "required": ["timeseries"]
-                },
-                "example": { "timeseries": [null] }
+                }
               }
             }
           },
@@ -3373,6 +3373,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3401,11 +3406,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -3414,12 +3414,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3446,6 +3446,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "success": 0, "failed": 0, "successRate": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3454,8 +3455,7 @@
                     "successRate": { "type": "number" }
                   },
                   "required": ["success", "failed", "successRate"]
-                },
-                "example": { "success": 0, "failed": 0, "successRate": 0 }
+                }
               }
             }
           },
@@ -3463,6 +3463,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3491,11 +3496,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -3504,12 +3504,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3526,6 +3526,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "suspiciousEvents": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3562,8 +3563,7 @@
                     "total": { "type": "integer", "minimum": 0 }
                   },
                   "required": ["suspiciousEvents", "total"]
-                },
-                "example": { "suspiciousEvents": [null], "total": 0 }
+                }
               }
             }
           },
@@ -3571,12 +3571,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3593,6 +3593,17 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "totalUsers": 0,
+                  "activeSessions": 0,
+                  "newUsers24h": 0,
+                  "loginSuccess24h": 0,
+                  "loginFailed24h": 0,
+                  "successRate24h": 0,
+                  "otpUsage24h": 0,
+                  "passkeyUsage24h": 0,
+                  "databaseSize": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3617,17 +3628,6 @@
                     "passkeyUsage24h",
                     "databaseSize"
                   ]
-                },
-                "example": {
-                  "totalUsers": 0,
-                  "activeSessions": 0,
-                  "newUsers24h": 0,
-                  "loginSuccess24h": 0,
-                  "loginFailed24h": 0,
-                  "successRate24h": 0,
-                  "otpUsage24h": 0,
-                  "passkeyUsage24h": 0,
-                  "databaseSize": 0
                 }
               }
             }
@@ -3636,12 +3636,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3669,6 +3669,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "summary": [null], "outcomes": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3696,8 +3697,7 @@
                     }
                   },
                   "required": ["summary", "outcomes"]
-                },
-                "example": { "summary": [null], "outcomes": [null] }
+                }
               }
             }
           },
@@ -3705,6 +3705,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3733,11 +3738,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -3746,12 +3746,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3767,6 +3767,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "keys": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3790,8 +3791,7 @@
                     }
                   },
                   "required": ["keys"]
-                },
-                "example": { "keys": [null] }
+                }
               }
             }
           },
@@ -3799,12 +3799,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "error": "string" }
+                }
               }
             }
           }
@@ -3821,6 +3821,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3860,8 +3861,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -3869,12 +3869,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -3882,12 +3882,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -3904,6 +3904,17 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3918,17 +3929,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -3937,6 +3937,7 @@
             "description": "HTTP 204",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -3976,8 +3977,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -3985,12 +3985,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -3998,12 +3998,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -4011,12 +4011,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -4035,6 +4035,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4074,8 +4075,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -4083,6 +4083,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4111,11 +4116,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -4124,12 +4124,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -4137,12 +4137,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -4158,6 +4158,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "providers": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4175,8 +4176,7 @@
                     }
                   },
                   "required": ["providers"]
-                },
-                "example": { "providers": [null] }
+                }
               }
             }
           }
@@ -4213,6 +4213,11 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "provider": { "id": "string", "name": "string", "scopes": [null] },
+                  "state": "string",
+                  "authorizationUrl": null
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4229,11 +4234,6 @@
                     "authorizationUrl": { "type": "string", "format": "uri" }
                   },
                   "required": ["provider", "state", "authorizationUrl"]
-                },
-                "example": {
-                  "provider": { "id": "string", "name": "string", "scopes": [null] },
-                  "state": "string",
-                  "authorizationUrl": null
                 }
               }
             }
@@ -4242,6 +4242,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4270,11 +4275,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -4283,12 +4283,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -4326,6 +4326,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4341,18 +4353,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -4361,6 +4361,7 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string", "code": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4376,8 +4377,7 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string", "code": null }
+                }
               }
             }
           },
@@ -4385,12 +4385,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -4398,12 +4398,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -4420,6 +4420,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "organizations": [null], "activeOrganizationId": "string" },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4502,8 +4503,7 @@
                     "activeOrganizationId": { "type": "string", "nullable": true }
                   },
                   "required": ["organizations", "activeOrganizationId"]
-                },
-                "example": { "organizations": [null], "activeOrganizationId": "string" }
+                }
               }
             }
           }
@@ -4537,6 +4537,33 @@
             "description": "HTTP 201",
             "content": {
               "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4607,33 +4634,6 @@
                     }
                   },
                   "required": ["organization"]
-                },
-                "example": {
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -4642,6 +4642,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4670,11 +4675,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -4700,6 +4700,33 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4770,33 +4797,6 @@
                     }
                   },
                   "required": ["organization"]
-                },
-                "example": {
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -4805,6 +4805,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4833,11 +4838,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -4846,12 +4846,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -4892,6 +4892,33 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -4962,33 +4989,6 @@
                     }
                   },
                   "required": ["organization"]
-                },
-                "example": {
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -4997,6 +4997,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5025,11 +5030,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -5038,12 +5038,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5068,6 +5068,39 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "sub": "string",
+                  "sessionId": "string",
+                  "organizationId": "string",
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  },
+                  "ttl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5152,39 +5185,6 @@
                     "organization",
                     "ttl"
                   ]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "sub": "string",
-                  "sessionId": "string",
-                  "organizationId": "string",
-                  "organization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  },
-                  "ttl": 0
                 }
               }
             }
@@ -5193,6 +5193,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5221,11 +5226,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -5234,12 +5234,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5264,6 +5264,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "members": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5312,8 +5313,7 @@
                     "total": { "type": "integer", "minimum": 0 }
                   },
                   "required": ["members", "total"]
-                },
-                "example": { "members": [null], "total": 0 }
+                }
               }
             }
           },
@@ -5321,6 +5321,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5349,11 +5354,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -5362,12 +5362,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5411,6 +5411,23 @@
             "description": "HTTP 201",
             "content": {
               "application/json": {
+                "example": {
+                  "membership": {
+                    "id": "string",
+                    "organizationId": "string",
+                    "userId": "string",
+                    "roles": [null],
+                    "scopes": [null],
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "user": {
+                      "id": "string",
+                      "email": "example@fellscode.com",
+                      "phone": "string",
+                      "roles": [null]
+                    }
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5447,23 +5464,6 @@
                     }
                   },
                   "required": ["membership"]
-                },
-                "example": {
-                  "membership": {
-                    "id": "string",
-                    "organizationId": "string",
-                    "userId": "string",
-                    "roles": [null],
-                    "scopes": [null],
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "user": {
-                      "id": "string",
-                      "email": "example@fellscode.com",
-                      "phone": "string",
-                      "roles": [null]
-                    }
-                  }
                 }
               }
             }
@@ -5472,6 +5472,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5500,11 +5505,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -5513,12 +5513,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -5526,12 +5526,12 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5581,6 +5581,23 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "membership": {
+                    "id": "string",
+                    "organizationId": "string",
+                    "userId": "string",
+                    "roles": [null],
+                    "scopes": [null],
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "user": {
+                      "id": "string",
+                      "email": "example@fellscode.com",
+                      "phone": "string",
+                      "roles": [null]
+                    }
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5617,23 +5634,6 @@
                     }
                   },
                   "required": ["membership"]
-                },
-                "example": {
-                  "membership": {
-                    "id": "string",
-                    "organizationId": "string",
-                    "userId": "string",
-                    "roles": [null],
-                    "scopes": [null],
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "user": {
-                      "id": "string",
-                      "email": "example@fellscode.com",
-                      "phone": "string",
-                      "roles": [null]
-                    }
-                  }
                 }
               }
             }
@@ -5642,6 +5642,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5670,11 +5675,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -5683,12 +5683,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5717,6 +5717,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5756,8 +5757,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -5765,6 +5765,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5793,11 +5798,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -5806,12 +5806,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5828,6 +5828,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5867,8 +5868,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -5876,12 +5876,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -5889,12 +5889,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5911,6 +5911,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -5950,8 +5951,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -5959,12 +5959,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -5972,12 +5972,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -5994,6 +5994,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6033,8 +6034,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -6042,12 +6042,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6064,6 +6064,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6103,8 +6104,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -6112,12 +6112,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6145,6 +6145,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6160,18 +6172,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -6180,6 +6180,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6208,11 +6213,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -6221,12 +6221,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6234,12 +6234,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6247,12 +6247,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6280,6 +6280,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6295,18 +6307,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -6315,6 +6315,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6343,11 +6348,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -6356,12 +6356,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6369,12 +6369,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6382,12 +6382,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6415,6 +6415,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6430,18 +6442,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -6450,6 +6450,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6478,11 +6483,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -6491,12 +6491,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6504,12 +6504,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6537,6 +6537,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6552,18 +6564,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -6572,6 +6572,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6600,11 +6605,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -6613,12 +6613,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6626,12 +6626,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6661,6 +6661,13 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "sub": "string",
+                  "token": "string",
+                  "ttl": 0,
+                  "delivery": null
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6702,13 +6709,6 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "sub": "string",
-                  "token": "string",
-                  "ttl": 0,
-                  "delivery": null
                 }
               }
             }
@@ -6717,6 +6717,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6745,11 +6750,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -6758,12 +6758,12 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6771,12 +6771,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6804,6 +6804,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "phone": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6843,8 +6844,7 @@
                     }
                   },
                   "required": ["message", "phone"]
-                },
-                "example": { "message": "string", "phone": "string", "delivery": null }
+                }
               }
             }
           },
@@ -6852,6 +6852,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6880,11 +6885,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -6893,12 +6893,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6906,12 +6906,12 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -6919,12 +6919,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -6952,6 +6952,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6967,18 +6979,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "organizationId": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -6987,6 +6987,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7015,11 +7020,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -7028,12 +7028,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -7041,12 +7041,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7063,6 +7063,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "sessions": [null], "total": 0 },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7085,8 +7086,7 @@
                     "total": { "type": "number" }
                   },
                   "required": ["sessions", "total"]
-                },
-                "example": { "sessions": [null], "total": 0 }
+                }
               }
             }
           },
@@ -7094,12 +7094,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7114,6 +7114,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7153,8 +7154,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -7162,12 +7162,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7187,6 +7187,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7226,8 +7227,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -7235,6 +7235,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7263,11 +7268,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -7276,12 +7276,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -7289,12 +7289,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7311,6 +7311,13 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7325,13 +7332,6 @@
                     "maxAgeSeconds": { "type": "number" }
                   },
                   "required": ["fresh", "method", "verifiedAt", "expiresAt", "maxAgeSeconds"]
-                },
-                "example": {
-                  "fresh": true,
-                  "method": null,
-                  "verifiedAt": "string",
-                  "expiresAt": "string",
-                  "maxAgeSeconds": 0
                 }
               }
             }
@@ -7340,12 +7340,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7383,8 +7383,8 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "schema": { "type": "object", "additionalProperties": { "nullable": true } },
-                "example": null
+                "example": null,
+                "schema": { "type": "object", "additionalProperties": { "nullable": true } }
               }
             }
           },
@@ -7392,6 +7392,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7420,11 +7425,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -7433,12 +7433,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -7446,12 +7446,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7484,6 +7484,14 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7502,14 +7510,6 @@
                     "expiresAt",
                     "maxAgeSeconds"
                   ]
-                },
-                "example": {
-                  "message": "string",
-                  "fresh": true,
-                  "method": null,
-                  "verifiedAt": "string",
-                  "expiresAt": "string",
-                  "maxAgeSeconds": 0
                 }
               }
             }
@@ -7518,6 +7518,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7546,11 +7551,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -7559,12 +7559,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -7572,12 +7572,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -7593,6 +7593,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "loginMethods": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7606,8 +7607,7 @@
                     }
                   },
                   "required": ["loginMethods"]
-                },
-                "example": { "loginMethods": [null] }
+                }
               }
             }
           }
@@ -7624,12 +7624,12 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "roles": [null] },
                 "schema": {
                   "type": "object",
                   "properties": { "roles": { "type": "array", "items": { "type": "string" } } },
                   "required": ["roles"]
-                },
-                "example": { "roles": [null] }
+                }
               }
             }
           }
@@ -7646,6 +7646,24 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "app_name": "string",
+                  "default_roles": [null],
+                  "available_roles": [null],
+                  "login_methods": [null],
+                  "passkey_login_fallback_enabled": true,
+                  "oauth_providers": null,
+                  "lockout_policy": null,
+                  "authenticator_policy": null,
+                  "access_token_ttl": "string",
+                  "session_idle_ttl": null,
+                  "refresh_token_ttl": "string",
+                  "rate_limit": 0,
+                  "delay_after": 0,
+                  "rpid": "string",
+                  "origins": [null],
+                  "frontend_url": null
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -7833,24 +7851,6 @@
                     "rpid",
                     "origins"
                   ]
-                },
-                "example": {
-                  "app_name": "string",
-                  "default_roles": [null],
-                  "available_roles": [null],
-                  "login_methods": [null],
-                  "passkey_login_fallback_enabled": true,
-                  "oauth_providers": null,
-                  "lockout_policy": null,
-                  "authenticator_policy": null,
-                  "access_token_ttl": "string",
-                  "session_idle_ttl": null,
-                  "refresh_token_ttl": "string",
-                  "rate_limit": 0,
-                  "delay_after": 0,
-                  "rpid": "string",
-                  "origins": [null],
-                  "frontend_url": null
                 }
               }
             }
@@ -7859,12 +7859,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -7872,12 +7872,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8053,6 +8053,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "success": true, "updatedKeys": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8060,8 +8061,7 @@
                     "updatedKeys": { "type": "array", "items": { "type": "string" } }
                   },
                   "required": ["success", "updatedKeys"]
-                },
-                "example": { "success": true, "updatedKeys": [null] }
+                }
               }
             }
           },
@@ -8069,12 +8069,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "error": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": { "error": { "type": "string" }, "details": { "nullable": true } },
                   "required": ["error"]
-                },
-                "example": { "error": "string", "details": null }
+                }
               }
             }
           },
@@ -8082,12 +8082,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8104,6 +8104,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "providers": [null] },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8161,8 +8162,7 @@
                     }
                   },
                   "required": ["providers"]
-                },
-                "example": { "providers": [null] }
+                }
               }
             }
           },
@@ -8170,12 +8170,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -8183,12 +8183,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8258,6 +8258,29 @@
             "description": "HTTP 201",
             "content": {
               "application/json": {
+                "example": {
+                  "provider": {
+                    "id": "string",
+                    "name": "string",
+                    "enabled": null,
+                    "clientId": "string",
+                    "clientSecretEnv": "string",
+                    "authorizationUrl": null,
+                    "tokenUrl": null,
+                    "userInfoUrl": null,
+                    "scopes": null,
+                    "redirectUri": null,
+                    "redirectUris": null,
+                    "subjectJsonPath": null,
+                    "emailJsonPath": null,
+                    "emailVerifiedJsonPath": null,
+                    "nameJsonPath": "string",
+                    "allowSignup": null,
+                    "accountLinking": null,
+                    "requireEmailVerified": null,
+                    "pkce": true
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8312,29 +8335,6 @@
                     }
                   },
                   "required": ["provider"]
-                },
-                "example": {
-                  "provider": {
-                    "id": "string",
-                    "name": "string",
-                    "enabled": null,
-                    "clientId": "string",
-                    "clientSecretEnv": "string",
-                    "authorizationUrl": null,
-                    "tokenUrl": null,
-                    "userInfoUrl": null,
-                    "scopes": null,
-                    "redirectUri": null,
-                    "redirectUris": null,
-                    "subjectJsonPath": null,
-                    "emailJsonPath": null,
-                    "emailVerifiedJsonPath": null,
-                    "nameJsonPath": "string",
-                    "allowSignup": null,
-                    "accountLinking": null,
-                    "requireEmailVerified": null,
-                    "pkce": true
-                  }
                 }
               }
             }
@@ -8343,12 +8343,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "error": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": { "error": { "type": "string" }, "details": { "nullable": true } },
                   "required": ["error"]
-                },
-                "example": { "error": "string", "details": null }
+                }
               }
             }
           },
@@ -8356,12 +8356,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -8369,12 +8369,12 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8445,6 +8445,29 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "provider": {
+                    "id": "string",
+                    "name": "string",
+                    "enabled": null,
+                    "clientId": "string",
+                    "clientSecretEnv": "string",
+                    "authorizationUrl": null,
+                    "tokenUrl": null,
+                    "userInfoUrl": null,
+                    "scopes": null,
+                    "redirectUri": null,
+                    "redirectUris": null,
+                    "subjectJsonPath": null,
+                    "emailJsonPath": null,
+                    "emailVerifiedJsonPath": null,
+                    "nameJsonPath": "string",
+                    "allowSignup": null,
+                    "accountLinking": null,
+                    "requireEmailVerified": null,
+                    "pkce": true
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8499,29 +8522,6 @@
                     }
                   },
                   "required": ["provider"]
-                },
-                "example": {
-                  "provider": {
-                    "id": "string",
-                    "name": "string",
-                    "enabled": null,
-                    "clientId": "string",
-                    "clientSecretEnv": "string",
-                    "authorizationUrl": null,
-                    "tokenUrl": null,
-                    "userInfoUrl": null,
-                    "scopes": null,
-                    "redirectUri": null,
-                    "redirectUris": null,
-                    "subjectJsonPath": null,
-                    "emailJsonPath": null,
-                    "emailVerifiedJsonPath": null,
-                    "nameJsonPath": "string",
-                    "allowSignup": null,
-                    "accountLinking": null,
-                    "requireEmailVerified": null,
-                    "pkce": true
-                  }
                 }
               }
             }
@@ -8530,12 +8530,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": { "error": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": { "error": { "type": "string" }, "details": { "nullable": true } },
                   "required": ["error"]
-                },
-                "example": { "error": "string", "details": null }
+                }
               }
             }
           },
@@ -8543,12 +8543,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -8556,12 +8556,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8584,6 +8584,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "success": null, "id": "string" },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8591,8 +8592,7 @@
                     "id": { "type": "string" }
                   },
                   "required": ["success", "id"]
-                },
-                "example": { "success": null, "id": "string" }
+                }
               }
             }
           },
@@ -8600,6 +8600,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8628,11 +8633,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -8641,12 +8641,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -8654,12 +8654,12 @@
             "description": "HTTP 404",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8676,6 +8676,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "enabled": true, "verifiedAt": "string", "lastUsedAt": "string" },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8684,8 +8685,7 @@
                     "lastUsedAt": { "type": "string", "nullable": true }
                   },
                   "required": ["enabled", "verifiedAt", "lastUsedAt"]
-                },
-                "example": { "enabled": true, "verifiedAt": "string", "lastUsedAt": "string" }
+                }
               }
             }
           },
@@ -8693,12 +8693,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8715,6 +8715,16 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "secret": "string",
+                  "otpauthUrl": "string",
+                  "issuer": "string",
+                  "accountName": "string",
+                  "algorithm": null,
+                  "digits": 0,
+                  "period": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8737,16 +8747,6 @@
                     "digits",
                     "period"
                   ]
-                },
-                "example": {
-                  "message": "string",
-                  "secret": "string",
-                  "otpauthUrl": "string",
-                  "issuer": "string",
-                  "accountName": "string",
-                  "algorithm": null,
-                  "digits": 0,
-                  "period": 0
                 }
               }
             }
@@ -8755,12 +8755,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -8768,12 +8768,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8801,12 +8801,12 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" } },
                   "required": ["message"]
-                },
-                "example": { "message": "string" }
+                }
               }
             }
           },
@@ -8814,6 +8814,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8842,11 +8847,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -8855,12 +8855,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -8888,6 +8888,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8927,8 +8928,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -8936,6 +8936,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -8964,11 +8969,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -8977,12 +8977,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -9010,6 +9010,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "refreshTokenHash": "string",
+                  "sub": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9025,18 +9037,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "refreshTokenHash": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -9045,6 +9045,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9073,11 +9078,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -9086,12 +9086,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -9119,6 +9119,14 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9137,14 +9145,6 @@
                     "expiresAt",
                     "maxAgeSeconds"
                   ]
-                },
-                "example": {
-                  "message": "string",
-                  "fresh": true,
-                  "method": null,
-                  "verifiedAt": "string",
-                  "expiresAt": "string",
-                  "maxAgeSeconds": 0
                 }
               }
             }
@@ -9153,6 +9153,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9181,11 +9186,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -9194,12 +9194,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -9216,6 +9216,43 @@
             "description": "Success",
             "content": {
               "application/json": {
+                "example": {
+                  "user": {
+                    "id": "string",
+                    "email": "example@fellscode.com",
+                    "phone": "string",
+                    "roles": [null],
+                    "lastLogin": null,
+                    "activeOrganizationId": "string"
+                  },
+                  "credentials": [null],
+                  "organizations": [null],
+                  "activeOrganization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9429,43 +9466,6 @@
                     }
                   },
                   "required": ["user", "credentials"]
-                },
-                "example": {
-                  "user": {
-                    "id": "string",
-                    "email": "example@fellscode.com",
-                    "phone": "string",
-                    "roles": [null],
-                    "lastLogin": null,
-                    "activeOrganizationId": "string"
-                  },
-                  "credentials": [null],
-                  "organizations": [null],
-                  "activeOrganization": {
-                    "id": "string",
-                    "name": "string",
-                    "slug": "string",
-                    "createdByUserId": "string",
-                    "metadata": null,
-                    "createdAt": null,
-                    "updatedAt": null,
-                    "membership": {
-                      "id": "string",
-                      "organizationId": "string",
-                      "userId": "string",
-                      "roles": [null],
-                      "scopes": [null],
-                      "createdAt": null,
-                      "updatedAt": null,
-                      "user": {
-                        "id": "string",
-                        "email": "example@fellscode.com",
-                        "phone": "string",
-                        "roles": [null]
-                      }
-                    },
-                    "memberCount": 0
-                  }
                 }
               }
             }
@@ -9498,6 +9498,25 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "credential": {
+                    "id": "string",
+                    "aaguid": "string",
+                    "transports": [null],
+                    "deviceType": null,
+                    "backedUp": true,
+                    "counter": 0,
+                    "friendlyName": "string",
+                    "lastUsedAt": null,
+                    "platform": "string",
+                    "browser": "string",
+                    "deviceInfo": "string",
+                    "createdAt": null,
+                    "backedup": true,
+                    "prfCapable": true
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9538,25 +9557,6 @@
                     }
                   },
                   "required": ["message", "credential"]
-                },
-                "example": {
-                  "message": "string",
-                  "credential": {
-                    "id": "string",
-                    "aaguid": "string",
-                    "transports": [null],
-                    "deviceType": null,
-                    "backedUp": true,
-                    "counter": 0,
-                    "friendlyName": "string",
-                    "lastUsedAt": null,
-                    "platform": "string",
-                    "browser": "string",
-                    "deviceInfo": "string",
-                    "createdAt": null,
-                    "backedup": true,
-                    "prfCapable": true
-                  }
                 }
               }
             }
@@ -9565,6 +9565,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9593,11 +9598,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -9624,6 +9624,7 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9663,8 +9664,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           },
@@ -9672,6 +9672,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9700,11 +9705,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -9722,6 +9722,7 @@
             "description": "Success",
             "content": {
               "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9761,8 +9762,7 @@
                     }
                   },
                   "required": ["message"]
-                },
-                "example": { "message": "string", "token": "string", "delivery": null }
+                }
               }
             }
           }
@@ -9799,8 +9799,8 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "schema": { "type": "object", "additionalProperties": { "nullable": true } },
-                "example": null
+                "example": null,
+                "schema": { "type": "object", "additionalProperties": { "nullable": true } }
               }
             }
           },
@@ -9808,6 +9808,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9836,11 +9841,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -9849,12 +9849,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -9862,12 +9862,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -9910,6 +9910,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "refreshTokenHash": "string",
+                  "sub": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9925,18 +9937,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "refreshTokenHash": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -9945,6 +9945,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -9973,11 +9978,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -9986,12 +9986,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -9999,12 +9999,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -10042,8 +10042,8 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "schema": { "type": "object", "additionalProperties": { "nullable": true } },
-                "example": null
+                "example": null,
+                "schema": { "type": "object", "additionalProperties": { "nullable": true } }
               }
             }
           },
@@ -10051,6 +10051,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -10079,11 +10084,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -10092,12 +10092,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -10105,12 +10105,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -10118,12 +10118,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
@@ -10156,6 +10156,18 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "refreshTokenHash": "string",
+                  "sub": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -10171,18 +10183,6 @@
                     "refreshTtl": { "type": "number" }
                   },
                   "required": ["message"]
-                },
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "refreshTokenHash": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
                 }
               }
             }
@@ -10191,6 +10191,11 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -10219,11 +10224,6 @@
                     }
                   },
                   "required": ["error"]
-                },
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
                 }
               }
             }
@@ -10232,12 +10232,12 @@
             "description": "HTTP 401",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -10245,12 +10245,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           },
@@ -10258,12 +10258,12 @@
             "description": "HTTP 500",
             "content": {
               "application/json": {
+                "example": { "message": "string", "error": "string" },
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
-                },
-                "example": { "message": "string", "error": "string" }
+                }
               }
             }
           }
