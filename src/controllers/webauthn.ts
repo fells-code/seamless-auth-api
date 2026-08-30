@@ -25,6 +25,7 @@ import {
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
+import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { isMetadataServiceReady } from '../services/metadataServiceBootstrap.js';
@@ -306,6 +307,29 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     }
 
     const { aaguid, credential, credentialBackedUp, credentialDeviceType, fmt } = registrationInfo;
+    const { authenticator_policy } = await getSystemConfig();
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: authenticator_policy,
+      aaguid,
+      deviceType: credentialDeviceType,
+    });
+
+    if (!verdict.allowed) {
+      logger.warn(`Registration refused by authenticator policy: ${verdict.detail}`);
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_registration_failed',
+        req,
+        metadata: {
+          reason: verdict.detail,
+          aaguid: aaguid ?? null,
+          deviceType: credentialDeviceType ?? null,
+        },
+      });
+
+      return res.status(403).json({ error: verdict.reason });
+    }
+
     const challengeContext = getRegistrationChallengeContext(issued?.context);
     const prfCapable =
       getRegistrationPrfCapable(attestationResponse) || metadata.prfCapable === true;

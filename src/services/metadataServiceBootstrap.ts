@@ -8,6 +8,7 @@ import { MetadataService } from '@simplewebauthn/server';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import getLogger from '../utils/logger.js';
+import { allowListNeedsAttestation } from './authenticatorPolicyService.js';
 
 const logger = getLogger('metadataService');
 
@@ -50,6 +51,17 @@ export async function initializeMetadataService(): Promise<boolean> {
     const { authenticator_policy } = await getSystemConfig();
     attestation = authenticator_policy.attestation;
     requireKnown = authenticator_policy.requireKnownAuthenticator;
+
+    // An allow list matches on AAGUID, and an authenticator that was never asked
+    // to identify itself does not report a usable one, so this combination
+    // refuses every registration. Said once at startup rather than discovered
+    // one failed enrolment at a time.
+    if (allowListNeedsAttestation(authenticator_policy)) {
+      logger.error(
+        'authenticator_policy sets aaguidAllowList while attestation is "none". No authenticator ' +
+          'can identify itself, so every registration will be refused. Set attestation to "direct".',
+      );
+    }
   } catch (error) {
     logger.error(`Could not read the authenticator policy, skipping metadata setup: ${error}`);
     return false;

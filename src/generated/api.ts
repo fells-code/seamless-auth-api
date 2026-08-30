@@ -6853,7 +6853,10 @@ export interface paths {
                *       "attachment": "any",
                *       "userVerification": "required",
                *       "attestation": "none",
-               *       "requireKnownAuthenticator": false
+               *       "requireKnownAuthenticator": false,
+               *       "syncedPasskeys": "block",
+               *       "aaguidAllowList": [],
+               *       "aaguidDenyList": []
                *     }
                */
               authenticator_policy: {
@@ -6874,6 +6877,15 @@ export interface paths {
                 attestation: 'none' | 'direct';
                 /** @default false */
                 requireKnownAuthenticator: boolean;
+                /**
+                 * @default block
+                 * @enum {string}
+                 */
+                syncedPasskeys: 'allow' | 'block';
+                /** @default [] */
+                aaguidAllowList: string[];
+                /** @default [] */
+                aaguidDenyList: string[];
               };
               access_token_ttl: string;
               /** @default 8h */
@@ -7012,6 +7024,15 @@ export interface paths {
               attestation?: 'none' | 'direct';
               /** @default false */
               requireKnownAuthenticator?: boolean;
+              /**
+               * @default block
+               * @enum {string}
+               */
+              syncedPasskeys?: 'allow' | 'block';
+              /** @default [] */
+              aaguidAllowList?: string[];
+              /** @default [] */
+              aaguidDenyList?: string[];
             };
             access_token_ttl?: string;
             session_idle_ttl?: string;

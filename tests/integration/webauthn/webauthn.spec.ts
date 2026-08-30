@@ -81,6 +81,9 @@ beforeEach(() => {
       userVerification: 'required',
       attestation: 'none',
       requireKnownAuthenticator: false,
+      syncedPasskeys: 'allow',
+      aaguidAllowList: [],
+      aaguidDenyList: [],
     },
   });
   (Credential.findAll as any).mockResolvedValue([]);
@@ -98,6 +101,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
 
@@ -123,6 +129,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
 
@@ -223,6 +232,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -249,6 +261,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -270,6 +285,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -358,6 +376,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'discouraged',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -390,6 +411,9 @@ describe('GET /webauthn/register/start', () => {
         userVerification: 'required',
         attestation: 'direct',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -508,6 +532,9 @@ describe('verification policy reaches both verifiers', () => {
         userVerification: 'discouraged',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     (User.findOne as any).mockResolvedValue(buildUser());
@@ -521,6 +548,104 @@ describe('verification policy reaches both verifiers', () => {
     const [options] = (verifyRegistrationResponse as any).mock.calls.at(-1);
 
     expect(options.requireUserVerification).toBe(false);
+  });
+});
+
+describe('authenticator policy at registration', () => {
+  function policyConfig(overrides: Record<string, unknown>) {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      origins: ['http://localhost:5137'],
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'direct',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+        ...overrides,
+      },
+    });
+  }
+
+  async function registerWith(registrationInfo: Record<string, unknown>) {
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Credential.findAll as any).mockResolvedValue([]);
+    (Credential.create as any).mockResolvedValue({});
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
+
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        fmt: 'packed',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'singleDevice',
+        ...registrationInfo,
+      },
+    });
+
+    return request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+  }
+
+  it('refuses a credential that can leave the device when syncing is blocked', async () => {
+    policyConfig({ syncedPasskeys: 'block' });
+
+    const res = await registerWith({ credentialDeviceType: 'multiDevice' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'synced_passkey_not_allowed' });
+    expect(Credential.create).not.toHaveBeenCalled();
+  });
+
+  it('admits a device-bound credential under the same policy', async () => {
+    policyConfig({ syncedPasskeys: 'block' });
+
+    const res = await registerWith({ credentialDeviceType: 'singleDevice' });
+
+    expect(res.status).toBe(200);
+    expect(Credential.create).toHaveBeenCalled();
+  });
+
+  it('refuses a model that is not on the allow list', async () => {
+    policyConfig({ aaguidAllowList: ['ee882879-721c-4913-9775-3dfcce97072a'] });
+
+    const res = await registerWith({ aaguid: 'deadbeef-0000-0000-0000-000000000000' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'authenticator_not_allowed' });
+  });
+
+  it('admits a model that is on it', async () => {
+    policyConfig({ aaguidAllowList: ['ee882879-721c-4913-9775-3dfcce97072a'] });
+
+    const res = await registerWith({ aaguid: 'ee882879-721c-4913-9775-3dfcce97072a' });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('distinguishes the two refusals in the audit trail', async () => {
+    policyConfig({ syncedPasskeys: 'block' });
+    await registerWith({ credentialDeviceType: 'multiDevice' });
+
+    const failure = (AuthEventService.log as any).mock.calls
+      .map(([arg]: [any]) => arg)
+      .find((arg: any) => arg.type === 'webauthn_registration_failed');
+
+    expect(failure).toBeDefined();
+    expect(failure.metadata.reason).toContain('backup eligible');
+    expect(failure.metadata.deviceType).toBe('multiDevice');
   });
 });
 
@@ -1097,6 +1222,9 @@ describe('POST /webauthn/login/finish', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
@@ -1161,6 +1289,9 @@ describe('POST /webauthn/login/finish', () => {
         userVerification: 'required',
         attestation: 'none',
         requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
       },
     });
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
