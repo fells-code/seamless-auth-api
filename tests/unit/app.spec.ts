@@ -1,3 +1,4 @@
+import type { AddressInfo } from 'net';
 import request from 'supertest';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -6,8 +7,13 @@ import { AuthEventService } from '../../src/services/authEventService.js';
 
 let built: Awaited<ReturnType<typeof createApp>>;
 
+const routeRan = vi.fn();
+
 beforeAll(async () => {
-  app.get('/__test_cors_error', (_req, _res, next) => next(new Error('Not allowed by CORS')));
+  app.get('/__test_route_ran', (_req, res) => {
+    routeRan();
+    res.status(200).json({ ok: true });
+  });
   app.get('/__test_boom', (_req, _res, next) => {
     // A non-standard error whose `message` access throws forces the first
     // error handler to fail, exercising the fallback 500 handler.
@@ -32,13 +38,69 @@ describe('CORS origin handling', () => {
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5137');
   });
 
-  it('flags and does not reflect an unknown origin', async () => {
+  it('allows a request that carries no origin at all', async () => {
+    const res = await request(built).get('/__test_route_ran');
+
+    expect(res.status).toBe(200);
+    expect(routeRan).toHaveBeenCalled();
+  });
+
+  it("allows a request from this server's own origin, which the console relies on", async () => {
+    const server = built.listen(0);
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const res = await request(server)
+        .get('/__test_route_ran')
+        .set('Origin', `http://127.0.0.1:${port}`);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe(`http://127.0.0.1:${port}`);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('refuses an unknown origin with a 403, and does not run the route', async () => {
+    const res = await request(built).get('/__test_route_ran').set('Origin', 'http://evil.example');
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ message: 'CORS policy does not allow this origin.' });
+    expect(routeRan).not.toHaveBeenCalled();
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(AuthEventService.requestSuspicious).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        reason: 'Request from an unexpected origin',
+        origin: 'http://evil.example',
+      }),
+    );
+  });
+
+  it('refuses a preflight from an unknown origin rather than answering it', async () => {
     const res = await request(built)
-      .get('/__definitely_not_a_route')
+      .options('/__test_route_ran')
+      .set('Origin', 'http://evil.example')
+      .set('Access-Control-Request-Method', 'GET');
+
+    expect(res.status).toBe(403);
+  });
+
+  it('refuses an origin when the request carries no host to compare it against', async () => {
+    const res = await request(built)
+      .get('/__test_route_ran')
+      .set('Host', '')
       .set('Origin', 'http://evil.example');
 
-    expect(res.headers['access-control-allow-origin']).toBeUndefined();
-    expect(AuthEventService.requestSuspiciousContext).toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(routeRan).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unparseable origin', async () => {
+    const res = await request(built).get('/__test_route_ran').set('Origin', 'not-a-url');
+
+    expect(res.status).toBe(403);
+    expect(routeRan).not.toHaveBeenCalled();
   });
 });
 
@@ -58,15 +120,6 @@ describe('createApp error handling', () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'Not Found' });
-  });
-
-  it('returns 403 with a CORS message when a request is rejected by CORS', async () => {
-    const res = await request(built).get('/__test_cors_error');
-
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({ message: 'CORS policy does not allow this origin.' });
-    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5137');
-    expect(AuthEventService.requestSuspicious).toHaveBeenCalled();
   });
 
   it('falls back to a 500 when the error pipeline itself throws', async () => {
