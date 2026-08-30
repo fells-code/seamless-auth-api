@@ -145,3 +145,34 @@ The internal service-token path
 does use `aud: seamless-auth` with `iss: seamless-portal-api`. That is a different token family:
 machine-to-machine credentials minted by the portal API, not user tokens minted here. The two
 schemes are intentionally separate, and neither verifier accepts the other's tokens.
+
+## Requests from an origin that is not allowlisted
+
+**Posture: refused by the server, not left to the browser.**
+
+A cross-origin request whose `Origin` is not in `APP_ORIGINS` is answered `403 { "message": "CORS
+policy does not allow this origin." }` and the route never runs
+([`src/app.ts`](../src/app.ts)).
+
+The alternative, and what this server used to do, is to omit the
+`Access-Control-Allow-Origin` header and carry on. The browser then discards the response, so the
+caller learns nothing, but the request has already been executed. For an authentication server that
+is the wrong way round: a disallowed origin should not be able to make the server act, only to be
+denied a reading of what it did.
+
+Two kinds of request are deliberately not refused:
+
+- **No `Origin` header at all.** Server adapters, backends and command-line callers send none, and
+  this API's contract is bearer credentials from a trusted server adapter. CORS has nothing to say
+  about a caller that is not a browser.
+- **Same-origin.** A browser sends `Origin` on every state-changing request, including same-origin
+  ones, so without this the admin console at `/console` would need its own host in `APP_ORIGINS`
+  despite being served by this very process. The comparison is on host, not scheme, so that it does
+  not silently depend on `TRUST_PROXY` being set behind a TLS-terminating proxy.
+
+The refusal carries no `Access-Control-Allow-Origin` header. Naming an allowed origin to a caller
+that is not one discloses part of the allowlist and helps the browser not at all.
+
+The refusal is recorded as one `request_suspicious` auth event with the real client address and user
+agent, and the rejected origin in an `origin` metadata field. It used to be recorded with the origin
+string in the `ipAddress` field, which made the trail hard to read.
