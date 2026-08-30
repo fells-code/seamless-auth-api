@@ -168,6 +168,23 @@ describe('GET /webauthn/register/start', () => {
     );
   });
 
+  // The reported case in #222: an unrecognised value never reaches the controller,
+  // so the refusal comes from request validation rather than the policy check.
+  it('refuses an unrecognised attachment with the documented error body', async () => {
+    const res = await request(app).get('/webauthn/register/start').query({ attachment: 'bogus' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: 'invalid_request',
+      details: {
+        issues: [expect.objectContaining({ path: ['attachment'] })],
+      },
+    });
+    // A consumer reads `error` alone to learn why a call failed, so the raw
+    // ZodError shape must not come back.
+    expect(res.body).not.toHaveProperty('name', 'ZodError');
+  });
+
   it('excludes existing credentials from the registration options', async () => {
     (Credential.findAll as any).mockResolvedValue([
       buildCredential({ id: 'cred-1', transports: ['internal'] }),
