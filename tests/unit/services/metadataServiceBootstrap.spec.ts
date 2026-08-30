@@ -20,6 +20,9 @@ function policy(overrides: Record<string, unknown> = {}) {
       userVerification: 'required',
       attestation: 'none',
       requireKnownAuthenticator: false,
+      syncedPasskeys: 'block',
+      aaguidAllowList: [],
+      aaguidDenyList: [],
       ...overrides,
     },
   };
@@ -76,5 +79,18 @@ describe('initializeMetadataService', () => {
 
     expect(await initializeMetadataService()).toBe(false);
     expect(metadataInitialize).not.toHaveBeenCalled();
+  });
+});
+
+describe('misconfiguration warning', () => {
+  it('says so when an allow list is set without asking for attestation', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      policy({ attestation: 'none', aaguidAllowList: ['ee882879-721c-4913-9775-3dfcce97072a'] }),
+    );
+
+    // Nothing can identify itself, so every registration would be refused. The
+    // point is that this is said once at boot rather than discovered one failed
+    // enrolment at a time.
+    expect(await initializeMetadataService()).toBe(false);
   });
 });

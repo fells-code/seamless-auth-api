@@ -94,6 +94,39 @@ Operators who need these fields encrypted at rest should use database-level encr
 (for example RDS/Aurora storage encryption, or full-disk encryption), which protects the same data
 without breaking lookups.
 
+## Synced passkeys
+
+**Posture: blocked by default, deployment may allow.**
+
+A multi-device credential is synced by a platform password manager, so its
+private key exists somewhere outside the authenticator that created it. Every
+iCloud Keychain and Google Password Manager passkey is one. That is what a
+consumer wants and what an organisation issuing its own authenticators does not.
+
+`authenticator_policy.syncedPasskeys` defaults to `block`, and registration
+answers `403 { "error": "synced_passkey_not_allowed" }`. A deployment that wants
+platform passkeys sets it to `allow`.
+
+### Judged on eligibility, not current state
+
+The decision is made on WebAuthn's backup **eligibility** flag, surfaced as
+`credentialDeviceType: 'multiDevice'`, rather than on whether the credential is
+currently backed up. A credential that _can_ leave the device is the exposure
+whether or not it already has, and judging on current state would let one
+register while unsynced and sync afterwards.
+
+### Restricting authenticator models
+
+`aaguidAllowList` and `aaguidDenyList` restrict which authenticator models may
+register, by AAGUID. The deny list is applied first, so a model can be excluded
+even when a broad allow list would otherwise admit it.
+
+Both need `attestation: 'direct'` to mean anything. An authenticator that was
+never asked to identify itself reports an all-zero AAGUID, so an allow list would
+refuse everything. That combination is refused deliberately rather than waved
+through, since admitting an unidentified authenticator would make the list
+advisory, and the server logs the misconfiguration at startup.
+
 ## Token audience
 
 **Posture: `aud` is the deployment's own issuer URL.**

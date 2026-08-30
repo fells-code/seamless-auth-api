@@ -6344,13 +6344,31 @@
                           "enum": ["none", "direct"],
                           "default": "none"
                         },
-                        "requireKnownAuthenticator": { "type": "boolean", "default": false }
+                        "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                        "syncedPasskeys": {
+                          "type": "string",
+                          "enum": ["allow", "block"],
+                          "default": "block"
+                        },
+                        "aaguidAllowList": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "default": []
+                        },
+                        "aaguidDenyList": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "default": []
+                        }
                       },
                       "default": {
                         "attachment": "any",
                         "userVerification": "required",
                         "attestation": "none",
-                        "requireKnownAuthenticator": false
+                        "requireKnownAuthenticator": false,
+                        "syncedPasskeys": "block",
+                        "aaguidAllowList": [],
+                        "aaguidDenyList": []
                       }
                     },
                     "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
@@ -6563,7 +6581,22 @@
                         "enum": ["none", "direct"],
                         "default": "none"
                       },
-                      "requireKnownAuthenticator": { "type": "boolean", "default": false }
+                      "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                      "syncedPasskeys": {
+                        "type": "string",
+                        "enum": ["allow", "block"],
+                        "default": "block"
+                      },
+                      "aaguidAllowList": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "default": []
+                      },
+                      "aaguidDenyList": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "default": []
+                      }
                     }
                   },
                   "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
