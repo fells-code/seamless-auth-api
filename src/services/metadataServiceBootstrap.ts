@@ -6,9 +6,11 @@
 
 import { MetadataService } from '@simplewebauthn/server';
 
+import { conformanceModeEnabled } from '../config/conformanceMode.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import getLogger from '../utils/logger.js';
 import { allowListNeedsAttestation } from './authenticatorPolicyService.js';
+import { applyConformanceMetadataOverrides } from './conformanceMetadata.js';
 
 const logger = getLogger('metadataService');
 
@@ -67,7 +69,12 @@ export async function initializeMetadataService(): Promise<boolean> {
     return false;
   }
 
-  if (attestation !== 'direct') {
+  // A conformance run drives attestation through its own surface, which honours
+  // the conveyance the tools ask for rather than the deployment policy, so the
+  // metadata tests need the service up whatever this deployment has configured.
+  const conformance = conformanceModeEnabled();
+
+  if (attestation !== 'direct' && !conformance) {
     logger.info('Attestation is not requested, so the metadata service is not initialized.');
     return false;
   }
@@ -77,6 +84,7 @@ export async function initializeMetadataService(): Promise<boolean> {
       // 'strict' makes the library refuse an authenticator the blob does not
       // list; 'permissive' registers it anyway.
       verificationMode: requireKnown ? 'strict' : 'permissive',
+      ...(conformance ? applyConformanceMetadataOverrides() : {}),
     });
 
     initialized = true;
