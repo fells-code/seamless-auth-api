@@ -14,9 +14,9 @@ vi.mock('../../../src/config/directMessaging', () => ({
   createDirectAuthMessagingService: createDirectAuthMessagingServiceMock,
 }));
 vi.mock('../../../src/config/getSystemConfig', () => ({
-  getSystemConfig: vi.fn().mockResolvedValue({
+  getSystemConfig: vi.fn(async () => ({
     app_name: 'Seamless Auth Test',
-  }),
+  })),
 }));
 vi.mock('../../../src/utils/logger', () => ({
   default: () => ({
