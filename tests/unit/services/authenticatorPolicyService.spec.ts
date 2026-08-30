@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   allowListNeedsAttestation,
   evaluateAuthenticatorPolicy,
+  requireKnownNeedsAttestation,
 } from '../../../src/services/authenticatorPolicyService.js';
 
 const YUBIKEY = 'ee882879-721c-4913-9775-3dfcce97072a';
@@ -27,6 +28,7 @@ describe('synced passkeys', () => {
       policy: policy({ syncedPasskeys: 'block' }),
       aaguid: YUBIKEY,
       deviceType: 'multiDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(false);
@@ -38,6 +40,7 @@ describe('synced passkeys', () => {
       policy: policy({ syncedPasskeys: 'block' }),
       aaguid: YUBIKEY,
       deviceType: 'singleDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(true);
@@ -50,6 +53,7 @@ describe('synced passkeys', () => {
       policy: policy({ syncedPasskeys: 'block' }),
       aaguid: YUBIKEY,
       deviceType: 'multiDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(false);
@@ -60,6 +64,7 @@ describe('synced passkeys', () => {
       policy: policy({ syncedPasskeys: 'allow' }),
       aaguid: YUBIKEY,
       deviceType: 'multiDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(true);
@@ -79,11 +84,13 @@ describe('authenticator model lists', () => {
       policy: policy({ aaguidAllowList: [YUBIKEY] }),
       aaguid: YUBIKEY,
       deviceType: 'singleDevice',
+      attestationType: 'basic',
     });
     const refused = evaluateAuthenticatorPolicy({
       policy: policy({ aaguidAllowList: [YUBIKEY] }),
       aaguid: 'deadbeef-0000-0000-0000-000000000000',
       deviceType: 'singleDevice',
+      attestationType: 'basic',
     });
 
     expect(allowed.allowed).toBe(true);
@@ -98,6 +105,7 @@ describe('authenticator model lists', () => {
       policy: policy({ aaguidAllowList: [YUBIKEY] }),
       aaguid: ANONYMOUS,
       deviceType: 'singleDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(false);
@@ -109,6 +117,7 @@ describe('authenticator model lists', () => {
       policy: policy({ aaguidAllowList: [YUBIKEY], aaguidDenyList: [YUBIKEY] }),
       aaguid: YUBIKEY,
       deviceType: 'singleDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(false);
@@ -120,6 +129,7 @@ describe('authenticator model lists', () => {
       policy: policy({ aaguidAllowList: [YUBIKEY.toUpperCase()] }),
       aaguid: YUBIKEY,
       deviceType: 'singleDevice',
+      attestationType: 'basic',
     });
 
     expect(verdict.allowed).toBe(true);
@@ -141,5 +151,99 @@ describe('allowListNeedsAttestation', () => {
 
   it('does not flag a deployment with no allow list', () => {
     expect(allowListNeedsAttestation(policy({ attestation: 'none' }))).toBe(false);
+  });
+});
+
+describe('requireKnownAuthenticator', () => {
+  // The metadata service is only consulted for a statement carrying a certificate
+  // chain, so these are the credentials that would otherwise slip past the setting
+  // entirely rather than being checked and admitted.
+  it.each(['self', 'none'] as const)('refuses a %s attested credential', (attestationType) => {
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: policy({ requireKnownAuthenticator: true, attestation: 'direct' }),
+      aaguid: YUBIKEY,
+      deviceType: 'singleDevice',
+      attestationType,
+    });
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.reason).toBe('authenticator_not_allowed');
+    expect(verdict.detail).toContain('metadata service');
+  });
+
+  it('admits a credential that presented a certificate chain', () => {
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: policy({ requireKnownAuthenticator: true, attestation: 'direct' }),
+      aaguid: YUBIKEY,
+      deviceType: 'singleDevice',
+      attestationType: 'basic',
+    });
+
+    expect(verdict.allowed).toBe(true);
+  });
+
+  // Under 'none' nothing presents a chain, so applying the rule would refuse every
+  // registration rather than restricting anything.
+  it('does not apply when attestation was never requested', () => {
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: policy({ requireKnownAuthenticator: true, attestation: 'none' }),
+      aaguid: YUBIKEY,
+      deviceType: 'singleDevice',
+      attestationType: 'none',
+    });
+
+    expect(verdict.allowed).toBe(true);
+  });
+
+  it('does not apply when the deployment did not ask for known authenticators', () => {
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: policy({ requireKnownAuthenticator: false, attestation: 'direct' }),
+      aaguid: YUBIKEY,
+      deviceType: 'singleDevice',
+      attestationType: 'self',
+    });
+
+    expect(verdict.allowed).toBe(true);
+  });
+
+  it('is judged before the deny list, since an unidentified model matches no list', () => {
+    const verdict = evaluateAuthenticatorPolicy({
+      policy: policy({
+        requireKnownAuthenticator: true,
+        attestation: 'direct',
+        aaguidDenyList: [YUBIKEY],
+      }),
+      aaguid: YUBIKEY,
+      deviceType: 'singleDevice',
+      attestationType: 'self',
+    });
+
+    expect(verdict.detail).toContain('metadata service');
+  });
+});
+
+describe('requireKnownNeedsAttestation', () => {
+  it('flags known-authenticators-only set without asking them to identify themselves', () => {
+    expect(
+      requireKnownNeedsAttestation(
+        policy({ requireKnownAuthenticator: true, attestation: 'none' }),
+      ),
+    ).toBe(true);
+  });
+
+  it('is satisfied once attestation is requested', () => {
+    expect(
+      requireKnownNeedsAttestation(
+        policy({ requireKnownAuthenticator: true, attestation: 'direct' }),
+      ),
+    ).toBe(false);
+  });
+
+  it('does not flag a deployment that did not ask for known authenticators', () => {
+    expect(
+      requireKnownNeedsAttestation(
+        policy({ requireKnownAuthenticator: false, attestation: 'none' }),
+      ),
+    ).toBe(false);
   });
 });

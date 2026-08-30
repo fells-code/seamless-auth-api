@@ -6,6 +6,8 @@
 
 import type { AuthenticatorPolicy } from '@seamless-auth/types';
 
+import type { AttestationType } from '../lib/attestationType.js';
+
 /** The all-zero AAGUID: an authenticator declining to say what it is. */
 const ANONYMOUS_AAGUID = '00000000-0000-0000-0000-000000000000';
 
@@ -31,20 +33,45 @@ function listed(list: string[], aaguid: string) {
 /**
  * Decides whether a just-verified credential may be registered.
  *
- * Order matters. The deny list is applied first so a model can be excluded even
- * when a broad allow list would otherwise admit it, then the allow list, then
- * the synced posture. A refusal names which rule refused, so an operator reading
- * the audit trail can tell "this model is not permitted here" from "this
- * credential can leave the device".
+ * Order matters. Attestation is judged first, because a credential that never
+ * identified itself cannot be measured against any of the rules below it. Then
+ * the deny list, so a model can be excluded even when a broad allow list would
+ * otherwise admit it, then the allow list, then the synced posture. A refusal
+ * names which rule refused, so an operator reading the audit trail can tell
+ * "this model is not permitted here" from "this credential can leave the
+ * device".
  */
 export function evaluateAuthenticatorPolicy(params: {
   policy: AuthenticatorPolicy;
   aaguid: string | null | undefined;
   /** WebAuthn backup eligibility. 'multiDevice' means the key can leave its authenticator. */
   deviceType: string | null | undefined;
+  /** How the credential identified itself. Only 'basic' can be traced to a manufacturer. */
+  attestationType: AttestationType;
 }): AuthenticatorPolicyVerdict {
   const { policy } = params;
   const aaguid = normalize(params.aaguid);
+
+  // The metadata service is only ever consulted for a statement carrying a
+  // certificate chain, so a credential that self attests, or that attests not at
+  // all, is never looked up. Admitting it would make requireKnownAuthenticator a
+  // setting that quietly does nothing for exactly the authenticators it is meant
+  // to keep out. Scoped to 'direct' because under 'none' no credential presents a
+  // chain and this would refuse every registration.
+  if (
+    policy.requireKnownAuthenticator &&
+    policy.attestation === 'direct' &&
+    params.attestationType !== 'basic'
+  ) {
+    return {
+      allowed: false,
+      reason: 'authenticator_not_allowed',
+      detail:
+        params.attestationType === 'none'
+          ? 'Credential presented no attestation, so it cannot be matched against the metadata service'
+          : 'Credential self attested, so it cannot be matched against the metadata service',
+    };
+  }
 
   if (policy.aaguidDenyList.length > 0 && aaguid && listed(policy.aaguidDenyList, aaguid)) {
     return {
@@ -94,4 +121,12 @@ export function evaluateAuthenticatorPolicy(params: {
  */
 export function allowListNeedsAttestation(policy: AuthenticatorPolicy) {
   return policy.aaguidAllowList.length > 0 && policy.attestation !== 'direct';
+}
+
+/**
+ * Whether the deployment has asked for known authenticators only without asking
+ * them to identify themselves, in which case nothing can ever be checked.
+ */
+export function requireKnownNeedsAttestation(policy: AuthenticatorPolicy) {
+  return policy.requireKnownAuthenticator && policy.attestation !== 'direct';
 }
