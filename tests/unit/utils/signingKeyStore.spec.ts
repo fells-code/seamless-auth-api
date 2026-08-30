@@ -88,6 +88,90 @@ describe('signingKeyStore', () => {
       expect(result.privateKeyPem).toBe('EXISTING_KEY');
     });
 
+    it('generates when the dev key file is absent', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const fs = await import('fs');
+      const crypto = await import('crypto');
+
+      const enoent = Object.assign(new Error('missing'), { code: 'ENOENT' });
+      (fs.default.readFileSync as any).mockImplementation(() => {
+        throw enoent;
+      });
+      (crypto.default.generateKeyPairSync as any).mockReturnValue({
+        privateKey: 'PRIVATE_KEY',
+        publicKey: 'PUBLIC_KEY',
+      });
+
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
+
+      const result = await getSigningKey();
+
+      expect(result.privateKeyPem).toBe('PRIVATE_KEY');
+    });
+
+    it('does not treat an unreadable dev key file as a missing one', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const fs = await import('fs');
+
+      (fs.default.readFileSync as any).mockImplementation(() => {
+        throw Object.assign(new Error('denied'), { code: 'EACCES' });
+      });
+
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
+
+      await expect(getSigningKey()).rejects.toThrow('denied');
+    });
+
+    it('adopts the winner key when another process created it first', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const fs = await import('fs');
+      const crypto = await import('crypto');
+
+      (fs.default.readFileSync as any)
+        .mockImplementationOnce(() => {
+          throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+        })
+        .mockReturnValue('WINNER_KEY');
+      (crypto.default.generateKeyPairSync as any).mockReturnValue({
+        privateKey: 'LOSER_KEY',
+        publicKey: 'LOSER_PUBLIC',
+      });
+      (fs.default.writeFileSync as any).mockImplementation(() => {
+        throw Object.assign(new Error('exists'), { code: 'EEXIST' });
+      });
+
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
+
+      const result = await getSigningKey();
+
+      expect(result.privateKeyPem).toBe('WINNER_KEY');
+    });
+
+    it('propagates a write failure that is not a lost race', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const fs = await import('fs');
+      const crypto = await import('crypto');
+
+      (fs.default.readFileSync as any).mockImplementation(() => {
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+      });
+      (crypto.default.generateKeyPairSync as any).mockReturnValue({
+        privateKey: 'PRIVATE_KEY',
+        publicKey: 'PUBLIC_KEY',
+      });
+      (fs.default.writeFileSync as any).mockImplementation(() => {
+        throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+      });
+
+      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
+
+      await expect(getSigningKey()).rejects.toThrow('disk full');
+    });
+
     it('returns dev public key', async () => {
       process.env.NODE_ENV = 'development';
 

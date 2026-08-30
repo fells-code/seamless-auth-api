@@ -1,14 +1,7 @@
 import { vi } from 'vitest';
 
-vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof import('fs')>('fs');
-  return {
-    ...actual,
-    existsSync: vi.fn(),
-  };
-});
-
 vi.mock('fs/promises', () => ({
+  access: vi.fn(),
   mkdir: vi.fn(),
   writeFile: vi.fn(),
 }));
@@ -33,11 +26,10 @@ describe('keyManager', () => {
   it('runs dev key setup when not production', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
-    const fs = await import('fs');
     const crypto = await import('crypto');
     const fsp = await import('fs/promises');
 
-    (fs.existsSync as any).mockReturnValue(false);
+    (fsp.access as any).mockRejectedValue(new Error('ENOENT'));
 
     (crypto.generateKeyPairSync as any).mockReturnValue({
       publicKey: 'PUBLIC',
@@ -67,30 +59,24 @@ describe('keyManager', () => {
   it('skips generation if keys already exist', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
-    const fs = await import('fs');
+    const fsp = await import('fs/promises');
 
-    // simulate both files existing
-    (fs.existsSync as any)
-      .mockReturnValueOnce(true) // dir exists
-      .mockReturnValueOnce(true) // private
-      .mockReturnValueOnce(true); // public
+    (fsp.access as any).mockResolvedValue(undefined);
 
     const { ensureKeys } = await import('../../../src/scripts/keyManager');
 
     await ensureKeys();
 
-    const fsp = await import('fs/promises');
     expect(fsp.writeFile).not.toHaveBeenCalled();
   });
 
   it('generates keys when missing', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
-    const fs = await import('fs');
     const crypto = await import('crypto');
     const fsp = await import('fs/promises');
 
-    (fs.existsSync as any).mockReturnValue(false);
+    (fsp.access as any).mockRejectedValue(new Error('ENOENT'));
 
     (crypto.generateKeyPairSync as any).mockReturnValue({
       publicKey: 'PUBLIC_KEY',
