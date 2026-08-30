@@ -6338,9 +6338,20 @@
                           "type": "string",
                           "enum": ["required", "preferred", "discouraged"],
                           "default": "required"
-                        }
+                        },
+                        "attestation": {
+                          "type": "string",
+                          "enum": ["none", "direct"],
+                          "default": "none"
+                        },
+                        "requireKnownAuthenticator": { "type": "boolean", "default": false }
                       },
-                      "default": { "attachment": "any", "userVerification": "required" }
+                      "default": {
+                        "attachment": "any",
+                        "userVerification": "required",
+                        "attestation": "none",
+                        "requireKnownAuthenticator": false
+                      }
                     },
                     "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                     "session_idle_ttl": {
@@ -6546,7 +6557,13 @@
                         "type": "string",
                         "enum": ["required", "preferred", "discouraged"],
                         "default": "required"
-                      }
+                      },
+                      "attestation": {
+                        "type": "string",
+                        "enum": ["none", "direct"],
+                        "default": "none"
+                      },
+                      "requireKnownAuthenticator": { "type": "boolean", "default": false }
                     }
                   },
                   "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
