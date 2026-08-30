@@ -37,13 +37,23 @@ const devKeyDir = path.resolve('./keys/dev');
 const devPrivateKeyPath = path.join(devKeyDir, 'private.pem');
 const devKid = 'dev-main';
 
-function ensureDevKeys() {
-  if (!fs.existsSync(devKeyDir)) {
-    fs.mkdirSync(devKeyDir, { recursive: true });
-  }
-
-  if (fs.existsSync(devPrivateKeyPath)) {
+function readDevPrivateKey() {
+  try {
     return fs.readFileSync(devPrivateKeyPath, 'utf8');
+  } catch (error) {
+    if ((error as { code?: string }).code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function ensureDevKeys() {
+  fs.mkdirSync(devKeyDir, { recursive: true });
+
+  const existing = readDevPrivateKey();
+  if (existing) {
+    return existing;
   }
 
   // Generate a local RSA keypair in dev
@@ -53,7 +63,19 @@ function ensureDevKeys() {
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   });
 
-  fs.writeFileSync(devPrivateKeyPath, privateKey, 'utf8');
+  try {
+    // Exclusive create: two dev processes starting together would otherwise both
+    // generate and both write, leaving one of them signing with a key that is not
+    // the one on disk and not the one JWKS publishes. Losing the race means
+    // adopting the winner's key, not overwriting it.
+    fs.writeFileSync(devPrivateKeyPath, privateKey, { encoding: 'utf8', flag: 'wx' });
+  } catch (error) {
+    if ((error as { code?: string }).code === 'EEXIST') {
+      return fs.readFileSync(devPrivateKeyPath, 'utf8');
+    }
+    throw error;
+  }
+
   fs.writeFileSync(path.join(devKeyDir, 'public.pem'), publicKey, 'utf8');
 
   logger.info('Generated dev RSA keypair at ./keys/dev/');

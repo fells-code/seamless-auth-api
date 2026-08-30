@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  escapeLogControlCharacters,
   REDACTED,
   redactMetadata,
   redactSensitiveText,
@@ -130,6 +131,61 @@ describe('redaction utilities', () => {
       }
 
       expect(cursor).toBe('[REDACTED_DEPTH_LIMIT]');
+    });
+  });
+
+  describe('untrusted keys', () => {
+    it('redacts a __proto__ key as data instead of losing it to the setter', () => {
+      const redacted = redactMetadata(
+        JSON.parse('{"__proto__": {"isAdmin": true}, "providerId": "google"}'),
+      ) as Record<string, unknown>;
+
+      expect(Object.keys(redacted)).toContain('__proto__');
+      expect(Object.getOwnPropertyDescriptor(redacted, '__proto__')?.value).toEqual({
+        isAdmin: true,
+      });
+      expect(redacted.providerId).toBe('google');
+    });
+
+    it('leaves the prototype of an ordinary object alone', () => {
+      const redacted = redactMetadata(JSON.parse('{"__proto__": {"isAdmin": true}}')) as Record<
+        string,
+        unknown
+      >;
+
+      expect(({} as Record<string, unknown>).isAdmin).toBeUndefined();
+      expect(Object.getPrototypeOf(redacted)).toBeNull();
+    });
+
+    it('records the key rather than dropping it, and reparses inert', () => {
+      const redacted = redactMetadata(JSON.parse('{"__proto__": {"a": 1}, "b": 2}'));
+      const roundTripped = JSON.parse(JSON.stringify(redacted));
+
+      // Preserved as data: an audit trail that silently drops a key the caller sent
+      // is worse than one that records it.
+      expect(Object.getOwnPropertyDescriptor(roundTripped, '__proto__')?.value).toEqual({ a: 1 });
+      expect(roundTripped.b).toBe(2);
+      expect(({} as Record<string, unknown>).a).toBeUndefined();
+    });
+  });
+
+  describe('escapeLogControlCharacters', () => {
+    it('keeps a forged entry on one line', () => {
+      expect(escapeLogControlCharacters('GET /a\nINFO - forged entry')).toBe(
+        'GET /a\\nINFO - forged entry',
+      );
+    });
+
+    it('escapes carriage returns and tabs', () => {
+      expect(escapeLogControlCharacters('a\rb\tc')).toBe('a\\rb\\tc');
+    });
+
+    it('escapes other control characters by code point', () => {
+      expect(escapeLogControlCharacters('a\u0000b\u007f')).toBe('a\\x00b\\x7f');
+    });
+
+    it('leaves ordinary text untouched', () => {
+      expect(escapeLogControlCharacters('GET /users/me 200')).toBe('GET /users/me 200');
     });
   });
 });
