@@ -1,5 +1,5 @@
 ---
-'seamless-auth-api': major
+'seamless-auth-api': minor
 ---
 
 Require identity proofing on admin-assisted device replacement.

@@ -25,6 +25,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "changeset": "changeset",
+    "check:changeset-bump": "node ./src/scripts/checkChangesetBump.mjs",
     "version-packages": "changeset version",
     "db:create": "env-cmd -f .env sequelize-cli db:create || sequelize-cli db:create",
     "db:drop": "env-cmd -f .env sequelize-cli db:drop || sequelize-cli db:drop",
