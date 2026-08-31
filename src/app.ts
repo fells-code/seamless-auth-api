@@ -147,7 +147,11 @@ export async function createApp() {
       // is not one tells it part of the allowlist and helps the browser not at all.
       return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
     }
-    return next();
+    // next(err), not next(): a bare next() from an error handler clears the error and
+    // resumes at the next regular middleware, which skips the 500 handler below and lands
+    // on the 404. That reported server faults as unknown routes and recorded the caller
+    // for them.
+    return next(err);
   });
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {

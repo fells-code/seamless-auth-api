@@ -129,11 +129,20 @@ describe('query parsing', () => {
 });
 
 describe('createApp error handling', () => {
-  it('passes non-CORS errors through to the not-found handler', async () => {
+  it('reports a non-CORS error as a server error', async () => {
     const res = await request(built).get('/__test_plain_error');
 
-    expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Not Found' });
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Internal server error' });
+  });
+
+  // The 404 handler records the caller as suspicious. A fault on this side is not the
+  // caller misbehaving, and letting it land there put server bugs into the signal the
+  // anomaly views read.
+  it('does not record a server error as suspicious activity', async () => {
+    await request(built).get('/__test_plain_error');
+
+    expect(AuthEventService.requestSuspicious).not.toHaveBeenCalled();
   });
 
   it('falls back to a 500 when the error pipeline itself throws', async () => {
