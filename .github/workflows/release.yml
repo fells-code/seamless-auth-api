@@ -27,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
           cache: npm
@@ -57,13 +57,16 @@ jobs:
 
       - name: Create or update version and changelog PR
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          version: npm run version-packages
-          title: 'chore: update version and changelog'
-          commit: 'chore: update version and changelog'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # v2 renamed every one of these. Unknown inputs are ignored rather than
+          # rejected, so the old names would have left the version PR titled
+          # "Version Packages", which commitlint rejects.
+          version-script: npm run version-packages
+          pr-title: 'chore: update version and changelog'
+          commit-message: 'chore: update version and changelog'
+          # v2 no longer reads GITHUB_TOKEN from the environment.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Once the version PR is merged there are no changesets left, so the
       # version in package.json is the one to release. Tag it (idempotently) so
@@ -72,7 +75,10 @@ jobs:
       # not trigger other workflows; the image build is invoked directly below.
       - name: Tag release
         id: tag
-        if: steps.changesets.outputs.hasChangesets == 'false'
+        # Renamed from hasChangesets in changesets/action v2. The old name reads as
+        # empty, never equals 'false', and would silently stop every release here.
+        # Index syntax because the new name is hyphenated.
+        if: steps.changesets.outputs['has-changesets'] == 'false'
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
