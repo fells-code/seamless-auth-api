@@ -97,15 +97,10 @@ describe('global rate limiting', () => {
     }
   });
 
-  /**
-   * Pins what a throttled caller actually receives, which is not the JSON error shape
-   * every other response on this API uses: the limiters are configured with a plain
-   * string `message`, so express-rate-limit sends it as text. Asserted rather than
-   * corrected because changing it is a contract change for the SDKs, and one of them has
-   * already been bitten by it (seamless-auth-react#41, a non-JSON 429 crashing the
-   * client). Change this test deliberately, with that coordination, not in passing.
-   */
-  it('answers with a plain-text body rather than the JSON error shape', async () => {
+  // express-rate-limit sends a string message through res.send, which lands as
+  // text/html, and its own default message is a string. Only an object reaches the
+  // caller as the JSON shape every other error on this API uses.
+  it('answers with the JSON error shape, not plain text', async () => {
     const app = await loadAppWithLimiters();
 
     for (let i = 0; i < 3; i++) {
@@ -115,7 +110,7 @@ describe('global rate limiting', () => {
     const res = await request(app).get('/health/status');
 
     expect(res.status).toBe(429);
-    expect(res.headers['content-type']).not.toContain('application/json');
-    expect(res.text).toBe('Too many requests, please try again later');
+    expect(res.headers['content-type']).toContain('application/json');
+    expect(res.body).toEqual({ error: 'Too many requests, please try again later' });
   });
 });

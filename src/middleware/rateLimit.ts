@@ -10,6 +10,7 @@ import rateLimit from 'express-rate-limit';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import { rateLimitsDisabled } from './rateLimitsDisabled.js';
+import { TOO_MANY_REQUESTS_BODY } from './tooManyRequests.js';
 
 async function getConfiguredRateLimit() {
   const { rate_limit } = await getSystemConfig();
@@ -63,7 +64,7 @@ const dynamicLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
-  message: 'Too many requests, please try again later',
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 const magicLinkIpCachedLimiter = rateLimit({
@@ -72,6 +73,7 @@ const magicLinkIpCachedLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 const magicLinkIdentityCachedLimiter = rateLimit({
@@ -81,6 +83,7 @@ const magicLinkIdentityCachedLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 const otpIpCachedLimiter = rateLimit({
@@ -89,6 +92,7 @@ const otpIpCachedLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 const otpIdentityCachedLimiter = rateLimit({
@@ -98,6 +102,7 @@ const otpIdentityCachedLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 const oauthIpCachedLimiter = rateLimit({
@@ -106,6 +111,7 @@ const oauthIpCachedLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 const oauthProviderCachedLimiter = rateLimit({
@@ -115,6 +121,7 @@ const oauthProviderCachedLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: rateLimitsDisabled,
+  message: TOO_MANY_REQUESTS_BODY,
 });
 
 export function dynamicRateLimit(req: Request, res: Response, next: NextFunction) {
