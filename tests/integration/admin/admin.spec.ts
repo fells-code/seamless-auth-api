@@ -61,6 +61,15 @@ describe('DELETE /admin/users', () => {
 
     expect(res.status).toBe(404);
   });
+
+  // Express 5 leaves req.body undefined when nothing was parsed, so a request with no
+  // body at all must not be read as if it were an object.
+  it('returns 404 when the request carries no body', async () => {
+    const res = await request(app).delete('/admin/users');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'User not found.' });
+  });
 });
 
 describe('GET /admin/users/:userId', () => {

@@ -28,7 +28,7 @@ import {
   serializeMembership,
   serializeOrganization,
 } from '../services/organizationService.js';
-import { AuthenticatedRequest } from '../types/types.js';
+import { AuthenticatedRequest, RouteRequest } from '../types/types.js';
 import { parseDurationToSeconds } from '../utils/utils.js';
 
 function authUser(req: Request) {
@@ -73,7 +73,7 @@ export async function createOrganization(req: Request, res: Response) {
   });
 }
 
-export async function getOrganization(req: Request, res: Response) {
+export async function getOrganization(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId } = req.params;
   const { organization, membership } = await requireOrganizationAccess(user, organizationId);
@@ -87,7 +87,7 @@ export async function getOrganization(req: Request, res: Response) {
   });
 }
 
-export async function updateOrganization(req: Request, res: Response) {
+export async function updateOrganization(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId } = req.params;
   const { organization, membership } = await requireOrganizationManager(user, organizationId);
@@ -117,7 +117,7 @@ export async function updateOrganization(req: Request, res: Response) {
   });
 }
 
-export async function switchOrganization(req: Request, res: Response) {
+export async function switchOrganization(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId } = req.params;
   const sessionId = currentSessionId(req);
@@ -157,7 +157,7 @@ export async function switchOrganization(req: Request, res: Response) {
   });
 }
 
-export async function listMembers(req: Request, res: Response) {
+export async function listMembers(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId } = req.params;
   const { organization, membership } = await requireOrganizationAccess(user, organizationId);
@@ -170,7 +170,7 @@ export async function listMembers(req: Request, res: Response) {
   return res.json({ members, total: members.length });
 }
 
-export async function addMember(req: Request, res: Response) {
+export async function addMember(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId } = req.params;
   const { organization } = await requireOrganizationManager(user, organizationId);
@@ -205,7 +205,7 @@ export async function addMember(req: Request, res: Response) {
   });
 }
 
-export async function updateMember(req: Request, res: Response) {
+export async function updateMember(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId, userId } = req.params;
   const { organization } = await requireOrganizationManager(user, organizationId);
@@ -245,7 +245,7 @@ export async function updateMember(req: Request, res: Response) {
   });
 }
 
-export async function removeMember(req: Request, res: Response) {
+export async function removeMember(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId, userId } = req.params;
   const { organization } = await requireOrganizationManager(user, organizationId);

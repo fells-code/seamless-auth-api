@@ -25,6 +25,7 @@ import {
   verifyOAuthState,
 } from '../services/oauthService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { RouteRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('oauth');
@@ -48,7 +49,7 @@ export async function listOAuthProviders(_req: Request, res: Response) {
   });
 }
 
-export async function startOAuthLogin(req: Request, res: Response) {
+export async function startOAuthLogin(req: RouteRequest, res: Response) {
   const { providerId } = req.params;
   const provider = await getOAuthProvider(providerId);
 
@@ -100,7 +101,7 @@ export async function startOAuthLogin(req: Request, res: Response) {
   }
 }
 
-export async function finishOAuthLogin(req: Request, res: Response) {
+export async function finishOAuthLogin(req: RouteRequest, res: Response) {
   const { providerId } = req.params;
   const { code, state } = req.body;
   const provider = await getOAuthProvider(providerId);

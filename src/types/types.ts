@@ -9,14 +9,24 @@ import { Request } from 'express';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 
-export interface AuthenticatedRequest extends Request {
+/**
+ * A request whose route params are single-valued.
+ *
+ * Express 5 widens `req.params` to `string | string[]` because path-to-regexp v8 can
+ * repeat a param (`:name*`, `*splat`). Every API route here uses plain `:name` segments,
+ * which never repeat, so the array half is unreachable for them. Handlers on a wildcard
+ * route must keep the wider `Request` type.
+ */
+export type RouteRequest = Request<Record<string, string>>;
+
+export interface AuthenticatedRequest extends RouteRequest {
   user: User;
   sessionId: Session['id'];
   organizationId?: string | null;
   clientId?: string;
   trustedClientIp?: string;
 }
-export interface ServiceRequest extends Request {
+export interface ServiceRequest extends RouteRequest {
   clientId?: string | (() => string);
   triggeredBy?: string;
   trustedClientIp?: string;

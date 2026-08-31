@@ -31,7 +31,7 @@ import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import type { AuthenticatedRequest } from '../types/types.js';
-import { ServiceRequest } from '../types/types.js';
+import { RouteRequest, ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { redactMetadata } from '../utils/redaction.js';
 import { isValidPhoneNumber, normalizePhoneNumber } from '../utils/utils.js';
@@ -167,7 +167,7 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: ServiceRequest, res: Response) => {
   logger.info('Internal deletion call made.');
-  const { userId } = req.body;
+  const { userId } = req.body ?? {};
 
   if (!userId) {
     return res.status(404).json({ error: 'User not found.' });
@@ -412,7 +412,7 @@ export const listUserSessions = async (req: Request, res: Response) => {
   }
 };
 
-export const revokeAllUserSessions = async (req: Request, res: Response) => {
+export const revokeAllUserSessions = async (req: RouteRequest, res: Response) => {
   const { userId } = req.params;
 
   try {
@@ -483,7 +483,7 @@ export const revokeUserSessionById = async (req: Request, res: Response) => {
   }
 };
 
-export const recoverUserForDeviceReplacement = async (req: Request, res: Response) => {
+export const recoverUserForDeviceReplacement = async (req: RouteRequest, res: Response) => {
   const { userId } = req.params;
   const parsed = DeviceReplacementRecoverySchema.safeParse(req.body ?? {});
 

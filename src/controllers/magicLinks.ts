@@ -17,7 +17,7 @@ import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicySer
 import { sendMagicLinkEmail } from '../services/messagingService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { invalidateChallengesForUser } from '../services/webauthnChallengeService.js';
-import { AuthenticatedRequest } from '../types/types.js';
+import { AuthenticatedRequest, RouteRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { hashDeviceFingerprint, hashSha256 } from '../utils/utils.js';
 
@@ -142,7 +142,7 @@ export async function requestMagicLink(req: Request, res: Response) {
   });
 }
 
-export async function verifyMagicLink(req: Request, res: Response) {
+export async function verifyMagicLink(req: RouteRequest, res: Response) {
   logger.debug('Verifying magic link');
   const { token } = req.params;
 
