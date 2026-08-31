@@ -24,7 +24,7 @@ Production deployments should define:
 - `OAUTH_STATE_SECRET`
 - `SEAMLESS_JWKS_ACTIVE_KID`
 - `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`
-- `JWKS_PUBLIC_KEYS`
+- `SEAMLESS_JWKS_PUBLIC_KEYS`
 - OAuth client-secret environment variables referenced by provider `clientSecretEnv`
 - Messaging provider credentials when direct delivery is enabled
 
@@ -32,17 +32,52 @@ Do not store raw secrets in `system_config`.
 
 ## Signing Keys
 
-Access tokens are signed with configured JWKS signing keys. A typical rotation is:
+### What the server does, and does not do
 
-1. Generate a new key pair.
-2. Publish the new public key in `JWKS_PUBLIC_KEYS`.
-3. Deploy with both old and new public keys available.
-4. Switch `SEAMLESS_JWKS_ACTIVE_KID` to the new key id.
-5. Keep retired public keys until all tokens signed with them expire.
-6. Remove retired public keys after the token TTL window.
+`SEAMLESS_JWKS_PUBLIC_KEYS` holds **every** published key, not just the active one. The server
+treats it as a list:
 
-Use key ids with letters, numbers, and underscores because the active key id is used to derive the
-private-key environment variable name: `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`.
+- `/.well-known/jwks.json` publishes all of them.
+- Token verification resolves a key by the `kid` in the token's own header, so any published key
+  can verify a token it signed.
+- Only `SEAMLESS_JWKS_ACTIVE_KID`, and that key's private half, is used to sign.
+
+That separation is what makes rotation an overlap rather than a cutover. Nothing has to be
+invalidated to change signing keys.
+
+**The server never writes any of this.** It has no secret-store write path and no cloud SDK, and
+environment variables are fixed for a process's lifetime, so a server that rotated its own keys
+could not observe the result without a restart it cannot trigger. Whatever manages your secrets
+owns the document; the server reads it.
+
+### Rotating without downtime
+
+Three steps, each one deployed before the next. Do not collapse them: the overlap is the whole
+mechanism.
+
+1. **Add.** Generate a key pair, add its public half to `SEAMLESS_JWKS_PUBLIC_KEYS`, and deploy.
+   The outgoing key still signs. Verifiers now accept both.
+2. **Flip.** Point `SEAMLESS_JWKS_ACTIVE_KID` at the new key id, inject its
+   `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`, and deploy. The new key signs. Tokens already issued keep
+   verifying, because the outgoing public key is still published.
+3. **Retire.** Once `refresh_token_ttl` has passed, so no token signed by the outgoing key can
+   still be live, remove it from the document and drop its private key. Deploy.
+
+Each step needs a restart to take effect, because the values arrive as environment variables. The
+server re-reads the document every five minutes within a process, which covers a secret updated in
+place, but a changed environment variable needs a new process.
+
+Key ids must be letters, digits and underscores, and must not start with a digit, because the
+private-key variable name is derived from the id: `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`. A key id with
+a hyphen produces a variable name that cannot be set.
+
+### Managed deployments
+
+For instances built with `seamless-iac`, this is already automated and should not be done by hand.
+Terraform owns the document, signing keys are a set of labels with `jwks_active_key_label`
+selecting the signer, and the three steps above are three applies. See ADR 0011,
+`Terraform owns the JWKS document, and rotation overlaps`, and the procedure in that repo's
+`portal-auth/README.md`.
 
 ## Refresh Tokens
 

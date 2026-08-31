@@ -245,11 +245,11 @@ combinations (for example, Twilio requires SID, auth token, and a from-number).
 
 Required when `NODE_ENV=production`. In development, signing keys are generated locally.
 
-| Variable                          | Required  | Default | Notes                                                                              |
-| --------------------------------- | --------- | ------- | ---------------------------------------------------------------------------------- |
-| `SEAMLESS_JWKS_ACTIVE_KID`        | Prod only | -       | Key ID of the active signing key.                                                  |
-| `SEAMLESS_JWKS_KEY_<KID>_PRIVATE` | Prod only | -       | PKCS8 private key PEM for the active KID.                                          |
-| `JWKS_PUBLIC_KEYS`                | Prod only | -       | JSON `{ "keys": [{ "kid", "pem", "createdAt" }] }` published at the JWKS endpoint. |
+| Variable                          | Required  | Default | Notes                                                                                                                                                                                                                                 |
+| --------------------------------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SEAMLESS_JWKS_ACTIVE_KID`        | Prod only | -       | Key ID of the active signing key.                                                                                                                                                                                                     |
+| `SEAMLESS_JWKS_KEY_<KID>_PRIVATE` | Prod only | -       | PKCS8 private key PEM for the active KID.                                                                                                                                                                                             |
+| `SEAMLESS_JWKS_PUBLIC_KEYS`       | Prod only | -       | JSON `{ "keys": [{ "kid", "pem", "createdAt" }] }`. Every published key, not just the active one: the endpoint serves them all and token verification resolves by `kid`, which is what makes a rotation overlap rather than cut over. |
 
 See [docs/production-operations.md](./production-operations.md) for key rotation.
 

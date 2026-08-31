@@ -52,7 +52,7 @@ require_var API_SERVICE_TOKEN
 
 if [ "${NODE_ENV:-development}" = "production" ]; then
   require_var SEAMLESS_JWKS_ACTIVE_KID
-  require_var JWKS_PUBLIC_KEYS
+  require_var SEAMLESS_JWKS_PUBLIC_KEYS
 
   active_kid="${SEAMLESS_JWKS_ACTIVE_KID}"
   private_key_var="SEAMLESS_JWKS_KEY_${active_kid}_PRIVATE"
