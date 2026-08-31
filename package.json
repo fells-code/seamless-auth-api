@@ -51,7 +51,7 @@
     "@seamless-auth/messaging": "^0.1.0",
     "@seamless-auth/messaging-aws": "^0.1.0",
     "@seamless-auth/messaging-twilio": "^0.1.0",
-    "@seamless-auth/types": "^0.16.0",
+    "@seamless-auth/types": "^0.17.0",
     "@simplewebauthn/server": "^13.3.3",
     "base64url": "^3.0.1",
     "bcrypt-ts": "^7.1.0",

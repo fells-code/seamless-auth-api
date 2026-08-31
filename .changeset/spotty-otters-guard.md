@@ -26,5 +26,5 @@ session that cannot be revoked is logged and the sign-in continues, because
 failing an authentication over a housekeeping step is worse than briefly
 exceeding the cap.
 
-NIST 800-53 AC-10. Requires `@seamless-auth/types` 0.16.0, which publishes the
+NIST 800-53 AC-10. Requires `@seamless-auth/types` 0.17.0, which publishes the
 config key.
