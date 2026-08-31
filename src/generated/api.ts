@@ -3749,7 +3749,9 @@ export interface paths {
     /** Request a magic login link */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          redirectUri?: string;
+        };
         header?: never;
         path?: never;
         cookie?: never;
@@ -3792,6 +3794,36 @@ export interface paths {
                     token?: string;
                     magicLinkUrl: string;
                   };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };

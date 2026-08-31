@@ -7,13 +7,18 @@
 import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
+import { z } from 'zod';
 
-import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
+import { MagicLinkRequestQuerySchema } from '../schemas/magiclink.requests.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicyService.js';
+import {
+  MagicLinkRedirectNotAllowedError,
+  resolveMagicLinkUrl,
+} from '../services/magicLinkRedirect.js';
 import { sendMagicLinkEmail } from '../services/messagingService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { invalidateChallengesForUser } from '../services/webauthnChallengeService.js';
@@ -52,7 +57,16 @@ async function logMagicLinkFailure(req: Request, reason: string, userId?: string
   });
 }
 
-export async function requestMagicLink(req: Request, res: Response) {
+// The query is Zod-validated by defineRoute before this runs, so redirectUri is a string
+// or absent rather than Express 5's wider parsed-query type.
+type MagicLinkRequest = Request<
+  Record<string, string>,
+  unknown,
+  unknown,
+  z.infer<typeof MagicLinkRequestQuerySchema>
+>;
+
+export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
   const useExternalDelivery = await canReturnExternalDelivery(req);
@@ -72,9 +86,18 @@ export async function requestMagicLink(req: Request, res: Response) {
   const rawToken = crypto.randomBytes(32).toString('base64url');
   const tokenHash = hashSha256(rawToken);
 
-  const config = await getSystemConfig();
-  const frontendUrl = config.frontend_url ?? config.origins[0];
-  const redirect_url = `${frontendUrl}/verify-magiclink?token=${rawToken}`;
+  let redirect_url: string;
+
+  try {
+    redirect_url = await resolveMagicLinkUrl(rawToken, req.query.redirectUri);
+  } catch (error) {
+    if (error instanceof MagicLinkRedirectNotAllowedError) {
+      await logMagicLinkFailure(req, 'Redirect URI not allowed', user.id);
+      return res.status(400).json({ error: 'Redirect URI is not allowed' });
+    }
+
+    throw error;
+  }
 
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 

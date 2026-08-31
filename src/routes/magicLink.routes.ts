@@ -12,7 +12,10 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { magicLinkEmailLimiter, magicLinkIpLimiter } from '../middleware/rateLimit.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
-import { MagicLinkVerifyParamsSchema } from '../schemas/magiclink.requests.js';
+import {
+  MagicLinkRequestQuerySchema,
+  MagicLinkVerifyParamsSchema,
+} from '../schemas/magiclink.requests.js';
 import { MagicLinkPollSuccessSchema } from '../schemas/magiclink.responses.js';
 
 const magicLinkRouter = createRouter('/magic-link');
@@ -26,8 +29,10 @@ magicLinkRouter.get(
     middleware: [magicLinkIpLimiter, magicLinkEmailLimiter],
 
     schemas: {
+      query: MagicLinkRequestQuerySchema,
       response: {
         200: MessageSchema,
+        400: ErrorSchema,
         403: ErrorSchema,
         500: InternalErrorSchema,
       },
