@@ -69,7 +69,6 @@ describe('GET /admin/users/:userId', () => {
       buildUser({
         emailVerificationToken: 'email-token',
         phoneVerificationToken: 'phone-token',
-        challengeContext: { prfSalt: 'salt' },
       }),
     );
     (Session.findAll as any).mockResolvedValue([
@@ -94,7 +93,6 @@ describe('GET /admin/users/:userId', () => {
     expect(res.body.credentials).toHaveLength(1);
     expect(JSON.stringify(res.body)).not.toContain('emailVerificationToken');
     expect(JSON.stringify(res.body)).not.toContain('phoneVerificationToken');
-    expect(JSON.stringify(res.body)).not.toContain('challengeContext');
     expect(JSON.stringify(res.body)).not.toContain('refreshTokenHash');
     expect(JSON.stringify(res.body)).not.toContain('refreshTokenLookup');
     expect(JSON.stringify(res.body)).not.toContain('publicKey');
@@ -428,7 +426,6 @@ describe('POST /admin/users', () => {
       email: 'test@example.com',
       phone: '+14155552671',
       roles: ['user'],
-      challenge: 'challenge',
       emailVerificationToken: 'email-token',
     });
 
@@ -611,8 +608,7 @@ describe('PATCH /admin/users/:userId', () => {
 
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalled();
-    expect(res.body.user).not.toHaveProperty('challenge');
-    expect(res.body.user).not.toHaveProperty('challengeContext');
+    expect(res.body.user).not.toHaveProperty('emailVerificationToken');
   });
 
   it('updates scoped roles successfully', async () => {

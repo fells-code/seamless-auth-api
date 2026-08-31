@@ -8,8 +8,6 @@ export function buildUser(overrides: Partial<any> = {}) {
     email: 'test@example.com',
     phone: '+14155552671',
     roles: ['user'],
-    challenge: 'challenge',
-    challengeContext: null,
     createdAt: Date.now(),
     emailVerified: true,
     phoneVerified: true,

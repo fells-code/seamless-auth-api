@@ -16,8 +16,6 @@ describe('api response serializers', () => {
       revoked: false,
       emailVerified: true,
       phoneVerified: true,
-      challenge: 'challenge',
-      challengeContext: { prfSalt: 'salt' },
       emailVerificationToken: 'email-token',
       phoneVerificationToken: 'phone-token',
     });
@@ -30,8 +28,6 @@ describe('api response serializers', () => {
         roles: ['admin:read'],
       }),
     );
-    expect(user).not.toHaveProperty('challenge');
-    expect(user).not.toHaveProperty('challengeContext');
     expect(user).not.toHaveProperty('emailVerificationToken');
     expect(user).not.toHaveProperty('phoneVerificationToken');
   });
