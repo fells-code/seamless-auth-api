@@ -5,6 +5,39 @@ on:
     branches: ['**']
 
 jobs:
+  # A pull request only ever runs ci.yml and codeql.yml, so a mistake in
+  # release.yml or docker-publish.yml reaches main unchallenged and is not
+  # noticed until a release goes quiet. This is the one check that reads those
+  # files on every pull request.
+  workflows:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+
+    env:
+      # Pinned by version and checksum rather than installed by the upstream
+      # download script, which curls an unpinned ref into bash. Dependabot does
+      # not track either form, so this pair is bumped by hand.
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "${ARCHIVE}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ARCHIVE}"
+          echo "${ACTIONLINT_SHA256}  ${ARCHIVE}" | sha256sum -c -
+          tar -xzf "${ARCHIVE}" actionlint
+
+      # shellcheck is preinstalled on the runner, so this also covers the shell
+      # in every run: block.
+      - name: Lint workflow files
+        run: ./actionlint -color
+
   test:
     runs-on: ubuntu-latest
 
