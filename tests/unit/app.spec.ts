@@ -26,6 +26,9 @@ beforeAll(async () => {
     next(malformed);
   });
   app.get('/__test_plain_error', (_req, _res, next) => next(new Error('plain failure')));
+  app.get('/__test_query', (req, res) => {
+    res.status(200).json({ query: req.query });
+  });
   built = await createApp();
 });
 
@@ -111,6 +114,17 @@ describe('developer endpoints', () => {
     expect(res.status).toBe(200);
     expect(res.body.openapi).toBe('3.0.3');
     expect(res.body.components.securitySchemes.bearerAuth).toBeDefined();
+  });
+});
+
+describe('query parsing', () => {
+  // Express 5 defaults to the "simple" parser, which would read a[b] as the literal key
+  // "a[b]" and drop repeated keys into a different shape than callers were built against.
+  it('parses nested and repeated keys the extended way', async () => {
+    const res = await request(built).get('/__test_query?a[b]=1&type=x&type=y');
+
+    expect(res.status).toBe(200);
+    expect(res.body.query).toEqual({ a: { b: '1' }, type: ['x', 'y'] });
   });
 });
 

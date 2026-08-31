@@ -84,7 +84,8 @@ export function mountAdminDashboard(app: Express): boolean {
   };
 
   app.get(ADMIN_DASHBOARD_BASE_PATH, sendIndex);
-  app.get(`${ADMIN_DASHBOARD_BASE_PATH}/*`, sendIndex);
+  // Named wildcard: path-to-regexp v8 (Express 5) rejects a bare "*".
+  app.get(`${ADMIN_DASHBOARD_BASE_PATH}/*splat`, sendIndex);
 
   logger.info(`Serving admin dashboard at ${ADMIN_DASHBOARD_BASE_PATH} from ${dir}.`);
   return true;

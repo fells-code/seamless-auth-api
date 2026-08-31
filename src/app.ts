@@ -32,6 +32,12 @@ if (trustProxy) {
   app.set('trust proxy', Number.isNaN(hops) ? trustProxy : hops);
 }
 
+// Express 5 changed the default query parser from "extended" to "simple". Pinned rather
+// than inherited so an upgrade never silently changes how a caller's query string parses:
+// this API is the contract source for the SDKs and the console, and none of them opted
+// into a narrower parser.
+app.set('query parser', 'extended');
+
 const rawOrigin = process.env.APP_ORIGINS!.split(',');
 
 export const CORS_REJECTION = 'Not allowed by CORS';

@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { NextFunction, RequestHandler, Response, Router } from 'express';
+import { NextFunction, Request, RequestHandler, Response, Router } from 'express';
 import { ZodError, ZodTypeAny } from 'zod';
 
 import { attachAuthMiddleware } from '../middleware/attachAuthMiddleware.js';
@@ -180,6 +180,21 @@ function resolveAuthType(
   return undefined;
 }
 
+/**
+ * Express 5 exposes `req.query` as a getter with no setter, and one that re-parses the
+ * URL on every read, so a plain assignment throws and would discard the coercions the
+ * schema just applied. Shadowing the accessor with an own data property is what makes
+ * the validated query stick for the rest of the request.
+ */
+function setQuery(req: Request, value: Request['query']) {
+  Object.defineProperty(req, 'query', {
+    value,
+    writable: true,
+    configurable: true,
+    enumerable: true,
+  });
+}
+
 export function defineRoute<S extends RouteSchemas>(
   router: Router,
   options: DefineRouteOptions<S>,
@@ -224,11 +239,14 @@ export function defineRoute<S extends RouteSchemas>(
       }
 
       if (query) {
-        req.query = query.parse(req.query) as typeof req.query;
+        setQuery(req, query.parse(req.query) as typeof req.query);
       }
 
       if (body) {
-        req.body = body.parse(req.body) as typeof req.body;
+        // Express 5 leaves req.body undefined when no body was parsed. Validating that
+        // as {} keeps a body-less request reporting its missing fields rather than one
+        // opaque "expected object, received undefined".
+        req.body = body.parse(req.body ?? {}) as typeof req.body;
       }
 
       return next();
