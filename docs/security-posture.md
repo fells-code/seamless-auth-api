@@ -70,6 +70,12 @@ cannot be used to generate OTPs in bulk. An ephemeral token also cannot be excha
 on its own: it authorizes a continuation step that still requires the OTP code, the magic-link
 token, or a WebAuthn assertion.
 
+That last clause depends on the continuation credential being single use, so it is worth saying
+what backs it. A WebAuthn assertion is: the challenge it answers lives in `webauthn_challenges`
+with a server-enforced TTL and a per-flow purpose, and
+[`consumeChallenge`](../src/services/webauthnChallengeService.ts) spends it on read, before
+verification, so no outcome leaves a challenge an assertion could be replayed against.
+
 Making them single-use would mean tracking a `jti` in a short-lived store and consuming it on first
 successful continuation. That adds server-side state to a deliberately stateless design and
 introduces a failure mode where a dropped response leaves a user unable to retry a step they
