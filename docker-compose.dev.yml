@@ -54,7 +54,7 @@ services:
       RATE_LIMIT: '100'
       DELAY_AFTER: '50'
 
-      RPID: localhost
+      RPID: ${RPID:-localhost}
       ORIGINS: ${ORIGINS:-http://localhost:5312,http://localhost:5173,http://localhost:5174}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
 
