@@ -130,6 +130,41 @@ describe('GET /magic-link', () => {
     );
   });
 
+  it('sends the link to a requested target whose origin is configured', async () => {
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+
+    const res = await request(app)
+      .get('/magic-link')
+      .query({ redirectUri: 'http://localhost:5174/app/magic' })
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken());
+
+    expect(res.status).toBe(200);
+    expect(res.body.delivery.magicLinkUrl).toContain('http://localhost:5174/app/magic?token=');
+    expect(res.body.delivery.magicLinkUrl).toContain(res.body.delivery.token);
+  });
+
+  it('refuses a requested target outside the configured origins', async () => {
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+
+    const res = await request(app)
+      .get('/magic-link')
+      .query({ redirectUri: 'https://evil.example/steal' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Redirect URI is not allowed' });
+    expect(sendMagicLinkEmail).not.toHaveBeenCalled();
+  });
+
+  it('rejects a redirectUri that is not a URL before it reaches the controller', async () => {
+    const res = await request(app).get('/magic-link').query({ redirectUri: 'not-a-url' });
+
+    expect(res.status).toBe(400);
+    expect(sendMagicLinkEmail).not.toHaveBeenCalled();
+  });
+
   it('returns an error when direct magic-link delivery fails', async () => {
     (MagicLinkToken.update as any).mockResolvedValue([1]);
     (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });

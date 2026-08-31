@@ -59,6 +59,24 @@ The SDK adapters branch on these exact codes (for example, the magic-link poll t
 "pending"). Changing a branch-significant status code is a contract change; see the ripple
 protocol in [ecosystem.md](./ecosystem.md).
 
+### Magic link destination
+
+`GET /magic-link` accepts an optional `redirectUri` query parameter deciding where the emailed
+link lands. Omit it and the link keeps the tenant-wide destination, `frontend_url` falling back
+to the first configured origin, which is what every existing caller gets.
+
+A supplied value is validated against the configured `origins` the same way
+`resolveOAuthRedirectUri` validates an OAuth redirect, and a value outside them answers `400`.
+That is what lets one tenant serve a web client and a mobile client without them sharing a
+single destination. The token is set as a `token` query parameter on the target, replacing one
+of that name the caller had already put there.
+
+The allowlist is the WebAuthn `origins` list because there is no dedicated one yet. A
+destination that cannot be expressed as one of those, a custom scheme such as `myapp://` or a
+universal link on a host that is not a WebAuthn origin, needs a `magic_link_redirect_uris`
+system config key. That key lives in `@seamless-auth/types` and so needs a version bump and a
+coordinated release across this API and both SDKs.
+
 ### Error body
 
 Every `4xx` and `5xx` response uses one shape, with one additive extension for schema

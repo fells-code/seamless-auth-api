@@ -8,6 +8,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
+import { allowedRedirect } from '../lib/redirectAllowlist.js';
 import { OAuthIdentity } from '../models/oauthIdentities.js';
 import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
@@ -118,34 +119,6 @@ function getJsonPathValue(input: Record<string, unknown>, path?: string) {
 
 function normalizeEmail(value: unknown) {
   return typeof value === 'string' && value.includes('@') ? value.toLowerCase() : null;
-}
-
-function parseUrl(value: string) {
-  try {
-    return new URL(value);
-  } catch {
-    return null;
-  }
-}
-
-function sameOrigin(value: string, allowedOrigin: string) {
-  const parsedValue = parseUrl(value);
-  const parsedAllowedOrigin = parseUrl(allowedOrigin);
-
-  if (!parsedValue || !parsedAllowedOrigin) return false;
-
-  return parsedValue.origin === parsedAllowedOrigin.origin;
-}
-
-function allowedRedirect(value: string, allowedValues: string[], fallbackOrigins: string[]) {
-  const parsedValue = parseUrl(value);
-  if (!parsedValue) return false;
-
-  if (allowedValues.length > 0) {
-    return allowedValues.some((allowedValue) => value === allowedValue);
-  }
-
-  return fallbackOrigins.some((origin) => sameOrigin(value, origin));
 }
 
 function providerRedirectAllowlist(provider: OAuthProviderConfig) {
