@@ -96,10 +96,6 @@ if [ "${NODE_ENV:-development}" = "production" ] && [ -z "$email_from" ] && [ -z
   warn "Direct email/SMS delivery is not configured. This is fine when using external delivery mode via a SeamlessAuth server adapter."
 fi
 
-echo "Generating JWKS keys"
-node ./dist/scripts/initKeys.js
-echo "JWKS keys ready"
-
 echo "Running migrations..."
 
 if ! run_migrations; then
@@ -115,4 +111,7 @@ if ! run_migrations; then
 fi
 
 echo "Starting application"
-exec npm run start
+# exec node, not `npm run start`: npm is a second Node program loaded to run one
+# command, and it stays between init and the server, so SIGTERM on task draining
+# reaches npm rather than PID 1.
+exec node dist/server.js
