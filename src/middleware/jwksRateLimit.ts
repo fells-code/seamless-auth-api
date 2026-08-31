@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { rateLimitsDisabled } from './rateLimitsDisabled.js';
+import { TOO_MANY_REQUESTS_BODY } from './tooManyRequests.js';
 
 async function getConfiguredRateLimit() {
   const { rate_limit } = await getSystemConfig();
@@ -21,7 +22,7 @@ const jwksLimiter = rateLimit({
   limit: getConfiguredRateLimit,
   standardHeaders: true,
   legacyHeaders: false,
-  message: 'Too many requests, please try again later',
+  message: TOO_MANY_REQUESTS_BODY,
   skip: rateLimitsDisabled,
 });
 

@@ -21,7 +21,6 @@ const cachedLimiter: ReturnType<typeof slowDown> = slowDown({
   delayAfter: getConfiguredDelayAfter,
   legacyHeaders: false,
   delayMs: (hits) => hits * 1000,
-  message: 'Too many requests, please try again later',
   skip: rateLimitsDisabled,
 });
 

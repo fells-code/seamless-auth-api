@@ -391,6 +391,43 @@ describe('oauthProviderLimiter', () => {
   });
 });
 
+describe('refusal body', () => {
+  // Six of these set no message at all and inherited express-rate-limit's own string
+  // default, so grepping for the string found three of the nine sites. Asserted across
+  // every constructed limiter rather than per-limiter for that reason.
+  it('gives every limiter the JSON error shape', async () => {
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    const rateLimit = await import('express-rate-limit');
+
+    (getSystemConfig as any).mockResolvedValue({});
+
+    await import('../../../src/middleware/rateLimit');
+    await import('../../../src/middleware/jwksRateLimit');
+
+    const messages = (rateLimit.default as any).mock.calls.map(
+      ([options]: any[]) => options.message,
+    );
+
+    expect(messages).toHaveLength(8);
+    for (const message of messages) {
+      expect(message).toEqual({ error: 'Too many requests, please try again later' });
+    }
+  });
+
+  // express-slow-down replaces the handler with one that only delays and calls next,
+  // so it never answers a request and a message there could not be read.
+  it('sets no message on the slow-down, which never answers', async () => {
+    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+    const slowDown = await import('express-slow-down');
+
+    (getSystemConfig as any).mockResolvedValue({});
+
+    await import('../../../src/middleware/slowDown');
+
+    expect((slowDown.default as any).mock.calls[0][0]).not.toHaveProperty('message');
+  });
+});
+
 describe('dynamicJWKSRateLimit', () => {
   it('uses config rate_limit and invokes the cached limiter', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
