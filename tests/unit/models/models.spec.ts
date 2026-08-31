@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.unmock('../../../src/models/authEvents.js');
+vi.unmock('../../../src/models/authFailures.js');
 vi.unmock('../../../src/models/sessions.js');
 vi.unmock('../../../src/models/users.js');
 vi.unmock('../../../src/models/systemConfig.js');

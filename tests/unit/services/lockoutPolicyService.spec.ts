@@ -4,10 +4,8 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
   getSystemConfig: vi.fn(),
 }));
 
-vi.mock('../../../src/models/authEvents.js', () => ({
-  AuthEvent: {
-    count: vi.fn(),
-  },
+vi.mock('../../../src/services/authFailureCounter.js', () => ({
+  countRecentFailures: vi.fn(),
 }));
 
 vi.mock('../../../src/services/authEventService.js', () => ({
@@ -17,8 +15,8 @@ vi.mock('../../../src/services/authEventService.js', () => ({
 }));
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { AuthEvent } from '../../../src/models/authEvents.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
+import { countRecentFailures } from '../../../src/services/authFailureCounter.js';
 import {
   getUserLockoutStatus,
   rejectIfUserLocked,
@@ -46,14 +44,15 @@ describe('lockoutPolicyService', () => {
       locked: false,
       failureCount: 0,
       retryAfterSeconds: 0,
+      countUnavailable: false,
       policy: expect.objectContaining({ enabled: false }),
     });
-    expect(AuthEvent.count).not.toHaveBeenCalled();
+    expect(countRecentFailures).not.toHaveBeenCalled();
   });
 
   it('falls back to the default policy when config lookup fails', async () => {
     (getSystemConfig as any).mockRejectedValue(new Error('config unavailable'));
-    (AuthEvent.count as any).mockResolvedValue(10);
+    (countRecentFailures as any).mockResolvedValue(10);
 
     await expect(getUserLockoutStatus('user-1')).resolves.toEqual(
       expect.objectContaining({
@@ -65,7 +64,7 @@ describe('lockoutPolicyService', () => {
   });
 
   it('does nothing when the account is not locked', async () => {
-    (AuthEvent.count as any).mockResolvedValue(0);
+    (countRecentFailures as any).mockResolvedValue(0);
 
     const req = { ip: '127.0.0.1', headers: {} } as any;
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as any;
@@ -76,7 +75,7 @@ describe('lockoutPolicyService', () => {
   });
 
   it('reports unlocked when failures are below the configured threshold', async () => {
-    (AuthEvent.count as any).mockResolvedValue(2);
+    (countRecentFailures as any).mockResolvedValue(2);
 
     await expect(getUserLockoutStatus('user-1')).resolves.toEqual(
       expect.objectContaining({
@@ -87,7 +86,7 @@ describe('lockoutPolicyService', () => {
   });
 
   it('reports locked when failures meet the configured threshold', async () => {
-    (AuthEvent.count as any).mockResolvedValue(3);
+    (countRecentFailures as any).mockResolvedValue(3);
 
     await expect(getUserLockoutStatus('user-1')).resolves.toEqual(
       expect.objectContaining({
@@ -99,7 +98,7 @@ describe('lockoutPolicyService', () => {
   });
 
   it('returns a lockout response and audit event when active', async () => {
-    (AuthEvent.count as any).mockResolvedValue(3);
+    (countRecentFailures as any).mockResolvedValue(3);
 
     const req = {
       ip: '127.0.0.1',
@@ -125,5 +124,27 @@ describe('lockoutPolicyService', () => {
         retryAfterSeconds: 600,
       }),
     );
+  });
+
+  // The advisory: the count used to coalesce a failed query to zero, which read
+  // as not locked, so brute force protection came off exactly when the database
+  // was unhealthy. An unknown count now means locked.
+  it('treats the account as locked when the counter cannot be read', async () => {
+    (countRecentFailures as any).mockRejectedValue(new Error('connection pool exhausted'));
+
+    const status = await getUserLockoutStatus('user-1');
+
+    expect(status.locked).toBe(true);
+    expect(status.countUnavailable).toBe(true);
+  });
+
+  it('refuses the request when the counter cannot be read', async () => {
+    (countRecentFailures as any).mockRejectedValue(new Error('table is locked'));
+    const res: any = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+
+    await expect(rejectIfUserLocked({ userId: 'user-1', req: {} as never, res })).resolves.toBe(
+      true,
+    );
+    expect(res.status).toHaveBeenCalledWith(423);
   });
 });

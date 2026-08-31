@@ -34,6 +34,17 @@ vi.mock('../../src/models/systemConfig.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/authFailures.js', () => ({
+  AuthFailure: {
+    create: vi.fn(),
+    // Defaults to zero so the shared mock user is not locked out. A spec that
+    // exercises lockout sets its own value, and a spec that makes this reject is
+    // exercising the fail-closed path deliberately.
+    count: vi.fn(() => Promise.resolve(0)),
+    destroy: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/credentials.js', () => ({
   Credential: {
     findAll: vi.fn(),

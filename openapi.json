@@ -3194,10 +3194,29 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "example": { "message": "string" },
+                "example": {
+                  "message": "string",
+                  "degraded": { "audit": { "failureCount": 0, "lastFailureAt": "string" } }
+                },
                 "schema": {
                   "type": "object",
-                  "properties": { "message": { "type": "string" } },
+                  "properties": {
+                    "message": { "type": "string" },
+                    "degraded": {
+                      "type": "object",
+                      "properties": {
+                        "audit": {
+                          "type": "object",
+                          "properties": {
+                            "failureCount": { "type": "number" },
+                            "lastFailureAt": { "type": "string", "nullable": true }
+                          },
+                          "required": ["failureCount", "lastFailureAt"]
+                        }
+                      },
+                      "required": ["audit"]
+                    }
+                  },
                   "required": ["message"]
                 }
               }

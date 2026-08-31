@@ -5,12 +5,14 @@
  */
 
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { AuthEvent } from '../models/authEvents.js';
 import type { LockoutPolicy } from '../schemas/systemConfig.schema.js';
+import getLogger from '../utils/logger.js';
 import { AuthEventService } from './authEventService.js';
+import { countRecentFailures } from './authFailureCounter.js';
+
+const logger = getLogger('lockoutPolicy');
 
 const DEFAULT_LOCKOUT_POLICY: LockoutPolicy = {
   enabled: true,
@@ -18,14 +20,6 @@ const DEFAULT_LOCKOUT_POLICY: LockoutPolicy = {
   windowSeconds: 15 * 60,
   lockoutSeconds: 15 * 60,
 };
-
-const LOCKOUT_FAILURE_TYPES = [
-  'login_failed',
-  'webauthn_login_failed',
-  'verify_otp_failed',
-  'totp_failed',
-  'magic_link_failed',
-];
 
 async function getLockoutPolicy(): Promise<LockoutPolicy> {
   let configuredPolicy: LockoutPolicy | undefined;
@@ -52,26 +46,38 @@ export async function getUserLockoutStatus(userId: string, now = new Date()) {
       failureCount: 0,
       retryAfterSeconds: 0,
       policy,
+      countUnavailable: false,
     };
   }
 
   const windowStart = new Date(now.getTime() - policy.windowSeconds * 1000);
-  const failureCount =
-    Number(
-      await AuthEvent.count({
-        where: {
-          user_id: userId,
-          type: { [Op.in]: LOCKOUT_FAILURE_TYPES },
-          created_at: { [Op.gte]: windowStart },
-        },
-      }),
-    ) || 0;
+
+  let failureCount: number;
+
+  try {
+    failureCount = await countRecentFailures(userId, windowStart);
+  } catch (error) {
+    // Fail closed. This used to coalesce a failed query to zero, which read as
+    // not locked, so the brute force protection came off exactly when the
+    // database was unhealthy. Refusing an authentication we cannot vouch for is
+    // the lesser harm, and the caller sees the same 423 a locked account gets.
+    logger.error(`Could not read the lockout counter, treating the account as locked: ${error}`);
+
+    return {
+      locked: true,
+      failureCount: policy.maxFailures,
+      retryAfterSeconds: policy.lockoutSeconds,
+      policy,
+      countUnavailable: true,
+    };
+  }
 
   return {
     locked: failureCount >= policy.maxFailures,
     failureCount,
     retryAfterSeconds: policy.lockoutSeconds,
     policy,
+    countUnavailable: false,
   };
 }
 

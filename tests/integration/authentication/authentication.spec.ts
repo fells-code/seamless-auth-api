@@ -20,6 +20,7 @@ import {
   revokeSessionChain,
 } from '../../../src/services/sessionService';
 import { AuthEvent } from '../../../src/models/authEvents';
+import { AuthFailure } from '../../../src/models/authFailures';
 import { logoutCurrentSession } from '../../../src/controllers/authentication';
 
 let app: Application;
@@ -291,7 +292,7 @@ describe('POST /login', () => {
 
   it('rejects login for a locked account', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
-    (AuthEvent.count as any).mockResolvedValue(10);
+    (AuthFailure.count as any).mockResolvedValue(10);
     (getSystemConfig as any).mockResolvedValue({
       lockout_policy: { enabled: true, maxFailures: 10, windowSeconds: 900, lockoutSeconds: 900 },
     });

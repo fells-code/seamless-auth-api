@@ -9,10 +9,9 @@ import { Request } from 'express';
 import { AuthEvent } from '../models/authEvents.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
 import type { AuthenticatedRequest } from '../types/types.js';
-import getLogger from '../utils/logger.js';
 import { redactMetadata } from '../utils/redaction.js';
-
-const logger = getLogger('authEventService');
+import { recordAuditWriteFailure } from './auditHealth.js';
+import { recordAuthFailure } from './authFailureCounter.js';
 
 type DeprecatedAuthEventType = 'notication_sent' | 'registration_suspicous' | 'request_suspicous';
 
@@ -67,18 +66,30 @@ export class AuthEventService {
     userAgent = 'unknown',
     metadata = null,
   }: AuthEventContextOptions) {
+    const normalizedType = normalizeAuthEventType(type);
+
+    // Counted before the audit write and in its own statement, so a trail that
+    // cannot be written no longer takes the lockout control down with it. This
+    // used to be derived from auth_events, which meant the control and its
+    // telemetry shared one failure mode and both failed open.
+    await recordAuthFailure({ userId, type: normalizedType });
+
     try {
       await AuthEvent.create({
         user_id: userId,
         actor_user_id: actorUserId,
         session_id: sessionId,
-        type: normalizeAuthEventType(type),
+        type: normalizedType,
         ip_address: ipAddress || 'unknown',
         user_agent: userAgent || 'unknown',
         metadata: redactMetadata(metadata),
       });
     } catch (err) {
-      logger.error(`Failed to write AuthEvent: ${err}`);
+      // Still swallowed: 137 call sites await this, many from inside error
+      // handlers, and throwing here would turn a bookkeeping failure into a
+      // failed request. The failure is no longer silent, though. It is reported
+      // through /health/status so a monitor can act on it.
+      recordAuditWriteFailure(err);
     }
   }
 

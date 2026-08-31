@@ -252,3 +252,56 @@ continues, because failing an authentication over a housekeeping step is worse
 than briefly exceeding the cap.
 
 This is NIST 800-53 AC-10.
+
+## Audit write failure
+
+**Posture: the trail may be lost, no security control may be.**
+
+`AuthEventService` still swallows a failed write to `auth_events`. 137 call sites
+await it, many from inside error handlers, so throwing there would turn a
+bookkeeping failure into a failed request and would take down the very paths that
+report problems.
+
+What changed is that a failure is no longer silent, and no longer takes anything
+with it.
+
+### Nothing security-relevant is derived from the audit trail
+
+Account lockout used to count failed attempts by querying `auth_events`. The
+control and its telemetry were one data path, and that path fails open: a
+condition that degraded audit writes while leaving the service running stopped
+failures being counted, so lockout silently stopped enforcing on every account
+while authentication carried on. Disk exhaustion, a table lock, a failed
+migration or pool exhaustion would all do it, and the missing records are the same
+missing records that would have shown it happening.
+
+Failed attempts are now recorded in `auth_failures`, written separately from the
+audit event and read only by the lockout policy. Losing the trail no longer loses
+the control.
+
+### An unknown count means locked
+
+`getUserLockoutStatus` refuses rather than guessing when it cannot read the
+counter. An authentication the server cannot vouch for is refused with the same
+`423` a locked account gets, rather than admitted because the count came back
+empty.
+
+### Failures are reported where monitoring already looks
+
+`GET /health/status` answers `200 { "message": "System up, audit degraded",
+"degraded": { "audit": { … } } }` for five minutes after a failed audit write. The
+healthy body is unchanged, so anything already parsing it is unaffected, and the
+status stays `200` because the service is still serving and should not be pulled
+from a load balancer for this. This is the defined action NIST 800-53 AU-5 asks
+for on audit logging failure; a line in the application log is not one, because
+nothing reads it.
+
+### What is still accepted
+
+An audit write that fails is still a lost record. Recording is best effort by
+design, and the tradeoff is stated here rather than made by default. A deployment
+that needs authentication to fail closed on audit failure does not have that
+option today.
+
+`auth_failures` rows are not pruned, which matches `auth_events`. Retention is
+[issue #173](https://github.com/fells-code/seamless-auth-api/issues/173).
