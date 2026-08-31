@@ -23,6 +23,10 @@ vi.mock('../../../src/services/organizationService.js', () => ({
   getDefaultOrganizationIdForUser: vi.fn(),
 }));
 
+vi.mock('../../../src/services/concurrentSessionPolicy.js', () => ({
+  enforceConcurrentSessionLimit: vi.fn(),
+}));
+
 vi.mock('../../../src/utils/utils.js', () => ({
   computeSessionTimes: vi.fn(),
   parseDurationToSeconds: vi.fn(),
@@ -36,6 +40,7 @@ import {
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { Session } from '../../../src/models/sessions.js';
+import { enforceConcurrentSessionLimit } from '../../../src/services/concurrentSessionPolicy.js';
 import { getDefaultOrganizationIdForUser } from '../../../src/services/organizationService.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../../../src/utils/utils.js';
 
@@ -78,6 +83,7 @@ beforeEach(() => {
     access_token_ttl: '15m',
     refresh_token_ttl: '1h',
     session_idle_ttl: '8h',
+    max_concurrent_sessions: null,
   });
 
   (parseDurationToSeconds as any).mockImplementation((v: string) => (v === '15m' ? 900 : 3600));
@@ -206,5 +212,36 @@ describe('issueSessionAndRespond', () => {
 
     expect(parseDurationToSeconds).toHaveBeenCalledWith('15m');
     expect(parseDurationToSeconds).toHaveBeenCalledWith('1d');
+  });
+});
+
+describe('concurrent session limit', () => {
+  it('applies the configured limit before the new session is stored', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+      max_concurrent_sessions: 3,
+    });
+
+    await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
+
+    expect(enforceConcurrentSessionLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: mockUser.id, limit: 3 }),
+    );
+
+    // Ordering is the point: the limit counts the session about to exist, so it
+    // has to run before the row is created.
+    const evictionOrder = (enforceConcurrentSessionLimit as any).mock.invocationCallOrder[0];
+    const createOrder = (Session.create as any).mock.invocationCallOrder[0];
+    expect(evictionOrder).toBeLessThan(createOrder);
+  });
+
+  it('passes no limit through when the deployment has not set one', async () => {
+    await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
+
+    expect(enforceConcurrentSessionLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: null }),
+    );
   });
 });

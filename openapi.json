@@ -1539,6 +1539,7 @@
                     "service_token_failed",
                     "service_token_rotated",
                     "service_token_success",
+                    "session_evicted",
                     "step_up_challenge",
                     "step_up_failed",
                     "step_up_success",
@@ -1608,6 +1609,7 @@
                           "service_token_failed",
                           "service_token_rotated",
                           "service_token_success",
+                          "session_evicted",
                           "step_up_challenge",
                           "step_up_failed",
                           "step_up_success",
@@ -7658,6 +7660,7 @@
                   "access_token_ttl": "string",
                   "session_idle_ttl": null,
                   "refresh_token_ttl": "string",
+                  "max_concurrent_sessions": null,
                   "rate_limit": 0,
                   "delay_after": 0,
                   "rpid": "string",
@@ -7828,6 +7831,13 @@
                       "default": "8h"
                     },
                     "refresh_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
+                    "max_concurrent_sessions": {
+                      "type": "integer",
+                      "nullable": true,
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "default": null
+                    },
                     "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
                     "delay_after": { "type": "integer", "minimum": 0 },
                     "rpid": { "type": "string", "minLength": 1 },
@@ -8034,6 +8044,12 @@
                   "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                   "session_idle_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                   "refresh_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
+                  "max_concurrent_sessions": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
                   "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
                   "delay_after": { "type": "integer", "minimum": 0 },
                   "rpid": { "type": "string", "minLength": 1 },

@@ -1322,6 +1322,7 @@ export interface paths {
                 | 'service_token_failed'
                 | 'service_token_rotated'
                 | 'service_token_success'
+                | 'session_evicted'
                 | 'step_up_challenge'
                 | 'step_up_failed'
                 | 'step_up_success'
@@ -1385,6 +1386,7 @@ export interface paths {
                     | 'service_token_failed'
                     | 'service_token_rotated'
                     | 'service_token_success'
+                    | 'session_evicted'
                     | 'step_up_challenge'
                     | 'step_up_failed'
                     | 'step_up_success'
@@ -7683,6 +7685,7 @@ export interface paths {
              *       "access_token_ttl": "string",
              *       "session_idle_ttl": null,
              *       "refresh_token_ttl": "string",
+             *       "max_concurrent_sessions": null,
              *       "rate_limit": 0,
              *       "delay_after": 0,
              *       "rpid": "string",
@@ -7797,6 +7800,8 @@ export interface paths {
               /** @default 8h */
               session_idle_ttl: string;
               refresh_token_ttl: string;
+              /** @default null */
+              max_concurrent_sessions: number | null;
               rate_limit: number;
               delay_after: number;
               rpid: string;
@@ -7943,6 +7948,7 @@ export interface paths {
             access_token_ttl?: string;
             session_idle_ttl?: string;
             refresh_token_ttl?: string;
+            max_concurrent_sessions?: number | null;
             rate_limit?: number;
             delay_after?: number;
             rpid?: string;

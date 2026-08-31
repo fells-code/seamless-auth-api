@@ -31,6 +31,20 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     case 'delay_after':
       return Number(raw);
 
+    // An empty value, or one of the words an operator is likely to reach for,
+    // means no limit. Without this the only way to express "uncapped" through the
+    // environment would be to unset the variable, which a deployment template
+    // cannot easily do.
+    case 'max_concurrent_sessions': {
+      const value = raw.trim().toLowerCase();
+
+      if (value === '' || value === 'null' || value === 'none' || value === 'unlimited') {
+        return null;
+      }
+
+      return Number(raw);
+    }
+
     case 'passkey_login_fallback_enabled':
       return raw.trim().toLowerCase() === 'true';
 

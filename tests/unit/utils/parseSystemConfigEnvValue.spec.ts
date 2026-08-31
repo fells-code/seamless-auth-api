@@ -145,6 +145,21 @@ describe('parseSystemConfigEnvValue', () => {
     });
   });
 
+  describe('max_concurrent_sessions parsing', () => {
+    it('parses a numeric limit', () => {
+      expect(parseSystemConfigEnvValue('max_concurrent_sessions', '5')).toBe(5);
+    });
+
+    // A deployment template cannot easily unset a variable, so the words an
+    // operator would reach for all mean "no limit".
+    it.each(['', '   ', 'null', 'none', 'unlimited', 'UNLIMITED'])(
+      'treats %o as no limit',
+      (raw) => {
+        expect(parseSystemConfigEnvValue('max_concurrent_sessions', raw)).toBeNull();
+      },
+    );
+  });
+
   describe('invalid key', () => {
     it('throws for unknown key', () => {
       expect(() => parseSystemConfigEnvValue('invalid_key' as any, 'value')).toThrow(

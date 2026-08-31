@@ -223,3 +223,32 @@ that is not one discloses part of the allowlist and helps the browser not at all
 The refusal is recorded as one `request_suspicious` auth event with the real client address and user
 agent, and the rejected origin in an `origin` metadata field. It used to be recorded with the origin
 string in the `ipAddress` field, which made the trail hard to read.
+
+## Concurrent sessions per user
+
+**Posture: uncapped by default, and a cap evicts rather than refuses.**
+
+`max_concurrent_sessions` bounds how many sessions one user may hold at once. It
+defaults to no limit, so an instance that predates the setting is unaffected.
+Unlimited is `null` rather than `0`, and the schema refuses `0`, because zero
+would otherwise read as "no sessions allowed" and lock every user out of a
+deployment that meant to remove the cap.
+
+When a signed-in user is at the limit, the new sign-in **succeeds** and their
+oldest session is revoked with `revokedReason: 'concurrent_session_limit'`, and a
+`session_evicted` auth event names the session that ended. Refusing the new
+session instead would lock a user out of the device in front of them until
+something they may not have access to expires, which for the shared workstations
+this setting exists to protect is the common case rather than the edge one.
+
+Lowering the limit leaves users above it. Each converges on their next sign-in,
+which evicts everything above the cap in one pass rather than shedding one
+session per login indefinitely.
+
+Enforcement runs before the new session row is created, so the limit counts the
+session about to exist: at a limit of 3, a user holding 3 ends up with 3, not 4.
+It never throws. A session that cannot be revoked is logged and the sign-in
+continues, because failing an authentication over a housekeeping step is worse
+than briefly exceeding the cap.
+
+This is NIST 800-53 AC-10.
