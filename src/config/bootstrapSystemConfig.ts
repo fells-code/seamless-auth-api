@@ -13,6 +13,19 @@ import { SYSTEM_CONFIG_ENV_MAP } from './systemConfig.envMap.js';
 
 const logger = getLogger('bootstrapSystemConfig');
 
+/**
+ * `system_config.value` is `JSONB NOT NULL`, so a config value of `null` has no
+ * row to live in. Absence is how the store spells it instead: every nullable key
+ * carries a schema default of `null`, so "no row" and "null" resolve to the same
+ * configuration.
+ *
+ * A key that was set and is now null therefore has its row removed, rather than
+ * an update that the column would refuse.
+ */
+function isStorable(value: unknown): boolean {
+  return value !== null && value !== undefined;
+}
+
 export async function bootstrapSystemConfig() {
   const resolvedConfig: Record<string, unknown> = {};
 
@@ -37,7 +50,12 @@ export async function bootstrapSystemConfig() {
               `the row is not marked admin-managed (updatedBy IS NULL). If this value was changed ` +
               `through the admin console, that change is being reverted here.`,
           );
-          await existing.update({ value: parsed });
+
+          if (isStorable(parsed)) {
+            await existing.update({ value: parsed });
+          } else {
+            await existing.destroy();
+          }
         }
 
         resolvedConfig[key] = parsed;
@@ -58,11 +76,13 @@ export async function bootstrapSystemConfig() {
         );
       }
 
-      await SystemConfig.create({
-        key,
-        value: defaultValue,
-        updatedBy: null,
-      });
+      if (isStorable(defaultValue)) {
+        await SystemConfig.create({
+          key,
+          value: defaultValue,
+          updatedBy: null,
+        });
+      }
 
       resolvedConfig[key] = defaultValue;
       continue;
@@ -70,11 +90,13 @@ export async function bootstrapSystemConfig() {
 
     const parsed = parseSystemConfigEnvValue(key as keyof typeof SYSTEM_CONFIG_ENV_MAP, envValue);
 
-    await SystemConfig.create({
-      key,
-      value: parsed,
-      updatedBy: null,
-    });
+    if (isStorable(parsed)) {
+      await SystemConfig.create({
+        key,
+        value: parsed,
+        updatedBy: null,
+      });
+    }
 
     resolvedConfig[key] = parsed;
   }

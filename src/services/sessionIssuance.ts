@@ -15,6 +15,7 @@ import {
 } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
+import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 type IssueSessionParams = {
@@ -34,12 +35,20 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = await hashRefreshToken(refreshToken);
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
-  const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
+  const { access_token_ttl, refresh_token_ttl, session_idle_ttl, max_concurrent_sessions } =
+    await getSystemConfig();
   const { expiresAt, idleExpiresAt } = computeSessionTimes({
     absoluteTtl: refresh_token_ttl || '1d',
     idleTtl: session_idle_ttl || '8h',
   });
   const organizationId = await getDefaultOrganizationIdForUser(user.id);
+
+  // Before the row exists, so the limit counts the session about to be created.
+  await enforceConcurrentSessionLimit({
+    userId: user.id,
+    limit: max_concurrent_sessions,
+    req,
+  });
 
   const session = await Session.create({
     userId: user.id,

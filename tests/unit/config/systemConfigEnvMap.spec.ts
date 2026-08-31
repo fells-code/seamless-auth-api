@@ -21,6 +21,7 @@ describe('SYSTEM_CONFIG_ENV_MAP', () => {
       access_token_ttl: 'ACCESS_TOKEN_TTL',
       refresh_token_ttl: 'REFRESH_TOKEN_TTL',
       session_idle_ttl: 'SESSION_IDLE_TTL',
+      max_concurrent_sessions: 'MAX_CONCURRENT_SESSIONS',
       rate_limit: 'RATE_LIMIT',
       delay_after: 'DELAY_AFTER',
       rpid: 'RPID',

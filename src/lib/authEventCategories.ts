@@ -53,6 +53,9 @@ const EXACT_CATEGORIES: Readonly<Record<string, AuthEventCategory>> = {
   informational: 'system',
   internal_user_updated_by_owner: 'system',
   notification_sent: 'system',
+  // Session lifecycle sits with login, which is where logout_ already lands, and
+  // an eviction is a direct consequence of a sign-in rather than an admin action.
+  session_evicted: 'login',
   user_created: 'registration',
   user_deleted: 'system',
 };

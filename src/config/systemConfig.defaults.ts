@@ -21,5 +21,8 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   // the default the schema gives it instead of being absent here until someone notices.
   authenticator_policy: AuthenticatorPolicySchema.parse({}),
   session_idle_ttl: '8h',
+  // No cap unless a deployment asks for one, so nothing changes for an instance
+  // that predates the key.
+  max_concurrent_sessions: null,
   passkey_login_fallback_enabled: true,
 };
