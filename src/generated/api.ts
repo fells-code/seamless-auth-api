@@ -3026,11 +3026,23 @@ export interface paths {
           content: {
             /**
              * @example {
-             *       "message": "string"
+             *       "message": "string",
+             *       "degraded": {
+             *         "audit": {
+             *           "failureCount": 0,
+             *           "lastFailureAt": "string"
+             *         }
+             *       }
              *     }
              */
             'application/json': {
               message: string;
+              degraded?: {
+                audit: {
+                  failureCount: number;
+                  lastFailureAt: string | null;
+                };
+              };
             };
           };
         };

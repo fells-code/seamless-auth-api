@@ -15,6 +15,7 @@ import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory
 import { buildCredential } from '../../factories/credentialFactory';
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
+import { AuthFailure } from '../../../src/models/authFailures';
 import { AuthEventService } from '../../../src/services/authEventService';
 import {
   generateWebAuthn,
@@ -1233,7 +1234,7 @@ describe('POST /webauthn/login/finish', () => {
   });
 
   it('returns 423 when the account is locked', async () => {
-    (AuthEvent.count as any).mockResolvedValue(10);
+    (AuthFailure.count as any).mockResolvedValue(10);
     (getSystemConfig as any).mockResolvedValue({
       lockout_policy: {
         enabled: true,

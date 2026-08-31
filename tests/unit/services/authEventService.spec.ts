@@ -75,23 +75,24 @@ describe('AuthEventService', () => {
     );
   });
 
-  it('swallows errors and logs failure', async () => {
+  // Still swallowed: 137 call sites await this, many from inside error handlers,
+  // so throwing would turn a bookkeeping failure into a failed request. It is no
+  // longer silent, though, which is the part NIST 800-53 AU-5 asks for.
+  it('swallows a failed write but reports the instance as degraded', async () => {
     const { AuthEvent } = await import('../../../src/models/authEvents.js');
-    const getLogger = (await import('../../../src/utils/logger.js')).default;
-
+    const { getAuditHealth, resetAuditHealthForTests } =
+      await import('../../../src/services/auditHealth.js');
     const { AuthEventService } = await import('../../../src/services/authEventService.js');
 
+    resetAuditHealthForTests();
     (AuthEvent.create as any).mockRejectedValue(new Error('fail'));
 
-    const req = buildReq();
+    await expect(
+      AuthEventService.log({ type: 'login_success', req: buildReq() }),
+    ).resolves.toBeUndefined();
 
-    await AuthEventService.log({
-      type: 'login_success',
-      req,
-    });
-
-    expect(getLogger).toHaveBeenCalledWith('authEventService');
-    expect(getLogger.mock.results[0]?.value.error).toHaveBeenCalled();
+    expect(getAuditHealth().degraded).toBe(true);
+    expect(getAuditHealth().failureCount).toBe(1);
   });
 
   it('loginSuccess calls log', async () => {
