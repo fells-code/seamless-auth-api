@@ -11,6 +11,7 @@
     "dev": "tsx watch --env-file .env src/server.ts",
     "dev:container": "tsx watch src/server.ts",
     "start": "node dist/server.js",
+    "prebuild": "rm -rf dist",
     "build": "tsc && npm run build:copy-cjs",
     "build:copy-cjs": "mkdir -p dist/config && cp src/config/*.cjs dist/config/",
     "generate:api": "tsx src/scripts/generateApiTypes.ts",
