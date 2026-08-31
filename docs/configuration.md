@@ -300,8 +300,15 @@ access token. So a change made in the admin console sticks. To make a seeded val
 env again after an admin has taken it over, clear that row's `updatedBy` (or delete the row and let
 it re-seed).
 
-Reads are cached in-process, so a `system_config` write should invalidate the cache to take
-effect immediately. See [`getSystemConfig.ts`](../src/config/getSystemConfig.ts).
+A row edited **directly in the database** is a third case, and the one that tends to confuse. A
+direct `UPDATE` leaves `updatedBy` NULL, so the row still counts as env-driven and the next boot
+reverts it to the environment variable. The value looks correct in the database right up until the
+process restarts. Change it through the admin endpoints, or change the environment variable, rather
+than editing the row.
+
+Reads are cached in-process for five minutes. Both write paths already invalidate that cache, so a
+change through the admin endpoints takes effect immediately; a direct database edit does not, and
+is not visible until the entry expires. See [`getSystemConfig.ts`](../src/config/getSystemConfig.ts).
 
 ## See also
 
