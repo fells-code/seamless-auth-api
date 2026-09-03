@@ -117,7 +117,7 @@ URL you will give the tools:
 ```
 curl -X POST https://mds3.fido.tools/getEndpoints \
   -H 'Content-Type: application/json' \
-  -d '{"endpoint":"http://localhost:5313/conformance"}'
+  -d '{"endpoint":"http://localhost:5312/conformance"}'
 ```
 
 The root certificate is the FIDO test root published at
