@@ -8,7 +8,6 @@ COPY package.json package-lock.json* syncDevDeps.sh ./
 RUN sh ./syncDevDeps.sh
 
 COPY . .
-RUN mkdir -p ./keys
 
 ENV NODE_ENV=development
 
