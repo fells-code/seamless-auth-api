@@ -84,7 +84,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:16
+    image: postgres:18-alpine
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     environment:
@@ -97,7 +97,7 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     restart: unless-stopped
 
 volumes:
