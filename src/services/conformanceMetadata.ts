@@ -13,6 +13,16 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('conformanceMetadata');
 
+/**
+ * Attestation formats whose preset root certificates have to be cleared.
+ *
+ * The tools sign their Apple, Android Key and SafetyNet statements with their
+ * own test roots, so validating those against the real vendor roots fails every
+ * one of those tests. Cleared, the library falls back to the roots carried in
+ * the metadata statement, which is what a run supplies.
+ */
+const VENDOR_ROOT_IDENTIFIERS = ['apple', 'android-key', 'android-safetynet'] as const;
+
 export interface ConformanceMetadataOverrides {
   /** MDS3 endpoints the tools stand up for a run. Undefined leaves the official server in place. */
   mdsServers?: string[];
@@ -51,6 +61,13 @@ export function applyConformanceMetadataOverrides(): ConformanceMetadataOverride
     logger.info('Conformance MDS root certificate installed, replacing the FIDO production root.');
   }
 
+  for (const identifier of VENDOR_ROOT_IDENTIFIERS) {
+    SettingsService.setRootCertificates({ identifier, certificates: [] });
+  }
+  logger.info(
+    'Vendor attestation roots cleared, so conformance statements supply the trust anchor.',
+  );
+
   const statements = readStatements(process.env.FIDO_CONFORMANCE_METADATA_DIR);
   if (statements.length > 0) {
     overrides.statements = statements;
@@ -88,7 +105,12 @@ function readStatements(dir: string | undefined): MetadataStatement[] {
   let files: string[];
 
   try {
-    files = fs.readdirSync(dir).filter((file) => file.endsWith('.json'));
+    // Recursive because the tools' metadata download unzips to a nested
+    // metadataStatements/ directory, and is meant to be dropped in unedited.
+    files = fs
+      .readdirSync(dir, { recursive: true })
+      .map((entry) => entry.toString())
+      .filter((file) => file.endsWith('.json'));
   } catch (error) {
     logger.error(`Could not read the conformance metadata directory ${dir}: ${error}`);
     return [];

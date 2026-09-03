@@ -45,6 +45,12 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 /**
  * The challenge the client says it signed.
  *
@@ -98,6 +104,8 @@ const attestationOptions = async (req: Request, res: Response) => {
     // unchanged because that is what the tools assert on.
     const attestationType = requestedAttestation === 'none' ? 'none' : 'direct';
 
+    const requestedExtensions = asObject(body.extensions);
+
     const options = await generateRegistrationOptions({
       rpName: app_name,
       rpID: rpid,
@@ -114,7 +122,7 @@ const attestationOptions = async (req: Request, res: Response) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       authenticatorSelection: authenticatorSelection as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      extensions: body.extensions as any,
+      extensions: requestedExtensions as any,
     });
 
     rememberCeremony({
@@ -124,7 +132,14 @@ const attestationOptions = async (req: Request, res: Response) => {
       requireUserVerification: authenticatorSelection.userVerification === 'required',
     });
 
-    return ok(res, { ...options, attestation: requestedAttestation });
+    // The tools require the echoed extensions to equal the requested set
+    // exactly, and generateRegistrationOptions always appends credProps of its
+    // own, so what was asked for is put back over the library's answer.
+    return ok(res, {
+      ...options,
+      ...(requestedExtensions ? { extensions: requestedExtensions } : {}),
+      attestation: requestedAttestation,
+    });
   } catch (error) {
     logger.error(`Conformance attestation options failed: ${error}`);
     return failed(res, 'Could not generate attestation options');

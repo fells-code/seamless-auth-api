@@ -71,6 +71,12 @@ answered twice.
    RPID=localhost
    ```
 
+   `FRONTEND_URL` is also required, or the process exits at startup before any of
+   this matters. Set `AUTHENTICATOR_POLICY` with `attestation` set to `direct`: the
+   conformance surface honours whatever conveyance the tools ask for, but
+   `requireKnownAuthenticator` is what puts the metadata service into strict mode,
+   which is the posture a run is meant to exercise.
+
 3. Turn the interface on, and turn the auth rate limiters off. A conformance run
    drives hundreds of ceremonies from one IP and will otherwise be throttled.
 
@@ -105,9 +111,36 @@ at the run instead, and all three are read only in conformance mode:
 | `FIDO_CONFORMANCE_MDS_ROOT_CERT_FILE` | PEM the run signs its blobs with                 |
 | `FIDO_CONFORMANCE_METADATA_DIR`       | Directory of metadata statement JSON files       |
 
-Statements are accepted both bare and wrapped in an MDS entry, so the files the tools
-hand you can be dropped in unedited. A statement that cannot be read is skipped with
-a line in the log rather than taken down the whole boot.
+Get the endpoint list by asking the tools' own service for it, passing the same base
+URL you will give the tools:
+
+```
+curl -X POST https://mds3.fido.tools/getEndpoints \
+  -H 'Content-Type: application/json' \
+  -d '{"endpoint":"http://localhost:5313/conformance"}'
+```
+
+The root certificate is the FIDO test root published at
+`https://mds3.fido.tools/pki/MDS3ROOT.crt`. That page asks not to be fetched at
+runtime, so save a copy and point the variable at the file.
+
+Statements are accepted both bare and wrapped in an MDS entry, and the directory is
+read recursively, so the "DOWNLOAD SERVER METADATA" archive can be unzipped and
+dropped in unedited: it expands to a nested `metadataStatements/` directory. A
+statement that cannot be read is skipped with a line in the log rather than taken
+down the whole boot.
+
+Check the log for `Loaded N local conformance metadata statements` before running.
+Loading nothing is the failure that looks least like one: with
+`requireKnownAuthenticator` set the metadata service runs in strict mode, so every
+conformance authenticator is refused as unlisted, every registration fails, and the
+tests that fail are the ones that depend on a registration having succeeded rather
+than the metadata tests themselves.
+
+Conformance mode also clears the preset Apple, Android Key and SafetyNet root
+certificates. The tools sign those statements with their own test roots, so
+validating against the real vendor roots cannot succeed; cleared, the roots carried
+in the metadata statement are used instead.
 
 Conformance mode also brings the metadata service up regardless of whether this
 deployment requests attestation, because the conformance surface honours the
