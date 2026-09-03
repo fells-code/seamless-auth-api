@@ -124,6 +124,21 @@ describe('conformance interface with the flag set', () => {
       expect(res.body.excludeCredentials).toEqual([]);
     });
 
+    it('echoes the requested extensions exactly, without the library adding its own', async () => {
+      const res = await request(app)
+        .post('/conformance/attestation/options')
+        .send({
+          username: 'extensions@example.com',
+          displayName: 'Extensions',
+          extensions: { 'example.extension.bool': true },
+        });
+
+      expect(res.status).toBe(200);
+      // The tools compare this for deep equality, so an extra credProps of the
+      // library's own fails the check.
+      expect(res.body.extensions).toEqual({ 'example.extension.bool': true });
+    });
+
     it('advertises every algorithm the FIDO server requirements demand', async () => {
       const res = await request(app)
         .post('/conformance/attestation/options')

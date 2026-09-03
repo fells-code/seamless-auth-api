@@ -82,6 +82,31 @@ describe('applyConformanceMetadataOverrides', () => {
     ]);
   });
 
+  it('loads statements from the nested directory the tools ship', () => {
+    const nested = path.join(tmpDir, 'metadataStatements');
+    fs.mkdirSync(nested);
+    fs.writeFileSync(path.join(nested, 'deep.json'), JSON.stringify({ aaguid: 'deep' }));
+    fs.writeFileSync(path.join(tmpDir, 'top.json'), JSON.stringify({ aaguid: 'top' }));
+    process.env.FIDO_CONFORMANCE_METADATA_DIR = tmpDir;
+
+    const statements = applyConformanceMetadataOverrides().statements ?? [];
+
+    expect(statements.map((statement: any) => statement.aaguid).sort()).toEqual(['deep', 'top']);
+  });
+
+  it('clears the vendor attestation roots so statements supply the trust anchor', () => {
+    const spy = vi
+      .spyOn(SettingsService, 'setRootCertificates')
+      .mockImplementation(() => undefined);
+
+    applyConformanceMetadataOverrides();
+
+    for (const identifier of ['apple', 'android-key', 'android-safetynet']) {
+      expect(spy).toHaveBeenCalledWith({ identifier, certificates: [] });
+    }
+    spy.mockRestore();
+  });
+
   it('skips a statement file that parses to something that is not an object', () => {
     fs.writeFileSync(path.join(tmpDir, 'scalar.json'), '"just a string"');
     process.env.FIDO_CONFORMANCE_METADATA_DIR = tmpDir;
