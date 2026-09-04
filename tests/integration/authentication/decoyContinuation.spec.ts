@@ -15,11 +15,11 @@ import { decoyPrincipalForSubject, decoySubjectFor } from '../../../src/services
  * which is what `validateEphemeralToken` produces for a subject that resolves to no row.
  */
 
-function decoyWithPhone(withPhone: boolean) {
-  for (let i = 0; i < 100; i += 1) {
+function findDecoy(matches: (p: ReturnType<typeof decoyPrincipalForSubject>) => boolean) {
+  for (let i = 0; i < 500; i += 1) {
     const principal = decoyPrincipalForSubject(decoySubjectFor(`probe${i}@example.com`, 'email'));
 
-    if ((principal.phone !== null) === withPhone) {
+    if (matches(principal)) {
       return principal;
     }
   }
@@ -27,8 +27,9 @@ function decoyWithPhone(withPhone: boolean) {
   throw new Error('no decoy of that shape found');
 }
 
-const DECOY = decoyWithPhone(true);
-const PHONELESS_DECOY = decoyWithPhone(false);
+const DECOY = findDecoy((p) => p.phone !== null && p.hasPasskey && p.prfCapable);
+const PHONELESS_DECOY = findDecoy((p) => p.phone === null);
+const PASSKEYLESS_DECOY = findDecoy((p) => !p.hasPasskey);
 
 let principal: ReturnType<typeof decoyPrincipalForSubject> = DECOY;
 
@@ -221,9 +222,74 @@ describe('decoy continuation: WebAuthn', () => {
     expect(generateAuthenticationOptions).toHaveBeenCalledWith(
       expect.objectContaining({
         rpID: 'localhost',
-        allowCredentials: [{ id: expect.any(String) }],
+        // Transports included: a real offer carries them, so an offer without them is
+        // its own tell.
+        allowCredentials: [{ id: expect.any(String), transports: expect.any(Array) }],
       }),
     );
+  });
+
+  it('refuses a credential id that cannot exist, the way a real account does', async () => {
+    // The strongest oracle this endpoint had. The real handler filters the account's
+    // credentials by the requested id and answers 401 when none survive, so a caller can
+    // ask for an id no credential can have: every real account refuses. A decoy that
+    // returned a challenge anyway would be identified in two requests.
+    const res = await request(app)
+      .post('/webauthn/login/start')
+      .send({ credentialId: 'not-a-real-credential-id' });
+
+    expect(res.status).toBe(401);
+    expect(res.text).toBe('Credentials not found');
+  });
+
+  it('refuses a passkeyless decoy the way a passkeyless account is refused', async () => {
+    principal = PASSKEYLESS_DECOY;
+
+    const res = await request(app).post('/webauthn/login/start').send({});
+
+    expect(res.status).toBe(401);
+    expect(res.text).toBe('Credentials not found');
+  });
+
+  it('offers a passkeyless decoy nothing to exclude at registration', async () => {
+    principal = PASSKEYLESS_DECOY;
+
+    await request(app).get('/webauthn/register/start');
+
+    expect(generateRegistrationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeCredentials: [] }),
+    );
+  });
+
+  it('excludes the decoy credential at registration when it has one', async () => {
+    await request(app).get('/webauthn/register/start');
+
+    // A real account's enrolled credentials go here, so an always-empty list would say
+    // "this subject has no passkey" to anyone who looked.
+    expect(generateRegistrationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        excludeCredentials: [{ id: expect.any(String), transports: expect.any(Array) }],
+      }),
+    );
+  });
+
+  it('refuses a disallowed attachment the way a real account does', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'Seamless',
+      rpid: 'localhost',
+      authenticator_policy: {
+        userVerification: 'preferred',
+        attachment: 'platform',
+        attestation: 'none',
+      },
+    });
+
+    const res = await request(app).get('/webauthn/register/start').query({
+      attachment: 'cross-platform',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'attachment_not_allowed' });
   });
 
   it('stores no challenge for a decoy', async () => {

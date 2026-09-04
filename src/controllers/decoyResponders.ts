@@ -11,8 +11,17 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
+import {
+  buildPrfAuthenticationExtensions,
+  buildPrfRegistrationExtensions,
+} from '../lib/webauthnPrf.js';
+import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { decoyCredentialIdFor, decoyOtpFor } from '../services/decoyPrincipal.js';
+import {
+  decoyCredentialIdFor,
+  decoyOtpFor,
+  decoyPrincipalForSubject,
+} from '../services/decoyPrincipal.js';
 import {
   getLoginPolicy,
   isLoginMethodEnabled,
@@ -48,6 +57,15 @@ import { hashDeviceFingerprint } from '../utils/utils.js';
 
 function decoySubject(req: Request) {
   return (req as AuthenticatedRequest).user.id;
+}
+
+/**
+ * The decoy behind this request. Rebuilt from the subject rather than carried, so it is
+ * the same fiction the middleware produced and the same one `/login` shaped its answer
+ * from.
+ */
+function decoyPrincipal(req: Request) {
+  return decoyPrincipalForSubject(decoySubject(req));
 }
 
 async function logDecoy(req: Request, endpoint: string) {
@@ -238,14 +256,27 @@ export const decoyPollMagicLink = async (req: Request, res: Response) => {
  * the responder free of writes and costs nothing observable: the ceremony this returns
  * can never be completed anyway, and `/register/finish` answers with the same
  * "missing challenge" a real expired ceremony gets.
+ *
+ * The branches the real handler takes before it gets there are reproduced, because each
+ * one a decoy skipped would be a request a caller could craft to tell the two apart.
  */
 export const decoyStartWebAuthnRegistration = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
+  const principal = decoyPrincipal(req);
+  const subject = principal.id;
+  const { requestPrf = false, attachment } = req.query as {
+    requestPrf?: boolean;
+    attachment?: WebAuthnAuthenticatorAttachment;
+  };
   const { app_name, rpid, authenticator_policy } = await getSystemConfig();
   const pinnedAttachment =
     authenticator_policy.attachment === 'any' ? null : authenticator_policy.attachment;
 
   await logDecoy(req, 'webauthn:register_start');
+
+  if (pinnedAttachment && attachment && attachment !== pinnedAttachment) {
+    return res.status(400).json({ error: 'attachment_not_allowed' });
+  }
 
   const options = await generateRegistrationOptions({
     rpName: app_name,
@@ -254,12 +285,19 @@ export const decoyStartWebAuthnRegistration = async (req: Request, res: Response
     timeout: 60000,
     attestationType: authenticator_policy.attestation,
     supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
-    excludeCredentials: [],
+    // A real account's enrolled credentials go here, so an always-empty list would say
+    // "this subject has no passkey" to anyone who looked.
+    excludeCredentials: principal.hasPasskey
+      ? [{ id: decoyCredentialIdFor(subject), transports: principal.transports }]
+      : [],
     authenticatorSelection: {
       userVerification: authenticator_policy.userVerification,
       residentKey: 'preferred',
-      ...(pinnedAttachment ? { authenticatorAttachment: pinnedAttachment } : {}),
+      ...((pinnedAttachment ?? attachment)
+        ? { authenticatorAttachment: pinnedAttachment ?? attachment }
+        : {}),
     },
+    extensions: buildPrfRegistrationExtensions(requestPrf),
   });
 
   return res.json(options);
@@ -275,20 +313,43 @@ export const decoyFinishWebAuthnRegistration = async (req: Request, res: Respons
  * A plausible assertion challenge for a subject with no credentials.
  *
  * The fabricated allow-list matters. A real account with no passkey answers `401`, so
- * returning that here would separate "unknown identifier" from "account with a passkey",
- * which is most accounts reaching this endpoint at all.
+ * returning a challenge unconditionally would separate "unknown identifier" from "account
+ * with a passkey", which is most accounts reaching this endpoint at all.
+ *
+ * It matters just as much that the refusals are reproduced. The real handler filters the
+ * account's credentials by the requested `credentialId` and `prf` and answers
+ * `401 Credentials not found` when nothing survives, so a caller can ask for a credential
+ * id that cannot exist and read the answer: every real account refuses, and a decoy that
+ * always returned a challenge would accept. That is a complete oracle two requests long,
+ * so the decoy's single fabricated credential is filtered the same way.
+ *
+ * The refusal is `res.send`, not `res.json`. A JSON body here would differ in content
+ * type from the real one.
  */
 export const decoyStartWebAuthnLogin = async (req: Request, res: Response) => {
-  const subject = decoySubject(req);
+  const principal = decoyPrincipal(req);
+  const subject = principal.id;
+  const { credentialId, prf } = req.body ?? {};
+  const credential = { id: decoyCredentialIdFor(subject), transports: principal.transports };
   const { rpid, authenticator_policy } = await getSystemConfig();
 
   await logDecoy(req, 'webauthn:login_start');
 
+  const survives =
+    principal.hasPasskey &&
+    (!credentialId || credentialId === credential.id) &&
+    (!prf || principal.prfCapable);
+
+  if (!survives) {
+    return res.status(401).send('Credentials not found');
+  }
+
   const options = await generateAuthenticationOptions({
-    allowCredentials: [{ id: decoyCredentialIdFor(subject) }],
+    allowCredentials: [credential],
     userVerification: authenticator_policy.userVerification,
     timeout: 60000,
     rpID: rpid,
+    extensions: buildPrfAuthenticationExtensions(prf),
   });
 
   return res.json(options);

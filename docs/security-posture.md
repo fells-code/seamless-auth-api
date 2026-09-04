@@ -103,7 +103,41 @@ and the ones that matter are the ones a caller can trigger on purpose:
   and omitting a `User-Agent` header is enough to get there. The decoy responder runs the
   same fingerprint check.
 
+- `/webauthn/login/start` filters the account's credentials by the requested
+  `credentialId` and `prf` and answers `401 Credentials not found` when nothing survives.
+  A caller can ask for a credential id no credential can have, which **every** real
+  account refuses, so a decoy that returned a challenge anyway was identifiable in two
+  requests regardless of account state or policy. The decoy's single fabricated credential
+  is filtered the same way, and a decoy shaped without a passkey refuses outright. The
+  refusal is `res.send`, not `res.json`; a JSON body would differ in content type.
+- `/webauthn/register/start` answers `400 attachment_not_allowed` when the requested
+  attachment contradicts a pinned policy, and passes the account's enrolled credentials as
+  `excludeCredentials`. A decoy offers its fabricated credential there when its shape has
+  one, since an always-empty list says "this subject has no passkey" to anyone who looks,
+  and reproduces the attachment branch.
+
 Neither validation writes anything, so reproducing them costs a decoy nothing.
+
+### What this still does not cover
+
+`/webauthn/register/start` echoes the account's email as `user.name` in the options it
+returns, because that is what an authenticator displays. A decoy has no real address, so
+it echoes its synthetic one, and a caller that reads `user.name` sees an `@example.invalid`
+address where a real account shows the identifier the caller typed. That is a complete
+oracle, one request past `/login`.
+
+Closing it means the decoy echoing the identifier that was supplied, which it cannot do:
+a decoy is rebuilt from its subject alone, and the subject is a one-way HMAC. Carrying the
+identifier would mean putting it in the ephemeral token, and putting it only in decoy
+tokens would be the `decoy` claim by another name, so every ephemeral token would have to
+carry it. That is a second change to the token contract and a second coordinated release,
+so it is tracked separately rather than folded in here.
+
+For the same reason, a decoy's shape is derived from its subject and cannot depend on
+which kind of identifier was looked up. `/login` finds a phone account by its number, so
+such an account always has a phone and is always offered `phone_otp`, while only about
+half of decoys are. Where `phone_otp` is an enabled method, a phone identifier whose
+answer omits it is therefore a real account.
 
 One exception is forced. A real account with no permitted method is itself answered as a
 decoy, so an empty list is something only a decoy could produce, and under a passkey-only

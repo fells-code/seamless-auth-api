@@ -166,6 +166,15 @@ export interface DecoyPrincipal {
    * time, for the same reason the subject is.
    */
   hasPasskey: boolean;
+  /**
+   * Whether the decoy's fabricated credential is PRF-capable. `/webauthn/login/start`
+   * filters a real account's credentials by this and answers 401 when none survive, so a
+   * decoy that was always capable would answer 200 where a real account answers 401.
+   */
+  prfCapable: boolean;
+  /** Transports for the fabricated credential. A real one carries them; an offer without
+   * them is its own tell. */
+  transports: ('internal' | 'hybrid' | 'usb' | 'nfc' | 'ble')[];
 }
 
 /** One bit of the subject's derived shape, stable for the life of the identifier. */
@@ -188,6 +197,8 @@ export function decoyPrincipalForSubject(subject: string): DecoyPrincipal {
     phoneVerified: true,
     revoked: false,
     hasPasskey: decoyShapeBit(subject, 0),
+    prfCapable: decoyShapeBit(subject, 2),
+    transports: decoyShapeBit(subject, 3) ? ['internal', 'hybrid'] : ['usb', 'nfc'],
   };
 }
 
