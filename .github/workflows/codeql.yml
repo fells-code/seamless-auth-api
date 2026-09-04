@@ -42,3 +42,50 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:javascript-typescript
+
+      # The gate. Every alert must end up fixed or dismissed with a written
+      # reason, so the steady state is zero open alerts and any open alert is
+      # actionable. The alternative, failing only on alerts a pull request
+      # introduces, leaves a baseline nobody owns and trains reviewers to scroll
+      # past the security tab.
+      #
+      # Dismissals are the pressure valve: a false positive is closed with its
+      # reasoning attached in the security tab, and the longer form lives in
+      # docs/security-posture.md.
+      - name: Assert the alert baseline is triaged
+        # A pull request from a fork gets a read-only token without
+        # security-events scope, so the query would fail as a permission error
+        # rather than a finding. Those land on main, where this still runs.
+        if: github.event.pull_request.head.repo.fork != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.event_name == 'pull_request' &&
+            format('refs/pull/{0}/merge', github.event.pull_request.number) || github.ref }}
+        run: |
+          set -euo pipefail
+
+          # Fetch and parse are separate, and the response shape is checked
+          # before it is read. A gate that cannot see the alerts has to fail
+          # loudly; the shape that would otherwise slip through is an error
+          # object, which flattens to something that reads as an empty list.
+          if ! gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&ref=${REF}&per_page=100" \
+            > alerts.json; then
+            echo "::error::Could not read code scanning alerts for ${REF}."
+            exit 1
+          fi
+
+          if ! jq -e 'type == "array" and all(type == "array")' alerts.json > /dev/null; then
+            echo "::error::Unexpected response when reading code scanning alerts for ${REF}."
+            jq -c '.' alerts.json | head -c 500
+            exit 1
+          fi
+
+          count=$(jq '[.[][]] | length' alerts.json)
+          if [ "${count}" -ne 0 ]; then
+            jq -r '.[][] | "  \(.rule.security_severity_level // .rule.severity)\t\(.rule.id)\t\(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"' alerts.json
+            echo "::error::${count} open CodeQL alert(s) on ${REF}. Fix each one, or dismiss it in the security tab with a written reason. See docs/security-posture.md."
+            exit 1
+          fi
+
+          echo "No open CodeQL alerts on ${REF}."
