@@ -79,25 +79,33 @@ describe('POST /login', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects user not found', async () => {
+  it('answers an unknown identifier with a decoy pre-auth token', async () => {
     (User.findOne as any).mockResolvedValue(null);
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
 
     const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBe('token');
+    expect(res.body.identifierType).toBe('email');
   });
 
-  it('rejects unverified user', async () => {
+  it('answers an unverified account with a decoy pre-auth token', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: false }));
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
 
     const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBe('token');
   });
 
   it('rejects passkey required but missing credential', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue(null);
+    (signEphemeralToken as any).mockResolvedValue('token');
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
       login_methods: ['passkey'],
@@ -109,8 +117,10 @@ describe('POST /login', () => {
       passkeyAvailable: true,
     });
 
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Not Allowed' });
+    // The account is real but has no usable continuation method, which used to answer
+    // 401 and so separated it from an unknown identifier. Both are decoys now.
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey']);
   });
 
   it('does not let the request body downgrade a passkey-only policy', async () => {
@@ -216,7 +226,7 @@ describe('POST /login', () => {
     expect(res.body.error).toBe('Server error');
   });
 
-  it('rejects uniformly when the ephemeral token cannot be signed', async () => {
+  it('reports a server error when the ephemeral token cannot be signed', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue({});
     (signEphemeralToken as any).mockResolvedValue(null);
@@ -224,8 +234,10 @@ describe('POST /login', () => {
 
     const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
 
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Not Allowed' });
+    // A decoy cannot be signed either, so this is a fault rather than an answer about
+    // the account, and both paths reach it identically.
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Server error' });
   });
 
   it('returns 500 when the post-identifier flow throws', async () => {
@@ -259,8 +271,18 @@ describe('POST /login', () => {
     expect(res.body.error).toBe('Server error');
   });
 
-  it('answers identically for unknown, unverified, and no-method identifiers', async () => {
-    const responses: { status: number; body: unknown }[] = [];
+  it('answers identically for unknown, unverified, no-method and usable identifiers', async () => {
+    // One policy for every probe. A caller cannot change the deployment's login methods
+    // between requests, so varying them here would compare two different servers rather
+    // than two different accounts.
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: false,
+    });
+    (signEphemeralToken as any).mockResolvedValue('token');
+
+    const responses: request.Response[] = [];
 
     // Unknown identifier.
     (User.findOne as any).mockResolvedValue(null);
@@ -268,26 +290,75 @@ describe('POST /login', () => {
 
     // Known but unverified.
     (User.findOne as any).mockResolvedValue(buildUser({ verified: false }));
-    (signEphemeralToken as any).mockResolvedValue('token');
     responses.push(
       await request(app).post('/login').send({ identifier: 'unverified@example.com' }),
     );
 
-    // Verified, but the policy leaves no permitted continuation method.
+    // Verified, but no credential under a passkey-only policy, so no continuation method.
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue(null);
+    responses.push(await request(app).post('/login').send({ identifier: 'nomethods@example.com' }));
+
+    // Verified, with a passkey. The one case that is a real sign-in.
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue({});
+    responses.push(await request(app).post('/login').send({ identifier: 'real@example.com' }));
+
+    // `sub` and `token` differ between them exactly as they differ between two real
+    // accounts, so the comparison is over everything else.
+    const shapes = responses.map((res) => ({
+      status: res.status,
+      keys: Object.keys(res.body).sort(),
+      identifierType: res.body.identifierType,
+      loginMethods: res.body.loginMethods,
+      ttl: res.body.ttl,
+    }));
+
+    expect(shapes[0].status).toBe(200);
+    expect(shapes[1]).toEqual(shapes[0]);
+    expect(shapes[2]).toEqual(shapes[0]);
+    expect(shapes[3]).toEqual(shapes[0]);
+  });
+
+  it('never offers a decoy an empty method list', async () => {
+    // A real account with no permitted method is itself answered as a decoy, so an
+    // empty list is something only a decoy could produce. Under a passkey-only policy
+    // that would be every decoy the derived shape gave no passkey to, which puts the
+    // old 401 back in a different costume.
+    (User.findOne as any).mockResolvedValue(null);
+    (signEphemeralToken as any).mockResolvedValue('token');
     (getSystemConfig as any).mockResolvedValue({
       access_token_ttl: '15m',
       login_methods: ['passkey'],
       passkey_login_fallback_enabled: false,
     });
-    responses.push(await request(app).post('/login').send({ identifier: 'nomethods@example.com' }));
 
-    const shapes = responses.map((res) => ({ status: res.status, body: res.body }));
+    for (let i = 0; i < 25; i += 1) {
+      const res = await request(app)
+        .post('/login')
+        .send({ identifier: `nobody${i}@example.com` });
 
-    expect(shapes[0]).toEqual({ status: 401, body: { error: 'Not Allowed' } });
-    expect(shapes[1]).toEqual(shapes[0]);
-    expect(shapes[2]).toEqual(shapes[0]);
+      expect(res.body.loginMethods).toEqual(['passkey']);
+    }
+  });
+
+  it('gives an unknown identifier the same decoy subject every time', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    const first = await request(app).post('/login').send({ identifier: 'nobody@example.com' });
+    const second = await request(app).post('/login').send({ identifier: 'NOBODY@example.com' });
+    const other = await request(app).post('/login').send({ identifier: 'someone@example.com' });
+
+    // A real identifier resolves to the same row on every attempt, and to a different
+    // row from anyone else's. A decoy subject that rerolled, or that collided across
+    // identifiers, would be the oracle again one request later.
+    expect(second.body.sub).toBe(first.body.sub);
+    expect(other.body.sub).not.toBe(first.body.sub);
+    expect(first.body.sub).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 
   it('rejects login for a locked account', async () => {

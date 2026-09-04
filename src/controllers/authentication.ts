@@ -18,8 +18,17 @@ import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import {
+  DecoyIdentifierType,
+  decoyPrincipalForSubject,
+  decoySubjectFor,
+} from '../services/decoyPrincipal.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
-import { getLoginPolicy, resolveAvailableLoginMethods } from '../services/loginPolicyService.js';
+import {
+  getLoginPolicy,
+  LoginMethod,
+  resolveAvailableLoginMethods,
+} from '../services/loginPolicyService.js';
 import {
   findRefreshSessionByToken,
   hardRevokeSession,
@@ -38,19 +47,152 @@ import {
 const logger = getLogger('authentication');
 
 /**
- * The single rejection every failed `/login` takes, whatever the reason.
+ * How long `/login` takes at minimum, in milliseconds.
  *
- * An unknown identifier, an unverified account, and an account with no permitted
- * continuation method used to answer with three distinguishable bodies, which told an
- * unauthenticated caller which of the three it had hit. The reason is still recorded as
- * auth-event metadata for operators; it is just no longer disclosed to the caller.
+ * The real path reads the users table, the lockout counter, the credentials table and
+ * the login policy. The decoy path reads only the policy. Left alone, that difference is
+ * an oracle in its own right: identical bodies that arrive at measurably different times
+ * still answer the question. Holding every answer until a floor removes the difference
+ * as long as both paths finish under it.
  *
- * This does not make `/login` non-enumerable on its own: a valid identifier still gets a
- * 200 with an ephemeral token. Closing that requires decoy tokens across the continuation
- * endpoints. See docs/security-posture.md.
+ * An environment variable rather than a `system_config` key on purpose. The config schema
+ * is shared through `@seamless-auth/types`, so a key there means a coordinated release
+ * across both SDKs for what is an operational tuning knob, not a policy a deployment
+ * changes at runtime.
+ *
+ * Set it above the slowest real login the deployment sees. Set it to `0` to turn the
+ * floor off, which the test suite does so that it is exercised deliberately in one place
+ * rather than paid for in every login test.
  */
-function rejectLogin(res: Response) {
-  return res.status(401).json({ error: 'Not Allowed' });
+function loginResponseFloorMs() {
+  const configured = Number(process.env.LOGIN_RESPONSE_FLOOR_MS);
+
+  return Number.isFinite(configured) && configured >= 0 ? configured : 250;
+}
+
+async function holdUntilFloor(startedAt: number) {
+  const remaining = loginResponseFloorMs() - (Date.now() - startedAt);
+
+  if (remaining > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remaining));
+  }
+}
+
+/**
+ * The pre-auth answer `/login` gives, for a real account and for a decoy alike.
+ *
+ * There is one response builder rather than two so the shapes cannot drift apart. A
+ * field added to one and forgotten in the other is exactly the tell this closes.
+ */
+async function respondWithPreAuth({
+  res,
+  startedAt,
+  subject,
+  identifierType,
+  loginMethods,
+}: {
+  res: Response;
+  startedAt: number;
+  subject: string;
+  identifierType: string;
+  loginMethods: LoginMethod[];
+}) {
+  const token = await signEphemeralToken(subject);
+
+  // Signing normally throws rather than returning empty. Treating a falsy token as a
+  // server fault keeps the decoy and the real path failing the same way, instead of one
+  // of them answering 200 with a token field the caller cannot use.
+  if (!token) {
+    throw new Error('Failed to sign the pre-auth token');
+  }
+
+  const { access_token_ttl } = await getSystemConfig();
+
+  await holdUntilFloor(startedAt);
+
+  return res.status(200).json({
+    message: 'Success',
+    sub: subject,
+    token,
+    identifierType,
+    loginMethods,
+    ttl: parseDurationToSeconds(access_token_ttl || '15m'),
+  });
+}
+
+/**
+ * The answer for an identifier that resolves to no usable account.
+ *
+ * Previously a `401` with one identical body, which still separated "this account exists
+ * and can sign in" from everything else. Now a decoy: a stable, unguessable subject
+ * derived from the identifier, a real ephemeral token signed over it, and the method list
+ * the policy permits. The reason survives in the auth event for operators.
+ *
+ * The decoy only holds because every ephemeral endpoint answers for it; see
+ * `decoyResponders.ts` and the registration-time check in `defineRoute`.
+ */
+async function respondWithDecoy({
+  req,
+  res,
+  startedAt,
+  identifier,
+  identifierType,
+  userId,
+  reason,
+  passkeyAvailable,
+}: {
+  req: Request;
+  res: Response;
+  startedAt: number;
+  identifier: string;
+  identifierType: DecoyIdentifierType;
+  userId: string | null;
+  reason: string;
+  passkeyAvailable?: boolean;
+}) {
+  await AuthEventService.log({
+    userId,
+    type: 'login_failed',
+    req,
+    metadata: { reason, decoy: true },
+  });
+
+  const subject = decoySubjectFor(identifier, identifierType);
+  const principal = decoyPrincipalForSubject(subject);
+  const policy = await getLoginPolicy();
+
+  const shaped = resolveAvailableLoginMethods({
+    policy,
+    user: principal,
+    hasPasskeyCredential: principal.hasPasskey,
+    passkeyAvailable,
+  });
+
+  // A real account that reaches this point with no permitted method is answered as a
+  // decoy, so an empty list is something only a decoy can produce. Under a passkey-only
+  // policy that is every decoy the derived shape gave no passkey to, which would put the
+  // old 401 back in a different costume. Fall back to the full permitted set, which is
+  // what a usable account under that policy answers.
+  const loginMethods = shaped.length
+    ? shaped
+    : resolveAvailableLoginMethods({
+        policy,
+        user: principal,
+        hasPasskeyCredential: true,
+        passkeyAvailable,
+      });
+
+  return respondWithPreAuth({
+    res,
+    startedAt,
+    subject,
+    identifierType,
+    // The method list is filtered by what an account can actually do, so a decoy that
+    // always claimed the full set would make any narrower set proof that a real account
+    // exists. The decoy's shape is derived from its subject instead, stable per
+    // identifier, so a narrow list is equally likely to be a decoy.
+    loginMethods,
+  });
 }
 
 /**
@@ -64,9 +206,13 @@ function rejectLoginLookupFailure(res: Response) {
 }
 
 export const login = async (req: Request, res: Response) => {
+  const startedAt = Date.now();
   // For the initial login step, user either passes in an email or a phone number
   const { identifier, passkeyAvailable } = req.body;
-  let user, identifierType;
+  let user, identifierType: DecoyIdentifierType | undefined;
+  // The normal form the account was looked up under, which is also what the decoy
+  // subject derives from, so two spellings of one identifier cannot be told apart.
+  let decoyIdentifier: string;
   const normalizedIdentifier =
     typeof identifier === 'string' && isValidPhoneNumber(identifier)
       ? normalizePhoneNumber(identifier)
@@ -91,6 +237,7 @@ export const login = async (req: Request, res: Response) => {
         where: { email: identifier.toLowerCase() },
       });
       identifierType = 'email';
+      decoyIdentifier = identifier.toLowerCase();
     } catch {
       logger.error('Failed to look up user by email');
       await AuthEventService.log({
@@ -107,6 +254,7 @@ export const login = async (req: Request, res: Response) => {
         where: { phone: normalizedIdentifier },
       });
       identifierType = 'phone';
+      decoyIdentifier = normalizedIdentifier;
     } catch {
       logger.error('Failed to look up user by phone');
       await AuthEventService.log({
@@ -131,32 +279,34 @@ export const login = async (req: Request, res: Response) => {
   try {
     if (!user) {
       logger.error('Login attempt failed for non-existent identity');
-      await AuthEventService.log({
-        userId: null,
-        type: 'login_failed',
+      return await respondWithDecoy({
         req,
-        metadata: { reason: 'No user found for identifier' },
+        res,
+        startedAt,
+        identifier: decoyIdentifier,
+        identifierType: identifierType!,
+        userId: null,
+        reason: 'No user found for identifier',
+        passkeyAvailable,
       });
-      return rejectLogin(res);
     }
 
     if (await rejectIfUserLocked({ userId: user.id, req, res })) {
       return;
     }
 
-    // pre-auth token
-    const token = await signEphemeralToken(user.id);
-
     if (!user.verified) {
       logger.warn('Login attempt for unverified account');
-      await AuthEventService.log({
-        userId: user.id,
-        type: 'login_failed',
+      return await respondWithDecoy({
         req,
-        metadata: { reason: 'Unverified but valid user' },
+        res,
+        startedAt,
+        identifier: decoyIdentifier,
+        identifierType: identifierType!,
+        userId: user.id,
+        reason: 'Unverified but valid user',
+        passkeyAvailable,
       });
-
-      return rejectLogin(res);
     }
 
     const [credential, loginPolicy] = await Promise.all([
@@ -172,34 +322,32 @@ export const login = async (req: Request, res: Response) => {
 
     if (loginMethods.length === 0) {
       logger.error('Login attempt had no allowed continuation methods');
-      await AuthEventService.log({
-        userId: user.id,
-        type: 'login_failed',
+      return await respondWithDecoy({
         req,
-        metadata: { reason: 'No allowed login methods available' },
+        res,
+        startedAt,
+        identifier: decoyIdentifier,
+        identifierType: identifierType!,
+        userId: user.id,
+        reason: 'No allowed login methods available',
+        passkeyAvailable,
       });
-      return rejectLogin(res);
     }
 
-    if (token) {
-      await AuthEventService.log({
-        userId: user.id,
-        type: 'login_success',
-        req,
-        metadata: {},
-      });
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'login_success',
+      req,
+      metadata: {},
+    });
 
-      const { access_token_ttl } = await getSystemConfig();
-      return res.status(200).json({
-        message: 'Success',
-        sub: user.id,
-        token,
-        identifierType,
-        loginMethods,
-        ttl: parseDurationToSeconds(access_token_ttl || '15m'),
-      });
-    }
-    return rejectLogin(res);
+    return await respondWithPreAuth({
+      res,
+      startedAt,
+      subject: user.id,
+      identifierType: identifierType!,
+      loginMethods,
+    });
   } catch (error: unknown) {
     if (error instanceof Error) {
       logger.error(`Error during login: ${error.message}`);

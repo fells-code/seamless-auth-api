@@ -5,6 +5,12 @@
  */
 
 import {
+  decoyFinishWebAuthnLogin,
+  decoyFinishWebAuthnRegistration,
+  decoyStartWebAuthnLogin,
+  decoyStartWebAuthnRegistration,
+} from '../controllers/decoyResponders.js';
+import {
   generateWebAuthn,
   registerWebAuthn,
   verifyWebAuthn,
@@ -30,6 +36,7 @@ webauthnRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Start WebAuthn registration',
+    decoy: decoyStartWebAuthnRegistration,
     tags: ['WebAuthn'],
 
     schemas: {
@@ -51,6 +58,7 @@ webauthnRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Finish WebAuthn registration',
+    decoy: decoyFinishWebAuthnRegistration,
     tags: ['WebAuthn'],
 
     schemas: {
@@ -71,6 +79,7 @@ webauthnRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Start WebAuthn login',
+    decoy: decoyStartWebAuthnLogin,
     tags: ['WebAuthn'],
 
     schemas: {
@@ -92,6 +101,7 @@ webauthnRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Finish WebAuthn login',
+    decoy: decoyFinishWebAuthnLogin,
     tags: ['WebAuthn'],
 
     schemas: {

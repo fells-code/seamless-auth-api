@@ -64,6 +64,7 @@ describe('defineRoute', () => {
         },
       },
       handler: vi.fn(),
+      decoy: vi.fn(),
     });
 
     expect(registry.registerPath).toHaveBeenCalledWith(

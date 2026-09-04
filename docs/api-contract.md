@@ -51,7 +51,7 @@ failures, `500` server error). A few carry branch-significant meaning that clien
 | `GET /magic-link/check` (poll) | `200` | Verified — body carries the issued session.                            |
 | `GET /magic-link/check` (poll) | `403` | Polling device fingerprint does not match the pending link.            |
 | `POST /login`                  | `200` | Returns an ephemeral `token` plus `loginMethods` for this user/device. |
-| `POST /login`                  | `401` | Unknown or unverified identifier (see the enumeration note below).     |
+| `POST /login`                  | `423` | The account is locked out. Carries `retryAfterSeconds`.                |
 | `POST /refresh`                | `401` | Missing, invalid, expired, or already-rotated refresh token.           |
 | `POST /refresh`                | `405` | Method other than POST.                                                |
 
@@ -134,8 +134,19 @@ an error body, and clients that branch on it keep working.
 
 ## A note on login responses
 
-`POST /login` returns different content for a known-and-verified user (an ephemeral token plus
-`loginMethods`) than for an unknown or unverified identifier (a `401`). This makes some user
-enumeration possible, which is partly inherent to passwordless login where the client must learn
-which continuation methods are available. The intended posture is tracked as a follow-up; do not
-rely on the current exact shapes for unknown identifiers.
+`POST /login` answers `200` with an ephemeral `token` and `loginMethods` for every identifier it
+accepts, whether or not an account exists. An identifier with no usable account gets a **decoy**
+token: real, signed, and indistinguishable from one issued to a genuine account. Every endpoint
+that accepts a pre-auth token answers for a decoy the way it answers for a real one, so the
+continuation steps do not disclose it either.
+
+**`POST /login` no longer returns `401`.** A client that branched on `401` to mean "no such user"
+will now follow the normal continuation flow instead, and the failure will surface at the
+continuation step (a wrong OTP, an assertion that cannot verify) rather than at login. That is the
+point: there is no longer an answer to give.
+
+What still distinguishes an account: a `423` lockout, which only a real account can be in, and a
+`400` for a malformed identifier, which does not depend on whether an account exists.
+
+See [security-posture.md](./security-posture.md) for the full design, including how a decoy subject
+is derived and what remains observable.

@@ -32,6 +32,9 @@ export async function verifyBearerAuth(
       return res.status(401).json({ error: 'unauthorized' });
     }
     (req as AuthenticatedRequest).user = result.user;
+    if (result.decoy) {
+      (req as AuthenticatedRequest).decoy = true;
+    }
     if (result.sessionId !== undefined) {
       (req as AuthenticatedRequest).sessionId = result.sessionId;
     }

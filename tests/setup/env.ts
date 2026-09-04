@@ -12,3 +12,8 @@ process.env.DB_PASSWORD ||= 'test';
 process.env.DB_HOST ||= 'localhost';
 process.env.DB_PORT ||= '5432';
 process.env.DB_NAME ||= 'seamless_test';
+
+// The /login timing floor is off by default under test so that it is not paid for by
+// every login case. tests/integration/authentication/loginDecoy.spec.ts sets it
+// explicitly to exercise it.
+process.env.LOGIN_RESPONSE_FLOOR_MS ||= '0';

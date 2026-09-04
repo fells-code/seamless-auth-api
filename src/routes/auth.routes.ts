@@ -31,9 +31,11 @@ authRouter.post(
       body: LoginRequestSchema,
 
       response: {
+        // No 401. An identifier with no usable account now answers 200 with a decoy
+        // pre-auth token rather than a rejection, which is what makes the endpoint
+        // non-enumerable. See docs/security-posture.md.
         200: LoginSuccessResponseSchema,
         400: ErrorSchema,
-        401: ErrorSchema,
         403: ErrorSchema,
         500: InternalErrorSchema,
       },

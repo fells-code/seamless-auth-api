@@ -15,6 +15,7 @@ import {
 import { registry } from '../openapi/registry.js';
 import { ErrorSchema, ValidationErrorSchema } from '../schemas/generic.responses.js';
 import { AuthTokenType } from '../services/sessionService.js';
+import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { expressToOpenAPI } from './convertPath.js';
 import { InferRequest, RouteSchemas } from './routeTypes.js';
@@ -38,6 +39,18 @@ interface DefineRouteOptions<S extends RouteSchemas> {
   schemas?: S;
 
   handler: (req: InferRequest<S>, res: Response, next: NextFunction) => Promise<void> | void;
+
+  /**
+   * Answers the request when the ephemeral token's subject is a decoy, in place of
+   * `handler`.
+   *
+   * Required on every `auth: 'ephemeral'` route. A decoy is only worth issuing if every
+   * continuation endpoint answers for it the way it answers for a real account, so a new
+   * ephemeral route that forgot one would reopen the enumeration oracle it closed. This
+   * is a registration-time error rather than a convention, because the failure is silent
+   * at runtime and invisible in a diff.
+   */
+  decoy?: (req: InferRequest<S>, res: Response, next: NextFunction) => Promise<void> | void;
 }
 
 type OpenApiResponse = {
@@ -201,6 +214,15 @@ export function defineRoute<S extends RouteSchemas>(
 ): void {
   const { method, path, auth, schemas, summary, description, tags, deprecated, handler } = options;
   const authType = resolveAuthType(auth, options.middleware);
+  const decoy = options.decoy;
+
+  if (authType === 'ephemeral' && !decoy) {
+    throw new Error(
+      `Route ${method.toUpperCase()} ${path} accepts an ephemeral token but declares no decoy responder. ` +
+        'Every ephemeral endpoint must answer for a decoy subject the way it answers for a real one, ' +
+        'or /login stops being non-enumerable. See docs/security-posture.md.',
+    );
+  }
 
   const params = schemas?.params;
   const query = schemas?.query;
@@ -298,7 +320,12 @@ export function defineRoute<S extends RouteSchemas>(
           }
         }) as typeof res.json;
       }
-      await Promise.resolve(handler(req as InferRequest<S>, res, next));
+      // A decoy never reaches the real handler. That is what makes it safe for the
+      // stand-in principal to be shaped like a User without being one: no controller,
+      // and so no write, ever sees it.
+      const respond = decoy && (req as AuthenticatedRequest).decoy ? decoy : handler;
+
+      await Promise.resolve(respond(req as InferRequest<S>, res, next));
     } catch (error: unknown) {
       logger.error(`Error wrapping parsed handler. ${error}`);
       return next(error);
