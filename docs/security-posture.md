@@ -311,3 +311,73 @@ option today.
 
 `auth_failures` rows are not pruned, which matches `auth_events`. Retention is
 [issue #173](https://github.com/fells-code/seamless-auth-api/issues/173).
+
+## Static analysis triage
+
+**Posture: gated on a zero baseline, deliberately.** CodeQL runs on every pull request,
+on every push to `main`, and weekly on a schedule. The
+[workflow](../.github/workflows/codeql.yml) fails when any alert is open, not only when a
+pull request introduces one.
+
+### Why the gate sits at zero rather than on new alerts
+
+Failing only on newly introduced alerts is the easier setting, and it leaves a standing
+baseline that belongs to nobody. The baseline this repository started with was ten alerts,
+and it had grown to twenty-five before anyone read the list, including two whose rule names
+(`js/insufficient-password-hash`, `js/clear-text-logging`) would have looked alarming to
+whoever eventually did. A list that is permanently non-empty teaches reviewers to scroll
+past the security tab, which is how a real finding gets missed.
+
+So every alert ends in one of two states: fixed, or dismissed in the security tab with a
+written reason. The steady state is zero, and any open alert is by definition something
+nobody has looked at yet. This is the NIST 800-53 RA-5 expectation that scan results are
+remediated or formally accepted, rather than accumulated.
+
+The gate reads the code scanning API rather than the analysis exit status, because CodeQL
+does not fail its own job on findings. It fails closed: an unreadable or unexpected response
+is an error, not an empty alert list. It is skipped for pull requests from forks, whose
+token has no `security-events` scope; those alerts are caught when the branch reaches `main`.
+
+### Standing dismissals
+
+Two fixes are invisible to CodeQL because they are not on the taint path it follows. Both
+were verified by reading the code rather than by trusting the rule name, and both are
+expected to reappear on a rescan.
+
+- **`js/log-injection`** in [`app.ts`](../src/app.ts),
+  [`routeLogger.ts`](../src/middleware/routeLogger.ts) and
+  [`oauthProviders.ts`](../src/controllers/oauthProviders.ts). Untrusted values do reach log
+  messages through template strings, in these five places and potentially in any future one.
+  The fix is central: every line is rendered through the winston `printf` format in
+  [`logger.ts`](../src/utils/logger.ts), which applies `redactSensitiveText` and then
+  `escapeLogControlCharacters` before the string reaches a transport. `CR` and `LF` are
+  escaped, so a newline in an untrusted value cannot forge a log record. CodeQL follows the
+  taint to the `logger.*` call and stops there; it does not model the sanitiser inside the
+  transport. Sanitising at each call site instead would close these five and rot on the next
+  interpolation added anywhere in the codebase.
+- **`js/remote-property-injection`** in [`redaction.ts`](../src/utils/redaction.ts). The
+  redacted output is built on `Object.create(null)`, so a `__proto__` key arriving in
+  untrusted audit metadata becomes an ordinary own property and is recorded as data. On a
+  normal object literal that key would reach the prototype setter instead, which is the bug
+  that was actually there: the key vanished from the output unredacted while replacing the
+  object's prototype with caller-supplied content. CodeQL does not model the null-prototype
+  receiver.
+
+If either reappears, it should be dismissed on this footing rather than closed by scattering
+sanitiser calls onto the taint path.
+
+### What is still accepted
+
+A dismissal is a judgement, and a wrong one is invisible afterwards. The reasons are recorded
+in the security tab and repeated here so that a dismissal can be argued with later. The
+`security-extended` query suite is used rather than the default, which raises the false
+positive rate on purpose: rules like weak randomness and unsafe comparison are worth reading
+on an authentication server even when most of their hits are noise.
+
+One user-controlled bypass in
+[`loginPolicyService.ts`](../src/services/loginPolicyService.ts) was a true positive and is
+not dismissed. It is tracked as
+[issue #213](https://github.com/fells-code/seamless-auth-api/issues/213), because a
+client-supplied `passkeyAvailable` can turn off `passkey_login_fallback_enabled`, and
+deciding what a passkey-incapable client should see under a passkey-only policy is a product
+question rather than a cleanup.
