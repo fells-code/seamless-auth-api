@@ -89,6 +89,22 @@ The shape has to be honoured downstream as well. A real account with no phone an
 `400` on `/otp/generate-phone-otp`, so a decoy shaped without one answers `400` there too.
 Otherwise the shape that was hiding it becomes the thing that shows it.
 
+### Every rejection a real account can reach, a decoy reaches too
+
+A decoy responder that only reproduces the success path is not finished. Any `400` a real
+account can be made to answer is an oracle if a decoy answers `200` to the same request,
+and the ones that matter are the ones a caller can trigger on purpose:
+
+- `/magic-link?redirectUri=` pointing somewhere the configured origins do not allow
+  answers `400 Redirect URI is not allowed`. A caller picks that value, so this is one
+  deliberately bad request away. The decoy responder runs the same `resolveMagicLinkUrl`
+  validation.
+- `/magic-link` with no identifiable device metadata answers `400 Invalid device data`,
+  and omitting a `User-Agent` header is enough to get there. The decoy responder runs the
+  same fingerprint check.
+
+Neither validation writes anything, so reproducing them costs a decoy nothing.
+
 One exception is forced. A real account with no permitted method is itself answered as a
 decoy, so an empty list is something only a decoy could produce, and under a passkey-only
 policy that would be every decoy the derived shape gave no passkey to. A decoy whose

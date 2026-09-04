@@ -18,7 +18,12 @@ import {
   isLoginMethodEnabled,
   LoginMethod,
 } from '../services/loginPolicyService.js';
+import {
+  MagicLinkRedirectNotAllowedError,
+  resolveMagicLinkUrl,
+} from '../services/magicLinkRedirect.js';
 import { AuthenticatedRequest } from '../types/types.js';
+import { hashDeviceFingerprint } from '../utils/utils.js';
 
 /**
  * How the fifteen ephemeral endpoints answer when the pre-auth subject is a decoy.
@@ -173,8 +178,30 @@ export const decoyRequestMagicLink = async (req: Request, res: Response) => {
 
   await logDecoy(req, 'magic_link:request');
 
-  const { origins } = await getSystemConfig();
   const rawToken = decoyCredentialIdFor(decoySubject(req));
+
+  // Both checks below answer 400 for a real account before anything is stored, and both
+  // are reachable by choice: a caller picks the redirect it sends, and omitting a
+  // User-Agent header is enough to trip the second. A decoy that skipped them would
+  // answer 200 where a real account answers 400, which is a working oracle for the price
+  // of one deliberately bad request.
+  let magicLinkUrl: string;
+
+  try {
+    magicLinkUrl = await resolveMagicLinkUrl(rawToken, req.query.redirectUri as string | undefined);
+  } catch (error) {
+    if (error instanceof MagicLinkRedirectNotAllowedError) {
+      return res.status(400).json({ error: 'Redirect URI is not allowed' });
+    }
+
+    throw error;
+  }
+
+  const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
+
+  if (!ip_hash || !user_agent_hash) {
+    return res.status(400).json({ error: 'Invalid device data' });
+  }
 
   return res.json({
     message: 'If an account exists, a login link has been sent.',
@@ -184,7 +211,7 @@ export const decoyRequestMagicLink = async (req: Request, res: Response) => {
             kind: 'magic_link_email',
             to: authReq.user.email,
             token: rawToken,
-            magicLinkUrl: `${origins?.[0] ?? ''}/auth/magic-link/verify/${rawToken}`,
+            magicLinkUrl,
           },
         }
       : {}),

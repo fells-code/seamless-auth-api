@@ -55,6 +55,7 @@ import { generateAuthenticationOptions, generateRegistrationOptions } from '@sim
 import { signEphemeralToken } from '../../../src/lib/token.js';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges.js';
 import { generateEmailOTP, generatePhoneOTP } from '../../../src/utils/otp.js';
+import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
 
 let app: Application;
 
@@ -162,6 +163,28 @@ describe('decoy continuation: magic link', () => {
     const res = await request(app).get('/magic-link/check');
 
     expect(res.status).toBe(204);
+  });
+
+  it('refuses a disallowed redirect the way a real account does', async () => {
+    // A caller picks the redirect it sends, so this is one deliberately bad request
+    // away. A real account answers 400 here before storing anything.
+    const res = await request(app).get('/magic-link').query({
+      redirectUri: 'https://not-an-allowed-origin.example/landing',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Redirect URI is not allowed' });
+  });
+
+  it('refuses a request with no device fingerprint the way a real account does', async () => {
+    // Omitting a User-Agent is enough to reach the real handler's 400, which
+    // tests/integration/magicLink/magicLink.spec.ts reaches the same way.
+    (hashDeviceFingerprint as any).mockReturnValueOnce({ ip_hash: null, user_agent_hash: null });
+
+    const res = await request(app).get('/magic-link');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid device data' });
   });
 
   it('reports a disabled magic link rather than success', async () => {
