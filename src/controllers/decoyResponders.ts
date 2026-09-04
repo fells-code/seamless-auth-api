@@ -45,8 +45,9 @@ import { hashDeviceFingerprint } from '../utils/utils.js';
  *
  * Two properties every responder holds to:
  *
- * - **No writes.** A decoy is issued for any identifier a stranger can type. If probing
- *   one wrote a row, closing the enumeration oracle would open a way to fill the disk.
+ * - **No decoy state.** A decoy is issued for any identifier a stranger can type, so
+ *   nothing here stores a challenge, a link or a code. The auth event each responder
+ *   records is the exception, and it is the one every request already writes.
  * - **No real handler.** `defineRoute` dispatches here instead of the controller, so the
  *   stand-in principal never reaches code that could persist it.
  *

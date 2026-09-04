@@ -21,8 +21,9 @@ import { User } from '../models/users.js';
  *   subject would be the oracle all over again, one request later.
  * - **Unguessable.** The key never leaves the server, so a caller cannot tell a decoy
  *   subject from a real user id by inspecting it, and cannot mint one.
- * - **Stateless.** Nothing is written. Probing an endpoint that answers for unknown
- *   identifiers must not let a caller fill a table.
+ * - **Stateless.** No decoy is stored to be looked up later. Probing an endpoint that
+ *   answers for unknown identifiers must not let a caller fill a table, so everything a
+ *   continuation needs is recomputed from the subject in the token.
  *
  * A decoy is recognised on the way back in by its subject not resolving to a user row,
  * not by a claim. A `decoy` claim would be readable by anyone who base64-decodes the

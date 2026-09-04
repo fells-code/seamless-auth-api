@@ -61,9 +61,11 @@ properties:
   would be an oracle by itself.
 - **Unguessable.** The subject is a well-formed v4 UUID and cannot be told apart from a
   real user id, or minted, without the key.
-- **Stateless.** Nothing is written. A decoy is issued for any identifier a stranger can
-  type, so if probing one wrote a row, closing this would have opened a way to fill the
-  disk.
+- **Stateless.** No decoy is stored to be looked up later, and no responder writes a
+  challenge, a magic link or an OTP. A decoy is issued for any identifier a stranger can
+  type, so if probing one persisted a row, closing this would have opened a way to fill
+  the disk instead. Auth events are still recorded, as they are for every request, so bulk
+  probing stays visible to operators.
 
 A decoy is recognised on the way back in by its subject not resolving to a user row.
 There is deliberately no `decoy` claim: anyone can base64-decode a JWT, and a claim
