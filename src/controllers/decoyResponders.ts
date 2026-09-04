@@ -87,6 +87,13 @@ async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | '
 
   await logDecoy(req, `otp:${kind}`);
 
+  // A real account with no phone answers 400 here, and about half of decoys are shaped
+  // without one so that a narrow login method list proves nothing. Those decoys have to
+  // answer 400 too, or the shape that was hiding them becomes the thing that shows them.
+  if (kind === 'otp_sms' && !authReq.user.phone) {
+    return res.status(400).json({ error: 'Invalid data' });
+  }
+
   const token = await signEphemeralToken(subject);
 
   return res.status(200).json({

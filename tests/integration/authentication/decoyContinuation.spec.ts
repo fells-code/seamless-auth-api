@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { decoyPrincipalForSubject } from '../../../src/services/decoyPrincipal.js';
+import { decoyPrincipalForSubject, decoySubjectFor } from '../../../src/services/decoyPrincipal.js';
 
 /**
  * A decoy is only worth issuing if the fifteen endpoints that accept a pre-auth token
@@ -15,7 +15,22 @@ import { decoyPrincipalForSubject } from '../../../src/services/decoyPrincipal.j
  * which is what `validateEphemeralToken` produces for a subject that resolves to no row.
  */
 
-const DECOY = decoyPrincipalForSubject('4f7158fa-ca90-4c22-a1d1-eba3f0c1a2b3');
+function decoyWithPhone(withPhone: boolean) {
+  for (let i = 0; i < 100; i += 1) {
+    const principal = decoyPrincipalForSubject(decoySubjectFor(`probe${i}@example.com`, 'email'));
+
+    if ((principal.phone !== null) === withPhone) {
+      return principal;
+    }
+  }
+
+  throw new Error('no decoy of that shape found');
+}
+
+const DECOY = decoyWithPhone(true);
+const PHONELESS_DECOY = decoyWithPhone(false);
+
+let principal: ReturnType<typeof decoyPrincipalForSubject> = DECOY;
 
 vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
   const actual =
@@ -24,7 +39,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
   return {
     ...actual,
     attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
-      req.user = DECOY;
+      req.user = principal;
       req.decoy = true;
       next();
     },
@@ -49,6 +64,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  principal = DECOY;
   (signEphemeralToken as any).mockResolvedValue('decoy-token');
   (generateRegistrationOptions as any).mockResolvedValue({
     challenge: 'challenge',
@@ -85,6 +101,18 @@ describe('decoy continuation: OTP', () => {
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('success');
     expect(res.body.token).toBe('decoy-token');
+  });
+
+  it('answers a phoneless decoy the way a phoneless account is answered', async () => {
+    principal = PHONELESS_DECOY;
+
+    const res = await request(app).get('/otp/generate-phone-otp');
+
+    // About half of decoys are shaped without a phone so that a narrow login method list
+    // proves nothing. Those have to answer 400 here like a real phoneless account, or
+    // the shape that was hiding them becomes the thing that shows them.
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid data' });
   });
 
   it('never sends a real message for a decoy', async () => {

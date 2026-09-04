@@ -85,6 +85,10 @@ So a decoy's shape is derived from its subject alongside everything else: about 
 a passkey and about half have a phone, stable per identifier. A narrow method list is
 then as likely to be a decoy as a real account, and one probe settles nothing.
 
+The shape has to be honoured downstream as well. A real account with no phone answers
+`400` on `/otp/generate-phone-otp`, so a decoy shaped without one answers `400` there too.
+Otherwise the shape that was hiding it becomes the thing that shows it.
+
 One exception is forced. A real account with no permitted method is itself answered as a
 decoy, so an empty list is something only a decoy could produce, and under a passkey-only
 policy that would be every decoy the derived shape gave no passkey to. A decoy whose
