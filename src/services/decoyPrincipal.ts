@@ -34,6 +34,7 @@ const DECOY_EMAIL_INFO = 'seamless-auth/decoy-email';
 const DECOY_PHONE_INFO = 'seamless-auth/decoy-phone';
 const DECOY_OTP_INFO = 'seamless-auth/decoy-otp';
 const DECOY_CREDENTIAL_INFO = 'seamless-auth/decoy-credential';
+const DECOY_SHAPE_INFO = 'seamless-auth/decoy-shape';
 
 /**
  * Mirrors `stateSecret()` in oauthService: prefer a dedicated secret, fall back to the
@@ -144,24 +145,49 @@ export function decoyCredentialIdFor(subject: string) {
 export interface DecoyPrincipal {
   id: string;
   email: string;
-  phone: string;
+  phone: string | null;
   roles: string[];
   verified: true;
   emailVerified: true;
   phoneVerified: true;
   revoked: false;
+  /**
+   * Whether this decoy "has" a passkey, for the purpose of the method list `/login`
+   * offers.
+   *
+   * Not always true, which is the point. `loginMethods` is filtered by what an account
+   * can actually do, so a decoy that always claimed the full set would make any narrower
+   * set proof that a real account exists: an account with no passkey is offered
+   * `magic_link` and `email_otp` and nothing else, and no decoy would ever answer that
+   * way. Deriving the shape from the subject means a narrow list is equally likely to be
+   * a decoy, so one probe settles nothing.
+   *
+   * It is derived rather than random so the same identifier answers the same way every
+   * time, for the same reason the subject is.
+   */
+  hasPasskey: boolean;
+}
+
+/** One bit of the subject's derived shape, stable for the life of the identifier. */
+function decoyShapeBit(subject: string, index: number) {
+  return (derive(DECOY_SHAPE_INFO, subject)[index] & 1) === 1;
 }
 
 export function decoyPrincipalForSubject(subject: string): DecoyPrincipal {
+  const hasPhone = decoyShapeBit(subject, 1);
+
   return {
     id: subject,
     email: decoyEmailFor(subject),
-    phone: decoyPhoneFor(subject),
+    // Null for some decoys so that an account with no phone, which is offered no
+    // phone_otp, is not distinguishable from a decoy on that basis either.
+    phone: hasPhone ? decoyPhoneFor(subject) : null,
     roles: [],
     verified: true,
     emailVerified: true,
     phoneVerified: true,
     revoked: false,
+    hasPasskey: decoyShapeBit(subject, 0),
   };
 }
 

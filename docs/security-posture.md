@@ -69,10 +69,27 @@ A decoy is recognised on the way back in by its subject not resolving to a user 
 There is deliberately no `decoy` claim: anyone can base64-decode a JWT, and a claim
 saying which tokens are fake is the whole point given away.
 
-The stand-in principal carries a synthetic email and phone because the OTP and magic link
-rate limiters key on `req.user.email`. Left empty they fall back to an IP bucket, so
-every unknown identifier probed from one address would have shared a counter while every
-real one got its own, which is a working oracle built out of `429`s.
+The stand-in principal carries a synthetic email because the OTP and magic link rate
+limiters key on `req.user.email`. Left empty they fall back to an IP bucket, so every
+unknown identifier probed from one address would have shared a counter while every real
+one got its own, which is a working oracle built out of `429`s.
+
+### Why a decoy does not always claim everything
+
+`loginMethods` is filtered by what an account can actually do: one with no passkey is not
+offered `passkey`, and one with no phone is not offered `phone_otp`. A decoy that always
+claimed the full permitted set would therefore make any narrower set proof that a real
+account exists, which is the original oracle with extra steps.
+
+So a decoy's shape is derived from its subject alongside everything else: about half have
+a passkey and about half have a phone, stable per identifier. A narrow method list is
+then as likely to be a decoy as a real account, and one probe settles nothing.
+
+One exception is forced. A real account with no permitted method is itself answered as a
+decoy, so an empty list is something only a decoy could produce, and under a passkey-only
+policy that would be every decoy the derived shape gave no passkey to. A decoy whose
+derived shape leaves it with no methods falls back to the full permitted set, which is
+what a usable account under that policy answers.
 
 ### Timing
 

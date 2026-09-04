@@ -161,20 +161,37 @@ async function respondWithDecoy({
   const principal = decoyPrincipalForSubject(subject);
   const policy = await getLoginPolicy();
 
+  const shaped = resolveAvailableLoginMethods({
+    policy,
+    user: principal,
+    hasPasskeyCredential: principal.hasPasskey,
+    passkeyAvailable,
+  });
+
+  // A real account that reaches this point with no permitted method is answered as a
+  // decoy, so an empty list is something only a decoy can produce. Under a passkey-only
+  // policy that is every decoy the derived shape gave no passkey to, which would put the
+  // old 401 back in a different costume. Fall back to the full permitted set, which is
+  // what a usable account under that policy answers.
+  const loginMethods = shaped.length
+    ? shaped
+    : resolveAvailableLoginMethods({
+        policy,
+        user: principal,
+        hasPasskeyCredential: true,
+        passkeyAvailable,
+      });
+
   return respondWithPreAuth({
     res,
     startedAt,
     subject,
     identifierType,
-    // A decoy is treated as fully provisioned, so the offered methods are whatever the
-    // deployment permits. Deriving them from account state instead would put the answer
-    // back in the response.
-    loginMethods: resolveAvailableLoginMethods({
-      policy,
-      user: principal,
-      hasPasskeyCredential: true,
-      passkeyAvailable,
-    }),
+    // The method list is filtered by what an account can actually do, so a decoy that
+    // always claimed the full set would make any narrower set proof that a real account
+    // exists. The decoy's shape is derived from its subject instead, stable per
+    // identifier, so a narrow list is equally likely to be a decoy.
+    loginMethods,
   });
 }
 

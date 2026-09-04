@@ -320,6 +320,28 @@ describe('POST /login', () => {
     expect(shapes[3]).toEqual(shapes[0]);
   });
 
+  it('never offers a decoy an empty method list', async () => {
+    // A real account with no permitted method is itself answered as a decoy, so an
+    // empty list is something only a decoy could produce. Under a passkey-only policy
+    // that would be every decoy the derived shape gave no passkey to, which puts the
+    // old 401 back in a different costume.
+    (User.findOne as any).mockResolvedValue(null);
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      login_methods: ['passkey'],
+      passkey_login_fallback_enabled: false,
+    });
+
+    for (let i = 0; i < 25; i += 1) {
+      const res = await request(app)
+        .post('/login')
+        .send({ identifier: `nobody${i}@example.com` });
+
+      expect(res.body.loginMethods).toEqual(['passkey']);
+    }
+  });
+
   it('gives an unknown identifier the same decoy subject every time', async () => {
     (User.findOne as any).mockResolvedValue(null);
     (signEphemeralToken as any).mockResolvedValue('token');

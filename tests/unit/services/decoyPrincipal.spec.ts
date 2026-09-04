@@ -84,12 +84,39 @@ describe('decoy principal', () => {
     expect(decoyPrincipalForSubject(subject)).toEqual(decoyPrincipalForSubject(subject));
   });
 
+  it('does not always claim a passkey', () => {
+    // `loginMethods` is filtered by what an account can do, so a decoy that always
+    // claimed the full set would make any narrower set proof that a real account
+    // exists. Both shapes have to occur for a narrow list to be ambiguous.
+    const shapes = new Set<boolean>();
+    const phones = new Set<boolean>();
+
+    for (let i = 0; i < 200; i += 1) {
+      const principal = decoyPrincipalForSubject(decoySubjectFor(`user${i}@example.com`, 'email'));
+
+      shapes.add(principal.hasPasskey);
+      phones.add(principal.phone !== null);
+    }
+
+    expect(shapes).toEqual(new Set([true, false]));
+    expect(phones).toEqual(new Set([true, false]));
+  });
+
+  it('keeps one identifier on the same shape', () => {
+    const subject = decoySubjectFor('nobody@example.com', 'email');
+
+    expect(decoyPrincipalForSubject(subject).hasPasskey).toBe(
+      decoyPrincipalForSubject(subject).hasPasskey,
+    );
+  });
+
   it('reads as a usable account', () => {
     const principal = decoyPrincipalForSubject(decoySubjectFor('nobody@example.com', 'email'));
 
     expect(principal).toEqual(
       expect.objectContaining({ verified: true, revoked: false, roles: [] }),
     );
+    expect(principal.email).toBeTruthy();
   });
 });
 

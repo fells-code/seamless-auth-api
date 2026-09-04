@@ -37,6 +37,14 @@ issued for any identifier a stranger can type, so persisting them would trade an
 enumeration oracle for a way to fill the disk. There is deliberately no `decoy`
 claim, since anyone can decode a JWT.
 
+A decoy's account shape is derived alongside its subject rather than fixed:
+about half "have" a passkey and about half a phone, stable per identifier.
+`loginMethods` is filtered by what an account can actually do, so a decoy that
+always claimed the full permitted set would have made any narrower set proof that
+a real account exists. A decoy left with no methods by its derived shape falls
+back to the full set, since a real account with none is itself answered as a
+decoy and an empty list would otherwise be the old `401` in a different costume.
+
 The new optional `LOGIN_RESPONSE_FLOOR_MS` (default `250`) holds every `/login`
 answer to a minimum. The real path reads more tables than the decoy path, and
 identical bodies arriving at measurably different times still answer the question.
