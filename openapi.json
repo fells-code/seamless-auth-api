@@ -2889,19 +2889,6 @@
               }
             }
           },
-          "401": {
-            "description": "HTTP 401",
-            "content": {
-              "application/json": {
-                "example": { "message": "string", "error": "string" },
-                "schema": {
-                  "type": "object",
-                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
           "403": {
             "description": "HTTP 403",
             "content": {

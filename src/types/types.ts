@@ -22,6 +22,12 @@ export type RouteRequest = Request<Record<string, string>>;
 export interface AuthenticatedRequest extends RouteRequest {
   user: User;
   sessionId: Session['id'];
+  /**
+   * Set when the ephemeral token's subject resolved to no account, meaning `user` is the
+   * decoy stand-in rather than a row. `defineRoute` reads this to send the request to the
+   * route's decoy responder, so a real handler never observes it as true.
+   */
+  decoy?: boolean;
   organizationId?: string | null;
   clientId?: string;
   trustedClientIp?: string;

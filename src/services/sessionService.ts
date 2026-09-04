@@ -12,6 +12,7 @@ import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import getLogger from '../utils/logger.js';
 import { getPublicKeyByKid } from '../utils/signingKeyStore.js';
+import { decoyPrincipalAsUser, decoyPrincipalForSubject } from './decoyPrincipal.js';
 
 const logger = getLogger('sessionService');
 
@@ -162,6 +163,7 @@ export interface ValidatedBearerToken {
   user: User;
   sessionId?: string;
   organizationId?: string | null;
+  decoy?: boolean;
 }
 
 export async function validateEphemeralToken(token: string): Promise<ValidatedBearerToken | null> {
@@ -175,7 +177,19 @@ export async function validateEphemeralToken(token: string): Promise<ValidatedBe
     where: { id: payload.sub, revoked: false },
   });
 
-  return user ? { user } : null;
+  if (user) {
+    return { user };
+  }
+
+  // The signature, issuer, audience, type and expiry have all already been checked, so
+  // this token was minted here. A subject that resolves to no row is therefore the
+  // decoy `/login` issued for an identifier with no usable account, and the request
+  // continues as that fiction rather than being rejected. Rejecting here is what used
+  // to move the oracle one request later.
+  //
+  // A token whose user was deleted or revoked mid-flow lands here too, and is likewise
+  // answered as a decoy rather than with a distinguishable 401.
+  return { user: decoyPrincipalAsUser(decoyPrincipalForSubject(payload.sub)), decoy: true };
 }
 
 export async function validateBearerToken(

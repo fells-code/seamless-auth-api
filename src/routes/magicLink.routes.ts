@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { decoyPollMagicLink, decoyRequestMagicLink } from '../controllers/decoyResponders.js';
 import {
   pollMagicLinkConfirmation,
   requestMagicLink,
@@ -25,6 +26,7 @@ magicLinkRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Request a magic login link',
+    decoy: decoyRequestMagicLink,
     tags: ['MagicLinks'],
     middleware: [magicLinkIpLimiter, magicLinkEmailLimiter],
 
@@ -46,6 +48,7 @@ magicLinkRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Poll for magic link confirmation',
+    decoy: decoyPollMagicLink,
     tags: ['MagicLinks'],
 
     schemas: {

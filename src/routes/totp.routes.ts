@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { decoyVerifyTotpLogin } from '../controllers/decoyResponders.js';
 import {
   disableCurrentTotp,
   getCurrentTotpStatus,
@@ -103,6 +104,7 @@ totpRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Verify TOTP during login',
+    decoy: decoyVerifyTotpLogin,
     tags: ['TOTP'],
 
     schemas: {

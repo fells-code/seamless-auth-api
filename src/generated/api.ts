@@ -2635,24 +2635,6 @@ export interface paths {
             };
           };
         };
-        /** @description HTTP 401 */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "error": "string"
-             *     }
-             */
-            'application/json': {
-              message?: string;
-              error: string;
-            };
-          };
-        };
         /** @description HTTP 403 */
         403: {
           headers: {

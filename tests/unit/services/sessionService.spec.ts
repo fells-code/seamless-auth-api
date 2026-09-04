@@ -513,7 +513,7 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null when an ephemeral token subject has no matching user', async () => {
+  it('resolves an ephemeral subject with no matching user as a decoy', async () => {
     const jose = await import('jose');
     const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
     const { User } = await import('../../../src/models/users');
@@ -526,7 +526,12 @@ describe('sessionService', () => {
 
     const { validateBearerToken } = await import('../../../src/services/sessionService');
 
-    expect(await validateBearerToken('token', 'ephemeral')).toBeNull();
+    const result = await validateBearerToken('token', 'ephemeral');
+
+    // Rejecting here is what used to move the enumeration oracle one request past
+    // /login, so the token now continues as the decoy it was issued as.
+    expect(result?.decoy).toBe(true);
+    expect(result?.user.id).toBe('user');
   });
 
   it('returns null when the session owner cannot be loaded', async () => {

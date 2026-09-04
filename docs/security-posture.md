@@ -7,55 +7,115 @@ does, why, and what would change it. If you are looking for how to configure the
 
 ## User enumeration on `/login`
 
-**Posture: partially mitigated, deliberately.** A failed `/login` does not say why it failed. A
-successful one still proves the identifier exists.
+**Posture: closed.** `POST /login` answers the same way for an identifier that has an
+account and one that does not, and every endpoint that accepts the resulting pre-auth
+token answers the same way for both.
 
-`POST /login` answers one identical `401 { "error": "Not Allowed" }` for every rejection:
+An identifier with no usable account gets `200` with a **decoy** pre-auth token: a real,
+signed ephemeral token over a subject that belongs to nobody. The four cases that used to
+answer `401` all take this path:
 
 - an identifier that matches no account,
 - an account that exists but is not verified,
 - an account with no permitted continuation method under the current login policy,
-- a failure to mint the pre-auth token.
+- an account whose identifier differs only in case or phone formatting.
 
-Previously these produced three distinguishable bodies, so an unauthenticated caller could tell
-which case it had hit. The reason is still recorded in the `login_failed` auth event metadata, so
-operators keep the detail; it is simply no longer disclosed to the caller.
+The reason is still recorded in the `login_failed` auth event metadata, now with
+`decoy: true`, so operators keep the detail that the caller no longer gets.
+
+### Why the decoy has to survive the next request
+
+Returning `200` for an unknown identifier is worth nothing on its own. If the next
+request distinguished the decoy, the oracle would simply have moved one step later. All
+fifteen endpoints that accept an ephemeral token therefore answer for a decoy the way
+they answer for a real account:
+
+| Endpoint group           | A decoy gets                                                    |
+| ------------------------ | --------------------------------------------------------------- |
+| OTP send (4)             | `200 { message: 'success', token }`, with nothing sent          |
+| OTP verify (4)           | `401 { error: 'Not allowed' }`, the body a wrong code gets      |
+| Magic link request       | `200`, the same "if an account exists" body a real request gets |
+| Magic link poll          | `204`, the state a real account sits in until someone clicks    |
+| WebAuthn register start  | A registration challenge, with no challenge record stored       |
+| WebAuthn register finish | `403 { error: 'Missing challenge' }`                            |
+| WebAuthn login start     | An assertion challenge over a fabricated credential id          |
+| WebAuthn login finish    | `401 { error: 'Authentication failed.' }`                       |
+| TOTP login verify        | `401 { error: 'totp_verification_failed' }`                     |
+
+Policy-dependent branches are reproduced rather than skipped. A deployment with
+`email_otp` disabled answers `403 login_method_disabled` for every identifier, so a decoy
+that returned success there would be the one that stood out.
+
+The WebAuthn login case is worth calling out. A real account with no passkey answers
+`401`, so a decoy with an empty allow-list would have been sorted into that bucket and
+separated from every account that has one. It offers one fabricated credential instead.
+
+### How a decoy is built
+
+Everything derives from one HMAC over the normalised identifier, keyed with
+`DECOY_SUBJECT_SECRET` (falling back to `API_SERVICE_TOKEN`). That gives three
+properties:
+
+- **Stable.** The same unknown identifier yields the same subject every time. A real
+  identifier resolves to the same row every time, so a decoy that rerolled its subject
+  would be an oracle by itself.
+- **Unguessable.** The subject is a well-formed v4 UUID and cannot be told apart from a
+  real user id, or minted, without the key.
+- **Stateless.** Nothing is written. A decoy is issued for any identifier a stranger can
+  type, so if probing one wrote a row, closing this would have opened a way to fill the
+  disk.
+
+A decoy is recognised on the way back in by its subject not resolving to a user row.
+There is deliberately no `decoy` claim: anyone can base64-decode a JWT, and a claim
+saying which tokens are fake is the whole point given away.
+
+The stand-in principal carries a synthetic email and phone because the OTP and magic link
+rate limiters key on `req.user.email`. Left empty they fall back to an IP bucket, so
+every unknown identifier probed from one address would have shared a counter while every
+real one got its own, which is a working oracle built out of `429`s.
+
+### Timing
+
+Identical bodies that arrive at measurably different times still answer the question. The
+real path reads the users table, the lockout counter, the credentials table and the login
+policy; the decoy path reads only the policy.
+
+`LOGIN_RESPONSE_FLOOR_MS` (default `250`) holds every `/login` answer to a minimum, which
+removes the difference as long as both paths finish under it. Set it above the slowest
+real login the deployment sees. It is an environment variable rather than a
+`system_config` key because that schema is shared through `@seamless-auth/types`, and a
+key there means a coordinated release across both SDKs for an operational tuning knob.
 
 ### What is still observable
 
-A valid, verified identifier gets `200` with an ephemeral token, so `/login` still distinguishes
-"this account exists and can sign in" from everything else. Some of this is inherent to
-passwordless login: the client legitimately needs to know which continuation methods are available
-before it can render anything.
-
-Closing it fully means returning `200` with a decoy ephemeral token for unknown identifiers, and
-making all 15 ephemeral-auth continuation endpoints behave identically for a decoy, including
-making OTP and magic-link sends appear to succeed. Otherwise the oracle just moves one step later.
-That is tracked in [issue #120](https://github.com/fells-code/seamless-auth-api/issues/120); it is
-a redesign of the pre-auth surface, not a patch.
-
-Two other signals are accepted on purpose:
-
-- **Account lockout** answers `423` with `retryAfterSeconds`. Only a real account can be locked,
-  so this discloses existence, but it requires prior failed attempts against that specific
-  account, and suppressing it would leave a locked-out user with no way to understand what
-  happened.
-- **A malformed identifier** answers `400`. This does not depend on whether any account exists, so
-  it is not an enumeration signal.
-
-### Mitigating controls
-
-Enumeration at scale is bounded by the rate limiters in
-[`src/middleware/rateLimit.ts`](../src/middleware/rateLimit.ts) and by the lockout policy
-(`LOCKOUT_POLICY`). Every attempt is recorded as an auth event, so bulk probing is visible in
-`/internal/auth-events` and the `suspicious` metrics category.
+- **Account lockout** answers `423` with `retryAfterSeconds`. Only a real account can be
+  locked, so this still discloses existence. It requires prior failed attempts against
+  that specific account, and suppressing it would leave a locked-out user with no way to
+  understand what happened. Accepted, unchanged.
+- **A malformed identifier** answers `400`. This does not depend on whether any account
+  exists, so it is not an enumeration signal.
+- **External delivery mode** returns a fabricated code and the decoy's synthetic address
+  rather than the identifier the caller supplied, so a caller comparing the two can tell.
+  That mode requires a valid internal service token, which makes the caller a trusted
+  backend that can enumerate through the admin API anyway. Accepted, and the reason it is
+  acceptable is the service token, not the fabrication.
+- **A deleted or revoked account** mid-flow is answered as a decoy rather than with a
+  distinguishable `401`. That is the intended behaviour, and it means such a user sees a
+  continuation that quietly never succeeds rather than a clear rejection.
 
 ### Note on 401 vs 403
 
-Automated scans tend to flag `/login` for answering `401` on one path and `403` on another. Those
-were the database-error branches, where the identifier lookup itself threw, not the not-found path.
-Both now answer `500 { "error": "Server error" }`, so a database outage is reported as an outage
-rather than as a failed login, and the two identifier branches agree.
+Automated scans tend to flag `/login` for answering `401` on one path and `403` on
+another. The database-error branches, where the identifier lookup itself threw, both now
+answer `500 { "error": "Server error" }`, so an outage is reported as an outage rather
+than as a failed login. `/login` no longer returns `401` at all.
+
+### Keeping it closed
+
+`defineRoute` refuses to register a route that accepts an ephemeral token and declares no
+decoy responder. A new pre-auth endpoint that forgot one would hand the oracle straight
+back, and that failure is silent at runtime and invisible in a diff, so it is a
+registration-time error rather than a convention.
 
 ## Ephemeral (pre-auth) token replay
 

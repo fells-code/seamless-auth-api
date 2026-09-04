@@ -5,6 +5,16 @@
  */
 
 import {
+  decoySendEmailOtp,
+  decoySendLoginEmailOtp,
+  decoySendLoginPhoneOtp,
+  decoySendPhoneOtp,
+  decoyVerifyEmailOtp,
+  decoyVerifyLoginEmailOtp,
+  decoyVerifyLoginPhoneOtp,
+  decoyVerifyPhoneOtp,
+} from '../controllers/decoyResponders.js';
+import {
   sendEmailOTP,
   sendLoginEmailOTP,
   sendLoginPhoneOTP,
@@ -27,6 +37,7 @@ otpRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Generate email OTP',
+    decoy: decoySendEmailOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -46,6 +57,7 @@ otpRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Generate phone OTP',
+    decoy: decoySendPhoneOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -65,6 +77,7 @@ otpRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Generate login email OTP',
+    decoy: decoySendLoginEmailOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -83,6 +96,7 @@ otpRouter.get(
   {
     auth: 'ephemeral',
     summary: 'Generate login phone OTP',
+    decoy: decoySendLoginPhoneOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -101,6 +115,7 @@ otpRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Verify email OTP',
+    decoy: decoyVerifyEmailOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -123,6 +138,7 @@ otpRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Verify phone OTP',
+    decoy: decoyVerifyPhoneOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -145,6 +161,7 @@ otpRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Verify login email OTP',
+    decoy: decoyVerifyLoginEmailOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
@@ -166,6 +183,7 @@ otpRouter.post(
   {
     auth: 'ephemeral',
     summary: 'Verify login phone OTP',
+    decoy: decoyVerifyLoginPhoneOtp,
     tags: ['OTP'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
 
