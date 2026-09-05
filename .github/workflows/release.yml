@@ -122,9 +122,14 @@ jobs:
     name: Publish versioned image
     needs: version-changelog
     if: needs.version-changelog.outputs.new_tag == 'true'
+    # A called workflow cannot be granted more than the caller holds, so this
+    # has to match docker-publish.yml's own permissions block: id-token for
+    # keyless cosign signing, security-events for the SARIF upload.
     permissions:
       contents: read
       packages: write
+      id-token: write
+      security-events: write
     uses: ./.github/workflows/docker-publish.yml
     with:
       image_tag: ${{ needs.version-changelog.outputs.version }}
