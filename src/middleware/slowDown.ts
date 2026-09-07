@@ -20,7 +20,12 @@ const cachedLimiter: ReturnType<typeof slowDown> = slowDown({
   windowMs: 1 * 60 * 1000,
   delayAfter: getConfiguredDelayAfter,
   legacyHeaders: false,
-  delayMs: (hits) => hits * 1000,
+  // express-slow-down passes the total hits in the window, so multiplying that gave the
+  // first throttled request a delay_after-second delay instead of one second. The excess
+  // over the threshold is what should grow, and it is capped so a client that keeps
+  // going cannot pin a handler for minutes.
+  delayMs: (used, request) => (used - request.slowDown.limit) * 1000,
+  maxDelayMs: 20000,
   skip: rateLimitsDisabled,
 });
 

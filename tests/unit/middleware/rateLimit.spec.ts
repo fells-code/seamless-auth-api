@@ -106,8 +106,11 @@ describe('dynamicSlowDown', () => {
 
     const options = (slowDown.default as any).mock.calls[0][0];
 
-    expect(options.delayMs(0)).toBe(0);
-    expect(options.delayMs(3)).toBe(3000);
+    const request = { slowDown: { limit: 10 } };
+
+    expect(options.delayMs(10, request)).toBe(0);
+    expect(options.delayMs(13, request)).toBe(3000);
+    expect(options.maxDelayMs).toBe(20000);
   });
 });
 

@@ -67,7 +67,10 @@ async function getJwks(): Promise<JWK[]> {
 }
 
 export async function jwksHandler(req: Request, res: Response) {
-  if (process.env.NODE_ENV === 'development') {
+  // Matches the gate in signingKeyStore, which is what decides whether the dev key is
+  // the one signing. Testing for 'development' meant any other non-production value
+  // signed with the dev key while JWKS refused to publish it.
+  if (process.env.NODE_ENV !== 'production') {
     const publicPem = fs.readFileSync('./keys/dev/public.pem', 'utf8');
     const publicKey = await importSPKI(publicPem, 'RS256');
     const jwk = await exportJWK(publicKey);
