@@ -152,6 +152,10 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
       },
       req,
       res,
+      // Taken from the signed state rather than from this request, so it is the value
+      // validated against the configured origins at /start and not one an attacker
+      // introduced at the end of the round trip.
+      ...(statePayload.returnTo ? { extraFields: { returnTo: statePayload.returnTo } } : {}),
     });
   } catch (error) {
     logger.error(`OAuth callback failed for provider ${provider.id}: ${error}`);

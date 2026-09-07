@@ -22,10 +22,19 @@ type IssueSessionParams = {
   };
   req: Request;
   res: Response;
+  /**
+   * Fields the calling flow adds to the session response.
+   *
+   * Kept generic rather than naming OAuth's `returnTo` here, so session issuance does
+   * not have to know which flow reached it. Each route validates its own response
+   * against its declared schema, which is what keeps this from becoming a way to put
+   * anything at all in the body.
+   */
+  extraFields?: Record<string, unknown>;
 };
 
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
-  const { user, req, res } = params;
+  const { user, req, res, extraFields } = params;
 
   const refreshToken = generateRefreshToken();
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
@@ -74,5 +83,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     phone: user.phone,
     ttl: parseDurationToSeconds(access_token_ttl || '15m'),
     refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1d'),
+    ...extraFields,
   });
 }

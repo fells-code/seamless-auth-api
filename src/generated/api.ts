@@ -4356,7 +4356,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "returnTo": null
              *     }
              */
             'application/json': {
@@ -4370,6 +4371,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** Format: uri */
+              returnTo?: string;
             };
           };
         };
