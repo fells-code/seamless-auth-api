@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.7.4" },
+  "info": { "title": "Seamless Auth API", "version": "0.8.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -7720,7 +7720,8 @@
                   "delay_after": 0,
                   "rpid": "string",
                   "origins": [null],
-                  "frontend_url": null
+                  "frontend_url": null,
+                  "magic_link_redirect_uris": null
                 },
                 "schema": {
                   "type": "object",
@@ -7856,7 +7857,7 @@
                         "syncedPasskeys": {
                           "type": "string",
                           "enum": ["allow", "block"],
-                          "default": "block"
+                          "default": "allow"
                         },
                         "aaguidAllowList": {
                           "type": "array",
@@ -7874,7 +7875,7 @@
                         "userVerification": "required",
                         "attestation": "none",
                         "requireKnownAuthenticator": false,
-                        "syncedPasskeys": "block",
+                        "syncedPasskeys": "allow",
                         "aaguidAllowList": [],
                         "aaguidDenyList": []
                       }
@@ -7901,7 +7902,12 @@
                       "items": { "type": "string", "format": "uri" },
                       "minItems": 1
                     },
-                    "frontend_url": { "type": "string", "format": "uri" }
+                    "frontend_url": { "type": "string", "format": "uri" },
+                    "magic_link_redirect_uris": {
+                      "type": "array",
+                      "items": { "type": "string", "format": "uri" },
+                      "default": []
+                    }
                   },
                   "required": [
                     "app_name",
@@ -8082,7 +8088,7 @@
                       "syncedPasskeys": {
                         "type": "string",
                         "enum": ["allow", "block"],
-                        "default": "block"
+                        "default": "allow"
                       },
                       "aaguidAllowList": {
                         "type": "array",
@@ -8112,6 +8118,10 @@
                     "type": "array",
                     "items": { "type": "string", "format": "uri" },
                     "minItems": 1
+                  },
+                  "magic_link_redirect_uris": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uri" }
                   }
                 },
                 "additionalProperties": false

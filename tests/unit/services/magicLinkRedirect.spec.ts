@@ -92,4 +92,30 @@ describe('resolveMagicLinkUrl', () => {
       );
     });
   });
+
+  // The key exists for targets whose origin cannot be compared, which is why the match
+  // is exact. An empty list is the default and has to keep behaving as it did.
+  describe('with magic_link_redirect_uris configured', () => {
+    it('allows a custom scheme that is listed exactly', async () => {
+      configure({ magic_link_redirect_uris: ['myapp://auth'] });
+
+      expect(await resolveMagicLinkUrl('tok', 'myapp://auth')).toBe('myapp://auth?token=tok');
+    });
+
+    it('refuses a target that is not on the list, even on a configured origin', async () => {
+      configure({ magic_link_redirect_uris: ['myapp://auth'] });
+
+      await expect(
+        resolveMagicLinkUrl('tok', 'http://localhost:5174/finish'),
+      ).rejects.toBeInstanceOf(MagicLinkRedirectNotAllowedError);
+    });
+
+    it('falls back to the configured origins when the list is empty', async () => {
+      configure({ magic_link_redirect_uris: [] });
+
+      expect(await resolveMagicLinkUrl('tok', 'http://localhost:5174/finish')).toBe(
+        'http://localhost:5174/finish?token=tok',
+      );
+    });
+  });
 });
