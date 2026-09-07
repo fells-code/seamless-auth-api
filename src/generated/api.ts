@@ -7718,7 +7718,8 @@ export interface paths {
              *       "origins": [
              *         null
              *       ],
-             *       "frontend_url": null
+             *       "frontend_url": null,
+             *       "magic_link_redirect_uris": null
              *     }
              */
             'application/json': {
@@ -7789,7 +7790,7 @@ export interface paths {
                *       "userVerification": "required",
                *       "attestation": "none",
                *       "requireKnownAuthenticator": false,
-               *       "syncedPasskeys": "block",
+               *       "syncedPasskeys": "allow",
                *       "aaguidAllowList": [],
                *       "aaguidDenyList": []
                *     }
@@ -7813,7 +7814,7 @@ export interface paths {
                 /** @default false */
                 requireKnownAuthenticator: boolean;
                 /**
-                 * @default block
+                 * @default allow
                  * @enum {string}
                  */
                 syncedPasskeys: 'allow' | 'block';
@@ -7834,6 +7835,8 @@ export interface paths {
               origins: string[];
               /** Format: uri */
               frontend_url?: string;
+              /** @default [] */
+              magic_link_redirect_uris: string[];
             };
           };
         };
@@ -7962,7 +7965,7 @@ export interface paths {
               /** @default false */
               requireKnownAuthenticator?: boolean;
               /**
-               * @default block
+               * @default allow
                * @enum {string}
                */
               syncedPasskeys?: 'allow' | 'block';
@@ -7979,6 +7982,7 @@ export interface paths {
             delay_after?: number;
             rpid?: string;
             origins?: string[];
+            magic_link_redirect_uris?: string[];
           };
         };
       };

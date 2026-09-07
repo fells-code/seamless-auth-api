@@ -33,11 +33,14 @@ export async function resolveMagicLinkUrl(token: string, requestedRedirectUri?: 
     return `${frontendUrl}${DEFAULT_VERIFY_PATH}?token=${token}`;
   }
 
-  // No dedicated allowlist yet, so the configured origins are the allowlist. See the
-  // note in docs/api-contract.md: a target that cannot be expressed as one of those,
-  // such as a custom scheme, needs a system config key that lives in
-  // @seamless-auth/types and a coordinated release.
-  if (!allowedRedirect(requestedRedirectUri, [], config.origins)) {
+  // `magic_link_redirect_uris` is matched exactly when set, because it exists for
+  // targets whose origin cannot be compared: a custom application scheme such as
+  // `myapp://auth`, or a universal link on a host that should not also be a WebAuthn
+  // origin. Empty by default, and an empty list falls back to comparing against
+  // `origins`, so a deployment that sets nothing is unaffected.
+  if (
+    !allowedRedirect(requestedRedirectUri, config.magic_link_redirect_uris ?? [], config.origins)
+  ) {
     throw new MagicLinkRedirectNotAllowedError();
   }
 
