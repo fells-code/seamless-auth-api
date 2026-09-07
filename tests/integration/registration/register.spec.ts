@@ -152,55 +152,54 @@ describe('POST /registration/register', () => {
     expect(generateEmailOTP).toHaveBeenCalled();
   });
 
-  it('rejects when email belongs to one user and phone is new', async () => {
-    (User.findOne as any)
-      .mockResolvedValueOnce(buildUser({ email: 'test@example.com', phone: '+14155552671' }))
-      .mockResolvedValueOnce(null);
+  // A 409 here told an unauthenticated caller whether an email was already registered,
+  // which is the enumeration oracle /login is built to avoid. Every identifier
+  // combination now answers with the same 200 shape.
+  it('does not reveal that the email is taken when the phone is new', async () => {
+    const existing = buildUser({ email: 'test@example.com', phone: '+14155552671' });
+    (User.findOne as any).mockResolvedValueOnce(existing).mockResolvedValueOnce(null);
 
     const res = await request(app)
       .post('/registration/register')
       .send(buildRegistrationRequest({ phone: '+14155550000' }));
 
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('Registration conflict');
+    expect(res.status).toBe(200);
     expect(User.create).not.toHaveBeenCalled();
-    expect(signEphemeralToken).not.toHaveBeenCalled();
-    expect(generatePhoneOTP).not.toHaveBeenCalled();
-    expect(generateEmailOTP).not.toHaveBeenCalled();
+    // The account keeps the phone it already had; the requested one is not attached.
+    expect(existing.update).not.toHaveBeenCalled();
+    expect(generateEmailOTP).toHaveBeenCalled();
   });
 
-  it('rejects when phone belongs to one user and email is new', async () => {
+  it('does not reveal that the phone is taken when the email is new', async () => {
     (User.findOne as any)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(buildUser({ email: 'test@example.com', phone: '+14155552671' }));
+    (User.create as any).mockResolvedValue(buildUser({ phone: null }));
 
     const res = await request(app)
       .post('/registration/register')
       .send(buildRegistrationRequest({ email: 'other@example.com', phone: '+14155552671' }));
 
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('Registration conflict');
-    expect(User.create).not.toHaveBeenCalled();
-    expect(signEphemeralToken).not.toHaveBeenCalled();
-    expect(generatePhoneOTP).not.toHaveBeenCalled();
-    expect(generateEmailOTP).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    // Created without the phone, so a number held by another account is never taken over.
+    expect(User.create).toHaveBeenCalledWith(expect.objectContaining({ phone: null }));
   });
 
-  it('rejects when email and phone belong to different existing users', async () => {
+  it('does not reveal that the identifiers belong to different accounts', async () => {
+    const emailOwner = buildUser({ id: 'user-1', email: 'test@example.com' });
     (User.findOne as any)
-      .mockResolvedValueOnce(buildUser({ id: 'user-1', email: 'test@example.com' }))
+      .mockResolvedValueOnce(emailOwner)
       .mockResolvedValueOnce(buildUser({ id: 'user-2', phone: '+14155552671' }));
 
     const res = await request(app)
       .post('/registration/register')
       .send(buildRegistrationRequest({ phone: '+14155552671' }));
 
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('Registration conflict');
+    expect(res.status).toBe(200);
     expect(User.create).not.toHaveBeenCalled();
-    expect(signEphemeralToken).not.toHaveBeenCalled();
-    expect(generatePhoneOTP).not.toHaveBeenCalled();
-    expect(generateEmailOTP).not.toHaveBeenCalled();
+    // Continues as the email's owner, and the other account's phone is left alone.
+    expect(emailOwner.update).not.toHaveBeenCalled();
+    expect(generateEmailOTP).toHaveBeenCalledWith(emailOwner, expect.anything());
   });
 
   it('fails without email', async () => {
