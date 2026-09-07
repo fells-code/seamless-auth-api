@@ -469,6 +469,22 @@ describe('GET /webauthn/register/start', () => {
     expect(res.status).toBe(500);
   });
 
+  // An ephemeral token is minted from an email address alone, by /login and by
+  // /registration/register alike, so it cannot be what authorises adding a passkey to
+  // an account that can already sign in.
+  it('refuses enrolment on an account that can already sign in', async () => {
+    const res = buildRes();
+
+    await registerWebAuthn(
+      buildReq({ user: { id: 'user-1', email: 'victim@example.com', verified: true } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'authentication_required' });
+    expect(Credential.findAll).not.toHaveBeenCalled();
+  });
+
   it('rejects when there is no verified user', async () => {
     const res = buildRes();
 
@@ -995,6 +1011,24 @@ describe('POST /webauthn/register/finish', () => {
     expect(res.body).toEqual({ error: 'Unknown error verifying passkey' });
   });
 
+  it('refuses to write a credential onto an account that can already sign in', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+
+    const res = buildRes();
+
+    await verifyWebAuthnRegistration(
+      buildReq({
+        user: { id: 'user-1', email: 'victim@example.com', verified: true },
+        body: { attestationResponse: { id: 'cred-1' }, metadata: {} },
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'authentication_required' });
+    expect(Credential.create).not.toHaveBeenCalled();
+  });
+
   it('rejects when the verified user is missing an email', async () => {
     const res = buildRes();
 
@@ -1321,7 +1355,7 @@ describe('POST /webauthn/login/finish', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'Authentication failed.' });
   });
 
-  it('sends no response when the assertion is not verified', async () => {
+  it('answers 401 when the assertion is not verified', async () => {
     (Credential.findOne as any).mockResolvedValue(buildCredential({ id: 'cred-1' }));
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5137'],
@@ -1361,8 +1395,8 @@ describe('POST /webauthn/login/finish', () => {
     );
 
     expect(credential.update).not.toHaveBeenCalled();
-    expect(res.json).not.toHaveBeenCalled();
-    expect(res.send).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Authentication failed.' });
   });
 
   it('issues a session on a verified assertion even when roles are absent', async () => {

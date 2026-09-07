@@ -49,6 +49,26 @@ function getRegistrationChallengeContext(context: Record<string, unknown> | null
   };
 }
 
+const ENROLMENT_REFUSAL_REASON =
+  'Passkey enrolment requires proven control of the account, not a pre-auth token';
+
+/**
+ * Whether enrolling a credential on this account needs the caller to have proven
+ * control of it first.
+ *
+ * An ephemeral token proves only that the caller knows an identifier: both `/login`
+ * and `/registration/register` mint one for an account that already exists, from an
+ * email address alone. Enrolling a passkey onto an account that can already sign in
+ * is therefore an account takeover, so it is refused here.
+ *
+ * An account that has never been verified is the bootstrap case. It cannot sign in,
+ * so there is nothing to take over, and it still enrols its first credential through
+ * this flow.
+ */
+function enrolmentNeedsProvenControl(user: { verified?: boolean }) {
+  return user.verified === true;
+}
+
 function filterAssertionCredentials(
   credentials: Credential[],
   options: { credentialId?: string; requiresPrf: boolean },
@@ -103,6 +123,18 @@ const registerWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'No verified user on the request.' },
       });
       return res.status(403).json({ error: 'Not allowed' });
+    }
+
+    if (enrolmentNeedsProvenControl(verifiedUser)) {
+      logger.warn('Passkey enrolment refused for an account that can already sign in');
+      await AuthEventService.log({
+        userId: verifiedUser.id,
+        type: 'webauthn_registration_suspicious',
+        req,
+        metadata: { reason: ENROLMENT_REFUSAL_REASON },
+      });
+
+      return res.status(403).json({ error: 'authentication_required' });
     }
 
     const existingCredentials = await Credential.findAll({
@@ -231,6 +263,20 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
         metadata: { reason: 'Verified user with no user record' },
       });
       return res.status(403).json({ error: 'Not allowed' });
+    }
+
+    // Re-checked here and not only at /register/start: start and finish are separate
+    // requests, and this is the one that writes the credential.
+    if (enrolmentNeedsProvenControl(user)) {
+      logger.warn('Passkey enrolment refused for an account that can already sign in');
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_registration_suspicious',
+        req,
+        metadata: { reason: ENROLMENT_REFUSAL_REASON },
+      });
+
+      return res.status(403).json({ error: 'authentication_required' });
     }
 
     // Consumed before verification, so the challenge is spent however this
@@ -387,10 +433,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       res,
     });
 
-    user.update({
-      lastLogin: new Date(),
-    });
-
     return;
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);
@@ -462,10 +504,9 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     });
 
     await AuthEventService.log({
-      userId: null,
+      userId: user.id,
       type: 'login_challenge',
       req,
-      metadata: { reason: '' },
     });
     return res.json(options);
   } catch (error) {
@@ -610,12 +651,23 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         res,
       });
 
-      user.update({
+      await user.update({
         lastLogin: new Date(),
       });
 
       return;
     }
+
+    // verifyAuthenticationResponse returns verified:false for a bad signature rather
+    // than throwing, so without this the request is answered by nothing at all.
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'webauthn_login_failed',
+      req,
+      metadata: { reason: 'Assertion failed verification' },
+    });
+
+    return res.status(401).json({ error: 'Authentication failed.' });
   } catch (error) {
     logger.error(`Error occured validating passkey on login: ${error}`);
     await AuthEventService.log({
