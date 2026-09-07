@@ -117,7 +117,7 @@ export async function getSystemConfigHandler(req: ServiceRequest, res: Response)
 
   if (!parsed.success) {
     logger.error(`System config has become tainted. Critical issue.`);
-    AuthEventService.log({
+    await AuthEventService.log({
       type: 'system_config_error',
       req,
       metadata: { reason: 'Failed to parse the system config schema from the database' },
