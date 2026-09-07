@@ -503,7 +503,7 @@ describe('POST /refresh', () => {
 
     (findRefreshSessionByToken as any).mockResolvedValue(session);
 
-    (User.findByPk as any).mockResolvedValue(buildUser());
+    (User.findOne as any).mockResolvedValue(buildUser());
 
     (Session.create as any).mockResolvedValue({ id: 'new-session' });
 
@@ -588,7 +588,7 @@ describe('POST /refresh', () => {
     };
 
     (findRefreshSessionByToken as any).mockResolvedValue(session);
-    (User.findByPk as any).mockResolvedValue(null);
+    (User.findOne as any).mockResolvedValue(null);
 
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
@@ -611,7 +611,7 @@ describe('POST /refresh', () => {
     };
 
     (findRefreshSessionByToken as any).mockResolvedValue(session);
-    (User.findByPk as any).mockResolvedValue(buildUser());
+    (User.findOne as any).mockResolvedValue(buildUser());
     (Session.create as any).mockResolvedValue({ id: 'new-session' });
     (generateRefreshToken as any).mockReturnValue('refresh');
     (hashRefreshToken as any).mockResolvedValue('hash');
@@ -643,7 +643,7 @@ describe('POST /refresh', () => {
     };
 
     (findRefreshSessionByToken as any).mockResolvedValue(session);
-    (User.findByPk as any).mockResolvedValue(buildUser());
+    (User.findOne as any).mockResolvedValue(buildUser());
     (Session.create as any).mockResolvedValue({ id: 'new-session' });
     (signAccessToken as any).mockResolvedValue('access');
     (generateRefreshToken as any).mockReturnValue('refresh');

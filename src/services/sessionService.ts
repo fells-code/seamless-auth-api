@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { compare } from 'bcrypt-ts';
 import { importSPKI, jwtVerify } from 'jose';
 import { Op } from 'sequelize';
 
@@ -122,7 +123,7 @@ export async function findRefreshSessionByToken(
 ): Promise<Session | null> {
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
 
-  return Session.findOne({
+  const session = await Session.findOne({
     where: {
       revokedAt: null,
       expiresAt: { [Op.gt]: now },
@@ -130,6 +131,18 @@ export async function findRefreshSessionByToken(
       refreshTokenLookup,
     },
   });
+
+  if (!session) return null;
+
+  // The lookup column is an HMAC, which is what makes the row findable in one indexed
+  // query. It is not what authenticates the token: that is the bcrypt hash, and until
+  // it was checked here the stored hash was written on every rotation and never read.
+  if (!(await compare(refreshToken, session.refreshTokenHash))) {
+    logger.warn('Refresh token lookup matched a session whose stored hash did not verify');
+    return null;
+  }
+
+  return session;
 }
 
 export async function validateSessionRecord(sessionId: string) {
@@ -140,10 +153,14 @@ export async function validateSessionRecord(sessionId: string) {
 
   if (session.revokedAt) return null;
 
-  if (session.replacedBySessionId) {
-    await revokeSessionChain(session);
-    return null;
-  }
+  // A rotated session is simply no longer current, so its access token stops being
+  // accepted. It is not reuse: the previous access token stays valid until it expires,
+  // so an in-flight request that raced the refresh, or a second tab, legitimately
+  // arrives holding it. Revoking the chain here followed replacedBySessionId forward
+  // into the session that was just issued and signed the user out everywhere. Refresh
+  // token reuse is still detected, in refreshSession, where the reused credential is
+  // the refresh token itself.
+  if (session.replacedBySessionId) return null;
 
   if (session.expiresAt < now) return null;
   if (session.idleExpiresAt < now) return null;

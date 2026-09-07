@@ -129,7 +129,7 @@ describe('refreshSession', () => {
     };
 
     (findRefreshSessionByToken as any).mockResolvedValue(session);
-    (User.findByPk as any).mockResolvedValue(user);
+    (User.findOne as any).mockResolvedValue(user);
     (generateRefreshToken as any).mockReturnValue('new-raw-refresh-token');
     (hashRefreshToken as any).mockResolvedValue('new-refresh-hash');
     (createRefreshTokenLookup as any).mockReturnValue('new-refresh-lookup');

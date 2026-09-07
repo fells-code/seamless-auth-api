@@ -35,6 +35,7 @@ vi.mock('jose', () => ({
 
 vi.mock('bcrypt-ts', () => ({
   compareSync: vi.fn(),
+  compare: vi.fn(async () => true),
 }));
 
 vi.mock('jsonwebtoken', () => ({
@@ -205,6 +206,22 @@ describe('sessionService', () => {
     expect(result).toBe(session);
   });
 
+  it('refuses a session whose stored refresh hash does not verify', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+    const { compare } = await import('bcrypt-ts');
+
+    (createRefreshTokenLookup as any).mockReturnValue('lookup');
+    (Session.findOne as any).mockResolvedValue(buildSession());
+    // The lookup column is only an index. The bcrypt hash is what authenticates the
+    // token, and until it was checked it was written on every rotation and never read.
+    (compare as any).mockResolvedValue(false);
+
+    const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
+
+    expect(await findRefreshSessionByToken('refresh-token')).toBeNull();
+  });
+
   it('finds a refresh session by its indexed lookup fingerprint', async () => {
     const { Session } = await import('../../../src/models/sessions');
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
@@ -242,7 +259,7 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
-  it('revokes replaced sessions during validateSessionRecord', async () => {
+  it('refuses a replaced session without revoking the chain it was rotated into', async () => {
     const { Session } = await import('../../../src/models/sessions');
     const mod = await import('../../../src/services/sessionService');
 
@@ -251,8 +268,11 @@ describe('sessionService', () => {
 
     const result = await mod.validateSessionRecord('id');
 
-    expect(session.save).toHaveBeenCalled();
     expect(result).toBeNull();
+    // Revoking here walked replacedBySessionId forward and killed the session that had
+    // just been issued, signing the user out over an ordinary in-flight request.
+    expect(session.save).not.toHaveBeenCalled();
+    expect(Session.findByPk).not.toHaveBeenCalledWith('next-session');
   });
 
   it('revokes chain', async () => {

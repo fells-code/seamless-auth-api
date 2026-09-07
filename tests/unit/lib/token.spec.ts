@@ -56,6 +56,7 @@ vi.mock('crypto', () => ({
 }));
 
 vi.mock('bcrypt-ts', () => ({
+  hash: vi.fn(async () => 'hashed-token'),
   hashSync: vi.fn(() => 'hashed-token'),
 }));
 
