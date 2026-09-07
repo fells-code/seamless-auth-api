@@ -210,6 +210,12 @@ export const verifyTotpMfa = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
+  // Step-up elevates a session for operations such as device replacement recovery, so
+  // it is an authentication and the lockout policy binds here as it does on login.
+  if (await rejectIfUserLocked({ userId: user.id, req, res })) {
+    return;
+  }
+
   const result = await verifyEnabledTotp(user.id, code);
 
   if (!result.verified) {

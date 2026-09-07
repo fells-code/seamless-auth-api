@@ -13,20 +13,8 @@ export const DEFAULT_TOTP_PERIOD_SECONDS = 30;
 export const DEFAULT_TOTP_ALGORITHM = 'SHA1';
 export const DEFAULT_TOTP_WINDOW = 1;
 
-function randomBuffer(length: number) {
-  const value = randomBytes(length);
-
-  if (Buffer.isBuffer(value)) {
-    return value;
-  }
-
-  const fallback = Buffer.from(String(value));
-
-  if (fallback.length >= length) {
-    return fallback.subarray(0, length);
-  }
-
-  return Buffer.concat([fallback, Buffer.alloc(length - fallback.length)]).subarray(0, length);
+export function randomBuffer(length: number) {
+  return randomBytes(length);
 }
 
 export function base32Encode(buffer: Buffer) {

@@ -23,6 +23,10 @@ export const LOCKOUT_FAILURE_TYPES = [
   'webauthn_login_failed',
   'verify_otp_failed',
   'totp_failed',
+  // A failed second factor is a failed authentication attempt like any other. Left
+  // out, TOTP step-up was the one code-checking endpoint whose guesses reached no
+  // counter at all.
+  'mfa_otp_failed',
   'magic_link_failed',
 ];
 
