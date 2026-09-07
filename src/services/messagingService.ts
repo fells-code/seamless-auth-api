@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
+import type { AuthMessagingService } from '@seamless-auth/messaging';
+
 import { createDirectAuthMessagingService } from '../config/directMessaging.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import getLogger from '../utils/logger.js';
@@ -12,15 +14,32 @@ import { normalizePhoneNumber } from '../utils/utils.js';
 const logger = getLogger('messaging');
 
 function shouldBypassDirectMessaging() {
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  // Not `=== 'development'`. Every other environment gate in the codebase asks whether
+  // this is production, and testing for one name meant a staging, CI or unset NODE_ENV
+  // tried to reach a real provider and failed the request that triggered it.
+  const isProduction = process.env.NODE_ENV === 'production';
   const enableInDev = process.env.MESSAGING_ENABLE_IN_DEV === 'true';
 
-  return isDevelopment && !enableInDev;
+  return !isProduction && !enableInDev;
 }
+
+// Built once and reused. Each construction builds a provider client per channel, so
+// doing it per message threw away connection reuse and re-read configuration on every
+// OTP. Keyed on app_name, which is the only input, so a config change still takes
+// effect on the next send.
+let cachedService: { appName: string; service: AuthMessagingService } | null = null;
 
 async function getMessagingService() {
   const { app_name } = await getSystemConfig();
-  return createDirectAuthMessagingService(app_name);
+
+  if (cachedService?.appName === app_name) {
+    return cachedService.service;
+  }
+
+  const service = createDirectAuthMessagingService(app_name);
+  cachedService = { appName: app_name, service };
+
+  return service;
 }
 
 export const sendOTPEmail = async (to: string, token: string) => {

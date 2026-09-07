@@ -190,6 +190,23 @@ describe('GET /internal/metrics/dashboard', () => {
       passkeyUsage24h: 15,
       databaseSize: 123456,
     });
+
+    // Rotation leaves the superseded row unrevoked, so counting on revokedAt alone
+    // reported every session a user had ever refreshed into existence as active.
+    expect(Session.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        revokedAt: null,
+        replacedBySessionId: null,
+      }),
+    });
+
+    // An exact type, not a LIKE. The wildcards matched nothing extra and only ruled
+    // out an equality match on an enumerated column.
+    expect(AuthEvent.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ type: 'webauthn_login_success' }),
+      }),
+    );
   });
 
   it('returns 500 when query fails', async () => {

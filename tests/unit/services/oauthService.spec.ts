@@ -84,7 +84,7 @@ describe('oauthService', () => {
   });
 
   it('creates verifiable signed state values', () => {
-    const state = createOAuthState({
+    const { state } = createOAuthState({
       providerId: 'google',
       redirectUri: 'https://app.example.com/oauth/callback',
       returnTo: 'https://app.example.com/',
@@ -101,7 +101,7 @@ describe('oauthService', () => {
   });
 
   it('consumes OAuth state only once per process', () => {
-    const state = createOAuthState({
+    const { state } = createOAuthState({
       providerId: 'google',
       redirectUri: 'https://app.example.com/oauth/callback',
     });
@@ -141,7 +141,7 @@ describe('oauthService', () => {
   });
 
   it('adds PKCE challenge parameters when supplied', () => {
-    const state = createOAuthState({
+    const { state } = createOAuthState({
       providerId: 'google',
       redirectUri: 'https://app.example.com/oauth/callback',
     });
@@ -350,7 +350,7 @@ describe('oauthService', () => {
 
   it('uses the state secret from OAUTH_STATE_SECRET when configured', () => {
     withEnv({ OAUTH_STATE_SECRET: 'explicit-secret', API_SERVICE_TOKEN: undefined }, () => {
-      const state = createOAuthState({
+      const { state } = createOAuthState({
         providerId: 'google',
         redirectUri: 'https://app.example.com/oauth/callback',
       });
@@ -361,7 +361,7 @@ describe('oauthService', () => {
 
   it('falls back to API_SERVICE_TOKEN for the state secret', () => {
     withEnv({ OAUTH_STATE_SECRET: undefined, API_SERVICE_TOKEN: 'service-token' }, () => {
-      const state = createOAuthState({
+      const { state } = createOAuthState({
         providerId: 'google',
         redirectUri: 'https://app.example.com/oauth/callback',
       });
@@ -416,7 +416,7 @@ describe('oauthService', () => {
   });
 
   it('rejects state values with a tampered signature', () => {
-    const state = createOAuthState({
+    const { state } = createOAuthState({
       providerId: 'google',
       redirectUri: 'https://app.example.com/oauth/callback',
     });
@@ -482,7 +482,7 @@ describe('oauthService', () => {
       const base = new Date('2026-06-01T00:00:00.000Z');
       vi.setSystemTime(base);
 
-      const first = createOAuthState({
+      const { state: first } = createOAuthState({
         providerId: 'google',
         redirectUri: 'https://app.example.com/oauth/callback',
       });
@@ -490,7 +490,7 @@ describe('oauthService', () => {
 
       vi.setSystemTime(new Date(base.getTime() + 11 * 60 * 1000));
 
-      const second = createOAuthState({
+      const { state: second } = createOAuthState({
         providerId: 'google',
         redirectUri: 'https://app.example.com/oauth/callback',
       });

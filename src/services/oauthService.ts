@@ -175,7 +175,17 @@ export async function resolveOAuthRedirectUri(
   return `${config.origins[0].replace(/\/$/, '')}/oauth/callback`;
 }
 
-export function createOAuthState(payload: Omit<OAuthStatePayload, 'createdAt' | 'nonce'>) {
+/**
+ * The signed state, and the payload that went into it.
+ *
+ * Both, because the caller needs the nonce and the rest of the payload to build the
+ * authorization URL. Returning only the string meant verifying it back immediately:
+ * a second HMAC, a decode, a parse and a re-check of fields the caller had just set.
+ */
+export function createOAuthState(payload: Omit<OAuthStatePayload, 'createdAt' | 'nonce'>): {
+  state: string;
+  payload: OAuthStatePayload;
+} {
   const statePayload: OAuthStatePayload = {
     ...payload,
     nonce: randomBytes(16).toString('base64url'),
@@ -184,7 +194,7 @@ export function createOAuthState(payload: Omit<OAuthStatePayload, 'createdAt' | 
   const encodedPayload = base64UrlEncode(JSON.stringify(statePayload));
   const signature = signPayload(encodedPayload);
 
-  return `${encodedPayload}.${signature}`;
+  return { state: `${encodedPayload}.${signature}`, payload: statePayload };
 }
 
 export function verifyOAuthState(state: string, providerId: string): OAuthStatePayload | null {

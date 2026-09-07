@@ -28,7 +28,16 @@ export const getDashboardMetrics = async (_req: Request, res: Response) => {
       dbSize,
     ] = await Promise.all([
       User.count(),
-      Session.count({ where: { revokedAt: null } }),
+      // The same three conditions every other 'active session' query uses. Rotation
+      // leaves the superseded row unrevoked, so filtering on revokedAt alone counted
+      // every session a user had ever refreshed into existence.
+      Session.count({
+        where: {
+          revokedAt: null,
+          replacedBySessionId: null,
+          expiresAt: { [Op.gt]: now },
+        },
+      }),
 
       User.count({
         where: {
@@ -59,7 +68,7 @@ export const getDashboardMetrics = async (_req: Request, res: Response) => {
 
       AuthEvent.count({
         where: {
-          type: { [Op.like]: '%webauthn_login_success%' },
+          type: 'webauthn_login_success',
           created_at: { [Op.gt]: last24h },
         },
       }),
