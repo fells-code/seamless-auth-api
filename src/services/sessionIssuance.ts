@@ -7,12 +7,7 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import {
-  createRefreshTokenLookup,
-  generateRefreshToken,
-  hashRefreshToken,
-  signAccessToken,
-} from '../lib/token.js';
+import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
@@ -33,7 +28,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const { user, req, res } = params;
 
   const refreshToken = generateRefreshToken();
-  const refreshTokenHash = await hashRefreshToken(refreshToken);
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
   const { access_token_ttl, refresh_token_ttl, session_idle_ttl, max_concurrent_sessions } =
     await getSystemConfig();
@@ -55,7 +49,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     infraId: process.env.APP_ID!,
     organizationId,
     mode: 'server',
-    refreshTokenHash,
     refreshTokenLookup,
     userAgent: req.get('user-agent'),
     ipAddress: req.ip,

@@ -59,13 +59,13 @@ describe('totp utils', () => {
     expect(secret.length).toBeGreaterThan(0);
   });
 
-  it('truncates the fallback buffer when randomBytes yields more bytes than requested', () => {
+  it('encodes a short secret as base32', () => {
     const secret = generateTotpSecret(5);
 
     expect(secret).toMatch(/^[A-Z2-7]+$/);
   });
 
-  it('pads the fallback buffer when randomBytes yields fewer bytes than requested', () => {
+  it('encodes a full-length secret as base32', () => {
     const secret = generateTotpSecret(20);
 
     expect(secret).toMatch(/^[A-Z2-7]+$/);

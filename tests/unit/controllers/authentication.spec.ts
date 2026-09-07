@@ -53,7 +53,6 @@ async function loadAuthenticationModule() {
     AuthEventService,
     findRefreshSessionByToken: sessionService.findRefreshSessionByToken,
     generateRefreshToken: tokenLib.generateRefreshToken,
-    hashRefreshToken: tokenLib.hashRefreshToken,
     createRefreshTokenLookup: tokenLib.createRefreshTokenLookup,
     signAccessToken: tokenLib.signAccessToken,
   };
@@ -110,7 +109,6 @@ describe('refreshSession', () => {
       User,
       findRefreshSessionByToken,
       generateRefreshToken,
-      hashRefreshToken,
       createRefreshTokenLookup,
       signAccessToken,
     } = await loadAuthenticationModule();
@@ -131,7 +129,6 @@ describe('refreshSession', () => {
     (findRefreshSessionByToken as any).mockResolvedValue(session);
     (User.findOne as any).mockResolvedValue(user);
     (generateRefreshToken as any).mockReturnValue('new-raw-refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('new-refresh-hash');
     (createRefreshTokenLookup as any).mockReturnValue('new-refresh-lookup');
     (Session.create as any).mockResolvedValue({ id: 'session-2' });
     (signAccessToken as any).mockResolvedValue('new-access-token');
@@ -147,7 +144,6 @@ describe('refreshSession', () => {
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: user.id,
-        refreshTokenHash: 'new-refresh-hash',
         refreshTokenLookup: 'new-refresh-lookup',
       }),
     );

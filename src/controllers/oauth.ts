@@ -22,7 +22,6 @@ import {
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
-  verifyOAuthState,
 } from '../services/oauthService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { RouteRequest } from '../types/types.js';
@@ -61,15 +60,12 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
     const config = await getSystemConfig();
     const redirectUri = await resolveOAuthRedirectUri(provider, req.body.redirectUri);
     const returnTo = allowedReturnTo(req.body.returnTo, config.origins);
-    const state = createOAuthState({
+    const { state, payload: statePayload } = createOAuthState({
       providerId: provider.id,
       redirectUri,
       ...(returnTo ? { returnTo } : {}),
     });
-    const statePayload = verifyOAuthState(state, provider.id);
-    const codeChallenge = statePayload
-      ? createOAuthPkceCodeChallenge(provider, statePayload)
-      : undefined;
+    const codeChallenge = createOAuthPkceCodeChallenge(provider, statePayload);
 
     await AuthEventService.log({
       type: 'oauth_login_started',
@@ -84,7 +80,7 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
         provider,
         redirectUri,
         state,
-        ...(statePayload?.nonce ? { nonce: statePayload.nonce } : {}),
+        ...(statePayload.nonce ? { nonce: statePayload.nonce } : {}),
         ...(codeChallenge ? { codeChallenge } : {}),
       }),
     });

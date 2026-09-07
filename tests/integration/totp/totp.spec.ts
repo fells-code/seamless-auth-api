@@ -12,6 +12,7 @@ vi.mock('../../../src/services/sessionIssuance.js', () => ({
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { createApp } from '../../../src/app.js';
+import { AuthFailure } from '../../../src/models/authFailures.js';
 import { Session } from '../../../src/models/sessions.js';
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
 import { encryptTotpSecret } from '../../../src/services/totpService.js';
@@ -85,6 +86,26 @@ describe('TOTP routes', () => {
       }),
     );
     expect(issueSessionAndRespondMock.mock.calls[0][0]).not.toHaveProperty('clearExistingCookies');
+  });
+
+  // Step-up elevates a session for operations such as device replacement recovery, so
+  // an account the lockout policy has stopped must not be able to elevate through it.
+  it('refuses TOTP step-up while the account is locked', async () => {
+    (AuthFailure.count as any).mockResolvedValue(10);
+    (getSystemConfig as any).mockResolvedValue({
+      lockout_policy: {
+        enabled: true,
+        maxFailures: 10,
+        windowSeconds: 900,
+        lockoutSeconds: 900,
+      },
+    });
+
+    const res = await request(app).post('/totp/verify-mfa').send({ code: '000000' });
+
+    expect(res.status).toBe(423);
+    expect(res.body.error).toBe('account_locked');
+    expect(TotpCredential.findOne).not.toHaveBeenCalled();
   });
 
   it('verifies TOTP as MFA and records step-up freshness', async () => {

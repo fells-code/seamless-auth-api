@@ -38,6 +38,11 @@ describe('totpService', () => {
         enabled: false,
       }),
     );
+    // Only the newest pending secret is ever redeemed, so the superseded ones are
+    // cleared rather than accumulating as rows that stay enrollable.
+    expect(TotpCredential.destroy).toHaveBeenCalledWith({
+      where: { userId: 'user-1', enabled: false },
+    });
   });
 
   it('verifies pending enrollment and enables the credential', async () => {
@@ -213,12 +218,12 @@ describe('totpService', () => {
     expect(Buffer.from(encrypted.secretIv, 'base64')).toHaveLength(12);
   });
 
-  it('truncates an oversized non-Buffer randomBytes fallback to the requested length', () => {
-    (randomBytes as any).mockReturnValueOnce({ toString: () => 'x'.repeat(32) });
-
+  // GCM is only safe with a 96-bit IV, so the length is the invariant worth holding.
+  it('encrypts with a 12 byte initialisation vector', () => {
     const encrypted = encryptTotpSecret('JBSWY3DPEHPK3PXP');
 
     expect(Buffer.from(encrypted.secretIv, 'base64')).toHaveLength(12);
+    expect(decryptTotpSecret(encrypted as never)).toBe('JBSWY3DPEHPK3PXP');
   });
 
   it('derives a development encryption key when no explicit secret is configured', () => {

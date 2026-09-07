@@ -5,7 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token';
+import { generateRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
 import { Credential } from '../../../src/models/credentials';
 import { Session } from '../../../src/models/sessions';
@@ -126,7 +126,6 @@ beforeEach(() => {
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
   (signAccessToken as any).mockResolvedValue('access-token');
   (generateRefreshToken as any).mockReturnValue('refresh-token');
-  (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
   (hasMetadataStatement as any).mockResolvedValue(false);
   (getSystemConfig as any).mockResolvedValue(policy());
 });

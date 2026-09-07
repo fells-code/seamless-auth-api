@@ -84,6 +84,9 @@ describe('isLockoutFailureType', () => {
   it('recognises the types that count', () => {
     expect(isLockoutFailureType('totp_failed')).toBe(true);
     expect(isLockoutFailureType('magic_link_failed')).toBe(true);
+    // A failed second factor is a failed authentication attempt too. Left out, TOTP
+    // step-up was the one code-checking endpoint whose guesses reached no counter.
+    expect(isLockoutFailureType('mfa_otp_failed')).toBe(true);
     expect(isLockoutFailureType('login_success')).toBe(false);
   });
 });

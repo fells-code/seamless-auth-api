@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash } from 'crypto';
 
 import { TotpCredential } from '../models/totpCredentials.js';
 import {
@@ -13,6 +13,7 @@ import {
   DEFAULT_TOTP_DIGITS,
   DEFAULT_TOTP_PERIOD_SECONDS,
   generateTotpSecret,
+  randomBuffer,
   verifyTotpCode,
 } from '../utils/totp.js';
 
@@ -22,22 +23,6 @@ type TotpCredentialLike = Pick<
   TotpCredential,
   'secretCiphertext' | 'secretIv' | 'secretTag' | 'lastUsedCounter' | 'update' | 'destroy'
 >;
-
-function randomBuffer(length: number) {
-  const value = randomBytes(length);
-
-  if (Buffer.isBuffer(value)) {
-    return value;
-  }
-
-  const fallback = Buffer.from(String(value));
-
-  if (fallback.length >= length) {
-    return fallback.subarray(0, length);
-  }
-
-  return Buffer.concat([fallback, Buffer.alloc(length - fallback.length)]).subarray(0, length);
-}
 
 function getTotpEncryptionKey() {
   const explicitSecret =
@@ -114,6 +99,10 @@ export async function startTotpEnrollment({
 }) {
   const secret = generateTotpSecret();
   const encryptedSecret = encryptTotpSecret(secret);
+
+  // Only the newest pending secret is ever redeemed, and leaving the older ones behind
+  // both grew the table without limit and kept every superseded secret enrollable.
+  await TotpCredential.destroy({ where: { userId, enabled: false } });
 
   await TotpCredential.create({
     userId,

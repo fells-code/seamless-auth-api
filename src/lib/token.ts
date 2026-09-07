@@ -4,7 +4,6 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { hash } from 'bcrypt-ts';
 import { createHmac, randomBytes } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
@@ -106,14 +105,15 @@ export function generateRefreshToken() {
   return randomBytes(32).toString('base64url');
 }
 
-export async function hashRefreshToken(token: string) {
-  const saltRounds = 12;
-  // The async form, not hashSync: bcrypt at this cost is a few hundred milliseconds of
-  // CPU, and doing it synchronously stalls the event loop for every other request on
-  // the process during each sign-in and refresh.
-  return hash(token, saltRounds);
-}
-
+/**
+ * What authenticates a refresh token.
+ *
+ * A keyed hash rather than bcrypt. A work factor exists to make low-entropy secrets
+ * expensive to guess, and a refresh token is 32 random bytes, so bcrypt bought no
+ * additional resistance and cost a few hundred milliseconds of CPU on every sign-in
+ * and every rotation. The key never leaves the server, so a caller cannot compute a
+ * candidate to match against.
+ */
 export function createRefreshTokenLookup(token: string) {
   return createHmac('sha256', getRefreshTokenLookupSecret()).update(token).digest('hex');
 }

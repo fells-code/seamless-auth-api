@@ -14,6 +14,15 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internalSecurity');
 
+/**
+ * Rows one call will return.
+ *
+ * Bounded because the matched set is attacker-controlled: `request_suspicious` is
+ * recorded for every unmatched route and every refused origin, so a scanner alone can
+ * make a day's window arbitrarily large.
+ */
+const ANOMALY_LIMIT = 200;
+
 export const getSecurityAnomalies = async (_req: Request, res: Response) => {
   const now = new Date();
   const windowStart = new Date(now.getTime() - 60 * 60 * 1000 * 24);
@@ -44,6 +53,8 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
         ],
       },
       attributes: ['user_id', 'type', 'ip_address', 'user_agent', 'metadata', 'created_at'],
+      order: [['created_at', 'DESC']],
+      limit: ANOMALY_LIMIT,
     });
 
     return res.json({

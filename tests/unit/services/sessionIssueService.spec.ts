@@ -4,7 +4,6 @@ import { issueSessionAndRespond } from '../../../src/services/sessionIssuance.js
 
 vi.mock('../../../src/lib/token.js', () => ({
   generateRefreshToken: vi.fn(),
-  hashRefreshToken: vi.fn(),
   createRefreshTokenLookup: vi.fn(),
   signAccessToken: vi.fn(),
 }));
@@ -36,7 +35,6 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
-  hashRefreshToken,
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { Session } from '../../../src/models/sessions.js';
@@ -68,7 +66,6 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   (generateRefreshToken as any).mockReturnValue('refresh-token');
-  (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
   (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
   (signAccessToken as any).mockResolvedValue('access-token');
 
@@ -104,7 +101,6 @@ describe('issueSessionAndRespond', () => {
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: 'server',
-        refreshTokenHash: 'hashed-refresh',
         refreshTokenLookup: 'refresh-lookup',
       }),
     );

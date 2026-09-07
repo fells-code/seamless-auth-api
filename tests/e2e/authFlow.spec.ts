@@ -20,12 +20,7 @@ vi.mock('../../../src/services/authEventService.js', () => ({
 import { User } from '../../src/models/users.js';
 import { Session } from '../../src/models/sessions.js';
 
-import {
-  signEphemeralToken,
-  signAccessToken,
-  generateRefreshToken,
-  hashRefreshToken,
-} from '../../src/lib/token.js';
+import { signEphemeralToken, signAccessToken, generateRefreshToken } from '../../src/lib/token.js';
 
 import { generateEmailOTP, verifyEmailOTP } from '../../src/utils/otp.js';
 
@@ -57,7 +52,6 @@ beforeEach(() => {
   (signEphemeralToken as any).mockResolvedValue('ephemeral-token');
   (signAccessToken as any).mockResolvedValue('access-token');
   (generateRefreshToken as any).mockReturnValue('refresh-token');
-  (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
 });
 

@@ -14,6 +14,7 @@ import {
   verifyTotpMfa,
 } from '../controllers/totp.js';
 import { createRouter } from '../lib/createRouter.js';
+import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { StepUpSuccessSchema } from '../schemas/stepUp.responses.js';
 import { TotpVerifyRequestSchema } from '../schemas/totp.requests.js';
@@ -64,6 +65,7 @@ totpRouter.post(
 totpRouter.post(
   '/enroll/verify',
   {
+    middleware: [otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
     summary: 'Verify TOTP enrollment',
     tags: ['TOTP'],
@@ -83,6 +85,7 @@ totpRouter.post(
 totpRouter.post(
   '/disable',
   {
+    middleware: [otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
     summary: 'Disable TOTP for the current user',
     tags: ['TOTP'],
@@ -102,6 +105,7 @@ totpRouter.post(
 totpRouter.post(
   '/verify-login',
   {
+    middleware: [otpIpLimiter, otpIdentityLimiter],
     auth: 'ephemeral',
     summary: 'Verify TOTP during login',
     decoy: decoyVerifyTotpLogin,
@@ -122,6 +126,7 @@ totpRouter.post(
 totpRouter.post(
   '/verify-mfa',
   {
+    middleware: [otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
     summary: 'Verify TOTP for MFA or step-up authentication',
     tags: ['TOTP'],
