@@ -19,7 +19,11 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   },
   // Parsed from the schema rather than restated, so a field added upstream arrives with
   // the default the schema gives it instead of being absent here until someone notices.
-  authenticator_policy: AuthenticatorPolicySchema.parse({}),
+  // syncedPasskeys is named because the schema defaulted it to 'block' up to
+  // @seamless-auth/types 0.18.0, which refused every iCloud Keychain and Google Password
+  // Manager passkey and so failed the first registration on a stock install. Naming it
+  // seeds the right value on either version. Drop it once the floor is 0.19.0.
+  authenticator_policy: AuthenticatorPolicySchema.parse({ syncedPasskeys: 'allow' }),
   session_idle_ttl: '8h',
   // No cap unless a deployment asks for one, so nothing changes for an instance
   // that predates the key.
