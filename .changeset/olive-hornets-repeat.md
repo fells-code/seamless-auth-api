@@ -4,17 +4,6 @@
 
 Fix a set of authentication defects found in a review of `src`.
 
-**Passkey enrolment now requires proven control of the account.**
-`/webauthn/register/start` and `/webauthn/register/finish` accept an ephemeral token, and
-both `/login` and `/registration/register` mint one for an account that already exists from
-an email address alone. Enrolling a credential through that token was a full account
-takeover of any verified account, including one holding `OWNER_EMAIL` admin roles.
-Enrolment is refused with `403 { "error": "authentication_required" }` when the account is
-already verified. A new account still bootstraps its first credential.
-
-Breaking: adding a further passkey by way of `/login` no longer works, because that request
-is indistinguishable from the attack. The flow has to move behind an authenticated session.
-
 **`/webauthn/login/finish` answers a failed assertion.** `verifyAuthenticationResponse`
 returns `verified: false` rather than throwing when a signature does not check out, and the
 handler had no branch for it, so the request received no response at all and the connection
