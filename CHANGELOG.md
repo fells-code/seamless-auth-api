@@ -1,5 +1,195 @@
 # seamless-auth-api
 
+## 0.9.0
+
+### Minor Changes
+
+- 79b0300: Fix a second set of defects found in a review of `src`.
+
+  **TOTP step-up had no brute-force control at all.** Three controls exist and none
+  applied to `/totp/verify-mfa`. It checked no lockout, recorded `mfa_otp_failed`, which was
+  absent from the lockout failure types so the counter never moved, and sat on the one router
+  that carried no rate limiting. Under the global limiter alone that is roughly 72,000 guesses
+  a day against three accepted counters in a million, so anyone holding a valid access token
+  could expect to land a step-up code within days. Step-up gates device replacement recovery,
+  which strips passkeys and disables TOTP. The lockout policy now binds there, a failed second
+  factor counts toward it, and every TOTP route that accepts a code carries the same per-IP and
+  per-identity limiters the other code-checking endpoints use.
+
+  **Refresh tokens no longer go through bcrypt.** A refresh token is 32 random bytes, so a work
+  factor bought no resistance and cost roughly half a second of CPU per refresh across a hash
+  and a compare. The keyed fingerprint in `refreshTokenLookup` is what authenticates it, and it
+  is now compared in constant time after the lookup. `refreshTokenHash` is no longer written or
+  read; a migration drops its `NOT NULL` rather than dropping the column, so a rolling deploy
+  where older instances still write it keeps working, and a later release removes it.
+
+  **`sessions.userId` is indexed.** Every other table queried by user had one. This table did
+  not, and it is read by user on every sign-in for the concurrent session limit, on every
+  session list and logout-all, and by four admin handlers, against a table that gains a row on
+  each rotation and is never pruned.
+
+  **The dashboard's active session count meant something.** It filtered only on `revokedAt`
+  being null, and rotation leaves the superseded row unrevoked, so the number counted every
+  session a user had ever refreshed into existence and only ever grew. It now applies the same
+  three conditions every other active-session query uses. The passkey count also matches its
+  event type exactly instead of by `LIKE` wildcard.
+
+  **The security anomaly query is bounded.** It selected every failure and suspicious event in
+  a 24 hour window with no limit, and `request_suspicious` is recorded for every unmatched
+  route, so a scanner alone could make that set arbitrarily large. It now returns the most
+  recent 200.
+
+  **Direct messaging keys off the right environment check.** `shouldBypassDirectMessaging`
+  tested `NODE_ENV === 'development'`, so a staging, CI or unset environment tried to reach a
+  real provider and failed the request that triggered it. It now asks whether this is
+  production, like every other environment gate. The messaging service is also built once
+  rather than per message, which was constructing a provider client per channel on every OTP.
+
+  **TOTP enrollment no longer accumulates pending secrets.** Each start inserted a row and
+  consumed none, so repeated calls grew the table without limit and left every superseded
+  secret enrollable. Outstanding pending credentials are cleared first, as the WebAuthn
+  challenge service already does.
+
+  Also: `randomBuffer` was duplicated between `utils/totp.ts` and `services/totpService.ts`,
+  and both copies carried a fallback for `crypto.randomBytes` returning something other than a
+  Buffer, which it never does. The shared test double did return a bare object, so the
+  production fallback existed to satisfy an inaccurate mock; the double now returns a real
+  Buffer and the fallback is gone. `createOAuthState` returns the payload alongside the signed
+  value, so the caller no longer verifies a token it just signed to read back fields it had
+  just set.
+
+- ec29f65: Update `@seamless-auth/types` to 0.19.0 and adopt what it adds.
+
+  Two schema changes come in with the bump, which spans 0.17.0 to 0.19.0.
+
+  **`authenticator_policy.syncedPasskeys` now defaults to `allow` in the shared schema.**
+  This API already made that change for itself in 0.8.0, defaults and migration included, so
+  nothing about how an instance behaves moves here. What changes is the published contract:
+  `openapi.json` and the generated types stated `block` while the server did `allow`, and they
+  now agree.
+
+  **`magic_link_redirect_uris` is honoured rather than accepted and ignored.** The key arrived
+  in 0.17.0 of the shared schema, which means the admin system-config API started accepting it
+  the moment this bump landed, since the patch schema refuses unknown fields. Nothing read it.
+  An operator could set a magic link redirect allowlist, receive a success, and still have
+  every destination validated against `origins`. A redirect control that reports success and
+  does nothing is worse than one that is absent, so `resolveMagicLinkUrl` now matches against
+  it.
+
+  Entries are matched exactly, which is the point of the key: it exists for destinations whose
+  origin cannot be compared, such as a custom application scheme like `myapp://auth` or a
+  universal link on a host that should not also be a WebAuthn origin. The list is empty by
+  default and an empty list falls back to comparing against `origins`, so a deployment that
+  sets nothing sees no change. A deployment that does set it is opting into an exact allowlist
+  and its `origins` no longer apply to magic links.
+
+  `openapi.json` and `src/generated/api.ts` are regenerated. The committed document also still
+  carried `info.version` `0.7.4`, which regeneration corrects to the released version; the
+  contract test ignores `info`, so it had gone unnoticed.
+
+- eaf0e21: Fix a set of authentication defects found in a review of `src`.
+
+  **`/webauthn/login/finish` answers a failed assertion.** `verifyAuthenticationResponse`
+  returns `verified: false` rather than throwing when a signature does not check out, and the
+  handler had no branch for it, so the request received no response at all and the connection
+  was held until something timed it out. It now answers `401` and records
+  `webauthn_login_failed`, so the attempt also reaches the lockout counter.
+
+  **A rotated session no longer revokes the chain it was rotated into.** Presenting a
+  pre-rotation access token, which stays valid until it expires, walked `replacedBySessionId`
+  forward and revoked the session that had just been issued, signing the user out everywhere
+  over an ordinary in-flight request. Refresh token reuse is still detected on `/refresh`,
+  where the reused credential is the refresh token itself.
+
+  **`/refresh` refuses a revoked user.** The session owner was loaded without the `revoked`
+  filter every other auth path applies, so a revoked account kept rotating refresh tokens
+  indefinitely and its session chain never died.
+
+  **The stored refresh token hash is verified.** `findRefreshSessionByToken` matched only the
+  HMAC lookup column, so the bcrypt hash was written on every rotation and never read.
+  Hashing also moves off the synchronous bcrypt call, which stalled the event loop for every
+  other request on the process during each sign-in and refresh.
+
+  **`/otp/verify-email-otp` applies the lockout policy.** It issues a session for an already
+  verified account, so an account locked out of `/otp/verify-login-email-otp` could still
+  authenticate through it. It is deliberately not gated on the login method policy: email OTP
+  is how registration proves an address, whether or not the deployment offers it as a way to
+  sign in. `/otp/verify-phone-otp` now records `verify_otp_failed`, so those attempts reach
+  the audit trail and the lockout counter as its three siblings already did.
+
+  **`/registration/register` no longer reveals whether an email is registered.** A mismatched
+  email and phone answered `409`, which told an unauthenticated caller that the address
+  existed and reopened on this endpoint the enumeration oracle `/login` goes to some length to
+  close. Every combination now answers with the same `200` shape, the mismatch is recorded in
+  the audit trail for operators, and a phone held by another account is never attached.
+
+  Also fixed: the JWKS handler gated on `NODE_ENV === 'development'` while the signing key
+  gates on `!== 'production'`, so a staging or CI instance signed with the dev key and could
+  not publish it; `createUser` stored the email without normalising case, creating an account
+  that could never sign in; the slow-down delay grew on total hits rather than the excess over
+  the threshold, holding the first throttled request for `delay_after` seconds and growing
+  without a ceiling; an unset `API_SERVICE_TOKEN` turned any request carrying the trusted
+  client IP headers into a 500; account deletion reported success without awaiting the
+  deletes; and OTP audit writes were discarded rather than awaited and logged without the user
+  they belonged to.
+
+- 4989a6c: Default `authenticator_policy.syncedPasskeys` to `allow`.
+
+  This reverses the default shipped in 0.8.0. `block` refuses any credential that
+  is backup eligible, and every iCloud Keychain and Google Password Manager passkey
+  is one, so a stock instance refused the passkey a normal laptop or phone actually
+  offers. A fresh `seamless init` came up unable to complete a single registration,
+  on hardware the operator had no way to change. That is a posture to be chosen,
+  not inherited.
+
+  A deployment that issues its own authenticators still sets `block`, and it now
+  reads as the deliberate choice it is:
+
+  ```json
+  AUTHENTICATOR_POLICY={"syncedPasskeys":"block", ...}
+  ```
+
+  **What changes on upgrade.** `bootstrapSystemConfig` only applies a default when
+  the row is absent, so 0.8.0's seeded `block` would otherwise outlive this release
+  on every existing install. A migration flips it, and only on rows nobody chose:
+  `authenticator_policy` with `updatedBy IS NULL`. A deployment that set `block`
+  through the admin API keeps it, and one that set it through
+  `AUTHENTICATOR_POLICY` has it re-applied from the environment on the next boot.
+  If you want the 0.8.0 behaviour, name the field.
+
+  Nothing else moves. The judgement is still made on backup eligibility rather than
+  current backup state, the refusal is still
+  `403 { "error": "synced_passkey_not_allowed" }`, and existing credentials are
+  untouched either way.
+
+- af7e900: Return `returnTo` from the OAuth callback, and refuse a scheme that cannot be a link
+  destination.
+
+  `/oauth/:providerId/start` has accepted a `returnTo` since OAuth landed. This service
+  validated it against the configured origins and signed it into the state, and nothing ever
+  gave it back, so a client that asked to be returned somewhere had no way to learn where and
+  the validation changed nothing observable. `/oauth/:providerId/callback` now includes it in
+  the success body.
+
+  The value comes out of the signed state rather than the callback request, so it is the one
+  accepted at `/start` and not one introduced at the end of the round trip. It is absent when
+  the caller asked for nothing.
+
+  `@seamless-auth/types` moves to 0.20.0, which carries the response field and moves both
+  `returnTo` fields from `z.url()` to `RedirectTargetSchema`. `z.url()` accepts
+  `javascript:alert(1)` and `data:text/html,...`, and a client navigates to whatever comes back
+  out of this flow, so it is the same sink a magic link destination is. `/start` now refuses
+  those schemes outright. Nothing was exposed before this: `allowedReturnTo` compares origins
+  and such a URL has none that matches, so it was already dropped. The refusal is now stated
+  once in the schema instead of depending on a downstream check to fall the right way.
+
+  `issueSessionAndRespond` takes an optional `extraFields` so a flow can add to the session
+  response without session issuance knowing which flow reached it. Each route still validates
+  its own response against its declared schema.
+
+  `openapi.json` and `src/generated/api.ts` are regenerated. Additive: a client that ignores
+  the new field is unaffected.
+
 ## 0.8.0
 
 ### Minor Changes
