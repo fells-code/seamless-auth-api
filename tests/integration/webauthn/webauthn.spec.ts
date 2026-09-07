@@ -13,7 +13,7 @@ import { buildUser } from '../../factories/userFactory';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges';
 import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
 import { buildCredential } from '../../factories/credentialFactory';
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from '../../../src/lib/token';
+import { generateRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
 import { AuthFailure } from '../../../src/models/authFailures';
 import { AuthEventService } from '../../../src/services/authEventService';
@@ -615,7 +615,6 @@ describe('authenticator policy at registration', () => {
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
 
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
     (verifyRegistrationResponse as any).mockResolvedValue({
@@ -690,7 +689,6 @@ describe('POST /webauthn/register/finish', () => {
 
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
     (User.findOne as any).mockResolvedValue(user);
     (Credential.findAll as any).mockResolvedValue([buildCredential({ id: 'cred-1' })]);
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
@@ -856,7 +854,6 @@ describe('POST /webauthn/register/finish', () => {
 
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
     (User.findOne as any).mockResolvedValue(user);
     (Credential.findAll as any).mockResolvedValue([]);
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
@@ -1026,7 +1023,6 @@ describe('POST /webauthn/register/finish', () => {
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
     (verifyRegistrationResponse as any).mockResolvedValue({
       verified: true,
@@ -1192,7 +1188,6 @@ describe('POST /webauthn/login/finish', () => {
     );
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
     (User.findOne as any).mockResolvedValue(user);
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
 
@@ -1371,7 +1366,6 @@ describe('POST /webauthn/login/finish', () => {
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: true,

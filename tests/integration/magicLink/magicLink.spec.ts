@@ -13,7 +13,6 @@ import { verifyMagicLink } from '../../../src/controllers/magicLinks.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
-  hashRefreshToken,
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
@@ -444,7 +443,6 @@ it('creates session when magic link completed', async () => {
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
   (generateRefreshToken as any).mockReturnValue('refresh-token');
-  (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
   (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
   (signAccessToken as any).mockResolvedValue('access-token');
 
@@ -499,7 +497,6 @@ describe('magic link full sign-in sequence (regression)', () => {
     (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: new Date() }));
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('hashed-refresh');
     (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
     (signAccessToken as any).mockResolvedValue('access-token');
 

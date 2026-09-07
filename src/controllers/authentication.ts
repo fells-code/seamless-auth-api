@@ -10,7 +10,6 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
-  hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
 } from '../lib/token.js';
@@ -515,7 +514,6 @@ export const refreshSession = async (req: Request, res: Response) => {
     now,
   );
   const newRefreshToken = generateRefreshToken();
-  const newRefreshTokenHash = await hashRefreshToken(newRefreshToken);
   const newRefreshTokenLookup = createRefreshTokenLookup(newRefreshToken);
 
   const newSession = await Session.create({
@@ -523,7 +521,6 @@ export const refreshSession = async (req: Request, res: Response) => {
     infraId: session.infraId,
     mode: 'server',
     organizationId: session.organizationId,
-    refreshTokenHash: newRefreshTokenHash,
     refreshTokenLookup: newRefreshTokenLookup,
     userAgent: session.userAgent,
     ipAddress: req.ip,

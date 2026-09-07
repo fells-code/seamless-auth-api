@@ -10,7 +10,6 @@ import { buildUser } from '../../factories/userFactory';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
-  hashRefreshToken,
   signAccessToken,
   signEphemeralToken,
 } from '../../../src/lib/token';
@@ -491,7 +490,6 @@ describe('POST /refresh', () => {
   it('refreshes session successfully', async () => {
     const session = {
       id: 'session-1',
-      refreshTokenHash: 'hash',
       replacedBySessionId: null,
       revokedAt: null,
       userId: 'user-1',
@@ -509,7 +507,6 @@ describe('POST /refresh', () => {
 
     (signAccessToken as any).mockResolvedValue('access');
     (generateRefreshToken as any).mockReturnValue('refresh');
-    (hashRefreshToken as any).mockResolvedValue('hash');
     (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
 
     (getSystemConfig as any).mockResolvedValue({
@@ -614,7 +611,6 @@ describe('POST /refresh', () => {
     (User.findOne as any).mockResolvedValue(buildUser());
     (Session.create as any).mockResolvedValue({ id: 'new-session' });
     (generateRefreshToken as any).mockReturnValue('refresh');
-    (hashRefreshToken as any).mockResolvedValue('hash');
     (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
     (signAccessToken as any).mockResolvedValue(null);
     (getSystemConfig as any).mockResolvedValue({
@@ -647,7 +643,6 @@ describe('POST /refresh', () => {
     (Session.create as any).mockResolvedValue({ id: 'new-session' });
     (signAccessToken as any).mockResolvedValue('access');
     (generateRefreshToken as any).mockReturnValue('refresh');
-    (hashRefreshToken as any).mockResolvedValue('hash');
     (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
     (getSystemConfig as any).mockResolvedValue({});
 

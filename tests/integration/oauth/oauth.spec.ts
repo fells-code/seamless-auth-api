@@ -7,7 +7,6 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
-  hashRefreshToken,
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
@@ -160,7 +159,6 @@ describe('OAuth routes', () => {
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
-    (hashRefreshToken as any).mockResolvedValue('refresh-hash');
     (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
 
     const res = await request(app).post('/oauth/google/callback').send({

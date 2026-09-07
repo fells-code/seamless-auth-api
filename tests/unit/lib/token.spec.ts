@@ -56,7 +56,6 @@ vi.mock('crypto', () => ({
 }));
 
 vi.mock('bcrypt-ts', () => ({
-  hash: vi.fn(async () => 'hashed-token'),
   hashSync: vi.fn(() => 'hashed-token'),
 }));
 
@@ -164,14 +163,6 @@ describe('token utils', () => {
     const result = generateRefreshToken();
 
     expect(result).toBe('random-token');
-  });
-
-  it('hashes refresh token', async () => {
-    const { hashRefreshToken } = await import('../../../src/lib/token');
-
-    const result = await hashRefreshToken('token');
-
-    expect(result).toBe('hashed-token');
   });
 
   it('creates refresh token lookup fingerprints', async () => {

@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { compare } from 'bcrypt-ts';
+import { timingSafeEqual } from 'crypto';
 import { importSPKI, jwtVerify } from 'jose';
 import { Op } from 'sequelize';
 
@@ -117,6 +117,17 @@ export async function validateAccessToken(token: string): Promise<ValidatedAcces
   };
 }
 
+function safeEqual(left: string, right: string | null) {
+  if (!right) return false;
+
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) return false;
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 export async function findRefreshSessionByToken(
   refreshToken: string,
   now = new Date(),
@@ -134,11 +145,12 @@ export async function findRefreshSessionByToken(
 
   if (!session) return null;
 
-  // The lookup column is an HMAC, which is what makes the row findable in one indexed
-  // query. It is not what authenticates the token: that is the bcrypt hash, and until
-  // it was checked here the stored hash was written on every rotation and never read.
-  if (!(await compare(refreshToken, session.refreshTokenHash))) {
-    logger.warn('Refresh token lookup matched a session whose stored hash did not verify');
+  // Re-checked outside the query. The database found the row by this value, but the
+  // comparison there is the driver's, and this is the one that decides whether the
+  // presented token is the session's. Constant time, so a near miss cannot be
+  // distinguished from a far one by how long the answer takes.
+  if (!safeEqual(refreshTokenLookup, session.refreshTokenLookup)) {
+    logger.warn('Refresh token lookup matched a session whose fingerprint did not verify');
     return null;
   }
 

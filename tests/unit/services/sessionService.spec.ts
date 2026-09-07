@@ -206,16 +206,14 @@ describe('sessionService', () => {
     expect(result).toBe(session);
   });
 
-  it('refuses a session whose stored refresh hash does not verify', async () => {
+  // The keyed fingerprint is what authenticates the token, so a row whose stored value
+  // does not match the presented one is refused even though the query returned it.
+  it('refuses a session whose stored fingerprint does not match', async () => {
     const { Session } = await import('../../../src/models/sessions');
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
-    const { compare } = await import('bcrypt-ts');
 
     (createRefreshTokenLookup as any).mockReturnValue('lookup');
-    (Session.findOne as any).mockResolvedValue(buildSession());
-    // The lookup column is only an index. The bcrypt hash is what authenticates the
-    // token, and until it was checked it was written on every rotation and never read.
-    (compare as any).mockResolvedValue(false);
+    (Session.findOne as any).mockResolvedValue(buildSession({ refreshTokenLookup: 'other' }));
 
     const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
 
@@ -226,7 +224,7 @@ describe('sessionService', () => {
     const { Session } = await import('../../../src/models/sessions');
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
 
-    const session = buildSession();
+    const session = buildSession({ refreshTokenLookup: 'lookup' });
 
     (createRefreshTokenLookup as any).mockReturnValue('lookup');
     (Session.findOne as any).mockResolvedValue(session);

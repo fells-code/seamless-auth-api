@@ -69,6 +69,7 @@ vi.mock('../../src/models/totpCredentials.js', () => ({
     create: vi.fn(),
     findOne: vi.fn(),
     update: vi.fn(),
+    destroy: vi.fn(),
     count: vi.fn(),
   },
 }));
@@ -205,7 +206,6 @@ vi.mock('../../src/lib/token.js', () => ({
   signEphemeralToken: vi.fn(),
   signAccessToken: vi.fn(),
   generateRefreshToken: vi.fn(),
-  hashRefreshToken: vi.fn(),
   createRefreshTokenLookup: vi.fn(),
 }));
 
@@ -244,9 +244,10 @@ vi.mock('crypto', async () => {
   const actual = await vi.importActual<typeof import('crypto')>('crypto');
   return {
     ...actual,
-    randomBytes: vi.fn(() => ({
-      toString: () => 'mock-token',
-    })),
+    // A real Buffer, deterministic so tests stay reproducible. The previous double
+    // returned a bare object, which is not what randomBytes ever does, and production
+    // code carried a fallback for that shape alone.
+    randomBytes: vi.fn((size?: number) => Buffer.alloc(typeof size === 'number' ? size : 32, 7)),
   };
 });
 
