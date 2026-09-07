@@ -124,6 +124,93 @@ describe('OAuth routes', () => {
     expect(res.status).toBe(400);
   });
 
+  // z.url() accepted these, so the guard lives in RedirectTargetSchema now. The value
+  // is navigated to by the client, which makes it the same sink a magic link is.
+  it.each(['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>'])(
+    'refuses a %s returnTo at the start of the flow',
+    async (returnTo) => {
+      const res = await request(app).post('/oauth/google/start').send({
+        redirectUri: 'http://localhost:5174/oauth/callback',
+        returnTo,
+      });
+
+      expect(res.status).toBe(400);
+    },
+  );
+
+  // returnTo is carried in the signed state, so the value that comes back is the one
+  // validated against the configured origins at /start, not one the callback supplied.
+  it('returns the requested returnTo from the signed state', async () => {
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+      returnTo: 'http://localhost:5174/dashboard',
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'provider-token' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: 'provider-user',
+          email: 'person@example.com',
+          email_verified: true,
+        }),
+      });
+
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+    (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+
+    const res = await request(app)
+      .post('/oauth/google/callback')
+      .send({ code: 'oauth-code', state: start.body.state });
+
+    expect(res.status).toBe(200);
+    expect(res.body.returnTo).toBe('http://localhost:5174/dashboard');
+  });
+
+  it('omits returnTo when the caller asked for none', async () => {
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'provider-token' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: 'provider-user',
+          email: 'person@example.com',
+          email_verified: true,
+        }),
+      });
+
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+    (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+
+    const res = await request(app)
+      .post('/oauth/google/callback')
+      .send({ code: 'oauth-code', state: start.body.state });
+
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('returnTo');
+  });
+
   it('finishes OAuth login and issues a SeamlessAuth session', async () => {
     const start = await request(app).post('/oauth/google/start').send({
       redirectUri: 'http://localhost:5174/oauth/callback',

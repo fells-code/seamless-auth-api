@@ -4393,7 +4393,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "returnTo": null
                 },
                 "schema": {
                   "type": "object",
@@ -4407,7 +4408,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "returnTo": { "type": "string", "format": "uri" }
                   },
                   "required": ["message"]
                 }
