@@ -235,16 +235,24 @@ without breaking lookups.
 
 ## Synced passkeys
 
-**Posture: blocked by default, deployment may allow.**
+**Posture: allowed by default, deployment may block.**
 
 A multi-device credential is synced by a platform password manager, so its
 private key exists somewhere outside the authenticator that created it. Every
 iCloud Keychain and Google Password Manager passkey is one. That is what a
 consumer wants and what an organisation issuing its own authenticators does not.
 
-`authenticator_policy.syncedPasskeys` defaults to `block`, and registration
-answers `403 { "error": "synced_passkey_not_allowed" }`. A deployment that wants
-platform passkeys sets it to `allow`.
+`authenticator_policy.syncedPasskeys` defaults to `allow`, because it is the only
+value under which a stock install enrols the passkey a normal laptop or phone
+actually offers. Defaulting to `block` failed the first registration on hardware
+the operator had no way to change, which is a posture to be chosen rather than
+inherited.
+
+A deployment that keeps every private key on the authenticator that made it sets
+`block`, and registration then answers
+`403 { "error": "synced_passkey_not_allowed" }`. That is the right setting
+wherever the organisation issues its own authenticators, and it pairs naturally
+with `attestation: 'direct'` and an AAGUID allow list.
 
 ### Judged on eligibility, not current state
 
