@@ -60,7 +60,7 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
 
   if (!phone) {
     logger.warn(`Missing phone`);
-    AuthEventService.log({
+    await AuthEventService.log({
       userId: user.id,
       type: 'otp_suspicious',
       req,
@@ -76,8 +76,8 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
 
     if (!isValidPhoneNumber(phone) || !normalizedPhone) {
       logger.warn('Invalid phone provided');
-      AuthEventService.log({
-        userId: null,
+      await AuthEventService.log({
+        userId: user.id,
         type: 'otp_suspicious',
         req,
         metadata: { reason: 'Invalid phone number.' },
@@ -90,8 +90,8 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       sendMessage: !useExternalDelivery,
     });
 
-    AuthEventService.log({
-      userId: null,
+    await AuthEventService.log({
+      userId: user.id,
       type: 'otp_success',
       req,
     });
@@ -131,8 +131,8 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
   try {
     if (!email) {
       logger.warn(`Missing email`);
-      AuthEventService.log({
-        userId: null,
+      await AuthEventService.log({
+        userId: user.id,
         type: 'otp_suspicious',
         req,
         metadata: { reason: 'Missing required email.' },
@@ -144,8 +144,8 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
 
     if (!isValidEmail(email)) {
       logger.error('Invalid email provided');
-      AuthEventService.log({
-        userId: null,
+      await AuthEventService.log({
+        userId: user.id,
         type: 'otp_suspicious',
         req,
         metadata: { reason: 'Invalid email.' },
@@ -157,8 +157,8 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
     const generatedToken = await generateEmailOTP(user, {
       sendMessage: !useExternalDelivery,
     });
-    AuthEventService.log({
-      userId: null,
+    await AuthEventService.log({
+      userId: user.id,
       type: 'otp_success',
       req,
     });
@@ -265,6 +265,12 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       res.json({ message: 'Success' });
     } else {
       logger.warn(`Verification tokens did not match or expired for phone verification`);
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'verify_otp_failed',
+        req,
+        metadata: { reason: 'User verification failed for phone' },
+      });
       return res.status(401).json({ error: 'Not allowed' });
     }
   } catch (error) {
@@ -278,6 +284,16 @@ export const verifyEmail = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   let user = authReq.user;
   const email = user.email;
+
+  // This endpoint issues a session for an already-verified account, so it is a login
+  // whatever its name says, and the lockout policy has to bind here too. Without it,
+  // an account locked out of /otp/verify-login-email-otp could still authenticate
+  // through this one. The login-method policy deliberately does not gate it: email OTP
+  // is how registration proves an address, whether or not the deployment offers it as
+  // a way to sign in.
+  if (await rejectIfUserLocked({ userId: user.id, req, res })) {
+    return;
+  }
 
   logger.info('Verifying email');
 

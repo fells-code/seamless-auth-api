@@ -50,13 +50,15 @@ export async function validateInternalServiceToken(
   token: string,
   options: InternalServiceTokenValidationOptions = {},
 ): Promise<JwtPayload | null> {
-  const internalSecret = await getInternalSecret();
-
-  if (!token || !internalSecret) {
-    return null;
-  }
-
   try {
+    // Inside the try: getSecret throws when the secret is unset, and an unconfigured
+    // instance must answer "not a valid service token" rather than fault the request.
+    const internalSecret = await getInternalSecret();
+
+    if (!token || !internalSecret) {
+      return null;
+    }
+
     if (!usesSupportedInternalServiceAlgorithm(token)) {
       if (options.logInvalid) {
         logger.warn('Rejected internal service token with unsupported algorithm');

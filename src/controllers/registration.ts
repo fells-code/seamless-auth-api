@@ -59,8 +59,10 @@ export const register = async (req: Request, res: Response) => {
       normalizedPhone ? User.findOne({ where: { phone: normalizedPhone } }) : Promise.resolve(null),
     ]);
 
-    const hasExactExistingUser =
-      existingEmailUser && existingPhoneUser && existingEmailUser.id === existingPhoneUser.id;
+    // Recorded rather than refused. Answering 409 told an unauthenticated caller whether
+    // an email was already registered, which is the enumeration oracle `/login` goes to
+    // some length to close, reopened on another endpoint. Every outcome now returns the
+    // same 200 shape, and the mismatch survives for operators in the audit trail.
     const hasIdentifierConflict =
       (Boolean(existingEmailUser) && phoneProvided && !existingPhoneUser) ||
       (!existingEmailUser && existingPhoneUser) ||
@@ -78,15 +80,12 @@ export const register = async (req: Request, res: Response) => {
           phoneInUse: Boolean(existingPhoneUser),
         },
       });
-
-      return res.status(409).json({
-        error: 'Registration conflict',
-        message:
-          'The provided identifiers do not belong to the same account. Try signing in with your existing account details or use a different email or phone.',
-      });
     }
 
-    let user = hasExactExistingUser || !phoneProvided ? existingEmailUser : null;
+    // A phone already held by another account is dropped rather than attached, so a
+    // conflicting one cannot change the answer or breach the unique constraint.
+    const attachablePhone = existingPhoneUser ? null : normalizedPhone;
+    let user = existingEmailUser;
 
     let token;
     let emailOtp: string | null = null;
@@ -111,7 +110,7 @@ export const register = async (req: Request, res: Response) => {
 
       user = await User.create({
         email: normalizedEmail,
-        phone: normalizedPhone,
+        phone: attachablePhone,
         roles: withOwnerAdminRole(
           systemConfig.default_roles,
           normalizedEmail,

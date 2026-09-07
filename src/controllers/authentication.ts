@@ -494,7 +494,7 @@ export const refreshSession = async (req: Request, res: Response) => {
   session.lastUsedAt = now;
   await session.save();
 
-  const user = await User.findByPk(session.userId);
+  const user = await User.findOne({ where: { id: session.userId, revoked: false } });
   if (!user) {
     await AuthEventService.log({
       userId: session.userId,

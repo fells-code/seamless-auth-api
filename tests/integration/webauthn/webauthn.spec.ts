@@ -1321,7 +1321,7 @@ describe('POST /webauthn/login/finish', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'Authentication failed.' });
   });
 
-  it('sends no response when the assertion is not verified', async () => {
+  it('answers 401 when the assertion is not verified', async () => {
     (Credential.findOne as any).mockResolvedValue(buildCredential({ id: 'cred-1' }));
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5137'],
@@ -1361,8 +1361,8 @@ describe('POST /webauthn/login/finish', () => {
     );
 
     expect(credential.update).not.toHaveBeenCalled();
-    expect(res.json).not.toHaveBeenCalled();
-    expect(res.send).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Authentication failed.' });
   });
 
   it('issues a session on a verified assertion even when roles are absent', async () => {

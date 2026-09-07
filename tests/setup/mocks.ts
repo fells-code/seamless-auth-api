@@ -211,6 +211,9 @@ vi.mock('../../src/lib/token.js', () => ({
 
 vi.mock('bcrypt-ts', () => ({
   compareSync: vi.fn(),
+  compare: vi.fn(async () => true),
+  hash: vi.fn(async () => 'hashed'),
+  hashSync: vi.fn(() => 'hashed'),
 }));
 
 vi.mock('../../src/services/authEventService.js', () => ({

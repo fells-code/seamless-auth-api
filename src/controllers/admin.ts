@@ -132,6 +132,7 @@ export const createUser = async (req: Request, res: Response) => {
   }
 
   const { email, phone, roles } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
   const normalizedPhone = phone ? normalizePhoneNumber(phone) : null;
 
   if (phone && (!normalizedPhone || !isValidPhoneNumber(phone))) {
@@ -146,14 +147,14 @@ export const createUser = async (req: Request, res: Response) => {
   }
 
   try {
-    const existing = await User.findOne({ where: { email } });
+    const existing = await User.findOne({ where: { email: normalizedEmail } });
 
     if (existing) {
       return res.status(409).json({ error: 'User already exists' });
     }
 
     const user = await User.create({
-      email,
+      email: normalizedEmail,
       phone: normalizedPhone,
       roles: roles ?? [],
     });
@@ -575,7 +576,6 @@ export const recoverUserForDeviceReplacement = async (req: RouteRequest, res: Re
   });
 };
 
-// TODO: Need a public session return type for sessions
 export const listAllSessions = async (req: Request, res: Response) => {
   const { limit = 10, offset = 0 } = req.query;
 
@@ -608,7 +608,6 @@ export const getDatabaseSize = async () => {
     SELECT pg_database_size(current_database()) as size
   `);
 
-  // TODO: Properly type this one day
   return Number((result as { size: string }[])[0].size);
 };
 

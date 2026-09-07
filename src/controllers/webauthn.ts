@@ -387,10 +387,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       res,
     });
 
-    user.update({
-      lastLogin: new Date(),
-    });
-
     return;
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);
@@ -462,10 +458,9 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     });
 
     await AuthEventService.log({
-      userId: null,
+      userId: user.id,
       type: 'login_challenge',
       req,
-      metadata: { reason: '' },
     });
     return res.json(options);
   } catch (error) {
@@ -610,12 +605,23 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         res,
       });
 
-      user.update({
+      await user.update({
         lastLogin: new Date(),
       });
 
       return;
     }
+
+    // verifyAuthenticationResponse returns verified:false for a bad signature rather
+    // than throwing, so without this the request is answered by nothing at all.
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'webauthn_login_failed',
+      req,
+      metadata: { reason: 'Assertion failed verification' },
+    });
+
+    return res.status(401).json({ error: 'Authentication failed.' });
   } catch (error) {
     logger.error(`Error occured validating passkey on login: ${error}`);
     await AuthEventService.log({

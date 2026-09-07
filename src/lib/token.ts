@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { hashSync } from 'bcrypt-ts';
+import { hash } from 'bcrypt-ts';
 import { createHmac, randomBytes } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
@@ -108,7 +108,10 @@ export function generateRefreshToken() {
 
 export async function hashRefreshToken(token: string) {
   const saltRounds = 12;
-  return hashSync(token, saltRounds);
+  // The async form, not hashSync: bcrypt at this cost is a few hundred milliseconds of
+  // CPU, and doing it synchronously stalls the event loop for every other request on
+  // the process during each sign-in and refresh.
+  return hash(token, saltRounds);
 }
 
 export function createRefreshTokenLookup(token: string) {

@@ -97,9 +97,13 @@ export const deleteUser = async (req: Request, res: Response) => {
       logger.info('Deleting all user credentials');
       const creds = await Credential.findAll({ where: { userId: user.id } });
 
-      creds.forEach((cred) => {
-        cred.destroy();
-      });
+      // Awaited, like the admin path: an un-awaited destroy let the handler answer
+      // Success before the delete had necessarily reached the database, and a failure
+      // surfaced only as an unhandled rejection on the endpoint that carries the
+      // erasure obligation.
+      for (const cred of creds) {
+        await cred.destroy();
+      }
 
       await AuthEventService.log({
         userId: user.id || null,
@@ -110,7 +114,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
       logger.info(`All credentials deleted for ${user.id}.`);
 
-      user.destroy();
+      await user.destroy();
       logger.info('User deleted');
 
       await AuthEventService.log({

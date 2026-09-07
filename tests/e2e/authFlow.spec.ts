@@ -128,7 +128,7 @@ describe('E2E Auth Flow', () => {
     (validateBearerToken as any).mockResolvedValue(null);
     (findRefreshSessionByToken as any).mockResolvedValue(buildSession());
 
-    (User.findByPk as any).mockResolvedValue({
+    (User.findOne as any).mockResolvedValue({
       id: 'user-1',
       email: 'test@example.com',
       phone: '+14155552671',
