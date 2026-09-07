@@ -12,8 +12,6 @@ export interface SessionAttributes {
   infraId?: string | null;
   organizationId?: string | null;
   mode: 'server';
-  /** Legacy. No longer written; `refreshTokenLookup` authenticates the token. */
-  refreshTokenHash?: string | null;
   refreshTokenLookup?: string | null;
   userAgent?: string | null;
   ipAddress?: string | null;
@@ -33,7 +31,6 @@ export interface SessionAttributes {
 type SessionCreationAttributes = Optional<
   SessionAttributes,
   | 'id'
-  | 'refreshTokenHash'
   | 'replacedBySessionId'
   | 'revokedAt'
   | 'revokedReason'
@@ -52,7 +49,6 @@ export class Session
   declare infraId: string | null;
   declare organizationId: string | null;
   declare mode: 'server';
-  declare refreshTokenHash: string | null;
   declare refreshTokenLookup: string | null;
   declare userAgent: string | null;
   declare ipAddress: string | null;
@@ -95,10 +91,6 @@ const initializeSessionModel = (sequelize: Sequelize) => {
         validate: {
           isIn: [['server']],
         },
-      },
-      refreshTokenHash: {
-        type: DataTypes.TEXT,
-        allowNull: true,
       },
       refreshTokenLookup: {
         type: DataTypes.STRING(64),

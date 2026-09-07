@@ -82,7 +82,7 @@ describe('GET /admin/users/:userId', () => {
     );
     (Session.findAll as any).mockResolvedValue([
       buildSession({
-        refreshTokenHash: 'refresh-hash',
+        refreshTokenLookup: 'lookup-fingerprint',
         refreshTokenLookup: 'refresh-lookup',
         idleExpiresAt: new Date(),
       }),
@@ -102,7 +102,7 @@ describe('GET /admin/users/:userId', () => {
     expect(res.body.credentials).toHaveLength(1);
     expect(JSON.stringify(res.body)).not.toContain('emailVerificationToken');
     expect(JSON.stringify(res.body)).not.toContain('phoneVerificationToken');
-    expect(JSON.stringify(res.body)).not.toContain('refreshTokenHash');
+    expect(JSON.stringify(res.body)).not.toContain('refreshTokenLookup');
     expect(JSON.stringify(res.body)).not.toContain('refreshTokenLookup');
     expect(JSON.stringify(res.body)).not.toContain('publicKey');
   });
