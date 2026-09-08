@@ -159,9 +159,13 @@ describe('hasMetadataStatement', () => {
 // authenticator_policy is editable at runtime, and this used to be read once at startup,
 // so a policy turned on afterwards left the metadata half of it inert until a restart.
 describe('ensureMetadataServiceReady', () => {
-  it('brings the service up for a policy enabled after startup', async () => {
+  // No time is skipped here on purpose. A boot that initialised nothing must not have
+  // spent the retry budget, or the policy stays half applied until the interval elapses.
+  it('brings the service up for a policy enabled seconds after startup', async () => {
+    const start = Date.now();
+
     (getSystemConfig as any).mockResolvedValue(policy({ attestation: 'none' }));
-    expect(await initializeMetadataService()).toBe(false);
+    expect(await initializeMetadataService(start)).toBe(false);
     expect(isMetadataServiceReady()).toBe(false);
 
     (getSystemConfig as any).mockResolvedValue(
@@ -169,11 +173,23 @@ describe('ensureMetadataServiceReady', () => {
     );
     metadataInitialize.mockResolvedValue(undefined);
 
-    expect(await ensureMetadataServiceReady(Date.now() + 10 * 60 * 1000)).toBe(true);
+    expect(await ensureMetadataServiceReady(start + 1000)).toBe(true);
     expect(isMetadataServiceReady()).toBe(true);
     expect(metadataInitialize).toHaveBeenCalledWith(
       expect.objectContaining({ verificationMode: 'strict' }),
     );
+  });
+
+  it('does not spend the retry budget on a config read that never got as far as trying', async () => {
+    const start = Date.now();
+
+    (getSystemConfig as any).mockRejectedValue(new Error('no database'));
+    expect(await initializeMetadataService(start)).toBe(false);
+
+    (getSystemConfig as any).mockResolvedValue(policy({ attestation: 'direct' }));
+    metadataInitialize.mockResolvedValue(undefined);
+
+    expect(await ensureMetadataServiceReady(start + 1000)).toBe(true);
   });
 
   it('is a no-op once the service is up', async () => {
