@@ -99,6 +99,38 @@ export async function hardRevokeSession(session: Session, reason = 'manual_revok
   await session.save();
 }
 
+/**
+ * Points a session at its replacement, but only while nothing else has claimed it.
+ *
+ * Rotation reads the session, checks it has not been rotated, creates the replacement and
+ * writes this link, in four statements with nothing holding the answer still between
+ * them. Two refreshes carrying the same token therefore both pass the check and both
+ * write the link, and the second write wins: two working refresh tokens exist, and one
+ * replacement is reachable from nothing, so the chain revocation that reuse detection
+ * triggers walks straight past it. That is the case reuse detection exists for.
+ *
+ * The condition in the `where` is what decides a single winner, in one statement the
+ * database serialises. No affected rows means another rotation got there first, which is
+ * the same thing the reuse check answers `401` to.
+ */
+export async function claimSessionRotation(
+  session: Session,
+  replacementSessionId: string,
+): Promise<boolean> {
+  const [claimed] = await Session.update(
+    { replacedBySessionId: replacementSessionId },
+    { where: { id: session.id, replacedBySessionId: null, revokedAt: null } },
+  );
+
+  if (claimed === 0) {
+    return false;
+  }
+
+  session.replacedBySessionId = replacementSessionId;
+
+  return true;
+}
+
 export async function validateAccessToken(token: string): Promise<ValidatedAccessToken | null> {
   const payload = await verifyJwtWithKid(token, 'access');
   if (!payload) return null;

@@ -369,6 +369,40 @@ The refusal is recorded as one `request_suspicious` auth event with the real cli
 agent, and the rejected origin in an `origin` metadata field. It used to be recorded with the origin
 string in the `ipAddress` field, which made the trail hard to read.
 
+## Refresh rotation
+
+**Posture: one rotation of a refresh token completes, decided by the database.**
+
+Refresh tokens are single use. Rotation reads the session, checks it has not already been
+rotated, creates the replacement and links the two, which are four statements. Nothing held
+that answer still between them, so two refreshes carrying the same token both passed the
+check and both wrote the link. The second write won, both callers ended up with working
+refresh tokens, and the replacement belonging to the first was live while reachable from
+nothing.
+
+That is the case reuse detection exists for, and it defeated it.
+[`revokeSessionChain`](../src/services/sessionService.ts) starts at the presented session
+and follows `replacedBySessionId` forward, so it reached the winner and stopped. Someone
+who copied a refresh token and raced the legitimate client kept a session the revocation
+triggered by that very theft could not reach, while the trail recorded
+`refresh_token_suspicious` and reported that it had fired.
+
+`claimSessionRotation` writes the link conditional on it still being unset, in one
+statement the database serialises. No affected rows means another rotation got there
+first, which is the same thing an already rotated token means, and it is answered the same
+way: the replacement this request made is revoked with `rotation_race_lost`, the session is
+reloaded so the chain walk follows the link the winner wrote, the chain is revoked from
+there, and the caller gets `401 refresh_token_reused`.
+
+Two legitimate refreshes racing each other therefore end the session chain, the same as
+presenting a rotated token twice in sequence does. A client that fires concurrent refreshes
+of one token signs its user out, which is the direction this has to fail: the alternative
+is that whoever wins the race keeps a session, and the winner is not always the client that
+should have it.
+
+The absolute lifetime that a rotation resets is separate, and is
+[issue #185](https://github.com/fells-code/seamless-auth-api/issues/185).
+
 ## Concurrent sessions per user
 
 **Posture: uncapped by default, and a cap evicts rather than refuses.**

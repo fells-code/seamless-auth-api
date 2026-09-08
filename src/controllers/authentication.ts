@@ -29,6 +29,7 @@ import {
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
 import {
+  claimSessionRotation,
   findRefreshSessionByToken,
   hardRevokeSession,
   revokeSessionChain,
@@ -528,8 +529,42 @@ export const refreshSession = async (req: Request, res: Response) => {
     idleExpiresAt,
   });
 
-  session.replacedBySessionId = newSession.id;
-  await session.save();
+  // The read, the reuse check and this link are separate statements, so two refreshes
+  // carrying the same token both reach here. Claiming the link conditionally is what
+  // decides which of them rotated: unconditionally, both completed, the second write won,
+  // and the other replacement stayed live while reachable from nothing, so the chain
+  // revocation that reuse detection triggers walked past it and left it working.
+  const rotated = await claimSessionRotation(session, newSession.id);
+
+  if (!rotated) {
+    logger.warn(
+      `Concurrent refresh detected for session ${session.id}. Another rotation claimed it first.`,
+    );
+
+    // The replacement this request made is reachable from nothing, so it is revoked
+    // rather than left behind. Its refresh token was never returned to anyone.
+    await hardRevokeSession(newSession, 'rotation_race_lost');
+
+    // Reloaded so the chain walk follows the link the winner wrote rather than the null
+    // this instance still holds, which would stop at the old session and leave the
+    // winner's session live.
+    await session.reload();
+    await revokeSessionChain(session);
+
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'refresh_token_suspicious',
+      req,
+      metadata: {
+        reason: 'Refresh token rotated twice concurrently',
+        sessionId: session.id,
+        replacedBySessionId: session.replacedBySessionId,
+        abandonedSessionId: newSession.id,
+      },
+    });
+
+    return res.status(401).json({ error: 'refresh_token_reused' });
+  }
 
   const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId);
 
