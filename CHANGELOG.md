@@ -1,5 +1,322 @@
 # seamless-auth-api
 
+## 0.11.0
+
+### Minor Changes
+
+- e686a37: Validate and document the window on `GET /admin/users`.
+
+  The route has always read `limit`, `offset` and `search`, but it declared no
+  query schema, so it was the one admin collection whose parameters were absent
+  from `openapi.json`. A generated client could not know they existed, and a
+  reader checking the document would conclude the endpoint took none. That is the
+  same wrong inference that led to organization paging being reported missing.
+
+  The parameters are now declared, so they appear in the generated contract
+  alongside the ones on `/admin/sessions`, `/admin/auth-events` and
+  `/admin/organizations`, and they are validated the same way: `limit` between 1
+  and 100 defaulting to 50, `offset` from 0, and `search` trimmed.
+
+  Two inputs that used to be accepted are now rejected with a `400`. A `limit`
+  above 100 was previously honoured in full, so a single call could ask for every
+  user in the deployment. A non-numeric `limit` reached Sequelize as `NaN` and
+  failed in the database rather than at the edge. An all-whitespace `search` built
+  a `%%` pattern that matched every row, so a filter that looked empty returned
+  the unfiltered list.
+
+  `seamless-cli` accepts `users list --limit 0` deliberately, meaning ask for
+  nothing, and that value is now a `400`. The flag needs a floor of 1, or to skip
+  the request when asked for zero rows.
+
+- dd48a91: Add organization deletion and a paginated, searchable admin organization list.
+
+  The admin organization routes were less capable than the collections beside them, and the
+  gap blocked the admin dashboard. `GET /admin/organizations` accepted no query parameters
+  and returned every row, so a caller could not request a window or ask the server to
+  filter, and there was no way to delete an organization at all: the only `DELETE` in the
+  group removed a member.
+
+  **`DELETE /admin/organizations/{organizationId}`.** Deletes the organization and every
+  membership in it, in one transaction. Members themselves are untouched, and sessions
+  scoped to the organization stay active with no organization, though an access token
+  already issued carries the old organization id until it expires. Refusing to delete while
+  members remain was considered and rejected: every organization is created with an owner
+  membership, and member removal refuses to drop the last owner, so no organization created
+  through the API could ever reach zero members and such a route could never succeed.
+
+  **`limit`, `offset` and `search` on `GET /admin/organizations`.** The window matches the
+  shape `/admin/sessions` already uses, defaulting to 50 rows from offset 0 and capped at 100. `search` matches case-insensitively against name and slug, following
+  `GET /admin/users`. The response shape is unchanged, and `total` now counts every
+  organization matching the search rather than the length of the returned page, so a caller
+  can tell there is another page to ask for.
+
+  Both are additive. Callers that send no query parameters keep working, though a
+  deployment with more than 50 organizations will now receive the first 50 rather than all
+  of them, which is what `total` is for.
+
+- 42b4c22: Passkey enrollment now requires an access session. This is a breaking change to the
+  WebAuthn contract.
+
+  **Why.** `/login` and `/registration/register` both mint an ephemeral token for an
+  account that already exists, from an email address alone, and `/webauthn/register/start`
+  and `/webauthn/register/finish` accepted that token. Anyone who knew an address could
+  enroll a credential against the account and sign in as its owner, including an account
+  holding `OWNER_EMAIL` admin roles, without ever seeing the OTP that went to the real
+  owner. Both routes now take `auth: 'access'`.
+
+  Nothing legitimate loses a path. Registration proves an address with an email OTP, and
+  verifying that OTP issues a session, so every shipped signup flow already holds one by
+  the time it offers a passkey. `/webauthn/login/start` and `/webauthn/login/finish` are
+  unchanged and still take a pre-auth token, because authenticating is what they are for.
+
+  **Enrollment no longer issues a session.** `/webauthn/register/finish` answered with a
+  new access and refresh token pair. Under an access session that would leave the caller's
+  existing session live and unrevoked, and count against `max_concurrent_sessions`, which
+  can evict the user's other devices. It now answers `200` with the credential it enrolled,
+  in the shape `/users/credentials` already uses, and leaves `verified` and `lastLogin`
+  alone since the session that authorised the request proved both.
+
+  **Upgrading, and it is lockstep.** A caller that enrolled a passkey with an ephemeral
+  token has to verify a factor first and enroll with the resulting session. Callers reaching
+  these routes through `@seamless-auth/express`, `@seamless-auth/fastify` or
+  `@seamless-auth/react` need the matching adapter release, which forwards the access
+  identity for these two routes.
+
+  There is no safe release order between the two. An older adapter sends the token this
+  release refuses, and a newer adapter sends one an older API refuses, so enrollment answers
+  `401` until both sides land. Upgrade the API and the adapter together.
+
+  The registration decoy responders are removed with the ephemeral gate. A decoy subject
+  can no longer reach enrollment, so there is nothing left for them to answer for.
+
+- a43a583: Fix a third set of defects found in a review of `src`.
+
+  **`extraFields` cannot overwrite the session it is added to.** The optional bag added in
+  0.9.0 was spread after every session field, so a flow passing `token`, `refreshToken` or
+  `sub` would have replaced the real value in the response. Only the OAuth callback passes it,
+  and only `returnTo`, so nothing was wrong at runtime; the shape invited it. It is spread
+  first now, and the session fields always win.
+
+  **Login success rates count sign-ins.** `login_success` is what the pre-auth step emits once
+  it has resolved which methods an identifier may use, before any factor is presented, so a
+  rate built from it reported the share of identifiers that resolved to a usable account as
+  though it were the share of people who got in. `/internal/auth-events/login-stats` and the
+  dashboard's `successRate24h` now count the events that mean somebody finished signing in, and
+  the two sets are typed as `AuthEventType`, so a member renamed upstream is a compile error
+  rather than a silently empty bucket.
+
+  **The event timeseries classifies every outcome.** Its `success` and `failed` counters
+  matched the two login literals, leaving every passkey, OAuth, magic link and OTP outcome out
+  of a pair sitting beside a `total` that included them. They go through `authEventOutcome`,
+  which the grouped summary in the same file already used.
+
+  **OAuth provider edits are serialised.** Each one read the whole provider array through the
+  process-cached config, edited it in memory and wrote all of it back, so two administrators
+  adding a provider at once silently dropped one, and an instance holding a five minute old
+  cache could overwrite an addition made through another. The row is now read inside the
+  transaction with `FOR UPDATE`, and the duplicate and not-found checks run on that locked
+  value rather than on a cached copy.
+
+  **An organization and its owner membership are created together.** They were two untransacted
+  writes, and a failure between them left an organization nobody is a member of: access is
+  granted through membership and nothing deletes an organization, so the row was unreachable
+  and unremovable.
+
+  **A policy that turns attestation on after startup takes effect.** The FIDO metadata service
+  initialised once at boot, so enabling it later gave half a policy: credentials that could not
+  be traced to a manufacturer were still refused, but the lookup that refuses a model the blob
+  does not list never ran. Registration now brings the service up for the policy in force,
+  throttled so an unreachable blob does not turn every registration into an outbound request.
+
+  **The related-device lookup is bounded.** `/admin/users/:userId/anomalies` read every
+  `auth_events` row a user had ever produced to derive their distinct addresses and agents, then
+  turned those into an `IN` list of the same unbounded size, which a long-lived account can push
+  past the bind-parameter ceiling. It reads recent activity and caps the identifiers.
+
+  **Membership values are deduplicated before the cap.** Slicing to fifty first let repeats
+  consume the whole allowance and silently discard a distinct scope behind them.
+
+### Patch Changes
+
+- eda0725: A double submitted registration answers `200` and continues the flow instead of `500`.
+
+  `register` checks for an existing user and then creates one, in two statements. Double
+  clicking Register is enough for both requests to pass the check and reach `User.create`.
+  The loser violated the unique index on `users.email` and fell into the catch-all, so the
+  person who had just created an account was told the registration failed, a
+  `registration_failed` event was recorded against a null user for a registration that had
+  succeeded, and a client that retries on `500` sent the whole flow again. The per-identity
+  rate limiter does not help, since five attempts per fifteen minutes does not serialise two
+  that arrive in the same instant.
+
+  The unique violation now re-reads the account and continues down the existing-account
+  path, which is what the state actually is by then: an ephemeral token and an email OTP for
+  the account that exists. Nothing changes for a caller that was not racing, and a violation
+  that is not this address, which the unique index on `phone` is the only other candidate
+  for, still answers `500`.
+
+- e57a42d: `POST /admin/users` answers `409` rather than `500` when the address is already taken and
+  the duplicate arrives as a race.
+
+  The handler looks for an existing email and then creates, which are two statements. Two
+  administrators creating the same address at once both pass the lookup, and so does a client
+  retrying a request that had already succeeded after a timeout. The loser violated the unique
+  index on `users.email` and was told the create failed, when in fact the account exists,
+  which invites another attempt that fails the same way.
+
+  The unique violation now answers the `409 { "error": "User already exists" }` the sequential
+  duplicate already gets. The index also covers `phone`, which the lookup never checked, so a
+  duplicate phone number answers `409` now instead of `500`. Any other failure still answers
+  `500`.
+
+- 4a69d91: Adding an organization member twice at once answers `409` rather than `500`.
+
+  `addMember` checks for an existing membership and then creates one, in two statements with
+  no transaction between them. Two administrators acting on a newly invited person, or one
+  client retrying after a timeout, both pass the check and both insert. The unique index on
+  `organization_memberships (organization_id, user_id)` refuses the second, and with no
+  handler for it the error reached the generic handler as `500 { "error": "Internal server
+error" }`.
+
+  That duplicate now answers the `409 { "error": "User is already an organization member" }`
+  the sequential case has always answered. Any other failure still reaches the generic
+  handler unchanged.
+
+- 3bbf10b: Turning on attestation at runtime now takes effect immediately rather than up to five
+  minutes later.
+
+  `initializeMetadataService` stamped its retry throttle on entry, before the early return
+  for a deployment that does not ask for attestation. A instance booting under
+  `attestation: 'none'` therefore recorded an attempt it never made, and
+  `ensureMetadataServiceReady` declined to retry until the interval elapsed. An
+  administrator who patched `authenticator_policy` to `direct` shortly after boot got the
+  permissive half of the policy in the meantime: a credential that could not be traced to a
+  manufacturer was still refused, but the metadata lookup that refuses a model the blob does
+  not list never ran, and `attestationVerified` was recorded false on credentials that would
+  have verified.
+
+  The stamp now sits with the `MetadataService.initialize` call it is meant to throttle. A
+  path that decided there was nothing to do no longer spends the budget, and neither does a
+  config read that failed before reaching the network.
+
+- 7c7e9d8: OAuth provider edits log once, from the code that commits them.
+
+  The three handlers each logged their own line after `editProviders` returned, while the
+  comment explaining why interpolating a caller-supplied provider id into a log line is safe
+  sat above an unrelated type declaration. That comment is the recorded reasoning behind
+  three dismissed CodeQL `js/log-injection` alerts, so it has to be findable by whoever
+  changes the code it describes.
+
+  The line now lives in `editProviders`, next to the audit event, with the reasoning on it.
+  Its wording changes from `Created OAuth provider <id>` to `OAuth provider <id> created`,
+  since the verb is taken from the same audit record the event uses. Nothing else changes:
+  same level, same trigger, no response or contract effect.
+
+- 7358dab: Creating two organizations with the same name at once now suffixes the slug instead of
+  answering `500`.
+
+  `buildUniqueSlug` ran before the transaction that creates the organization, so the check
+  it exists to perform was not serialised against a concurrent create. Two requests for
+  "Acme" both found `acme` free and both returned it; one insert committed and the other
+  violated the unique index on `organizations.slug`, which nothing handled, so the caller
+  saw `500 { "error": "Internal server error" }` where `acme-2` was the intended answer.
+
+  Resolving the slug inside the transaction would not have fixed it, because a slug that
+  does not exist yet has no row to lock, so the index is the only thing that actually
+  serialises this. The retry is therefore driven by the violation: a slug collision rolls
+  back, reads the now committed list and takes the next suffix, up to five times before the
+  error surfaces. Any other failure is unchanged.
+
+- 0bf4796: Fix four defects found in a review of `src`, all of them in how the service is
+  configured and started rather than in how it authenticates.
+
+  **The container healthcheck asks the port the server was told to use.** It probed a
+  hardcoded 5312 while `server.ts` binds `process.env.PORT`, and `.env.example` invites an
+  operator to set that variable. Setting it to anything else left the probe hitting a closed
+  port, so Docker marked the container unhealthy and an orchestrator restarted it, in a loop,
+  while the API served correctly.
+
+  **`magic_link_redirect_uris` can be set from the environment.** It was the one system config
+  key with no entry in `SYSTEM_CONFIG_ENV_MAP`, so the only control over where a magic link may
+  send someone could not be set at deploy time and had to be applied through the admin API
+  after every fresh install. It now has a variable, a parser and a default, and a test asserts
+  the map covers every key the schema defines, so the next key added upstream is caught here
+  rather than by an operator who cannot configure it.
+
+  **`/health/version` stops reading `package.json` on every request.** The value cannot change
+  while the process runs, and that endpoint takes no authentication, so each caller was paying
+  for a synchronous file read and a parse on the event loop. It is read once, and resolved
+  relative to the module rather than `process.cwd()`, which is not the repository root for a
+  process started elsewhere.
+
+  **The model loader filters on real extensions.** Its test asked whether each file ended with
+  its own extension, which is always true, so it excluded `index` and nothing else: every other
+  file in the directory was imported and required to default export a model initialiser.
+  Nothing broke only because the build emits no declarations or source maps. Turning either on,
+  or adding a shared types file next to the models, would have failed startup with an error
+  naming the file but not the reason.
+
+- 27ae33e: A bearer refused at the auth gate now leaves an audit record when the token was one this
+  server issued.
+
+  `verifyBearerAuth` refuses a request before any handler runs, and that refusal reached
+  the application log and nothing else, so a caller presenting the wrong kind of token at a
+  protected route left no durable trace. Moving passkey enrollment behind an access session
+  made that specific: an ephemeral token offered at `/webauthn/register/start` is the
+  account takeover probe the gate exists to stop, and refusing it was invisible.
+
+  The new `bearer_token_failed` event is written when the presented token verifies against
+  this issuer's keys but its `typ` is not the one the route requires. It carries the
+  expected and presented types, the matched route pattern and the token's subject, with
+  `userId` left null because a refused token has established no principal.
+
+  Deliberately narrower than any 401. A missing, malformed, expired or unsigned credential
+  costs a caller nothing to produce, and recording those would let one scanner, or one
+  signing key rotation, bury the rows that name a real attempt. Widening it waits on audit
+  retention (#173).
+
+  Nothing changes on the wire. The refusal answers the same 401 in the same place, and the
+  event is only visible to operators through the admin and internal event views, where
+  `bearer_token_failed` is a new value of the auth event type.
+
+- 1fd1eef: Refresh token reuse detection can no longer be defeated by racing it.
+
+  Rotation read the session, checked it had not already been rotated, created the replacement
+  and linked the two, in four statements with no transaction, row lock or conditional write.
+  Two refreshes carrying the same token both passed the check and both wrote the link, and
+  the second write won. Both callers ended up with working refresh tokens, and one
+  replacement was live while reachable from nothing, so the chain revocation that reuse
+  detection triggers walked straight past it. Someone who copied a refresh token and raced
+  the legitimate client kept a session that the revocation triggered by that theft could not
+  reach, until its own absolute expiry.
+
+  The link is now claimed conditional on it still being unset, in one statement the database
+  serialises. The rotation that loses revokes the replacement it made, reloads the session so
+  the chain walk follows the link the winner wrote, revokes the chain from there and answers
+  `401 refresh_token_reused`, which is what an already rotated token has always answered.
+
+  Two legitimate refreshes racing each other now end the session chain, the same as
+  presenting a rotated token twice in sequence. A client that fires concurrent refreshes of a
+  single token will sign its user out.
+
+- 386fc10: Every route now documents the `429` and `500` it can actually answer with.
+
+  `openapi.json` contained zero `429` responses while seventeen routes carry a per-flow
+  limiter and every route sits behind the global one, so a rate limited response was
+  reachable everywhere and documented nowhere. The same was true of the `500` from the
+  top-level error handler on the routes that did not declare one. `src/generated/api.ts` is
+  emitted from the spec and committed, so a consumer reading it, or generating their own
+  client, got a response union that could not see either case.
+
+  `defineRoute` now adds both to every route it registers, the way it already adds the `400`
+  validation response, and a route that declares one of them itself keeps its own. Both are
+  the canonical `{ error }` body, which is what the limiters and the error handler actually
+  send.
+
+  Documentation only. Nothing about how a request is handled or answered changes: these
+  responses feed the OpenAPI registry, not the runtime response validation, which still
+  reads only what a route declares.
+
 ## 0.10.0
 
 ### Minor Changes
