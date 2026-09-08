@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
@@ -85,12 +86,50 @@ export const register = async (req: Request, res: Response) => {
     // A phone already held by another account is dropped rather than attached, so a
     // conflicting one cannot change the answer or breach the unique constraint.
     const attachablePhone = existingPhoneUser ? null : normalizedPhone;
-    let user = existingEmailUser;
+
+    let user: User;
+    let created = false;
+
+    if (existingEmailUser) {
+      user = existingEmailUser;
+    } else {
+      logger.info(`Creating new user`);
+
+      try {
+        user = await User.create({
+          email: normalizedEmail,
+          phone: attachablePhone,
+          roles: withOwnerAdminRole(
+            systemConfig.default_roles,
+            normalizedEmail,
+            systemConfig.available_roles,
+          ),
+        });
+        created = true;
+      } catch (error: unknown) {
+        // The lookup above and this insert are two statements, and double clicking
+        // Register is enough for both requests to pass the lookup. The account the index
+        // refuses this one for is the one the other request just created, so this request
+        // continues as though the lookup had found it, which a moment later it would
+        // have. Answering 500 told the person who created the account that it had failed,
+        // and recorded registration_failed for a registration that succeeded.
+        if (!(error instanceof UniqueConstraintError)) throw error;
+
+        const raced = await User.findOne({ where: { email: normalizedEmail } });
+
+        // Something other than this address, so there is no account to continue as. The
+        // unique index on phone is the only other one an insert here can breach.
+        if (!raced) throw error;
+
+        logger.info('Registration raced another request for the same address');
+        user = raced;
+      }
+    }
 
     let token;
     let emailOtp: string | null = null;
 
-    if (user) {
+    if (!created) {
       logger.info(`Registration attempt for a user that already exisited`);
       logger.info(`Sending email OTP`);
       await AuthEventService.log({
@@ -106,18 +145,6 @@ export const register = async (req: Request, res: Response) => {
         sendMessage: !useExternalDelivery,
       });
     } else {
-      logger.info(`Creating new user`);
-
-      user = await User.create({
-        email: normalizedEmail,
-        phone: attachablePhone,
-        roles: withOwnerAdminRole(
-          systemConfig.default_roles,
-          normalizedEmail,
-          systemConfig.available_roles,
-        ),
-      });
-
       await AuthEventService.log({
         userId: user.id,
         type: 'user_created',
