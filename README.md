@@ -118,9 +118,13 @@ plane.
 Seamless Auth API returns JSON tokens instead of browser auth cookies.
 
 - Pre-auth flows return an ephemeral `token`; send it as `Authorization: Bearer <token>` to routes
-  marked as ephemeral-authenticated, such as OTP, magic-link, and WebAuthn continuation routes.
-- Completed login, registration, OAuth, TOTP, passkey, and refresh flows return an access `token`;
-  send it as `Authorization: Bearer <token>` to access-authenticated routes.
+  marked as ephemeral-authenticated, such as OTP, magic-link, and WebAuthn login routes. It is
+  issued from an identifier alone, so it continues a flow and never authorises a change to how
+  the account signs in. Passkey enrollment takes an access token for that reason.
+- Completed login, registration, OAuth, TOTP, passkey login, and refresh flows return an access
+  `token`; send it as `Authorization: Bearer <token>` to access-authenticated routes. Passkey
+  enrollment is not among them: it already requires a session, and answers with the credential
+  it enrolled rather than a new one.
 - Refresh uses the opaque `refreshToken` value, not the access token.
 - Internal service tokens remain separate. They are used only by explicitly service-token-protected
   paths or headers such as external delivery support, not as user access or ephemeral bearer tokens.

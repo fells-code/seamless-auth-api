@@ -84,9 +84,17 @@ When tracing behavior, start at the route file, then the controller, then the se
 
 There are three token states worth keeping straight:
 
-- Ephemeral token: short-lived pre-auth token used to continue registration/login flows.
+- Ephemeral token: short-lived pre-auth token used to continue a registration or login
+  flow up to the point a factor is proven. It is issued from an identifier alone, so it
+  proves possession of an address, not of the account.
 - Access token: signed JWT used for authenticated application access.
 - Refresh token: opaque random token stored hashed in the `sessions` table.
+
+That first distinction is load bearing. `/login` and `/registration/register` both mint an
+ephemeral token for an account that already exists, from an email address alone, so an
+ephemeral token authorises continuing a flow and nothing else. Anything that changes what
+an account can sign in with takes an access session instead. Passkey enrollment is on
+`auth: 'access'` for that reason, alongside TOTP enrollment and credential deletion.
 
 The API exposes a single bearer/JSON auth contract:
 

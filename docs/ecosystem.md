@@ -6,7 +6,7 @@ what depends on this API, how, and what changes here ripple outward. `CLAUDE.md`
 the short version + the ripple protocol; this file is the detail to read before/while
 making a contract-affecting change.
 
-> Last surveyed: 2026-06-27. Versions and line numbers drift — treat specifics as leads to
+> Last surveyed: 2026-09-08. Versions and line numbers drift — treat specifics as leads to
 > re-verify, not gospel. Re-run the survey when the dependency graph changes.
 
 ## Topology
@@ -30,7 +30,7 @@ path goes through the adapter.
 
 ## Tier 1 — direct contract dependents
 
-### `seamless-auth-server` — `@seamless-auth/core` + `@seamless-auth/express` (v0.5.x)
+### `seamless-auth-server` — `@seamless-auth/core` + `@seamless-auth/express` (v0.13.0), `@seamless-auth/fastify` (v0.4.0)
 
 The server-side adapter SDK; a thin stateless proxy + cookie manager. **Highest coupling.**
 
@@ -44,12 +44,15 @@ The server-side adapter SDK; a thin stateless proxy + cookie manager. **Highest 
   `sub, token, refreshToken, ttl, refreshTtl, roles?, email?, phone?, organizationId?`.
 - **Status-code coupling:** branches on exact codes, e.g. magic-link poll treats `204` as
   "not yet verified".
+- The Fastify adapter carries the same route table and identity choices, in
+  `packages/fastify/src/routes/proxyRoutes.ts`. A route change has to land in both or the
+  two adapters diverge; `packages/fastify/tests/parity.test.js` is what catches that.
 - No shared types package — coupling is 100% string-literal route paths + response shapes.
 - **Breaks if this API changes:** any route path/method, JWKS path or key format/alg, token
   claim/field names (`sub`/`sid`/...), the `/refresh` response shape, or branch-significant
   status codes.
 
-### `seamless-auth-react` — `@seamless-auth/react` (v0.2.0)
+### `seamless-auth-react` — `@seamless-auth/react` (v0.11.0)
 
 Drop-in React auth UI (email/phone OTP, magic link, WebAuthn/passkeys, OAuth, step-up,
 organizations). Hardcodes ~38 endpoint paths in `src/createSeamlessAuthClient.ts`.
@@ -62,7 +65,7 @@ organizations). Hardcodes ~38 endpoint paths in `src/createSeamlessAuthClient.ts
   switching an endpoint's auth mode (ephemeral ↔ access), or response-shape changes to
   `/users/me`, OTP, or organization endpoints.
 
-### `seamless-auth-types` — `@seamless-auth/types` (v0.1.3) ⇠ this API depends on it
+### `seamless-auth-types` — `@seamless-auth/types` (consumed at ^0.20.0) ⇠ this API depends on it
 
 Shared Zod schemas / TS types — the contract's source of truth. **Reverse coupling:** changes
 here propagate _into_ this API and the SDKs.
@@ -115,3 +118,19 @@ Provider-agnostic email/SMS adapter contract. **Reverse coupling.**
 5. **Shared schemas** in `@seamless-auth/types` and the **messaging adapter contract**.
 6. **Auth mode** of a route (ephemeral vs access vs service) — see
    `src/middleware/attachAuthMiddleware.ts`.
+
+### Auth-mode changes upgrade in lockstep
+
+An auth-mode change has no safe release order, because the adapter decides which cookie to
+read from its own table and the API decides which token type to accept. Ship the API first
+and an older adapter still sends the old token; ship the adapter first and it sends a token
+the older API refuses. Either way the route answers `401` until both sides land.
+
+So an auth-mode change is a single coordinated release, called out in every changeset
+involved, and adopters upgrade the API and the adapter together. Ordering only becomes a
+free choice if the API accepts both identities for a deprecation window first, which is a
+deliberate extra step, not the default.
+
+Worked example: moving `/webauthn/register/*` from `ephemeral` to `access` (2026-09-08)
+touched this API, `@seamless-auth/core`, `@seamless-auth/express`, `@seamless-auth/fastify`
+and `@seamless-auth/react` in one coordinated minor across all three repos.

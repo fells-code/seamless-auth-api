@@ -24,10 +24,15 @@ can evict the user's other devices. It now answers `200` with the credential it 
 in the shape `/users/credentials` already uses, and leaves `verified` and `lastLogin`
 alone since the session that authorised the request proved both.
 
-**Upgrading.** A caller that enrolled a passkey with an ephemeral token has to verify a
-factor first and enroll with the resulting session. Callers reaching these routes through
-`@seamless-auth/express`, `@seamless-auth/fastify` or `@seamless-auth/react` need the
-matching adapter release, which forwards the access identity for these two routes.
+**Upgrading, and it is lockstep.** A caller that enrolled a passkey with an ephemeral
+token has to verify a factor first and enroll with the resulting session. Callers reaching
+these routes through `@seamless-auth/express`, `@seamless-auth/fastify` or
+`@seamless-auth/react` need the matching adapter release, which forwards the access
+identity for these two routes.
+
+There is no safe release order between the two. An older adapter sends the token this
+release refuses, and a newer adapter sends one an older API refuses, so enrollment answers
+`401` until both sides land. Upgrade the API and the adapter together.
 
 The registration decoy responders are removed with the ephemeral gate. A decoy subject
 can no longer reach enrollment, so there is nothing left for them to answer for.
