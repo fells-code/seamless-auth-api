@@ -22,6 +22,7 @@ import {
 import {
   addMember,
   createOrganization,
+  deleteOrganization,
   getOrganization,
   listAdminOrganizations,
   listMembers,
@@ -54,6 +55,7 @@ import {
 } from '../schemas/internal.responses.js';
 import {
   AddOrganizationMemberRequestSchema,
+  AdminOrganizationListQuerySchema,
   CreateOrganizationRequestSchema,
   OrganizationIdParamSchema,
   OrganizationMemberParamSchema,
@@ -76,9 +78,12 @@ adminRouter.get(
   {
     auth: 'access',
     summary: 'List organizations',
+    description:
+      'Returns a window of organizations ordered by creation date, oldest first. `total` counts every organization matching `search`, not the returned page.',
     tags: ['Admin'],
     middleware: [requireAdmin('read')],
     schemas: {
+      query: AdminOrganizationListQuerySchema,
       response: {
         200: AdminOrganizationListResponseSchema,
       },
@@ -139,6 +144,26 @@ adminRouter.patch(
     },
   },
   updateOrganization,
+);
+
+adminRouter.delete(
+  '/organizations/:organizationId',
+  {
+    auth: 'access',
+    summary: 'Delete organization',
+    description:
+      'Deletes the organization and every membership in it. Members are not deleted, and sessions scoped to the organization stay active with no organization, though an access token already issued carries the old organization id until it expires.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('write')],
+    schemas: {
+      params: OrganizationIdParamSchema,
+      response: {
+        200: MessageSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  deleteOrganization,
 );
 
 adminRouter.get(

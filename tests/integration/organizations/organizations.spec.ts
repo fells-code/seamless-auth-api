@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
@@ -526,6 +527,7 @@ describe('removeMember', () => {
 describe('admin organizations', () => {
   it('lists all organizations for admins', async () => {
     (Organization.findAll as any).mockResolvedValue([buildOrganization()]);
+    (Organization.count as any).mockResolvedValue(1);
     (OrganizationMembership.count as any).mockResolvedValue(2);
 
     const res = await request(app).get('/admin/organizations');
@@ -533,5 +535,93 @@ describe('admin organizations', () => {
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(1);
     expect(res.body.organizations[0].memberCount).toBe(2);
+    expect(Organization.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {}, limit: 50, offset: 0 }),
+    );
+  });
+
+  // The count is of everything matching, not of the page, so the caller can tell there
+  // is a second page to ask for.
+  it('windows the list and counts past the page', async () => {
+    (Organization.findAll as any).mockResolvedValue([buildOrganization()]);
+    (Organization.count as any).mockResolvedValue(140);
+    (OrganizationMembership.count as any).mockResolvedValue(0);
+
+    const res = await request(app).get('/admin/organizations?limit=1&offset=20');
+
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(140);
+    expect(res.body.organizations).toHaveLength(1);
+    expect(Organization.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 1, offset: 20 }),
+    );
+  });
+
+  it('filters on name and slug when a search term is given', async () => {
+    (Organization.findAll as any).mockResolvedValue([buildOrganization()]);
+    (Organization.count as any).mockResolvedValue(1);
+    (OrganizationMembership.count as any).mockResolvedValue(0);
+
+    // Padded on purpose: the term is trimmed before it reaches the query, so a copied
+    // and pasted name does not search for a string nothing is stored with.
+    const res = await request(app).get('/admin/organizations?search=%20%20acme%20%20');
+
+    expect(res.status).toBe(200);
+
+    const where = (Organization.findAll as any).mock.calls[0][0].where;
+    expect(where[Op.or]).toEqual([
+      { name: { [Op.iLike]: '%acme%' } },
+      { slug: { [Op.iLike]: '%acme%' } },
+    ]);
+    // Both queries see the same filter, or the count would describe a different set
+    // than the page.
+    expect((Organization.count as any).mock.calls[0][0].where).toEqual(where);
+  });
+
+  it('rejects a window outside the allowed range', async () => {
+    const res = await request(app).get('/admin/organizations?limit=500');
+
+    expect(res.status).toBe(400);
+    expect(Organization.findAll).not.toHaveBeenCalled();
+  });
+
+  // An all-whitespace term trims to nothing. Accepting it would build `%%`, which matches
+  // every row, so a search that looks empty would silently return the unfiltered list.
+  it('rejects a search term that is only whitespace', async () => {
+    const res = await request(app).get('/admin/organizations?search=%20%20');
+
+    expect(res.status).toBe(400);
+    expect(Organization.findAll).not.toHaveBeenCalled();
+  });
+
+  it('deletes an organization and the memberships in it', async () => {
+    const organization = buildOrganization();
+    (Organization.findByPk as any).mockResolvedValue(organization);
+    (OrganizationMembership.findOne as any).mockResolvedValue(buildOrganizationMembership());
+
+    const res = await request(app).delete(`/admin/organizations/${testOrganizationId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Success');
+    // Both writes take the same transaction: an organization whose memberships outlived
+    // it would leave grants pointing at a row that is gone.
+    expect(OrganizationMembership.destroy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: testOrganizationId },
+        transaction: expect.anything(),
+      }),
+    );
+    expect(organization.destroy).toHaveBeenCalledWith(
+      expect.objectContaining({ transaction: expect.anything() }),
+    );
+  });
+
+  it('answers 404 when deleting an organization that does not exist', async () => {
+    (Organization.findByPk as any).mockResolvedValue(null);
+
+    const res = await request(app).delete(`/admin/organizations/${testOrganizationId}`);
+
+    expect(res.status).toBe(404);
+    expect(OrganizationMembership.destroy).not.toHaveBeenCalled();
   });
 });
