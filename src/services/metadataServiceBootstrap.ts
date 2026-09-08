@@ -113,8 +113,6 @@ export async function hasMetadataStatement(aaguid: string | null | undefined): P
  * `isMetadataServiceReady` reports which state the process is in.
  */
 export async function initializeMetadataService(now = Date.now()): Promise<boolean> {
-  lastAttemptAt = now;
-
   let attestation: string;
   let requireKnown: boolean;
 
@@ -157,6 +155,15 @@ export async function initializeMetadataService(now = Date.now()): Promise<boole
     logger.info('Attestation is not requested, so the metadata service is not initialized.');
     return false;
   }
+
+  // Stamped here rather than on entry, so only a real attempt spends the retry budget.
+  // Boot under `attestation: 'none'` initialises nothing and used to stamp anyway, which
+  // made `ensureMetadataServiceReady` decline to retry for five minutes, so an operator
+  // who turned attestation on just after boot got the permissive half of the policy until
+  // the interval elapsed. A config read that fails does not stamp either: it is not the
+  // outbound request the throttle exists to bound, and while it keeps failing registration
+  // is failing with it.
+  lastAttemptAt = now;
 
   try {
     await MetadataService.initialize({
