@@ -78,7 +78,7 @@ describe('api response serializers', () => {
     const session = serializeSession(
       {
         id: 'session-1',
-        refreshTokenHash: 'hash',
+        refreshTokenLookup: 'lookup-fingerprint',
         refreshTokenLookup: 'lookup',
         idleExpiresAt: new Date('2026-01-01T00:10:00.000Z'),
         lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -95,7 +95,7 @@ describe('api response serializers', () => {
         current: true,
       }),
     );
-    expect(session).not.toHaveProperty('refreshTokenHash');
+    expect(session).not.toHaveProperty('refreshTokenLookup');
     expect(session).not.toHaveProperty('refreshTokenLookup');
     expect(session).not.toHaveProperty('idleExpiresAt');
   });

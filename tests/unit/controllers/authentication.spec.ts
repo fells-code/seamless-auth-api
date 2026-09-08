@@ -116,7 +116,6 @@ describe('refreshSession', () => {
     const user = buildUser({ id: 'user-1', roles: ['admin'] });
     const session = {
       id: 'session-1',
-      refreshTokenHash: 'stored-refresh-hash',
       replacedBySessionId: null,
       revokedAt: null,
       userId: user.id,
