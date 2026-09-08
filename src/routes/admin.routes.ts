@@ -33,7 +33,7 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
-import { UserIdParamSchema } from '../schemas/admin.query.js';
+import { AdminUserListQuerySchema, UserIdParamSchema } from '../schemas/admin.query.js';
 import {
   CreateUserSchema,
   DeviceReplacementRecoverySchema,
@@ -248,10 +248,13 @@ adminRouter.get(
   {
     auth: 'access',
     summary: 'List users (internal)',
+    description:
+      'Returns a window of users. `total` counts every user matching `search`, not the returned page.',
     tags: ['Admin'],
     middleware: [requireAdmin('read')],
 
     schemas: {
+      query: AdminUserListQuerySchema,
       response: {
         200: UsersListResponseSchema,
         500: InternalErrorSchema,

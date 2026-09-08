@@ -782,6 +782,70 @@ describe('GET /admin/users (additional branches)', () => {
     expect(res.status).toBe(200);
     expect(res.body.users).toEqual([]);
   });
+
+  it('applies the default window when none is sent', async () => {
+    (User.findAll as any).mockResolvedValue([buildUser()]);
+    (User.count as any).mockResolvedValue(1);
+
+    const res = await request(app).get('/admin/users');
+
+    expect(res.status).toBe(200);
+    expect(User.findAll).toHaveBeenCalledWith(expect.objectContaining({ limit: 50, offset: 0 }));
+  });
+
+  it('applies the window that was sent', async () => {
+    (User.findAll as any).mockResolvedValue([buildUser()]);
+    (User.count as any).mockResolvedValue(400);
+
+    const res = await request(app).get('/admin/users').query({ limit: 25, offset: 100 });
+
+    expect(res.status).toBe(200);
+    // The count is of everything matching, not of the page, so the caller can
+    // tell there is more to ask for.
+    expect(res.body.total).toBe(400);
+    expect(User.findAll).toHaveBeenCalledWith(expect.objectContaining({ limit: 25, offset: 100 }));
+  });
+
+  it('trims the search term before matching', async () => {
+    (User.findAll as any).mockResolvedValue([buildUser()]);
+    (User.count as any).mockResolvedValue(1);
+
+    const res = await request(app).get('/admin/users').query({ search: '  ada  ' });
+
+    expect(res.status).toBe(200);
+    const where = (User.findAll as any).mock.calls[0][0].where;
+    expect(where[Op.or]).toEqual([
+      { email: { [Op.iLike]: '%ada%' } },
+      { phone: { [Op.iLike]: '%ada%' } },
+    ]);
+  });
+
+  // Previously unvalidated: the window went to Sequelize as it arrived, so a
+  // limit of 100000 was honoured and a non-numeric one reached the database as
+  // NaN.
+  it('rejects a window outside the allowed range', async () => {
+    const res = await request(app).get('/admin/users').query({ limit: 500 });
+
+    expect(res.status).toBe(400);
+    expect(User.findAll).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-numeric window', async () => {
+    const res = await request(app).get('/admin/users').query({ limit: 'all' });
+
+    expect(res.status).toBe(400);
+    expect(User.findAll).not.toHaveBeenCalled();
+  });
+
+  // An all-whitespace term trims to nothing. Accepting it would build `%%`,
+  // which matches every row, so a search that looks empty would silently
+  // return the unfiltered list.
+  it('rejects a search term that is only whitespace', async () => {
+    const res = await request(app).get('/admin/users').query({ search: '   ' });
+
+    expect(res.status).toBe(400);
+    expect(User.findAll).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /admin/users (additional branches)', () => {

@@ -15,6 +15,7 @@ import { getSequelize } from '../models/index.js';
 import { Session } from '../models/sessions.js';
 import { TotpCredential } from '../models/totpCredentials.js';
 import { User } from '../models/users.js';
+import { AdminUserListQuerySchema } from '../schemas/admin.query.js';
 import {
   CreateUserSchema,
   DeviceReplacementRecoverySchema,
@@ -82,7 +83,10 @@ function actingAdminId(req: Request): string | null {
 }
 
 export const getUsers = async (req: ServiceRequest, res: Response) => {
-  const { limit = 50, offset = 0, search } = req.query;
+  // Re-parsed rather than read straight off `req.query`: `defineRoute` has already
+  // validated it, so this cannot fail, and it is how the coerced numbers recover their
+  // types on an Express query whose values are otherwise strings.
+  const { limit, offset, search } = AdminUserListQuerySchema.parse(req.query);
 
   const where: WhereOptions<User> = search
     ? {
@@ -109,8 +113,8 @@ export const getUsers = async (req: ServiceRequest, res: Response) => {
         'createdAt',
         'updatedAt',
       ],
-      limit: Number(limit),
-      offset: Number(offset),
+      limit,
+      offset,
     }),
     User.count({ where }),
   ]);
