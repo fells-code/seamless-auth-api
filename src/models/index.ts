@@ -50,16 +50,31 @@ export function getSequelize(): Sequelize {
   return sequelizeInstance;
 }
 
+/**
+ * Whether a file in this directory is a model to load.
+ *
+ * Named extensions rather than the file's own. The previous test asked whether a file
+ * ended with `path.extname(file)`, which is always true, so it excluded `index` and
+ * nothing else: every other file here was imported and required to default export a
+ * model initialiser. A declaration or a source map in the build output, or a shared
+ * types file added alongside these, would have failed startup with an error naming the
+ * file but not the reason.
+ */
+export function isModelFile(file: string): boolean {
+  if (file.startsWith('index.') || file.endsWith('.d.ts') || file.endsWith('.map')) {
+    return false;
+  }
+
+  return file.endsWith('.js') || file.endsWith('.ts');
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const models: { [key: string]: any } = {};
 
 export async function initializeModels() {
   const sequelize = getSequelize();
 
-  const files = readdirSync(__dirname).filter((file) => {
-    const ext = path.extname(file);
-    return file.endsWith(ext) && file !== `index${ext}`;
-  });
+  const files = readdirSync(__dirname).filter(isModelFile);
 
   const modelDefs = await Promise.all(
     files.map(async (file) => {

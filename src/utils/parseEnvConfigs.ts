@@ -14,6 +14,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     case 'default_roles':
     case 'available_roles':
     case 'login_methods':
+    case 'magic_link_redirect_uris':
     case 'origins':
       return raw
         .split(',')

@@ -21,5 +21,6 @@ export const SYSTEM_CONFIG_ENV_MAP = {
   rpid: 'RPID',
   origins: 'ORIGINS',
   frontend_url: 'FRONTEND_URL',
+  magic_link_redirect_uris: 'MAGIC_LINK_REDIRECT_URIS',
   app_name: 'APP_NAME',
 } as const;

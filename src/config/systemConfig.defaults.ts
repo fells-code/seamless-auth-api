@@ -28,5 +28,9 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   // No cap unless a deployment asks for one, so nothing changes for an instance
   // that predates the key.
   max_concurrent_sessions: null,
+  // Empty means no dedicated allowlist, which is what resolveMagicLinkUrl falls back
+  // from to comparing a requested destination against `origins`. Seeded rather than
+  // left absent so the key is settable from the environment like every other one.
+  magic_link_redirect_uris: [],
   passkey_login_fallback_enabled: true,
 };
