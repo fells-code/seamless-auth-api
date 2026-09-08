@@ -50,12 +50,16 @@ describe('organizations', () => {
     const res = await request(app).post('/organizations').send({ name: 'Acme, Inc.' });
 
     expect(res.status).toBe(201);
+    // Both writes take a transaction, because an organization with no membership is
+    // unreachable: access is granted through membership and nothing deletes an
+    // organization, so a failure between them would strand the row.
     expect(Organization.create).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Acme, Inc.',
         slug: 'acme-inc',
         createdByUserId: 'user-1',
       }),
+      expect.objectContaining({ transaction: expect.anything() }),
     );
     expect(OrganizationMembership.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -63,6 +67,7 @@ describe('organizations', () => {
         userId: 'user-1',
         roles: ['owner', 'admin'],
       }),
+      expect.objectContaining({ transaction: expect.anything() }),
     );
   });
 

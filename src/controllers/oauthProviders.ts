@@ -6,7 +6,7 @@
 
 import { Response } from 'express';
 
-import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { invalidateSystemConfigCache } from '../config/getSystemConfig.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { OAuthProviderConfig, OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
@@ -25,23 +25,56 @@ type ProviderAudit = {
   after: OAuthProviderConfig | null;
 };
 
-async function persistProviders(
-  providers: OAuthProviderConfig[],
+type ProviderRefusal = { status: number; body: Record<string, unknown> };
+
+type ProviderEdit =
+  { providers: OAuthProviderConfig[]; audit: ProviderAudit } | { refusal: ProviderRefusal };
+
+/**
+ * Applies one edit to the stored provider list, under a lock on the row.
+ *
+ * The list is a single JSONB value, so changing one provider means reading the array,
+ * editing it in memory and writing all of it back. Reading it through `getSystemConfig`
+ * outside the transaction made that last-write-wins: two administrators adding a
+ * provider at once both read the same array, and the second write dropped the first
+ * with no error. Because that cache lives five minutes and is invalidated per process,
+ * one instance could also overwrite an addition made through another.
+ *
+ * The row is read inside the transaction with `FOR UPDATE`, so a concurrent edit waits
+ * and then sees the committed list. The caller's checks run on that locked value rather
+ * than on a cached copy, which is what makes a duplicate id or a missing provider an
+ * answer about the current state instead of a stale one.
+ */
+async function editProviders(
   req: ServiceRequest,
-  audit: ProviderAudit,
-) {
+  edit: (current: OAuthProviderConfig[]) => ProviderEdit,
+): Promise<ProviderRefusal | null> {
   const updatedBy = resolveSystemConfigUpdatedBy(req);
 
-  await SystemConfig.sequelize!.transaction(async (tx) => {
+  const outcome = await SystemConfig.sequelize!.transaction(async (transaction) => {
+    const row = await SystemConfig.findByPk(OAUTH_PROVIDERS_KEY, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    const current = (row?.value as OAuthProviderConfig[] | undefined) ?? [];
+    const result = edit(current);
+
+    if ('refusal' in result) {
+      return result;
+    }
+
     await SystemConfig.upsert(
-      {
-        key: OAUTH_PROVIDERS_KEY,
-        value: providers,
-        updatedBy,
-      },
-      { transaction: tx },
+      { key: OAUTH_PROVIDERS_KEY, value: result.providers, updatedBy },
+      { transaction },
     );
+
+    return result;
   });
+
+  if ('refusal' in outcome) {
+    return outcome.refusal;
+  }
 
   invalidateSystemConfigCache();
 
@@ -50,40 +83,50 @@ async function persistProviders(
     req,
     metadata: {
       resource: 'oauth_provider',
-      action: audit.action,
-      providerId: audit.providerId,
-      before: audit.before,
-      after: audit.after,
+      action: outcome.audit.action,
+      providerId: outcome.audit.providerId,
+      before: outcome.audit.before,
+      after: outcome.audit.after,
     },
   });
+
+  return null;
 }
 
 export async function listOAuthProviders(req: ServiceRequest, res: Response) {
-  const config = await getSystemConfig();
+  const row = await SystemConfig.findByPk(OAUTH_PROVIDERS_KEY);
 
   await AuthEventService.log({ type: 'system_config_read', req });
 
-  return res.status(200).json({ providers: config.oauth_providers ?? [] });
+  return res
+    .status(200)
+    .json({ providers: (row?.value as OAuthProviderConfig[] | undefined) ?? [] });
 }
 
 export async function createOAuthProvider(req: ServiceRequest, res: Response) {
   const provider = req.body as OAuthProviderConfig;
 
-  const config = await getSystemConfig();
-  const providers = config.oauth_providers ?? [];
-
-  if (providers.some((existing) => existing.id === provider.id)) {
-    return res.status(409).json({ error: `OAuth provider "${provider.id}" already exists` });
-  }
-
   logger.info(`Creating OAuth provider ${provider.id}`);
 
-  await persistProviders([...providers, provider], req, {
-    action: 'created',
-    providerId: provider.id,
-    before: null,
-    after: provider,
+  const refusal = await editProviders(req, (providers) => {
+    if (providers.some((existing) => existing.id === provider.id)) {
+      return {
+        refusal: {
+          status: 409,
+          body: { error: `OAuth provider "${provider.id}" already exists` },
+        },
+      };
+    }
+
+    return {
+      providers: [...providers, provider],
+      audit: { action: 'created', providerId: provider.id, before: null, after: provider },
+    };
   });
+
+  if (refusal) {
+    return res.status(refusal.status).json(refusal.body);
+  }
 
   return res.status(201).json({ provider });
 }
@@ -91,60 +134,70 @@ export async function createOAuthProvider(req: ServiceRequest, res: Response) {
 export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
   const { id } = req.params;
 
-  const config = await getSystemConfig();
-  const providers = config.oauth_providers ?? [];
-  const index = providers.findIndex((existing) => existing.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({ error: `OAuth provider "${id}" not found` });
-  }
-
-  const merged = OAuthProviderConfigSchema.safeParse({
-    ...providers[index],
-    ...req.body,
-    id,
-  });
-
-  if (!merged.success) {
-    return res.status(400).json({
-      error: 'Invalid OAuth provider payload',
-      details: merged.error,
-    });
-  }
-
   logger.info(`Updating OAuth provider ${id}`);
 
-  const next = [...providers];
-  next[index] = merged.data;
+  let updated: OAuthProviderConfig | null = null;
 
-  await persistProviders(next, req, {
-    action: 'updated',
-    providerId: id,
-    before: providers[index],
-    after: merged.data,
+  const refusal = await editProviders(req, (providers) => {
+    const index = providers.findIndex((existing) => existing.id === id);
+
+    if (index === -1) {
+      return { refusal: { status: 404, body: { error: `OAuth provider "${id}" not found` } } };
+    }
+
+    const merged = OAuthProviderConfigSchema.safeParse({
+      ...providers[index],
+      ...req.body,
+      id,
+    });
+
+    if (!merged.success) {
+      return {
+        refusal: {
+          status: 400,
+          body: { error: 'Invalid OAuth provider payload', details: merged.error },
+        },
+      };
+    }
+
+    const next = [...providers];
+    next[index] = merged.data;
+    updated = merged.data;
+
+    return {
+      providers: next,
+      audit: { action: 'updated', providerId: id, before: providers[index], after: merged.data },
+    };
   });
 
-  return res.status(200).json({ provider: merged.data });
+  if (refusal) {
+    return res.status(refusal.status).json(refusal.body);
+  }
+
+  return res.status(200).json({ provider: updated });
 }
 
 export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {
   const { id } = req.params;
 
-  const config = await getSystemConfig();
-  const providers = config.oauth_providers ?? [];
-  const target = providers.find((existing) => existing.id === id);
-
-  if (!target) {
-    return res.status(404).json({ error: `OAuth provider "${id}" not found` });
-  }
-
   logger.info(`Deleting OAuth provider ${id}`);
 
-  await persistProviders(
-    providers.filter((existing) => existing.id !== id),
-    req,
-    { action: 'deleted', providerId: id, before: target, after: null },
-  );
+  const refusal = await editProviders(req, (providers) => {
+    const target = providers.find((existing) => existing.id === id);
+
+    if (!target) {
+      return { refusal: { status: 404, body: { error: `OAuth provider "${id}" not found` } } };
+    }
+
+    return {
+      providers: providers.filter((existing) => existing.id !== id),
+      audit: { action: 'deleted', providerId: id, before: target, after: null },
+    };
+  });
+
+  if (refusal) {
+    return res.status(refusal.status).json(refusal.body);
+  }
 
   return res.status(200).json({ success: true, id });
 }

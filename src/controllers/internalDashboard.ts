@@ -10,6 +10,7 @@ import { Op } from 'sequelize';
 import { AuthEvent } from '../models/authEvents.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
+import { SIGN_IN_FAILURE_TYPES, SIGN_IN_SUCCESS_TYPES } from '../schemas/authEvent.types.js';
 import { getDatabaseSize } from './admin.js';
 
 export const getDashboardMetrics = async (_req: Request, res: Response) => {
@@ -45,16 +46,18 @@ export const getDashboardMetrics = async (_req: Request, res: Response) => {
         },
       }),
 
+      // Completed sign-ins. login_success is the pre-auth step resolving which methods
+      // an identifier may use, so a rate built from it measures identifier resolution.
       AuthEvent.count({
         where: {
-          type: 'login_success',
+          type: { [Op.in]: [...SIGN_IN_SUCCESS_TYPES] },
           created_at: { [Op.gt]: last24h },
         },
       }),
 
       AuthEvent.count({
         where: {
-          type: 'login_failed',
+          type: { [Op.in]: [...SIGN_IN_FAILURE_TYPES] },
           created_at: { [Op.gt]: last24h },
         },
       }),

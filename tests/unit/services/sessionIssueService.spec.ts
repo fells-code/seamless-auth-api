@@ -233,6 +233,41 @@ describe('concurrent session limit', () => {
     expect(evictionOrder).toBeLessThan(createOrder);
   });
 
+  it('adds extraFields to the response', async () => {
+    const res = mockRes();
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res,
+      extraFields: { returnTo: 'https://app.example.com/dashboard' },
+    });
+
+    expect((res.json as any).mock.calls[0][0]).toMatchObject({
+      returnTo: 'https://app.example.com/dashboard',
+      message: 'Success',
+    });
+  });
+
+  // The bag is untyped, and it is spread into the one response every authenticated
+  // flow returns, so it must not be able to replace any part of the session in it.
+  it('does not let extraFields replace the session material', async () => {
+    const res = mockRes();
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res,
+      extraFields: { token: 'forged', refreshToken: 'forged', sub: 'someone-else' },
+    });
+
+    const body = (res.json as any).mock.calls[0][0];
+
+    expect(body.token).not.toBe('forged');
+    expect(body.refreshToken).not.toBe('forged');
+    expect(body.sub).toBe(mockUser.id);
+  });
+
   it('passes no limit through when the deployment has not set one', async () => {
     await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
 

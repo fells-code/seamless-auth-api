@@ -68,14 +68,11 @@ export function normalizeOrganizationSlug(name: string, slug?: string | null) {
 export function normalizeMembershipValues(input?: string[] | null) {
   if (!Array.isArray(input)) return [];
 
+  // Deduplicated before the cap, not after. Slicing first let fifty copies of one value
+  // consume the whole allowance and silently discard a distinct value behind them.
   return Array.from(
-    new Set(
-      input
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0)
-        .slice(0, 50),
-    ),
-  );
+    new Set(input.map((item) => item.trim()).filter((item) => item.length > 0)),
+  ).slice(0, 50);
 }
 
 export function normalizeOrganizationRoles(input?: string[] | null) {
@@ -150,21 +147,33 @@ export async function createOrganizationForUser({
   metadata?: Record<string, unknown> | null;
 }) {
   const uniqueSlug = await buildUniqueSlug(normalizeOrganizationSlug(name, slug));
-  const organization = await Organization.create({
-    name,
-    slug: uniqueSlug,
-    createdByUserId: user.id,
-    metadata: metadata ?? null,
-  });
 
-  const membership = await OrganizationMembership.create({
-    organizationId: organization.id,
-    userId: user.id,
-    roles: ['owner', 'admin'],
-    scopes: ['organization:read', 'organization:write', 'members:read', 'members:write'],
-  });
+  // One transaction, because an organization with no membership is unreachable: access is
+  // granted through membership, and there is no route that deletes an organization, so a
+  // failure between the two writes would strand a row nobody can see or remove.
+  return Organization.sequelize!.transaction(async (transaction) => {
+    const organization = await Organization.create(
+      {
+        name,
+        slug: uniqueSlug,
+        createdByUserId: user.id,
+        metadata: metadata ?? null,
+      },
+      { transaction },
+    );
 
-  return { organization, membership };
+    const membership = await OrganizationMembership.create(
+      {
+        organizationId: organization.id,
+        userId: user.id,
+        roles: ['owner', 'admin'],
+        scopes: ['organization:read', 'organization:write', 'members:read', 'members:write'],
+      },
+      { transaction },
+    );
+
+    return { organization, membership };
+  });
 }
 
 export async function findMembership(userId: string, organizationId: string) {

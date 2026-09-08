@@ -24,6 +24,9 @@ const AAGUID = 'ee882879-721c-4913-9775-3dfcce97072a';
 // startup and this suite never brings it up. What matters is the answer it gives.
 vi.mock('../../../src/services/metadataServiceBootstrap.js', () => ({
   hasMetadataStatement: vi.fn(),
+  // Registration brings the service up for the policy in force now, because the policy
+  // can change after startup.
+  ensureMetadataServiceReady: vi.fn(async () => true),
 }));
 
 vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {

@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { Application } from 'express';
@@ -86,6 +87,24 @@ describe('GET /internal/auth-events/login-stats', () => {
     expect(res.body.success).toBe(10);
     expect(res.body.failed).toBe(5);
     expect(res.body.successRate).toBeCloseTo(10 / 15);
+  });
+
+  // login_success is the pre-auth step resolving which methods an identifier may use,
+  // before any factor is presented, so a rate built from it measures identifier
+  // resolution rather than who got in.
+  it('counts completed sign-ins rather than the pre-auth step', async () => {
+    (AuthEvent.count as any).mockResolvedValue(1);
+
+    await request(app).get('/internal/auth-events/login-stats');
+
+    const countedTypes = (AuthEvent.count as any).mock.calls.flatMap(
+      (call: any) => call[0].where.type[Op.in] as string[],
+    );
+
+    expect(countedTypes).toContain('webauthn_login_success');
+    expect(countedTypes).toContain('verify_otp_failed');
+    expect(countedTypes).not.toContain('login_success');
+    expect(countedTypes).not.toContain('login_failed');
   });
 });
 
@@ -351,7 +370,7 @@ describe('GET /internal/auth-events/timeseries (additional branches)', () => {
     expect(res.body.timeseries).toHaveLength(24);
   });
 
-  it('counts non-login activity into categories', async () => {
+  it('counts non-login outcomes, not just the login pair', async () => {
     const key = '2026-01-05T00:00:00.000Z';
 
     (AuthEvent.findAll as any).mockResolvedValue([
@@ -368,7 +387,9 @@ describe('GET /internal/auth-events/timeseries (additional branches)', () => {
     expect(res.body.timeseries).toHaveLength(1);
     expect(res.body.timeseries[0]).toMatchObject({
       bucket: key,
-      success: 0,
+      // otp_success and webauthn_login_success are successes. Matching only the two
+      // login literals reported zero here while total counted all seven.
+      success: 6,
       failed: 0,
       total: 7,
       categories: { otp: 4, webauthn: 2, magicLink: 1 },

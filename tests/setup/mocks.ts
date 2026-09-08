@@ -27,9 +27,12 @@ vi.mock('../../src/models/authEvents.js', () => ({
 vi.mock('../../src/models/systemConfig.js', () => ({
   SystemConfig: {
     findAll: vi.fn(),
+    findByPk: vi.fn(),
     upsert: vi.fn(),
     sequelize: {
-      transaction: vi.fn((fn: any) => fn({})),
+      // The transaction object carries LOCK because the provider edits read the row
+      // FOR UPDATE, so the double has to offer what the real one does.
+      transaction: vi.fn((fn: any) => fn({ LOCK: { UPDATE: 'UPDATE' } })),
     },
   },
 }));
@@ -86,6 +89,9 @@ vi.mock('../../src/models/oauthIdentities.js', () => ({
 
 vi.mock('../../src/models/organizations.js', () => ({
   Organization: {
+    sequelize: {
+      transaction: vi.fn((fn: any) => fn({})),
+    },
     create: vi.fn(),
     findAll: vi.fn(),
     findOne: vi.fn(),

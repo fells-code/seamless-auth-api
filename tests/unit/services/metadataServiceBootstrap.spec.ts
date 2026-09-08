@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import {
+  ensureMetadataServiceReady,
   hasMetadataStatement,
   initializeMetadataService,
   isMetadataServiceReady,
@@ -152,5 +153,53 @@ describe('hasMetadataStatement', () => {
     metadataGetStatement.mockRejectedValue(new Error('No metadata statement found'));
 
     expect(await hasMetadataStatement(AAGUID)).toBe(false);
+  });
+});
+
+// authenticator_policy is editable at runtime, and this used to be read once at startup,
+// so a policy turned on afterwards left the metadata half of it inert until a restart.
+describe('ensureMetadataServiceReady', () => {
+  it('brings the service up for a policy enabled after startup', async () => {
+    (getSystemConfig as any).mockResolvedValue(policy({ attestation: 'none' }));
+    expect(await initializeMetadataService()).toBe(false);
+    expect(isMetadataServiceReady()).toBe(false);
+
+    (getSystemConfig as any).mockResolvedValue(
+      policy({ attestation: 'direct', requireKnownAuthenticator: true }),
+    );
+    metadataInitialize.mockResolvedValue(undefined);
+
+    expect(await ensureMetadataServiceReady(Date.now() + 10 * 60 * 1000)).toBe(true);
+    expect(isMetadataServiceReady()).toBe(true);
+    expect(metadataInitialize).toHaveBeenCalledWith(
+      expect.objectContaining({ verificationMode: 'strict' }),
+    );
+  });
+
+  it('is a no-op once the service is up', async () => {
+    (getSystemConfig as any).mockResolvedValue(policy({ attestation: 'direct' }));
+    metadataInitialize.mockResolvedValue(undefined);
+    await initializeMetadataService();
+    metadataInitialize.mockClear();
+
+    expect(await ensureMetadataServiceReady()).toBe(true);
+    expect(metadataInitialize).not.toHaveBeenCalled();
+  });
+
+  // A blob that cannot be fetched must not turn every registration into an outbound
+  // request, so a failed attempt is left alone for a while before the next one retries.
+  it('does not retry a failed attempt on every call', async () => {
+    (getSystemConfig as any).mockResolvedValue(policy({ attestation: 'direct' }));
+    metadataInitialize.mockRejectedValue(new Error('blob unreachable'));
+
+    const start = Date.now();
+    expect(await initializeMetadataService(start)).toBe(false);
+    metadataInitialize.mockClear();
+
+    expect(await ensureMetadataServiceReady(start + 1000)).toBe(false);
+    expect(metadataInitialize).not.toHaveBeenCalled();
+
+    expect(await ensureMetadataServiceReady(start + 6 * 60 * 1000)).toBe(false);
+    expect(metadataInitialize).toHaveBeenCalled();
   });
 });

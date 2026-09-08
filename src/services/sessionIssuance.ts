@@ -73,6 +73,10 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   }
 
   res.status(200).json({
+    // Spread first so a flow that adds to the response cannot replace any part of the
+    // session in it. The bag is untyped by design, and the fields below are the ones a
+    // caller authenticates with.
+    ...extraFields,
     message: 'Success',
     token,
     refreshToken,
@@ -83,6 +87,5 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     phone: user.phone,
     ttl: parseDurationToSeconds(access_token_ttl || '15m'),
     refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1d'),
-    ...extraFields,
   });
 }
