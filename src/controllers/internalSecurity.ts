@@ -29,9 +29,9 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
 
   try {
     // Derived from AUTH_EVENT_TYPES. The hand-maintained list searched for five names
-    // nothing emitted (bearer_token_failed, jwks_failed, otp_failed,
-    // recovery_otp_failed, user_data_failed) while missing verify_otp_failed,
-    // totp_failed, magic_link_failed, and logout_failed, which are emitted.
+    // nothing emitted (jwks_failed, otp_failed, recovery_otp_failed, user_data_failed,
+    // and bearer_token_failed, which the auth gate now does emit) while missing
+    // verify_otp_failed, totp_failed, magic_link_failed, and logout_failed.
     const FAILURE_TYPES = FAILURE_EVENT_TYPES;
 
     const events = await AuthEvent.findAll({

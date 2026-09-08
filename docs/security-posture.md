@@ -451,6 +451,58 @@ option today.
 `auth_failures` rows are not pruned, which matches `auth_events`. Retention is
 [issue #173](https://github.com/fells-code/seamless-auth-api/issues/173).
 
+## Refusals at the auth gate
+
+**Posture: only a credential this server issued is worth a row.**
+
+`verifyBearerAuth` refuses a request before any handler runs, and that refusal used to
+leave an application log line and nothing durable. Failed OTP codes, failed assertions
+and locked accounts all reach `auth_events`; a caller presenting the wrong kind of token
+at a protected route did not.
+
+The gap became a specific one when passkey enrollment moved to `auth: 'access'`. An
+ephemeral token proves possession of an address and nothing more, so offering one at
+`/webauthn/register/start` is the account takeover probe that gate exists to stop.
+Refusing it is the right answer. Refusing it invisibly is not.
+
+A refused bearer now writes `bearer_token_failed` when, and only when, the token
+verifies against this issuer's keys and its `typ` is not the one the gate requires. The
+row carries the expected and presented types, the matched route pattern, and the token's
+subject.
+
+### Why not every 401
+
+The refusals left out are the ones anybody can manufacture. A missing header, a malformed
+string, an unknown `kid`, a bad signature and an expired token all cost a caller nothing
+to produce, and one scanner, or one signing key rotation retiring every outstanding token
+at once, would fill the window with rows that name nobody. A token of the wrong type has
+to have been minted here first, which bounds the volume to real flows and keeps the rows
+worth reading.
+
+Widening this waits on retention and bulk export
+([issue #173](https://github.com/fells-code/seamless-auth-api/issues/173)). Until a window
+can be pruned, a high-volume event type costs the trail more than it adds.
+
+### The subject is metadata, not `user_id`
+
+A refused token has established no principal, so the event records `userId: null`. The
+subject is kept in metadata, where it says whose flow token is being offered without
+asserting that the caller is that user. It also could not be a foreign key: an ephemeral
+subject may be the decoy `/login` mints for an address with no usable account, which
+resolves to no row at all.
+
+Read the row as "this account's flow token was offered here", not as "this account did
+it". `/login` mints an ephemeral token from an address alone, so anyone who knows an
+address can produce a row naming its owner. That is the same reason `userId` is null:
+the subject is what the token claims, and the token proves possession of an address,
+not of the account.
+
+### It changes no response
+
+The event is written server side and never reflected to the caller. The refusal answers
+the same `401 { "error": "unauthorized" }` whether or not a row is written, so the decoy
+rules above are untouched.
+
 ## Static analysis triage
 
 **Posture: gated on a zero baseline, deliberately.** CodeQL runs on every pull request,
