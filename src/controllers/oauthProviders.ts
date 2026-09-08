@@ -106,8 +106,6 @@ export async function listOAuthProviders(req: ServiceRequest, res: Response) {
 export async function createOAuthProvider(req: ServiceRequest, res: Response) {
   const provider = req.body as OAuthProviderConfig;
 
-  logger.info(`Creating OAuth provider ${provider.id}`);
-
   const refusal = await editProviders(req, (providers) => {
     if (providers.some((existing) => existing.id === provider.id)) {
       return {
@@ -128,13 +126,13 @@ export async function createOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
+  logger.info(`Created OAuth provider ${provider.id}`);
+
   return res.status(201).json({ provider });
 }
 
 export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
   const { id } = req.params;
-
-  logger.info(`Updating OAuth provider ${id}`);
 
   let updated: OAuthProviderConfig | null = null;
 
@@ -174,13 +172,13 @@ export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
+  logger.info('Updated an OAuth provider');
+
   return res.status(200).json({ provider: updated });
 }
 
 export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {
   const { id } = req.params;
-
-  logger.info(`Deleting OAuth provider ${id}`);
 
   const refusal = await editProviders(req, (providers) => {
     const target = providers.find((existing) => existing.id === id);
@@ -198,6 +196,8 @@ export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {
   if (refusal) {
     return res.status(refusal.status).json(refusal.body);
   }
+
+  logger.info('Deleted an OAuth provider');
 
   return res.status(200).json({ success: true, id });
 }
