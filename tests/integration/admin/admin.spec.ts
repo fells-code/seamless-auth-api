@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 
 import { createApp } from '../../../src/app';
 import { Credential } from '../../../src/models/credentials.js';
@@ -990,6 +990,35 @@ describe('admin controller guards (direct invocation)', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid payload' }));
+  });
+
+  // The lookup and the insert are two statements, so a second administrator, or a client
+  // retrying a request that had already succeeded, reaches the insert with the row already
+  // there. That is a duplicate, which the handler has an answer for, not a fault.
+  it('answers 409 when createUser loses a race to the unique index', async () => {
+    const res = mockRes();
+
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockRejectedValue(
+      new UniqueConstraintError({ fields: { email: 'race@example.com' } }),
+    );
+
+    await createUser({ body: { email: 'race@example.com', roles: ['user'] } } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: 'User already exists' });
+  });
+
+  it('still answers 500 when createUser fails for any other reason', async () => {
+    const res = mockRes();
+
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockRejectedValue(new Error('connection reset'));
+
+    await createUser({ body: { email: 'new@example.com', roles: ['user'] } } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to create user' });
   });
 
   it('rejects updateUser when the user id is missing', async () => {

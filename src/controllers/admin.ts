@@ -5,7 +5,7 @@
  */
 
 import { Request, Response } from 'express';
-import { Op, WhereOptions } from 'sequelize';
+import { Op, UniqueConstraintError, WhereOptions } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { unavailableRoles } from '../lib/scopedRoles.js';
@@ -161,6 +161,15 @@ export const createUser = async (req: Request, res: Response) => {
 
     return res.status(201).json({ user: serializeApiUser(user) });
   } catch (err) {
+    // The lookup above and the insert are two statements, so two administrators
+    // creating the same address, or one client retrying a request that had already
+    // succeeded, both pass the lookup and both insert. The loser is told what the
+    // sequential duplicate is told, because the same thing is true: the account exists.
+    // The unique index also covers `phone`, which the lookup does not check at all.
+    if (err instanceof UniqueConstraintError) {
+      return res.status(409).json({ error: 'User already exists' });
+    }
+
     logger.error(`Failed to create user. Reason: ${err}`);
     return res.status(500).json({ error: 'Failed to create user' });
   }
