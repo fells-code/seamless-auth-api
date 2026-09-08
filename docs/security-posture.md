@@ -491,6 +491,12 @@ asserting that the caller is that user. It also could not be a foreign key: an e
 subject may be the decoy `/login` mints for an address with no usable account, which
 resolves to no row at all.
 
+Read the row as "this account's flow token was offered here", not as "this account did
+it". `/login` mints an ephemeral token from an address alone, so anyone who knows an
+address can produce a row naming its owner. That is the same reason `userId` is null:
+the subject is what the token claims, and the token proves possession of an address,
+not of the account.
+
 ### It changes no response
 
 The event is written server side and never reflected to the caller. The refusal answers
