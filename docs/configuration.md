@@ -312,6 +312,7 @@ Validation is enforced by [`systemConfig.schema.ts`](../src/schemas/systemConfig
 | `rpid`                           | string               | `RPID`                           | -                                                                                                                                                               |
 | `origins`                        | url[]                | `ORIGINS`                        | -                                                                                                                                                               |
 | `frontend_url`                   | url                  | `FRONTEND_URL`                   | -                                                                                                                                                               |
+| `magic_link_redirect_uris`       | string[]             | `MAGIC_LINK_REDIRECT_URIS`       | `[]`                                                                                                                                                            |
 
 ## Environment vs `system_config`
 

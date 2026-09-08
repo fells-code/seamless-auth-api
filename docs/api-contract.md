@@ -71,11 +71,17 @@ That is what lets one tenant serve a web client and a mobile client without them
 single destination. The token is set as a `token` query parameter on the target, replacing one
 of that name the caller had already put there.
 
-The allowlist is the WebAuthn `origins` list because there is no dedicated one yet. A
-destination that cannot be expressed as one of those, a custom scheme such as `myapp://` or a
-universal link on a host that is not a WebAuthn origin, needs a `magic_link_redirect_uris`
-system config key. That key lives in `@seamless-auth/types` and so needs a version bump and a
-coordinated release across this API and both SDKs.
+A destination that cannot be expressed as an origin, a custom scheme such as `myapp://auth` or a
+universal link on a host that is not a WebAuthn origin, goes in the `magic_link_redirect_uris`
+system config key instead. Entries there are matched exactly, which is what makes a custom
+scheme safe to accept: there is no origin to compare, so only a literal an operator listed is
+allowed. The key defaults to `[]`, and an empty list falls back to comparing against `origins`,
+so a deployment that sets nothing behaves as described above.
+
+Setting it narrows rather than widens. Once the list is non-empty it is the whole allowlist, and
+a destination on a configured origin that is not listed is refused. That is deliberate: a tenant
+that needs a mobile scheme should not have to widen `origins`, which gates passkey ceremonies, to
+get it.
 
 ### Error body
 
