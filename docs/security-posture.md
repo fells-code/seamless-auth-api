@@ -27,20 +27,18 @@ The reason is still recorded in the `login_failed` auth event metadata, now with
 
 Returning `200` for an unknown identifier is worth nothing on its own. If the next
 request distinguished the decoy, the oracle would simply have moved one step later. All
-fifteen endpoints that accept an ephemeral token therefore answer for a decoy the way
+thirteen endpoints that accept an ephemeral token therefore answer for a decoy the way
 they answer for a real account:
 
-| Endpoint group           | A decoy gets                                                    |
-| ------------------------ | --------------------------------------------------------------- |
-| OTP send (4)             | `200 { message: 'success', token }`, with nothing sent          |
-| OTP verify (4)           | `401 { error: 'Not allowed' }`, the body a wrong code gets      |
-| Magic link request       | `200`, the same "if an account exists" body a real request gets |
-| Magic link poll          | `204`, the state a real account sits in until someone clicks    |
-| WebAuthn register start  | A registration challenge, with no challenge record stored       |
-| WebAuthn register finish | `403 { error: 'Missing challenge' }`                            |
-| WebAuthn login start     | An assertion challenge over a fabricated credential id          |
-| WebAuthn login finish    | `401 { error: 'Authentication failed.' }`                       |
-| TOTP login verify        | `401 { error: 'totp_verification_failed' }`                     |
+| Endpoint group        | A decoy gets                                                    |
+| --------------------- | --------------------------------------------------------------- |
+| OTP send (4)          | `200 { message: 'success', token }`, with nothing sent          |
+| OTP verify (4)        | `401 { error: 'Not allowed' }`, the body a wrong code gets      |
+| Magic link request    | `200`, the same "if an account exists" body a real request gets |
+| Magic link poll       | `204`, the state a real account sits in until someone clicks    |
+| WebAuthn login start  | An assertion challenge over a fabricated credential id          |
+| WebAuthn login finish | `401 { error: 'Authentication failed.' }`                       |
+| TOTP login verify     | `401 { error: 'totp_verification_failed' }`                     |
 
 Policy-dependent branches are reproduced rather than skipped. A deployment with
 `email_otp` disabled answers `403 login_method_disabled` for every identifier, so a decoy

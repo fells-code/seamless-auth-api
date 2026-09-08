@@ -9755,6 +9755,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
         /** @description HTTP 403 */
         403: {
           headers: {
@@ -9844,30 +9862,49 @@ export interface paths {
             /**
              * @example {
              *       "message": "string",
-             *       "token": "string",
-             *       "refreshToken": "string",
-             *       "refreshTokenHash": "string",
-             *       "sub": "string",
-             *       "roles": [
-             *         null
-             *       ],
-             *       "email": "string",
-             *       "phone": "string",
-             *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "credential": {
+             *         "id": "string",
+             *         "aaguid": "string",
+             *         "transports": [
+             *           null
+             *         ],
+             *         "deviceType": null,
+             *         "backedUp": true,
+             *         "counter": 0,
+             *         "friendlyName": "string",
+             *         "lastUsedAt": null,
+             *         "platform": "string",
+             *         "browser": "string",
+             *         "deviceInfo": "string",
+             *         "createdAt": null,
+             *         "backedup": true,
+             *         "prfCapable": true
+             *       }
              *     }
              */
             'application/json': {
               message: string;
-              token?: string;
-              refreshToken?: string;
-              refreshTokenHash?: string;
-              sub?: string;
-              roles?: string[];
-              email?: string;
-              phone?: string | null;
-              ttl?: number;
-              refreshTtl?: number;
+              credential: {
+                id: string;
+                aaguid?: string | null;
+                transports?: (
+                  'ble' | 'cable' | 'hybrid' | 'internal' | 'nfc' | 'smart-card' | 'usb'
+                )[];
+                /** @enum {string} */
+                deviceType?: 'singleDevice' | 'multiDevice';
+                backedUp: boolean;
+                counter: number;
+                friendlyName?: string | null;
+                /** Format: date-time */
+                lastUsedAt?: string | null;
+                platform?: string | null;
+                browser?: string | null;
+                deviceInfo?: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                backedup: boolean;
+                prfCapable?: boolean;
+              };
             };
           };
         };
@@ -9898,6 +9935,24 @@ export interface paths {
                   message: string;
                 }[];
               };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
             };
           };
         };

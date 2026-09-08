@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.8.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.10.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -9928,6 +9928,19 @@
               }
             }
           },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "403": {
             "description": "HTTP 403",
             "content": {
@@ -9995,31 +10008,63 @@
               "application/json": {
                 "example": {
                   "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "refreshTokenHash": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0
+                  "credential": {
+                    "id": "string",
+                    "aaguid": "string",
+                    "transports": [null],
+                    "deviceType": null,
+                    "backedUp": true,
+                    "counter": 0,
+                    "friendlyName": "string",
+                    "lastUsedAt": null,
+                    "platform": "string",
+                    "browser": "string",
+                    "deviceInfo": "string",
+                    "createdAt": null,
+                    "backedup": true,
+                    "prfCapable": true
+                  }
                 },
                 "schema": {
                   "type": "object",
                   "properties": {
                     "message": { "type": "string" },
-                    "token": { "type": "string" },
-                    "refreshToken": { "type": "string" },
-                    "refreshTokenHash": { "type": "string" },
-                    "sub": { "type": "string" },
-                    "roles": { "type": "array", "items": { "type": "string" } },
-                    "email": { "type": "string" },
-                    "phone": { "type": "string", "nullable": true },
-                    "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "credential": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "aaguid": { "type": "string", "nullable": true },
+                        "transports": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "ble",
+                              "cable",
+                              "hybrid",
+                              "internal",
+                              "nfc",
+                              "smart-card",
+                              "usb"
+                            ]
+                          }
+                        },
+                        "deviceType": { "type": "string", "enum": ["singleDevice", "multiDevice"] },
+                        "backedUp": { "type": "boolean" },
+                        "counter": { "type": "number" },
+                        "friendlyName": { "type": "string", "nullable": true },
+                        "lastUsedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "platform": { "type": "string", "nullable": true },
+                        "browser": { "type": "string", "nullable": true },
+                        "deviceInfo": { "type": "string", "nullable": true },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "backedup": { "type": "boolean" },
+                        "prfCapable": { "type": "boolean" }
+                      },
+                      "required": ["id", "backedUp", "counter", "createdAt", "backedup"]
+                    }
                   },
-                  "required": ["message"]
+                  "required": ["message", "credential"]
                 }
               }
             }
@@ -10060,6 +10105,19 @@
                       "required": ["issues"]
                     }
                   },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
                 }
               }

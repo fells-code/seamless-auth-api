@@ -4,18 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { generateAuthenticationOptions, generateRegistrationOptions } from '@simplewebauthn/server';
+import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
-import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
-import {
-  buildPrfAuthenticationExtensions,
-  buildPrfRegistrationExtensions,
-} from '../lib/webauthnPrf.js';
-import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
+import { buildPrfAuthenticationExtensions } from '../lib/webauthnPrf.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   decoyCredentialIdFor,
@@ -35,7 +30,7 @@ import { AuthenticatedRequest } from '../types/types.js';
 import { hashDeviceFingerprint } from '../utils/utils.js';
 
 /**
- * How the fifteen ephemeral endpoints answer when the pre-auth subject is a decoy.
+ * How the thirteen ephemeral endpoints answer when the pre-auth subject is a decoy.
  *
  * The rule each one follows: answer the way the endpoint answers for a real account in
  * the most ordinary state it could be in. A decoy's OTP send succeeds without sending,
@@ -250,64 +245,6 @@ export const decoyPollMagicLink = async (req: Request, res: Response) => {
   await logDecoy(req, 'magic_link:poll');
 
   return res.status(204).end();
-};
-
-/**
- * Real registration options, minus the challenge record. Skipping `issueChallenge` keeps
- * the responder free of writes and costs nothing observable: the ceremony this returns
- * can never be completed anyway, and `/register/finish` answers with the same
- * "missing challenge" a real expired ceremony gets.
- *
- * The branches the real handler takes before it gets there are reproduced, because each
- * one a decoy skipped would be a request a caller could craft to tell the two apart.
- */
-export const decoyStartWebAuthnRegistration = async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
-  const principal = decoyPrincipal(req);
-  const subject = principal.id;
-  const { requestPrf = false, attachment } = req.query as {
-    requestPrf?: boolean;
-    attachment?: WebAuthnAuthenticatorAttachment;
-  };
-  const { app_name, rpid, authenticator_policy } = await getSystemConfig();
-  const pinnedAttachment =
-    authenticator_policy.attachment === 'any' ? null : authenticator_policy.attachment;
-
-  await logDecoy(req, 'webauthn:register_start');
-
-  if (pinnedAttachment && attachment && attachment !== pinnedAttachment) {
-    return res.status(400).json({ error: 'attachment_not_allowed' });
-  }
-
-  const options = await generateRegistrationOptions({
-    rpName: app_name,
-    rpID: rpid,
-    userName: authReq.user.email,
-    timeout: 60000,
-    attestationType: authenticator_policy.attestation,
-    supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
-    // A real account's enrolled credentials go here, so an always-empty list would say
-    // "this subject has no passkey" to anyone who looked.
-    excludeCredentials: principal.hasPasskey
-      ? [{ id: decoyCredentialIdFor(subject), transports: principal.transports }]
-      : [],
-    authenticatorSelection: {
-      userVerification: authenticator_policy.userVerification,
-      residentKey: 'preferred',
-      ...((pinnedAttachment ?? attachment)
-        ? { authenticatorAttachment: pinnedAttachment ?? attachment }
-        : {}),
-    },
-    extensions: buildPrfRegistrationExtensions(requestPrf),
-  });
-
-  return res.json(options);
-};
-
-export const decoyFinishWebAuthnRegistration = async (req: Request, res: Response) => {
-  await logDecoy(req, 'webauthn:register_finish');
-
-  return res.status(403).json({ error: 'Missing challenge' });
 };
 
 /**

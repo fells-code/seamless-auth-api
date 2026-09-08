@@ -27,6 +27,7 @@ import {
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
 import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.requests.js';
+import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
@@ -340,7 +341,7 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     // @ts-expect-error Ignoring for testing.
     const publicKey = base64url.encode(credential.publicKey);
 
-    await Credential.create({
+    const created = await Credential.create({
       id: credential.id,
       userId: user.id,
       publicKey: publicKey,
@@ -372,11 +373,6 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       lastUsedAt: new Date(),
     });
 
-    await user.update({
-      lastLogin: new Date(),
-      verified: true,
-    });
-
     await AuthEventService.log({
       userId: user.id,
       type: 'registration_success',
@@ -384,18 +380,15 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       metadata: {},
     });
 
-    await issueSessionAndRespond({
-      user: {
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        roles: user.roles ?? [],
-      },
-      req,
-      res,
+    // Enrollment is not a sign-in. The caller reached here with an access session, so
+    // issuing another one would leave the first live and unrevoked, and count against
+    // max_concurrent_sessions, which can evict the user's other devices. `verified` and
+    // `lastLogin` are left alone for the same reason: the session that authorised this
+    // request already proved both.
+    return res.json({
+      message: 'Credential registered',
+      credential: serializeCredential(created),
     });
-
-    return;
   } catch (err) {
     logger.error(`Error in verifyWebAuthnRegistration: ${err}`);
     return res.status(500).json({ error: 'Unknown error verifying passkey' });

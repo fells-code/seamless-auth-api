@@ -21,11 +21,11 @@ design rationale, see [architecture.md](./architecture.md#token-model).
 All tokens are returned in the JSON body (the API never sets cookies). Present them as
 `Authorization: Bearer <token>`.
 
-| Token         | Issued by                                           | Presented to                                                         | Purpose                                                | Lifetime                            |
-| ------------- | --------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------- |
-| **Ephemeral** | `POST /login` (and registration start)              | the continuation step (OTP generate/verify, magic-link request/poll) | carry a pre-authenticated identity between login steps | short (about 5 minutes)             |
-| **Access**    | OTP/WebAuthn/magic-link completion, `POST /refresh` | protected routes (e.g. `GET /users/me`)                              | authenticated application access                       | `access_token_ttl` (system config)  |
-| **Refresh**   | the same completion steps and `POST /refresh`       | `POST /refresh` only                                                 | obtain a new access token                              | `refresh_token_ttl` (system config) |
+| Token         | Issued by                                           | Presented to                                                                         | Purpose                                                | Lifetime                            |
+| ------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------- |
+| **Ephemeral** | `POST /login` (and registration start)              | the continuation step (OTP generate/verify, magic-link request/poll, WebAuthn login) | carry a pre-authenticated identity between login steps | short (about 5 minutes)             |
+| **Access**    | OTP/WebAuthn/magic-link completion, `POST /refresh` | protected routes (e.g. `GET /users/me`)                                              | authenticated application access                       | `access_token_ttl` (system config)  |
+| **Refresh**   | the same completion steps and `POST /refresh`       | `POST /refresh` only                                                                 | obtain a new access token                              | `refresh_token_ttl` (system config) |
 
 ### Token shapes
 

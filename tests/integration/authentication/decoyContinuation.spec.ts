@@ -7,7 +7,7 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { decoyPrincipalForSubject, decoySubjectFor } from '../../../src/services/decoyPrincipal.js';
 
 /**
- * A decoy is only worth issuing if the fifteen endpoints that accept a pre-auth token
+ * A decoy is only worth issuing if the thirteen endpoints that accept a pre-auth token
  * answer for it the way they answer for a real account. Otherwise `/login` stops
  * disclosing which identifiers exist and the very next request starts.
  *
@@ -51,7 +51,7 @@ vi.mock('../../../src/models/authEvents.js', () => ({
   AuthEvent: { create: vi.fn() },
 }));
 
-import { generateAuthenticationOptions, generateRegistrationOptions } from '@simplewebauthn/server';
+import { generateAuthenticationOptions } from '@simplewebauthn/server';
 
 import { signEphemeralToken } from '../../../src/lib/token.js';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges.js';
@@ -68,10 +68,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   principal = DECOY;
   (signEphemeralToken as any).mockResolvedValue('decoy-token');
-  (generateRegistrationOptions as any).mockResolvedValue({
-    challenge: 'challenge',
-    rp: { id: 'localhost', name: 'Seamless' },
-  });
   (generateAuthenticationOptions as any).mockResolvedValue({
     challenge: 'challenge',
     allowCredentials: [{ id: 'decoy-credential' }],
@@ -202,16 +198,6 @@ describe('decoy continuation: magic link', () => {
 });
 
 describe('decoy continuation: WebAuthn', () => {
-  it('returns a plausible registration challenge', async () => {
-    const res = await request(app).get('/webauthn/register/start');
-
-    expect(res.status).toBe(200);
-    expect(res.body.challenge).toBe('challenge');
-    expect(generateRegistrationOptions).toHaveBeenCalledWith(
-      expect.objectContaining({ rpID: 'localhost', userName: DECOY.email }),
-    );
-  });
-
   it('returns a plausible login challenge with a credential to offer', async () => {
     const res = await request(app).post('/webauthn/login/start').send({});
 
@@ -251,63 +237,12 @@ describe('decoy continuation: WebAuthn', () => {
     expect(res.text).toBe('Credentials not found');
   });
 
-  it('offers a passkeyless decoy nothing to exclude at registration', async () => {
-    principal = PASSKEYLESS_DECOY;
-
-    await request(app).get('/webauthn/register/start');
-
-    expect(generateRegistrationOptions).toHaveBeenCalledWith(
-      expect.objectContaining({ excludeCredentials: [] }),
-    );
-  });
-
-  it('excludes the decoy credential at registration when it has one', async () => {
-    await request(app).get('/webauthn/register/start');
-
-    // A real account's enrolled credentials go here, so an always-empty list would say
-    // "this subject has no passkey" to anyone who looked.
-    expect(generateRegistrationOptions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        excludeCredentials: [{ id: expect.any(String), transports: expect.any(Array) }],
-      }),
-    );
-  });
-
-  it('refuses a disallowed attachment the way a real account does', async () => {
-    (getSystemConfig as any).mockResolvedValue({
-      app_name: 'Seamless',
-      rpid: 'localhost',
-      authenticator_policy: {
-        userVerification: 'preferred',
-        attachment: 'platform',
-        attestation: 'none',
-      },
-    });
-
-    const res = await request(app).get('/webauthn/register/start').query({
-      attachment: 'cross-platform',
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'attachment_not_allowed' });
-  });
-
   it('stores no challenge for a decoy', async () => {
-    await request(app).get('/webauthn/register/start');
     await request(app).post('/webauthn/login/start').send({});
 
     // A decoy is issued for any identifier a stranger can type. If probing one wrote a
     // row, closing the enumeration oracle would have opened a way to fill the disk.
     expect(WebAuthnChallenge.create).not.toHaveBeenCalled();
-  });
-
-  it('fails registration the way an expired ceremony fails', async () => {
-    const res = await request(app)
-      .post('/webauthn/register/finish')
-      .send({ attestationResponse: {}, metadata: {} });
-
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({ error: 'Missing challenge' });
   });
 
   it('fails login the way a bad assertion fails', async () => {
