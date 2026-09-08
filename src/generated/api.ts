@@ -1487,10 +1487,17 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List users (internal) */
+    /**
+     * List users (internal)
+     * @description Returns a window of users. `total` counts every user matching `search`, not the returned page.
+     */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          limit?: number;
+          offset?: number | null;
+          search?: string;
+        };
         header?: never;
         path?: never;
         cookie?: never;
@@ -1531,6 +1538,36 @@ export interface paths {
                 updatedAt?: string | null;
               }[];
               total: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };

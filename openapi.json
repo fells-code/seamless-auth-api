@@ -1638,8 +1638,29 @@
     "/admin/users": {
       "get": {
         "summary": "List users (internal)",
+        "description": "Returns a window of users. `total` counts every user matching `search`, not the returned page.",
         "tags": ["Admin"],
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "number", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "number", "nullable": true, "minimum": 0, "default": 0 },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "HTTP 200",
@@ -1688,6 +1709,47 @@
                     "total": { "type": "number" }
                   },
                   "required": ["users", "total"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
