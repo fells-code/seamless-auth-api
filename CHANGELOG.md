@@ -1,5 +1,36 @@
 # seamless-auth-api
 
+## 0.10.0
+
+### Minor Changes
+
+- d781548: Ship admin dashboard v0.5.0 in the API image.
+
+  `SEAMLESS_ADMIN_DASHBOARD_REF` moves from v0.4.0 to v0.5.0, so the SPA served at `/console` picks
+  up that release. The events table now names the acting administrator separately from the subject
+  of an administrative action, and the device-replacement recovery collects identity proofing (the
+  confirmation method, an evidence reference, and an approver for the remote exception) before it
+  prepares the replacement, matching what this API already records and requires.
+
+  The ref is a release tag rather than a floating branch, so the dashboard only changes when this
+  value does.
+
+- eedbf82: Drop `sessions.refreshTokenHash`.
+
+  The previous release stopped writing and reading the column and dropped its `NOT NULL`. This
+  one removes it, along with the field on the model.
+
+  Deliberately a separate release rather than a follow-up commit in the same one. An instance
+  still running the version that writes the column will insert a session during a rolling
+  deploy, and if the column is already gone that insert fails, which means every sign-in fails
+  for as long as both versions are running. The column has to stop being written in one release
+  and disappear in a later one, and this is the later one. Do not squash it back into the
+  release that stopped writing it.
+
+  Nothing reads the value, so there is nothing to migrate. The `down` restores the column as
+  nullable rather than `NOT NULL`, because the values are gone and there is no backfill that
+  would mean anything.
+
 ## 0.9.0
 
 ### Minor Changes
