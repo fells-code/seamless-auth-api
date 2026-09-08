@@ -34,6 +34,9 @@ vi.mock('../../../src/services/authEventService.js', () => ({
   },
 }));
 
+import { UniqueConstraintError } from 'sequelize';
+
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import { User } from '../../../src/models/users.js';
 import { signEphemeralToken } from '../../../src/lib/token.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
@@ -112,6 +115,49 @@ describe('POST /registration/register', () => {
     expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
     expect(generateEmailOTP).toHaveBeenCalledWith(user, { sendMessage: true });
     expect(generatePhoneOTP).not.toHaveBeenCalled();
+  });
+
+  // The lookup and the insert are two statements, so double clicking Register has both
+  // requests pass the lookup. The account exists by the time the second one is refused,
+  // which is the answer the sequential duplicate already gets.
+  it('continues as an existing account when the create loses the race', async () => {
+    const user = buildUser({ phone: null });
+
+    (User.findOne as any).mockResolvedValueOnce(null).mockResolvedValueOnce(user);
+    (User.create as any).mockRejectedValue(
+      new UniqueConstraintError({ fields: { email: user.email } }),
+    );
+
+    const res = await request(app).post('/registration/register').send(buildRegistrationRequest());
+
+    expect(res.status).toBe(200);
+    expect(res.body.sub).toBe(user.id);
+    expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
+    expect(generateEmailOTP).toHaveBeenCalledWith(user, { sendMessage: true });
+    expect(AuthEventService.log).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'registration_failed' }),
+    );
+  });
+
+  it('reports a constraint violation it cannot attribute to this address', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockRejectedValue(
+      new UniqueConstraintError({ fields: { phone: '+14155552671' } }),
+    );
+
+    const res = await request(app).post('/registration/register').send(buildRegistrationRequest());
+
+    expect(res.status).toBe(500);
+  });
+
+  it('does not treat an unrelated create failure as a duplicate', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockRejectedValue(new Error('connection reset'));
+
+    const res = await request(app).post('/registration/register').send(buildRegistrationRequest());
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Internal server error');
   });
 
   it('returns external email OTP delivery payload', async () => {
