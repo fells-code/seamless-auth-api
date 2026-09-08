@@ -6,9 +6,7 @@
 
 import {
   decoyFinishWebAuthnLogin,
-  decoyFinishWebAuthnRegistration,
   decoyStartWebAuthnLogin,
-  decoyStartWebAuthnRegistration,
 } from '../controllers/decoyResponders.js';
 import {
   generateWebAuthn,
@@ -17,6 +15,7 @@ import {
   verifyWebAuthnRegistration,
 } from '../controllers/webauthn.js';
 import { createRouter } from '../lib/createRouter.js';
+import { CredentialUpdateResponseSchema } from '../schemas/credential.responses.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
   WebAuthnAssertionStartSchema,
@@ -31,12 +30,17 @@ import {
 
 const webauthnRouter = createRouter('/webauthn');
 
+// Enrollment takes an access session, not a pre-auth one. `/login` and
+// `/registration/register` both mint an ephemeral token for an account that already
+// exists from an email address alone, so accepting one here let anyone who knew an
+// address enroll a credential and take the account over. Every shipped signup flow
+// verifies an email OTP before it offers a passkey, and that step issues a session, so
+// nothing legitimate reaches enrollment without one.
 webauthnRouter.get(
   '/register/start',
   {
-    auth: 'ephemeral',
+    auth: 'access',
     summary: 'Start WebAuthn registration',
-    decoy: decoyStartWebAuthnRegistration,
     tags: ['WebAuthn'],
 
     schemas: {
@@ -45,6 +49,7 @@ webauthnRouter.get(
       response: {
         200: WebAuthnChallengeSchema,
         400: ErrorSchema,
+        401: ErrorSchema,
         403: ErrorSchema,
         500: ErrorSchema,
       },
@@ -56,16 +61,16 @@ webauthnRouter.get(
 webauthnRouter.post(
   '/register/finish',
   {
-    auth: 'ephemeral',
+    auth: 'access',
     summary: 'Finish WebAuthn registration',
-    decoy: decoyFinishWebAuthnRegistration,
     tags: ['WebAuthn'],
 
     schemas: {
       body: WebAuthnRegisterFinishSchema,
 
       response: {
-        200: WebAuthnTokenSuccessSchema,
+        200: CredentialUpdateResponseSchema,
+        401: ErrorSchema,
         403: ErrorSchema,
         500: ErrorSchema,
       },

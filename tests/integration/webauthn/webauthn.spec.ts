@@ -1393,3 +1393,74 @@ describe('POST /webauthn/login/finish', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });
+
+describe('POST /webauthn/register/finish response', () => {
+  async function enroll() {
+    const user = buildUser();
+
+    (User.findOne as any).mockResolvedValue(user);
+    (Credential.findAll as any).mockResolvedValue([]);
+    (Credential.create as any).mockResolvedValue(buildCredential());
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
+    (getSystemConfig as any).mockResolvedValue({
+      app_name: 'SeamlessAuth',
+      rpid: 'localhost',
+      origins: ['http://localhost:5137'],
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+      authenticator_policy: {
+        attachment: 'any',
+        userVerification: 'required',
+        attestation: 'none',
+        requireKnownAuthenticator: false,
+        syncedPasskeys: 'allow',
+        aaguidAllowList: [],
+        aaguidDenyList: [],
+      },
+    });
+
+    const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
+    (verifyRegistrationResponse as any).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        fmt: 'none',
+        credential: { id: 'cred-1', publicKey: Buffer.from('key'), counter: 0, transports: [] },
+        credentialBackedUp: false,
+        credentialDeviceType: 'singleDevice',
+      },
+    });
+
+    const res = await request(app)
+      .post('/webauthn/register/finish')
+      .send({ attestationResponse: {}, metadata: {} });
+
+    return { res, user };
+  }
+
+  it('answers with the credential it enrolled', async () => {
+    const { res } = await enroll();
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Credential registered');
+    expect(res.body.credential).toEqual(expect.objectContaining({ id: 'cred-1' }));
+  });
+
+  // Enrollment is not a sign-in. Issuing a session here would leave the one the caller
+  // arrived with live and unrevoked, and count against max_concurrent_sessions, which
+  // can evict the user's other devices.
+  it('issues no session and returns no tokens', async () => {
+    const { res } = await enroll();
+
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(res.body.token).toBeUndefined();
+    expect(res.body.refreshToken).toBeUndefined();
+  });
+
+  // The access session that authorised the request already proved both.
+  it('leaves verified and lastLogin alone', async () => {
+    const { user } = await enroll();
+
+    expect(user.update).not.toHaveBeenCalled();
+  });
+});
