@@ -60,6 +60,42 @@ describe('health check script', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  // The server binds process.env.PORT, and .env.example invites an operator to set it.
+  // Probing the hardcoded default meant the container reported itself unhealthy, and an
+  // orchestrator restarted it, while the API was serving correctly on the port it was
+  // told to use.
+  it('probes the port the server was told to listen on', async () => {
+    const http = await import('http');
+
+    vi.stubEnv('PORT', '8080');
+    (http.default.get as any).mockImplementation(() => ({ on: vi.fn() }));
+
+    try {
+      await import('../../../src/healthCheck');
+    } catch {}
+
+    expect(http.default.get).toHaveBeenCalledWith(
+      'http://localhost:8080/health/status',
+      expect.any(Function),
+    );
+  });
+
+  it('falls back to the default port when none is set', async () => {
+    const http = await import('http');
+
+    vi.stubEnv('PORT', '');
+    (http.default.get as any).mockImplementation(() => ({ on: vi.fn() }));
+
+    try {
+      await import('../../../src/healthCheck');
+    } catch {}
+
+    expect(http.default.get).toHaveBeenCalledWith(
+      'http://localhost:5312/health/status',
+      expect.any(Function),
+    );
+  });
+
   it('exits 1 on request error', async () => {
     const http = await import('http');
 

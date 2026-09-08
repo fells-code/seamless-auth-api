@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { SYSTEM_CONFIG_ENV_MAP } from '../../../src/config/systemConfig.envMap.js';
+import { SystemConfigSchema } from '../../../src/schemas/systemConfig.schema.js';
+import { parseSystemConfigEnvValue } from '../../../src/utils/parseEnvConfigs.js';
 
 describe('SYSTEM_CONFIG_ENV_MAP', () => {
   it('maps each config key to its uppercase environment variable', () => {
@@ -27,7 +29,33 @@ describe('SYSTEM_CONFIG_ENV_MAP', () => {
       rpid: 'RPID',
       origins: 'ORIGINS',
       frontend_url: 'FRONTEND_URL',
+      magic_link_redirect_uris: 'MAGIC_LINK_REDIRECT_URIS',
       app_name: 'APP_NAME',
     });
+  });
+
+  // The map is what bootstrapSystemConfig iterates, so a key missing from it is one no
+  // deployment can set declaratively. magic_link_redirect_uris was absent, which left
+  // the only control over magic link destinations settable through the admin API alone.
+  // Asserted against the schema so a key added upstream is caught here rather than by
+  // an operator who cannot configure it.
+  it('covers every key the config schema defines', () => {
+    const mapped = Object.keys(SYSTEM_CONFIG_ENV_MAP);
+    const missing = Object.keys(SystemConfigSchema.shape).filter((key) => !mapped.includes(key));
+
+    expect(missing).toEqual([]);
+  });
+
+  // A key in the map with no branch in the parser reaches its `default` and throws
+  // "Unhandled system config key" at boot. Whether a given value parses is a separate
+  // question, and one bootstrapSystemConfig only asks when the variable is set.
+  it('has a parser branch for every mapped key', () => {
+    for (const key of Object.keys(SYSTEM_CONFIG_ENV_MAP)) {
+      try {
+        parseSystemConfigEnvValue(key as keyof typeof SYSTEM_CONFIG_ENV_MAP, '');
+      } catch (error) {
+        expect((error as Error).message).not.toContain('Unhandled system config key');
+      }
+    }
   });
 });
