@@ -136,6 +136,9 @@ vi.mock('../../src/config/getSystemConfig.js', () => ({
 }));
 
 vi.mock('../../src/services/sessionService.js', () => ({
+  // Defaults to winning the rotation race, which is what a lone refresh does. A spec
+  // exercising two concurrent refreshes sets its own value.
+  claimSessionRotation: vi.fn(async () => true),
   validateAccessToken: vi.fn(),
   validateBearerToken: vi.fn(),
   validateSessionRecord: vi.fn(),

@@ -7,6 +7,7 @@ vi.mock('../../../src/models/sessions', () => ({
     findByPk: vi.fn(),
     findOne: vi.fn(),
     findAll: vi.fn(),
+    update: vi.fn(),
   },
 }));
 
@@ -314,6 +315,37 @@ describe('sessionService', () => {
     const { validateAccessToken } = await import('../../../src/services/sessionService');
 
     expect(await validateAccessToken('token')).toBeNull();
+  });
+
+  // Rotation reads, checks and links in separate statements, so two refreshes carrying the
+  // same token both reach the link. The condition in the where clause is what decides
+  // which of them rotated, in one statement the database serialises.
+  it('claims the rotation link only while it is still unset', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const session = buildSession({ id: 'session-1', replacedBySessionId: null });
+
+    (Session.update as any).mockResolvedValue([1]);
+
+    const { claimSessionRotation } = await import('../../../src/services/sessionService');
+
+    expect(await claimSessionRotation(session as any, 'session-2')).toBe(true);
+    expect(Session.update).toHaveBeenCalledWith(
+      { replacedBySessionId: 'session-2' },
+      { where: { id: 'session-1', replacedBySessionId: null, revokedAt: null } },
+    );
+    expect(session.replacedBySessionId).toBe('session-2');
+  });
+
+  it('reports the rotation lost when another one claimed the link first', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const session = buildSession({ id: 'session-1', replacedBySessionId: null });
+
+    (Session.update as any).mockResolvedValue([0]);
+
+    const { claimSessionRotation } = await import('../../../src/services/sessionService');
+
+    expect(await claimSessionRotation(session as any, 'session-2')).toBe(false);
+    expect(session.replacedBySessionId).toBeNull();
   });
 
   it('revokes session immediately', async () => {

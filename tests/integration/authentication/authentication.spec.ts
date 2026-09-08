@@ -14,6 +14,7 @@ import {
   signEphemeralToken,
 } from '../../../src/lib/token';
 import {
+  claimSessionRotation,
   findRefreshSessionByToken,
   hardRevokeSession,
   revokeSessionChain,
@@ -528,6 +529,54 @@ describe('POST /refresh', () => {
       expect.objectContaining({ refreshTokenLookup: 'refresh-lookup' }),
     );
     expect(res.body.refreshToken).toBe('refresh');
+  });
+
+  // Two refreshes carrying the same token both pass the reuse check, because the check and
+  // the link are separate statements. Only one rotation may complete, and the one that
+  // does not is the same event the reuse check answers 401 to.
+  it('refuses the rotation that lost the race and revokes what it made', async () => {
+    const session = {
+      id: 'session-1',
+      replacedBySessionId: null,
+      revokedAt: null,
+      userId: 'user-1',
+      infraId: 'app',
+      mode: 'server',
+      userAgent: 'agent',
+      save: vi.fn(),
+      reload: vi.fn(async function (this: { replacedBySessionId: string | null }) {
+        this.replacedBySessionId = 'winning-session';
+      }),
+    };
+
+    (findRefreshSessionByToken as any).mockResolvedValue(session);
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Session.create as any).mockResolvedValue({ id: 'losing-session' });
+    (claimSessionRotation as any).mockResolvedValue(false);
+    (signAccessToken as any).mockResolvedValue('access');
+    (generateRefreshToken as any).mockReturnValue('refresh');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+    });
+
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('refresh_token_reused');
+    expect(res.body.refreshToken).toBeUndefined();
+
+    // The replacement this request created is reachable from nothing, so it does not get
+    // to outlive the request that made it.
+    expect(hardRevokeSession).toHaveBeenCalledWith({ id: 'losing-session' }, 'rotation_race_lost');
+
+    // Reloaded first, or the chain walk stops at the old session and leaves the winner's
+    // session live, which is the whole defect.
+    expect(session.reload).toHaveBeenCalled();
+    expect(revokeSessionChain).toHaveBeenCalledWith(session);
+    expect(session.replacedBySessionId).toBe('winning-session');
   });
 
   it('rejects a jwt-shaped bearer token with no session', async () => {
