@@ -18,6 +18,15 @@ const logger = getLogger('oauthProviders');
 
 const OAUTH_PROVIDERS_KEY = 'oauth_providers';
 
+/**
+ * The provider id reaches these log lines from the request, which static analysis reads
+ * as untrusted, and it is logged anyway. `OAuthProviderIdSchema` holds it to
+ * `[a-z0-9-]{2,40}` in `defineRoute` before a handler runs, so it cannot carry a newline
+ * or any other control character, and `escapeLogControlCharacters` escapes the class
+ * centrally in the logger format regardless. An operator reading logs needs to know
+ * which provider changed, and the two guards are what make saying so safe.
+ */
+
 type ProviderAudit = {
   action: 'created' | 'updated' | 'deleted';
   providerId: string;
@@ -126,7 +135,7 @@ export async function createOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
-  logger.info('Created an OAuth provider');
+  logger.info(`Created OAuth provider ${provider.id}`);
 
   return res.status(201).json({ provider });
 }
@@ -172,7 +181,7 @@ export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
-  logger.info('Updated an OAuth provider');
+  logger.info(`Updated OAuth provider ${id}`);
 
   return res.status(200).json({ provider: updated });
 }
@@ -197,7 +206,7 @@ export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
-  logger.info('Deleted an OAuth provider');
+  logger.info(`Deleted OAuth provider ${id}`);
 
   return res.status(200).json({ success: true, id });
 }
