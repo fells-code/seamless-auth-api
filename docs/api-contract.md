@@ -98,8 +98,9 @@ route cannot reintroduce the split.
 A `429` from the rate limiters is included. It used to be the one exception, answering plain text
 because express-rate-limit sends a string message through `res.send`, and it is now
 `{ "error": "Too many requests, please try again later" }` like everything else. The limiters are
-middleware rather than route handlers, so a `429` is not declared per route in the OpenAPI
-document, but the body is the same shape.
+middleware rather than route handlers, so nothing a handler declares would mention them;
+`defineRoute` declares the `429`, and the `500` from the top-level error handler, on every route
+it registers, so both appear in the OpenAPI document and in a client generated from it.
 
 `ErrorSchema` in [`src/schemas/generic.responses.ts`](../src/schemas/generic.responses.ts) is the
 canonical definition. `InternalErrorSchema` is a deprecated alias of it and is identical on the
