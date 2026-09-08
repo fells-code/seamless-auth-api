@@ -103,6 +103,7 @@ vi.mock('../../src/models/organizations.js', () => ({
 vi.mock('../../src/models/organizationMemberships.js', () => ({
   OrganizationMembership: {
     create: vi.fn(),
+    destroy: vi.fn(),
     findAll: vi.fn(async () => []),
     findOne: vi.fn(),
     count: vi.fn(),

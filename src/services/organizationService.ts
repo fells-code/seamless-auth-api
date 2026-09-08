@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Op } from 'sequelize';
+import { Op, WhereOptions } from 'sequelize';
 
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
@@ -149,8 +149,8 @@ export async function createOrganizationForUser({
   const uniqueSlug = await buildUniqueSlug(normalizeOrganizationSlug(name, slug));
 
   // One transaction, because an organization with no membership is unreachable: access is
-  // granted through membership, and there is no route that deletes an organization, so a
-  // failure between the two writes would strand a row nobody can see or remove.
+  // granted through membership, and only an administrator can delete an organization, so a
+  // failure between the two writes would strand a row its creator can neither see nor remove.
   return Organization.sequelize!.transaction(async (transaction) => {
     const organization = await Organization.create(
       {
@@ -257,10 +257,34 @@ export async function listOrganizationsForUser(userId: string) {
   );
 }
 
-export async function listAllOrganizations() {
-  const organizations = await Organization.findAll({
-    order: [['createdAt', 'ASC']],
-  });
+export async function listAllOrganizations({
+  limit,
+  offset,
+  search,
+}: {
+  limit: number;
+  offset: number;
+  search?: string;
+}) {
+  // Matched against the two fields an operator sees in the list. `iLike` keeps the match
+  // case-insensitive without lowering an indexed column on every row.
+  const where: WhereOptions<Organization> = search
+    ? {
+        [Op.or]: [{ name: { [Op.iLike]: `%${search}%` } }, { slug: { [Op.iLike]: `%${search}%` } }],
+      }
+    : {};
+
+  // Counted separately from the page, so `total` describes everything that matches rather
+  // than what this window happened to return.
+  const [organizations, total] = await Promise.all([
+    Organization.findAll({
+      where,
+      order: [['createdAt', 'ASC']],
+      limit,
+      offset,
+    }),
+    Organization.count({ where }),
+  ]);
 
   const counts = await Promise.all(
     organizations.map((organization) =>
@@ -268,9 +292,30 @@ export async function listAllOrganizations() {
     ),
   );
 
-  return organizations.map((organization, index) =>
-    serializeOrganization(organization, null, counts[index]),
-  );
+  return {
+    organizations: organizations.map((organization, index) =>
+      serializeOrganization(organization, null, counts[index]),
+    ),
+    total,
+  };
+}
+
+/**
+ * Memberships are removed alongside the organization rather than left to the foreign
+ * key, so the two writes share a transaction and the behaviour does not depend on the
+ * database having been created from the migration. Sessions keep their rows: the column
+ * is nullable and the foreign key clears it, so an active session survives losing the
+ * organization it was scoped to.
+ */
+export async function destroyOrganization(organization: Organization) {
+  return Organization.sequelize!.transaction(async (transaction) => {
+    await OrganizationMembership.destroy({
+      where: { organizationId: organization.id },
+      transaction,
+    });
+
+    await organization.destroy({ transaction });
+  });
 }
 
 export async function getDefaultOrganizationIdForUser(userId: string) {

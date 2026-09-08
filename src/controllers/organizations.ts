@@ -12,9 +12,11 @@ import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
+import { AdminOrganizationListQuerySchema } from '../schemas/organization.requests.js';
 import {
   countOwners,
   createOrganizationForUser,
+  destroyOrganization,
   findMembership,
   hasOrganizationScope,
   listAllOrganizations,
@@ -54,8 +56,14 @@ export async function listOrganizations(req: Request, res: Response) {
 }
 
 export async function listAdminOrganizations(req: Request, res: Response) {
-  const organizations = await listAllOrganizations();
-  return res.json({ organizations, total: organizations.length });
+  // Re-parsed rather than read straight off `req.query`: `defineRoute` has already
+  // validated it, so this cannot fail, and it is how the coerced numbers recover their
+  // types on an Express query whose values are otherwise strings.
+  const { limit, offset, search } = AdminOrganizationListQuerySchema.parse(req.query);
+
+  const { organizations, total } = await listAllOrganizations({ limit, offset, search });
+
+  return res.json({ organizations, total });
 }
 
 export async function createOrganization(req: Request, res: Response) {
@@ -115,6 +123,20 @@ export async function updateOrganization(req: RouteRequest, res: Response) {
   return res.json({
     organization: serializeOrganization(organization, membership),
   });
+}
+
+export async function deleteOrganization(req: RouteRequest, res: Response) {
+  const user = authUser(req);
+  const { organizationId } = req.params;
+  const { organization } = await requireOrganizationManager(user, organizationId);
+
+  if (!organization) {
+    return res.status(404).json({ error: 'Organization not found' });
+  }
+
+  await destroyOrganization(organization);
+
+  return res.json({ message: 'Success' });
 }
 
 export async function switchOrganization(req: RouteRequest, res: Response) {
