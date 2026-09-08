@@ -84,6 +84,37 @@ describe('passkey enrollment requires an access session', () => {
   it.each([
     ['get', '/webauthn/register/start'],
     ['post', '/webauthn/register/finish'],
+  ])('records the refusal on %s %s so enrollment probing is visible', async (method, path) => {
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    (verifyJwtWithKid as any).mockResolvedValue({ typ: 'ephemeral', sub: 'user-1' });
+
+    const claims = Buffer.from(JSON.stringify({ typ: 'ephemeral', sub: 'user-1' })).toString(
+      'base64url',
+    );
+
+    await (request(app) as any)
+      [method](path)
+      .set('Authorization', `Bearer header.${claims}.signature`);
+
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'bearer_token_failed',
+        metadata: expect.objectContaining({
+          reason: 'wrong_token_type',
+          expected: 'access',
+          presented: 'ephemeral',
+          route: path,
+          subject: 'user-1',
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ['get', '/webauthn/register/start'],
+    ['post', '/webauthn/register/finish'],
   ])('refuses %s %s with no bearer at all', async (method, path) => {
     const res = await (request(app) as any)[method](path);
 

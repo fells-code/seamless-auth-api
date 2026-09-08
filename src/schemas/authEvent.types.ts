@@ -11,6 +11,7 @@ export const AUTH_EVENT_TYPES = [
   'auth_action_incremented',
   'admin_device_replacement_recovery',
   'admin_session_revoked',
+  'bearer_token_failed',
   'credentials_deleted',
   'informational',
   'internal_user_updated_by_owner',
@@ -78,10 +79,10 @@ export type AuthEventType = z.infer<typeof AuthEventTypeEnum>;
  * Types grouped by outcome, derived rather than hand-listed.
  *
  * Consumers used to keep their own copies of these groupings, which drifted: the
- * anomaly detector searched for `otp_failed`, `bearer_token_failed`, and three other
- * names nothing emitted, so those failures were invisible, while `verify_otp_failed`
- * and `magic_link_failed` were emitted and never searched for. Deriving the groups
- * means adding an event type puts it in the right bucket automatically.
+ * anomaly detector searched for five names nothing emitted, such as `otp_failed` and
+ * `jwks_failed`, so those failures were invisible, while `verify_otp_failed` and
+ * `magic_link_failed` were emitted and never searched for. Deriving the groups means
+ * adding an event type puts it in the right bucket automatically.
  */
 export const FAILURE_EVENT_TYPES = AUTH_EVENT_TYPES.filter((type) =>
   type.endsWith('_failed'),
