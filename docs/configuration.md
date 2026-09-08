@@ -195,7 +195,7 @@ sets `VITE_BASE_PATH=/console/` and `VITE_SAME_ORIGIN=true` so the assets, the r
 and the origin-derived API base all agree) in a dedicated stage (see the `admin-dashboard` stage
 in [`Dockerfile`](../Dockerfile)). Bump the dashboard shipped to tenants by raising the
 `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG; the new version then flows to tenants through the normal
-upstream auth-image release. The ref is pinned to the dashboard release tag `v0.4.0`;
+upstream auth-image release. The ref is pinned to the dashboard release tag `v0.5.0`;
 `v0.2.0` was the first release to ship the same-origin `/console` build.
 
 Because the same-origin build derives its API base from the page origin **and still speaks the
