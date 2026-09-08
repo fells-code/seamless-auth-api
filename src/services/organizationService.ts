@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Op, WhereOptions } from 'sequelize';
+import { Op, UniqueConstraintError, WhereOptions } from 'sequelize';
 
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
@@ -80,6 +80,18 @@ export function normalizeOrganizationRoles(input?: string[] | null) {
   return roles.length > 0 ? roles : ['member'];
 }
 
+/**
+ * How many slug collisions are answered with the next suffix before the error surfaces.
+ *
+ * `buildUniqueSlug` reads and the insert claims, which are two statements, so two
+ * creates of "Acme" both find `acme` free and one of them loses at the unique index.
+ * Resolving the slug inside the transaction does not close that: there is no row to
+ * lock, so the index is the only thing serialising it, and the retry has to be driven by
+ * the violation rather than by the read. The bound is what stops a violation that is not
+ * the slug, which nothing here should produce, from spinning.
+ */
+const SLUG_COLLISION_RETRIES = 5;
+
 async function buildUniqueSlug(slug: string) {
   let candidate = slug;
   let suffix = 1;
@@ -146,34 +158,48 @@ export async function createOrganizationForUser({
   user: User;
   metadata?: Record<string, unknown> | null;
 }) {
-  const uniqueSlug = await buildUniqueSlug(normalizeOrganizationSlug(name, slug));
+  const baseSlug = normalizeOrganizationSlug(name, slug);
 
-  // One transaction, because an organization with no membership is unreachable: access is
-  // granted through membership, and only an administrator can delete an organization, so a
-  // failure between the two writes would strand a row its creator can neither see nor remove.
-  return Organization.sequelize!.transaction(async (transaction) => {
-    const organization = await Organization.create(
-      {
-        name,
-        slug: uniqueSlug,
-        createdByUserId: user.id,
-        metadata: metadata ?? null,
-      },
-      { transaction },
-    );
+  for (let attempt = 0; ; attempt += 1) {
+    const uniqueSlug = await buildUniqueSlug(baseSlug);
 
-    const membership = await OrganizationMembership.create(
-      {
-        organizationId: organization.id,
-        userId: user.id,
-        roles: ['owner', 'admin'],
-        scopes: ['organization:read', 'organization:write', 'members:read', 'members:write'],
-      },
-      { transaction },
-    );
+    try {
+      // One transaction, because an organization with no membership is unreachable: access is
+      // granted through membership, and only an administrator can delete an organization, so a
+      // failure between the two writes would strand a row its creator can neither see nor remove.
+      return await Organization.sequelize!.transaction(async (transaction) => {
+        const organization = await Organization.create(
+          {
+            name,
+            slug: uniqueSlug,
+            createdByUserId: user.id,
+            metadata: metadata ?? null,
+          },
+          { transaction },
+        );
 
-    return { organization, membership };
-  });
+        const membership = await OrganizationMembership.create(
+          {
+            organizationId: organization.id,
+            userId: user.id,
+            roles: ['owner', 'admin'],
+            scopes: ['organization:read', 'organization:write', 'members:read', 'members:write'],
+          },
+          { transaction },
+        );
+
+        return { organization, membership };
+      });
+    } catch (error) {
+      if (!(error instanceof UniqueConstraintError) || attempt >= SLUG_COLLISION_RETRIES) {
+        throw error;
+      }
+
+      // The transaction rolled back, so nothing was written. The next pass reads the
+      // committed list, which now holds the slug that beat this one, and takes the
+      // suffix after it.
+    }
+  }
 }
 
 export async function findMembership(userId: string, organizationId: string) {
