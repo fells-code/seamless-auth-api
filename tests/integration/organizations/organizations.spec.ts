@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
@@ -348,6 +348,41 @@ describe('addMember', () => {
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('User is already an organization member');
     expect(OrganizationMembership.create).not.toHaveBeenCalled();
+  });
+
+  // The membership lookup and the insert are two statements, so the duplicate the lookup
+  // exists to catch can still arrive at the index. It is the same duplicate.
+  it('returns 409 when a concurrent add loses the race to the unique index', async () => {
+    (Organization.findByPk as any).mockResolvedValue(buildOrganization());
+    (OrganizationMembership.findOne as any)
+      .mockResolvedValueOnce(buildOrganizationMembership())
+      .mockResolvedValueOnce(null);
+    (User.findByPk as any).mockResolvedValue(buildUser({ id: otherUserId }));
+    (OrganizationMembership.create as any).mockRejectedValue(
+      new UniqueConstraintError({ fields: { organization_id: testOrganizationId } }),
+    );
+
+    const res = await request(app)
+      .post(`/organizations/${testOrganizationId}/members`)
+      .send({ userId: otherUserId });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('User is already an organization member');
+  });
+
+  it('lets any other failure reach the generic handler', async () => {
+    (Organization.findByPk as any).mockResolvedValue(buildOrganization());
+    (OrganizationMembership.findOne as any)
+      .mockResolvedValueOnce(buildOrganizationMembership())
+      .mockResolvedValueOnce(null);
+    (User.findByPk as any).mockResolvedValue(buildUser({ id: otherUserId }));
+    (OrganizationMembership.create as any).mockRejectedValue(new Error('connection reset'));
+
+    const res = await request(app)
+      .post(`/organizations/${testOrganizationId}/members`)
+      .send({ userId: otherUserId });
+
+    expect(res.status).toBe(500);
   });
 });
 
