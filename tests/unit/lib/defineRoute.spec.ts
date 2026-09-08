@@ -181,9 +181,15 @@ describe('defineRoute', () => {
       },
     });
 
+    // The 429 and 500 come from middleware rather than from the handler, so every route
+    // carries them whether or not it declares a response of its own.
     expect(registry.registerPath).toHaveBeenCalledWith(
       expect.objectContaining({
-        responses: { '200': { description: 'Success' } },
+        responses: expect.objectContaining({
+          '200': { description: 'Success' },
+          '429': expect.objectContaining({ description: 'HTTP 429' }),
+          '500': expect.objectContaining({ description: 'HTTP 500' }),
+        }),
       }),
     );
 
@@ -215,6 +221,29 @@ describe('defineRoute', () => {
     await run(0);
 
     expect(json).toHaveBeenCalledWith({ anything: 'passes-through' });
+  });
+
+  it('leaves a route its own declaration of a global status', async () => {
+    const { defineRoute } = await import('../../../src/lib/defineRoute');
+    const { registry } = await import('../../../src/openapi/registry');
+    const declared = z.object({ error: z.string(), retryAfter: z.number() });
+
+    defineRoute(Router(), {
+      method: 'get',
+      path: '/declares-its-own',
+      schemas: {
+        response: {
+          200: z.object({ message: z.string() }),
+          429: declared,
+        },
+      },
+      handler: vi.fn(),
+    });
+
+    const { responses } = (registry.registerPath as any).mock.calls[0][0];
+
+    expect(responses['429'].content['application/json'].schema).toBe(declared);
+    expect(responses['500']).toBeDefined();
   });
 
   it('documents and validates a direct Zod response schema as HTTP 200', async () => {

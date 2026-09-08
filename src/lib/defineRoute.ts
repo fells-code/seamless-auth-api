@@ -130,17 +130,56 @@ function withValidationResponse(
   return { ...responseMap, 400: ValidationErrorSchema };
 }
 
+/**
+ * Statuses every route can answer with, whatever its handler declares.
+ *
+ * `defineRoute` builds the documented responses from `schemas.response`, which only a
+ * handler writes, so a status produced by middleware reached no route. Both of these do:
+ * every route is behind `dynamicRateLimit` and seventeen carry a per-flow limiter on top,
+ * and any throw lands on the top-level error handler. A client generated from the document
+ * got a response union without them and could not see the cases at all.
+ *
+ * Both answer the canonical `{ error }` body, which is what makes declaring them here
+ * true rather than aspirational: the limiters send `TOO_MANY_REQUESTS_BODY` and the error
+ * handler sends `{ error: 'Internal server error' }`.
+ */
+const GLOBAL_RESPONSES: Record<number, ZodTypeAny> = {
+  429: ErrorSchema,
+  500: ErrorSchema,
+};
+
+function documentedResponse(schema: ZodTypeAny, status: string): OpenApiResponse {
+  return {
+    description: `HTTP ${status}`,
+    content: {
+      'application/json': {
+        schema,
+        example: generateExample(schema),
+      },
+    },
+  };
+}
+
+/** A route that declares one of these itself keeps its own, which may say more. */
+function withGlobalResponses(responses: Record<string, OpenApiResponse>) {
+  for (const [status, schema] of Object.entries(GLOBAL_RESPONSES)) {
+    responses[status] ??= documentedResponse(schema, status);
+  }
+
+  return responses;
+}
+
 function buildResponses(
   response?: ZodTypeAny | Record<number, ZodTypeAny>,
 ): Record<string, OpenApiResponse> {
   if (!response) {
-    return {
+    return withGlobalResponses({
       '200': { description: 'Success' },
-    };
+    });
   }
 
   if (isZodSchema(response)) {
-    return {
+    return withGlobalResponses({
       '200': {
         description: 'Success',
         content: {
@@ -150,7 +189,7 @@ function buildResponses(
           },
         },
       },
-    };
+    });
   }
 
   const responses: Record<string, OpenApiResponse> = {};
@@ -158,20 +197,10 @@ function buildResponses(
   const responseMap = response as Record<number, ZodTypeAny>;
 
   for (const status of Object.keys(responseMap)) {
-    const schema = responseMap[Number(status)];
-
-    responses[status] = {
-      description: `HTTP ${status}`,
-      content: {
-        'application/json': {
-          schema,
-          example: generateExample(schema),
-        },
-      },
-    };
+    responses[status] = documentedResponse(responseMap[Number(status)], status);
   }
 
-  return responses;
+  return withGlobalResponses(responses);
 }
 
 function resolveAuthType(
