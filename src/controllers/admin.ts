@@ -348,6 +348,17 @@ export const getUserDetail = async (req: ServiceRequest, res: Response) => {
   });
 };
 
+/**
+ * How much of a user's history the related-device lookup reads.
+ *
+ * The distinct addresses and agents come out of recent activity rather than out of
+ * everything the account has ever done: the unbounded read grew with the account, and
+ * the values then became an `IN` list of the same size, which a long-lived user can
+ * push past the bind-parameter ceiling.
+ */
+const ANOMALY_EVENT_SCAN_LIMIT = 500;
+const ANOMALY_IDENTIFIER_LIMIT = 50;
+
 export const getUserAnomalies = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
@@ -355,13 +366,17 @@ export const getUserAnomalies = async (req: Request, res: Response) => {
     const userEvents = await AuthEvent.findAll({
       where: { user_id: userId },
       attributes: ['ip_address', 'user_agent'],
+      order: [['created_at', 'DESC']],
+      limit: ANOMALY_EVENT_SCAN_LIMIT,
     });
 
-    const ips = [...new Set(userEvents.map((e) => e.ip_address).filter((v): v is string => !!v))];
+    const ips = [
+      ...new Set(userEvents.map((e) => e.ip_address).filter((v): v is string => !!v)),
+    ].slice(0, ANOMALY_IDENTIFIER_LIMIT);
 
     const agents = [
       ...new Set(userEvents.map((e) => e.user_agent).filter((v): v is string => !!v)),
-    ];
+    ].slice(0, ANOMALY_IDENTIFIER_LIMIT);
 
     const suspiciousEvents = await AuthEvent.findAll({
       where: {

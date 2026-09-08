@@ -30,7 +30,10 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
-import { hasMetadataStatement } from '../services/metadataServiceBootstrap.js';
+import {
+  ensureMetadataServiceReady,
+  hasMetadataStatement,
+} from '../services/metadataServiceBootstrap.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -291,6 +294,11 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     const { aaguid, attestationObject, credential, credentialBackedUp, credentialDeviceType, fmt } =
       registrationInfo;
     const { authenticator_policy } = await getSystemConfig();
+
+    // The policy is editable at runtime, so the metadata service may not have been
+    // brought up at startup for the policy in force now.
+    await ensureMetadataServiceReady();
+
     const attestationType = classifyAttestation(fmt, attestationObject);
     const verdict = evaluateAuthenticatorPolicy({
       policy: authenticator_policy,

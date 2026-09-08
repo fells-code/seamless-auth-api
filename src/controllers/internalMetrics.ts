@@ -14,6 +14,7 @@ import {
   categorizeAuthEvent,
 } from '../lib/authEventCategories.js';
 import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
+import { SIGN_IN_FAILURE_TYPES, SIGN_IN_SUCCESS_TYPES } from '../schemas/authEvent.types.js';
 import { MetricsInterval, MetricsQuerySchema } from '../schemas/internal.query.js';
 import getLogger from '../utils/logger.js';
 
@@ -186,10 +187,15 @@ export const getAuthEventTimeseries = async (req: Request, res: Response) => {
       stats.total += count;
       stats.categories[category] = (stats.categories[category] ?? 0) + count;
 
-      if (type === 'login_success') {
-        stats.success = count;
-      } else if (type === 'login_failed') {
-        stats.failed = count;
+      // Through authEventOutcome, as getGroupedEventSummary already does. Matching the
+      // two login literals left every passkey, OAuth, magic link and OTP outcome out of
+      // a pair of counters sitting beside a total that included them.
+      const outcome = authEventOutcome(type);
+
+      if (outcome === 'success') {
+        stats.success += count;
+      } else if (outcome === 'failed') {
+        stats.failed += count;
       }
     }
 
@@ -219,8 +225,16 @@ export const getLoginStats = async (req: Request, res: Response) => {
   const scope = scopeWhere(query, from, to);
 
   try {
-    const success = await AuthEvent.count({ where: { ...scope, type: 'login_success' } });
-    const failed = await AuthEvent.count({ where: { ...scope, type: 'login_failed' } });
+    // Completed sign-ins, not login_success, which the pre-auth step emits once it has
+    // resolved which methods an identifier may use and before any factor is presented.
+    // Counting that reported the share of identifiers that resolved to a usable account
+    // as though it were the share of people who got in.
+    const success = await AuthEvent.count({
+      where: { ...scope, type: { [Op.in]: [...SIGN_IN_SUCCESS_TYPES] } },
+    });
+    const failed = await AuthEvent.count({
+      where: { ...scope, type: { [Op.in]: [...SIGN_IN_FAILURE_TYPES] } },
+    });
 
     return res.json({
       success,

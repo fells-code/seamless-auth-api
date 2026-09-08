@@ -91,6 +91,36 @@ export const SUSPICIOUS_EVENT_TYPES = AUTH_EVENT_TYPES.filter((type) =>
   type.endsWith('_suspicious'),
 ) as readonly AuthEventType[];
 
+/**
+ * The events that mean somebody finished signing in, and the ones that mean an attempt
+ * to did not.
+ *
+ * Named rather than derived from a suffix, because no suffix separates them.
+ * `login_success` is the pre-auth step answering which methods an identifier may use,
+ * before any factor has been presented, so counting it as a sign-in counts every
+ * attempt and double counts every completed one. `otp_success` is a code being sent.
+ * `mfa_otp_success` and `step_up_success` elevate a session that already exists, and
+ * `refresh_token_success` rotates one.
+ *
+ * Typed as `AuthEventType`, so a member that is renamed or removed upstream is a
+ * compile error here rather than a silently empty bucket.
+ */
+export const SIGN_IN_SUCCESS_TYPES: readonly AuthEventType[] = [
+  'webauthn_login_success',
+  'verify_otp_success',
+  'magic_link_poll_completed_successfully',
+  'oauth_login_success',
+  'totp_success',
+];
+
+export const SIGN_IN_FAILURE_TYPES: readonly AuthEventType[] = [
+  'webauthn_login_failed',
+  'verify_otp_failed',
+  'magic_link_failed',
+  'oauth_login_failed',
+  'totp_failed',
+];
+
 /** Types belonging to a flow, matched on the event-type prefix. */
 export function authEventTypesFor(...prefixes: string[]): AuthEventType[] {
   return AUTH_EVENT_TYPES.filter((type) =>

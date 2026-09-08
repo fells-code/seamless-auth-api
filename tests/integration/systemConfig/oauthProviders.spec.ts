@@ -34,8 +34,11 @@ function buildProvider(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// The edits read the stored row inside a locked transaction rather than the cached
+// config, so the row is what a case has to seed.
 function mockConfigWithProviders(providers: Array<Record<string, unknown>>) {
   (getSystemConfig as any).mockResolvedValue(buildSystemConfig({ oauth_providers: providers }));
+  (SystemConfig.findByPk as any).mockResolvedValue({ key: 'oauth_providers', value: providers });
 }
 
 beforeAll(async () => {

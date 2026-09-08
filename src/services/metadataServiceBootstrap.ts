@@ -18,6 +18,16 @@ import { applyConformanceMetadataOverrides } from './conformanceMetadata.js';
 const logger = getLogger('metadataService');
 
 let initialized = false;
+let lastAttemptAt = 0;
+
+/**
+ * How long a failed initialisation is left alone before another registration retries it.
+ *
+ * A blob that cannot be fetched must not turn every registration into an outbound
+ * request, and a policy enabled at runtime must not wait for a restart, so the retry is
+ * throttled rather than either abandoned or unbounded.
+ */
+const RETRY_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
  * Whether the FIDO Metadata Service is available to validate attestations against.
@@ -32,6 +42,34 @@ export function isMetadataServiceReady() {
 /** Test seam. Startup calls this once, so state has to be resettable. */
 export function resetMetadataServiceForTests() {
   initialized = false;
+  lastAttemptAt = 0;
+}
+
+/**
+ * Brings the metadata service up if the current policy needs it and it is not ready.
+ *
+ * `authenticator_policy` is editable at runtime, and this used to be read once at
+ * startup. An operator who turned attestation on afterwards got half a policy:
+ * `evaluateAuthenticatorPolicy` reads fresh config and still refused a credential that
+ * could not be traced to a manufacturer, but the metadata lookup that refuses a model
+ * the blob does not list never ran, because the service had never been initialised. The
+ * setting was accepted, nothing said it was inert, and the half that stopped applying
+ * failed permissive.
+ *
+ * Called on the registration path so it takes effect on every instance without a
+ * restart. A no-op once the service is up, and throttled when it is not, so a
+ * deployment that does not ask for attestation pays one comparison.
+ */
+export async function ensureMetadataServiceReady(now = Date.now()): Promise<boolean> {
+  if (initialized) {
+    return true;
+  }
+
+  if (now - lastAttemptAt < RETRY_INTERVAL_MS) {
+    return false;
+  }
+
+  return initializeMetadataService(now);
 }
 
 /**
@@ -74,7 +112,9 @@ export async function hasMetadataStatement(aaguid: string | null | undefined): P
  * on a transient network failure is worse than the risk it guards against.
  * `isMetadataServiceReady` reports which state the process is in.
  */
-export async function initializeMetadataService(): Promise<boolean> {
+export async function initializeMetadataService(now = Date.now()): Promise<boolean> {
+  lastAttemptAt = now;
+
   let attestation: string;
   let requireKnown: boolean;
 
