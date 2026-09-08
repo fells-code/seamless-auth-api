@@ -486,14 +486,14 @@ expected to reappear on a rescan.
 - **`js/log-injection`** in [`app.ts`](../src/app.ts),
   [`routeLogger.ts`](../src/middleware/routeLogger.ts) and
   [`oauthProviders.ts`](../src/controllers/oauthProviders.ts). Untrusted values do reach log
-  messages through template strings, in these five places and potentially in any future one.
+  messages through template strings, in these places and potentially in any future one.
   The fix is central: every line is rendered through the winston `printf` format in
   [`logger.ts`](../src/utils/logger.ts), which applies `redactSensitiveText` and then
   `escapeLogControlCharacters` before the string reaches a transport. `CR` and `LF` are
   escaped, so a newline in an untrusted value cannot forge a log record. CodeQL follows the
   taint to the `logger.*` call and stops there; it does not model the sanitiser inside the
-  transport. Sanitising at each call site instead would close these five and rot on the next
-  interpolation added anywhere in the codebase.
+  transport. Sanitising at each call site instead would close the current ones and rot on the
+  next interpolation added anywhere in the codebase.
 - **`js/remote-property-injection`** in [`redaction.ts`](../src/utils/redaction.ts). The
   redacted output is built on `Object.create(null)`, so a `__proto__` key arriving in
   untrusted audit metadata becomes an ordinary own property and is recorded as data. On a
