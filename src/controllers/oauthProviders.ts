@@ -126,7 +126,7 @@ export async function createOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
-  logger.info(`Created OAuth provider ${provider.id}`);
+  logger.info('Created an OAuth provider');
 
   return res.status(201).json({ provider });
 }
