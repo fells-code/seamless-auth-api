@@ -18,15 +18,6 @@ const logger = getLogger('oauthProviders');
 
 const OAUTH_PROVIDERS_KEY = 'oauth_providers';
 
-/**
- * The provider id reaches these log lines from the request, which static analysis reads
- * as untrusted, and it is logged anyway. `OAuthProviderIdSchema` holds it to
- * `[a-z0-9-]{2,40}` in `defineRoute` before a handler runs, so it cannot carry a newline
- * or any other control character, and `escapeLogControlCharacters` escapes the class
- * centrally in the logger format regardless. An operator reading logs needs to know
- * which provider changed, and the two guards are what make saying so safe.
- */
-
 type ProviderAudit = {
   action: 'created' | 'updated' | 'deleted';
   providerId: string;
@@ -99,6 +90,16 @@ async function editProviders(
     },
   });
 
+  // The provider id reaches this line from the request, which static analysis reads as
+  // untrusted, and it is logged anyway. `OAuthProviderIdSchema` in `@seamless-auth/types`
+  // holds it to `[a-z0-9-]{2,40}`, applied in `defineRoute` before any handler runs, so it
+  // cannot carry a newline or any other control character, and `escapeLogControlCharacters`
+  // escapes the class centrally in the logger format regardless. An operator reading logs
+  // needs to know which provider changed, and those two guards are what make saying so
+  // safe. Every edit logs here, not in the three handlers, so this reasoning stays where
+  // whoever changes the log line will meet it.
+  logger.info(`OAuth provider ${outcome.audit.providerId} ${outcome.audit.action}`);
+
   return null;
 }
 
@@ -134,8 +135,6 @@ export async function createOAuthProvider(req: ServiceRequest, res: Response) {
   if (refusal) {
     return res.status(refusal.status).json(refusal.body);
   }
-
-  logger.info(`Created OAuth provider ${provider.id}`);
 
   return res.status(201).json({ provider });
 }
@@ -181,8 +180,6 @@ export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
     return res.status(refusal.status).json(refusal.body);
   }
 
-  logger.info(`Updated OAuth provider ${id}`);
-
   return res.status(200).json({ provider: updated });
 }
 
@@ -205,8 +202,6 @@ export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {
   if (refusal) {
     return res.status(refusal.status).json(refusal.body);
   }
-
-  logger.info(`Deleted OAuth provider ${id}`);
 
   return res.status(200).json({ success: true, id });
 }
