@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { signAccessToken } from '../lib/token.js';
@@ -215,16 +216,28 @@ export async function addMember(req: RouteRequest, res: Response) {
     return res.status(409).json({ error: 'User is already an organization member' });
   }
 
-  const membership = await OrganizationMembership.create({
-    organizationId,
-    userId: memberUser.id,
-    roles: normalizeOrganizationRoles(req.body.roles),
-    scopes: normalizeMembershipValues(req.body.scopes),
-  });
+  try {
+    const membership = await OrganizationMembership.create({
+      organizationId,
+      userId: memberUser.id,
+      roles: normalizeOrganizationRoles(req.body.roles),
+      scopes: normalizeMembershipValues(req.body.scopes),
+    });
 
-  return res.status(201).json({
-    membership: serializeMembership(membership, memberUser),
-  });
+    return res.status(201).json({
+      membership: serializeMembership(membership, memberUser),
+    });
+  } catch (error) {
+    // The lookup above and this insert are two statements, so two administrators acting
+    // on a newly invited person, or one client retrying after a timeout, both pass the
+    // lookup and both insert. The unique index on (organization_id, user_id) refuses the
+    // second, which is the duplicate the lookup answers a few lines up.
+    if (error instanceof UniqueConstraintError) {
+      return res.status(409).json({ error: 'User is already an organization member' });
+    }
+
+    throw error;
+  }
 }
 
 export async function updateMember(req: RouteRequest, res: Response) {
