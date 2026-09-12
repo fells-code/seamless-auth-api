@@ -413,6 +413,43 @@ describe('GET /admin/auth-events', () => {
     expect(res.status).toBe(200);
     expect(res.body.events).toEqual([]);
   });
+
+  // The response is validated against the shared AuthEventSchema, which strips
+  // what it does not declare. Before @seamless-auth/types 0.21.0 that was every
+  // telemetry dimension, so the columns were written and never returned.
+  it('returns the telemetry dimensions on each event', async () => {
+    const now = new Date().toISOString();
+
+    (AuthEvent.findAll as any).mockResolvedValue([
+      {
+        id: 'event-1',
+        user_id: 'user-1',
+        type: 'webauthn_login_success',
+        ip_address: '203.0.113.9',
+        user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+        deployment_id: 'gen-42',
+        device_class: 'ios',
+        mail_provider: 'gmail',
+        owner: false,
+        attempt_id: '55555555-5555-5555-5555-555555555555',
+        metadata: { reason: 'Successful login' },
+        created_at: now,
+        updated_at: now,
+      },
+    ]);
+    (AuthEvent.count as any).mockResolvedValue(1);
+
+    const res = await request(app).get('/admin/auth-events');
+
+    expect(res.status).toBe(200);
+    expect(res.body.events[0]).toMatchObject({
+      deployment_id: 'gen-42',
+      device_class: 'ios',
+      mail_provider: 'gmail',
+      owner: false,
+      attempt_id: '55555555-5555-5555-5555-555555555555',
+    });
+  });
 });
 
 describe('GET /admin/credential-count', () => {
