@@ -1,5 +1,101 @@
 # seamless-auth-api
 
+## 0.13.0
+
+### Minor Changes
+
+- 2486d52: `GET /internal/metrics/funnel` reports how long the passwordless path takes and how far
+  passkeys are adopted.
+
+  Four blocks, each carrying the count it was computed over: `timeToRegistration` (self-serve
+  account creation to first completed sign-in, per user), `timeToLogin` (`login_success` to the
+  completed sign-in it led to, per attempt), `passkeyAdoption` (of the accounts created in the
+  window, how many hold a passkey) and `timeToFirstPasskey`. Medians and p90s are in seconds and
+  `null` when there is nothing to measure. The endpoint takes the same `from` and `to` window as
+  the other metrics routes and sits behind `admin:read`.
+
+  Passkey adoption is counted from `credentials` rows rather than events, because
+  `registration_success` fires on new-user registration, phone registration, magic link
+  completion and passkey enrollment alike. Time to login is bracketed by user and time, since the
+  ephemeral token carries no flow id: the first completed sign-in after a `login_success`,
+  within the five minute ephemeral TTL and before that user's next attempt. OAuth attempts are not
+  included, as `oauth_login_started` carries no user id.
+
+- c7902d4: Instrument the auth path: every `auth_events` row now carries the dimensions the passwordless
+  claim is measured along, and `GET /internal/metrics/sign-ins` reports sign-in outcomes by them.
+
+  Five columns are added to `auth_events`, recorded at write time because none can be
+  backfilled. `deployment_id` is `APP_ID`, so rows collected across a fleet stay attributable.
+  `device_class` folds the user agent into a platform family (`ios`, `android`, `macos`,
+  `windows`, `linux`, `chromeos`, `bot`, `unknown`), since platform is where passkeys differ.
+  `mail_provider` folds the subject's address into a consumer provider or `other`, never the
+  domain, so the rows can be published. `owner` records whether the subject is in `OWNER_EMAIL`,
+  which is what makes "did somebody other than the owner sign in" a query. `attempt_id` is the
+  ephemeral token's new `jti`: `/login` and `/registration/register` mint it, write it on the row
+  that starts the attempt, and every step taken on the token carries it, so one sign-in's steps
+  correlate exactly rather than by adjacency in time. `user_agent` widens to `text` at the same
+  time, since a real browser user agent could exceed the old 255 character column and fail the
+  whole audit write.
+
+  Deliverability is now recorded on both ends of a send. Every OTP send is one `otp_success` row
+  with `metadata.channel` (`email` or `sms`), including the send registration makes, which used
+  to write none. A send the provider refuses is a new `otp_failed` event with
+  `reason: 'Delivery failed'`, distinguished from a server fault by a typed `DeliveryError`.
+
+  The adapter can now forward the browser's user agent as `x-seamless-client-user-agent`, honoured
+  under the same service-token rule as `x-seamless-client-ip`. Without it every row records the
+  adapter's own user agent and the device class breakdown reads `unknown`. The middleware that
+  applied the trusted address is renamed `applyTrustedClientContext`.
+
+  `GET /internal/metrics/sign-ins` answers, over a `from` and `to` window, how many attempts
+  succeeded and failed per method, device class, mail provider and owner flag, plus where attempts
+  stop (`started`, `delivered`, `presented`, `completed`). It counts a method presented within an
+  attempt rather than an event, so a completed OTP sign-in, which logs `verify_otp_success`
+  twice, counts once. Behind `admin:read`, like the funnel endpoint.
+
+  `docs/telemetry.md` records how each dimension is derived, the fleet-wide form of the query,
+  and the publishability and retention decision: aggregates are what leave a deployment, never
+  rows, and the dimensions follow whatever `auth_events` retention becomes.
+
+- cc7776d: Ship admin dashboard v0.7.0 in the API image.
+
+  `SEAMLESS_ADMIN_DASHBOARD_REF` moves from v0.6.0 to v0.7.0, so the SPA served at `/console`
+  picks up that release. Overview gains a Passwordless Funnel section (time to registration, time
+  to login, passkey adoption and time to first passkey, each with the count behind it) and a
+  Sign-in Outcomes section (success rate, where attempts stop, and the breakdown by method,
+  device and mail provider).
+
+  Both read routes that ship in the same API release as this change, `GET /internal/metrics/funnel`
+  and `GET /internal/metrics/sign-ins`, so the image and the console it serves agree. The ref is a
+  release tag rather than a floating branch, so the dashboard only changes when this value does.
+
+### Patch Changes
+
+- 042c18f: Index `auth_events` on `(user_id, created_at)`, `(type, created_at)` and `created_at`.
+
+  `auth_events` was indexed on `actor_user_id` and `session_id` but not on `user_id`, the
+  column the per-user event list filters by and the funnel queries self-join on, nor on
+  `type`, which the login stats and funnel queries filter by inside a `created_at` window,
+  nor on `created_at` itself, which every read orders or windows by. Each of those reads
+  scanned the whole table, which gains a row on every authentication and is never pruned.
+
+  `GET /admin/auth-events?userId=` now walks one index range in `created_at` order and
+  stops at the page limit instead of sorting every event for the user, and its paired
+  count is answered from the index alone. The same index serves the summary and
+  timeseries endpoints when scoped to a user. Login stats and the funnel queries' cohort
+  selection (`type = ... AND created_at BETWEEN ...`) read the `(type, created_at)` index,
+  and the time-to-login self-join uses it on both sides. The unfiltered event list, which
+  is the dashboard's default view, and the list windowed only by `from` and `to`, read
+  the newest page straight off the `created_at` index instead of sorting the whole table
+  for it. The migration only adds indexes and rolling back removes them.
+
+- cc7776d: Return the telemetry dimensions from `GET /admin/auth-events`.
+
+  `@seamless-auth/types` moves from `^0.20.0` to `^0.21.0`. The listing validates its response
+  against the shared `AuthEventSchema`, which strips what it does not declare, so until 0.21.0
+  carried `deployment_id`, `device_class`, `mail_provider`, `owner` and `attempt_id` the columns
+  were written on every row and never returned. They are now, and `openapi.json` documents them.
+
 ## 0.12.0
 
 ### Minor Changes
