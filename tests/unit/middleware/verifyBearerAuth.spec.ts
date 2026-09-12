@@ -125,6 +125,21 @@ describe('verifyBearerAuth', () => {
     expect(validateBearerToken).toHaveBeenCalledWith('token', 'ephemeral');
     expect(req.user).toEqual(mockUser);
     expect(req.sessionId).toBeUndefined();
+    expect(req.attemptId).toBeUndefined();
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('attaches the attempt id an ephemeral token carries', async () => {
+    req.headers.authorization = 'Bearer token';
+
+    (validateBearerToken as any).mockResolvedValue({
+      user: { id: 'user-1' },
+      attemptId: 'attempt-1',
+    });
+
+    await verifyBearerAuth(req, res, next, 'ephemeral');
+
+    expect(req.attemptId).toBe('attempt-1');
     expect(next).toHaveBeenCalled();
   });
 

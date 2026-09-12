@@ -73,28 +73,29 @@ export const generateEmailOTP = async (
     throw new Error('Cannot generate email OTP for non-exsistent user');
   }
 
+  // Set the token and the expiry time (ALWAYS 5 mins)
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 5);
+
+  const emailToken = generateRandomEmailOTP();
+  const emailVerificationTokenExpiry = now.getTime();
+
   try {
-    // Set the token and the expiry time (ALWAYS 5 mins)
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 5);
-
-    const emailToken = generateRandomEmailOTP();
-    const emailVerificationTokenExpiry = now.getTime();
-
     await user.update({
       emailVerificationToken: hashOtpToken(normalizeEmailOtp(emailToken)),
       emailVerificationTokenExpiry,
     });
-
-    if (options.sendMessage !== false) {
-      await sendOTPEmail(user.email, emailToken);
-    }
-
-    return emailToken;
   } catch (error) {
     logger.error(`Error generate email OTP: ${error}`);
     throw new Error('Failed to set user OTP', { cause: error });
   }
+
+  // Outside the wrap above so a DeliveryError reaches the caller as one.
+  if (options.sendMessage !== false) {
+    await sendOTPEmail(user.email, emailToken);
+  }
+
+  return emailToken;
 };
 
 export const generatePhoneOTP = async (
@@ -109,28 +110,28 @@ export const generatePhoneOTP = async (
     throw new Error('Cannot generate phone OTP without a registered phone number');
   }
 
+  // Set the token and the expiry time (ALWAYS 5 mins)
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 5);
+
+  const phoneToken = generateRandomPhoneOTP();
+  const phoneVerificationTokenExpiry = now.getTime();
+
   try {
-    // Set the token and the expiry time (ALWAYS 5 mins)
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 5);
-
-    const phoneToken = generateRandomPhoneOTP();
-    const phoneVerificationTokenExpiry = now.getTime();
-
     await user.update({
       phoneVerificationToken: hashOtpToken(String(phoneToken)),
       phoneVerificationTokenExpiry,
     });
-
-    if (options.sendMessage !== false) {
-      await sendOTPSMS(user.phone, phoneToken);
-    }
-
-    return phoneToken;
   } catch (error) {
     logger.error(`Error generate phone OTP: ${error}`);
     throw new Error('Failed to set user OTP', { cause: error });
   }
+
+  if (options.sendMessage !== false) {
+    await sendOTPSMS(user.phone, phoneToken);
+  }
+
+  return phoneToken;
 };
 
 export const verifyPhoneOTP = async (

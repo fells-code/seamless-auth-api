@@ -19,6 +19,16 @@ export interface AuthEventAttributes {
   type: string;
   ip_address?: string | null;
   user_agent?: string | null;
+  /** Which deployment wrote the row: `APP_ID`, the same value as `sessions.infraId`. */
+  deployment_id?: string | null;
+  /** The platform family of `user_agent`, see `classifyDeviceClass`. */
+  device_class?: string | null;
+  /** The subject's mail provider, see `mailProviderFor`. Null when the subject is unknown. */
+  mail_provider?: string | null;
+  /** Whether the subject is a configured owner. Null when the subject is unknown. */
+  owner?: boolean | null;
+  /** The sign-in or registration attempt the event belongs to: the ephemeral token's `jti`. */
+  attempt_id?: string | null;
   metadata?: Record<string, any> | null;
   created_at?: Date;
   updated_at?: Date;
@@ -26,7 +36,16 @@ export interface AuthEventAttributes {
 
 type AuthEventCreationAttributes = Optional<
   AuthEventAttributes,
-  'id' | 'created_at' | 'updated_at' | 'actor_user_id' | 'session_id'
+  | 'id'
+  | 'created_at'
+  | 'updated_at'
+  | 'actor_user_id'
+  | 'session_id'
+  | 'deployment_id'
+  | 'device_class'
+  | 'mail_provider'
+  | 'owner'
+  | 'attempt_id'
 >;
 
 export class AuthEvent
@@ -40,6 +59,11 @@ export class AuthEvent
   declare type: string;
   declare ip_address?: string | null;
   declare user_agent?: string | null;
+  declare deployment_id?: string | null;
+  declare device_class?: string | null;
+  declare mail_provider?: string | null;
+  declare owner?: boolean | null;
+  declare attempt_id?: string | null;
   declare metadata: Record<string, any> | null;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
@@ -84,7 +108,27 @@ const initializeAuthEventModel = (sequelize: Sequelize) => {
         allowNull: true,
       },
       user_agent: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      deployment_id: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      device_class: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+      },
+      mail_provider: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+      },
+      owner: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+      },
+      attempt_id: {
+        type: DataTypes.UUID,
         allowNull: true,
       },
       metadata: {

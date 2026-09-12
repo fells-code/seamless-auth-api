@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 
@@ -13,6 +14,7 @@ import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { DeliveryError } from '../services/deliveryError.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { generateEmailOTP, generatePhoneOTP, verifyPhoneOTP } from '../utils/otp.js';
@@ -20,9 +22,55 @@ import { isValidEmail, isValidPhoneNumber, normalizePhoneNumber } from '../utils
 
 const logger = getLogger('registration');
 
+/**
+ * Recorded as the OTP send it is, the same as a send from `/otp/*`, so every code that
+ * goes out is one `otp_success` row. A send the provider refused is recorded against
+ * the address it was for before the catch-all turns it into a server fault, since
+ * that is the reading deliverability is measured from.
+ */
+async function sendRegistrationEmailOtp(
+  user: User,
+  req: Request,
+  attemptId: string,
+  sendMessage: boolean,
+) {
+  let otp: string;
+
+  try {
+    otp = await generateEmailOTP(user, { sendMessage });
+  } catch (error) {
+    if (error instanceof DeliveryError) {
+      await AuthEventService.log({
+        userId: user.id,
+        attemptId,
+        subjectEmail: user.email,
+        type: 'otp_failed',
+        req,
+        metadata: { reason: 'Delivery failed', channel: 'email' },
+      });
+    }
+
+    throw error;
+  }
+
+  await AuthEventService.log({
+    userId: user.id,
+    attemptId,
+    subjectEmail: user.email,
+    type: 'otp_success',
+    req,
+    metadata: { channel: 'email' },
+  });
+
+  return otp;
+}
+
 export const register = async (req: Request, res: Response) => {
   const { email, phone } = req.body;
   const useExternalDelivery = await canReturnExternalDelivery(req);
+  // Registration starts an attempt the same way `/login` does: the row that records
+  // it carries the id the token is minted with.
+  const attemptId = randomUUID();
   const normalizedEmail = email?.toLowerCase();
   const phoneProvided = typeof phone === 'string' && phone.trim().length > 0;
   const normalizedPhone = phoneProvided ? normalizePhoneNumber(phone) : null;
@@ -134,37 +182,39 @@ export const register = async (req: Request, res: Response) => {
       logger.info(`Sending email OTP`);
       await AuthEventService.log({
         userId: user.id,
+        attemptId,
+        subjectEmail: user.email,
         type: 'informational',
         req,
         metadata: { reason: 'Attempted registration with exisiting account.' },
       });
 
-      token = await signEphemeralToken(user.id);
+      token = await signEphemeralToken(user.id, attemptId);
 
-      emailOtp = await generateEmailOTP(user, {
-        sendMessage: !useExternalDelivery,
-      });
+      emailOtp = await sendRegistrationEmailOtp(user, req, attemptId, !useExternalDelivery);
     } else {
       await AuthEventService.log({
         userId: user.id,
+        attemptId,
+        subjectEmail: user.email,
         type: 'user_created',
         req,
         metadata: { reason: 'New user registation.' },
       });
 
-      token = await signEphemeralToken(user.id);
+      token = await signEphemeralToken(user.id, attemptId);
 
       await AuthEventService.notificationSent(user.id, req, {
         reason: 'Owner notified of new user registration',
       });
 
       logger.info('Sending email OTP for registration');
-      emailOtp = await generateEmailOTP(user, {
-        sendMessage: !useExternalDelivery,
-      });
+      emailOtp = await sendRegistrationEmailOtp(user, req, attemptId, !useExternalDelivery);
 
       await AuthEventService.log({
         userId: user.id,
+        attemptId,
+        subjectEmail: user.email,
         type: 'registration_success',
         req,
         metadata: { reason: 'New user registration' },

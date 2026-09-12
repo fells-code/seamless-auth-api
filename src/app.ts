@@ -14,7 +14,7 @@ import { loadRoutes } from './lib/loadRoutes.js';
 import { dynamicRateLimit } from './middleware/rateLimit.js';
 import { logRoute } from './middleware/routeLogger.js';
 import { dynamicSlowDown } from './middleware/slowDown.js';
-import { applyTrustedClientIp } from './middleware/trustedClientIp.js';
+import { applyTrustedClientContext } from './middleware/trustedClientContext.js';
 import { generateOpenApiDocument } from './openapi/document.js';
 import { AuthEventService } from './services/authEventService.js';
 import getLogger from './utils/logger.js';
@@ -98,7 +98,7 @@ app.use(
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-app.use(applyTrustedClientIp);
+app.use(applyTrustedClientContext);
 
 if (isDev) {
   app.get('/openapi.json', (_req, res) => {

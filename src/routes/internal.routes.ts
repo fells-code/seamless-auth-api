@@ -11,6 +11,7 @@ import {
   getFunnelMetricsSummary,
   getGroupedEventSummary,
   getLoginStats,
+  getSignInMetricsSummary,
 } from '../controllers/internalMetrics.js';
 import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
@@ -25,6 +26,7 @@ import {
   GroupedAuthEventSummaryResponseSchema,
   LoginStatsResponseSchema,
   SecurityAnomaliesResponseSchema,
+  SignInMetricsResponseSchema,
 } from '../schemas/internalMetrics.responses.js';
 
 const internalRouter = createRouter('/internal');
@@ -155,6 +157,27 @@ internalRouter.get(
     },
   },
   getFunnelMetricsSummary,
+);
+
+internalRouter.get(
+  '/metrics/sign-ins',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('read')],
+    summary: 'Sign-in outcomes by method, device class, mail provider and owner',
+    description:
+      'How many sign-in attempts succeeded and failed over a window, per method, device class, mail provider and owner flag, with where attempts stop. Counted per attempt rather than per event.',
+    tags: ['Internal'],
+    schemas: {
+      query: FunnelMetricsQuerySchema,
+      response: {
+        200: SignInMetricsResponseSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
+      },
+    },
+  },
+  getSignInMetricsSummary,
 );
 
 export default internalRouter.router;

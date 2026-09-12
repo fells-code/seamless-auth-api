@@ -7,6 +7,10 @@
 import { AuthEventSummaryItemSchema, AuthEventTimeseriesPointSchema } from '@seamless-auth/types';
 import { z } from 'zod';
 
+import { DEVICE_CLASSES } from '../lib/deviceClass.js';
+import { MAIL_PROVIDERS } from '../lib/mailProvider.js';
+import { SIGN_IN_METHODS } from '../services/signInMetrics.js';
+
 export {
   AuthEventSummaryResponseSchema,
   DashboardMetricsResponseSchema,
@@ -61,4 +65,50 @@ export const FunnelMetricsResponseSchema = z.object({
   }),
   /** Account creation to first passkey, for the accounts that enrolled one. */
   timeToFirstPasskey: IntervalStatsSchema,
+});
+
+const Count = z.number().int().nonnegative();
+
+/**
+ * One row per method, device class, mail provider and owner flag. Consumers pivot on
+ * whichever dimension they are reporting; nothing here is pre-aggregated per dimension.
+ */
+export const SignInBreakdownRowSchema = z.object({
+  method: z.enum(SIGN_IN_METHODS),
+  /** Null on rows written before the column existed. */
+  deviceClass: z.enum(DEVICE_CLASSES).nullable(),
+  /** Null when the subject's address was not known when the row was written. */
+  mailProvider: z.enum(MAIL_PROVIDERS).nullable(),
+  /** Null when the subject was unknown, as distinct from a known non-owner. */
+  owner: z.boolean().nullable(),
+  /** Attempts in which this method succeeded at least once. */
+  success: Count,
+  /** Attempts in which this method was presented and never succeeded. */
+  failed: Count,
+});
+
+export const SignInMetricsResponseSchema = z.object({
+  /** `APP_ID`, so rows collected across a fleet stay attributable. Null when unset. */
+  deploymentId: z.string().nullable(),
+  /**
+   * Distinct attempts, counted by attempt id. `delivered` is not a strict step: a
+   * passkey attempt reaches `presented` with nothing sent.
+   */
+  attempts: z.object({
+    /** A `login_success` or `user_created` row. */
+    started: Count,
+    /** A code or link went out. */
+    delivered: Count,
+    /** A factor was presented, whatever the outcome. */
+    presented: Count,
+    /** A completed sign-in. */
+    completed: Count,
+  }),
+  signIns: z.object({
+    success: Count,
+    failed: Count,
+    /** `success / (success + failed)`, zero when there is nothing to measure. */
+    successRate: z.number().min(0).max(1),
+  }),
+  breakdown: z.array(SignInBreakdownRowSchema),
 });

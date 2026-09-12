@@ -32,6 +32,7 @@ export const AUTH_EVENT_TYPES = [
   'oauth_login_failed',
   'oauth_login_started',
   'oauth_login_success',
+  'otp_failed',
   'otp_success',
   'otp_suspicious',
   'refresh_token_failed',

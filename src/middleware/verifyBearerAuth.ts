@@ -76,6 +76,9 @@ export async function verifyBearerAuth(
     if (result.sessionId !== undefined) {
       (req as AuthenticatedRequest).sessionId = result.sessionId;
     }
+    if (result.attemptId !== undefined) {
+      (req as AuthenticatedRequest).attemptId = result.attemptId;
+    }
     if (result.organizationId !== undefined) {
       (req as AuthenticatedRequest).organizationId = result.organizationId;
     }

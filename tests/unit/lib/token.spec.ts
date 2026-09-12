@@ -12,6 +12,7 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
 
 const signPayloads = vi.hoisted(() => [] as unknown[]);
 const signAudiences = vi.hoisted(() => [] as unknown[]);
+const signJtis = vi.hoisted(() => [] as unknown[]);
 
 vi.mock('jose', () => {
   class MockSignJWT {
@@ -22,6 +23,10 @@ vi.mock('jose', () => {
       return this;
     }
     setIssuedAt() {
+      return this;
+    }
+    setJti(jti: unknown) {
+      signJtis.push(jti);
       return this;
     }
     setIssuer() {
@@ -53,6 +58,7 @@ vi.mock('crypto', () => ({
   randomBytes: vi.fn(() => ({
     toString: () => 'random-token',
   })),
+  randomUUID: vi.fn(() => 'fresh-attempt'),
 }));
 
 vi.mock('bcrypt-ts', () => ({
@@ -136,6 +142,7 @@ describe('token utils', () => {
     });
 
     signAudiences.length = 0;
+    signJtis.length = 0;
 
     const { signEphemeralToken } = await import('../../../src/lib/token');
 
@@ -143,6 +150,25 @@ describe('token utils', () => {
 
     expect(result).toBe('mock-jwt');
     expect(signAudiences.at(-1)).toBe('issuer');
+    // A fresh attempt when none is passed, which is what starts one.
+    expect(signJtis.at(-1)).toBe('fresh-attempt');
+  });
+
+  it('carries a passed attempt id as the jti, so a re-mint stays in its attempt', async () => {
+    const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+
+    (getSigningKey as any).mockResolvedValue({
+      kid: 'kid',
+      privateKeyPem: 'pem',
+    });
+
+    signJtis.length = 0;
+
+    const { signEphemeralToken } = await import('../../../src/lib/token');
+
+    await signEphemeralToken('user', 'attempt-1');
+
+    expect(signJtis.at(-1)).toBe('attempt-1');
   });
 
   it('throws if signing fails', async () => {

@@ -176,3 +176,56 @@ read as one of three thousand. Percentiles are `null` when the count is zero.
 The window applies to where each reading starts (the registration, the attempt, the account
 creation), not where it completes, so a registration begun on the last day of the window and
 finished the next morning still counts.
+
+### Sign-ins
+
+`GET /internal/metrics/sign-ins` answers how many sign-in attempts succeeded and failed, per
+method, device class, mail provider and owner flag, and where attempts stop. It takes the same
+`from` and `to` window as the funnel endpoint. The dimensions it groups by are recorded on every
+audit row at write time; [docs/telemetry.md](./telemetry.md) describes how each is derived and
+why the result can be published.
+
+```json
+{
+  "deploymentId": "a1b2c3",
+  "attempts": { "started": 412, "delivered": 130, "presented": 388, "completed": 371 },
+  "signIns": { "success": 371, "failed": 21, "successRate": 0.946 },
+  "breakdown": [
+    {
+      "method": "passkey",
+      "deviceClass": "ios",
+      "mailProvider": "gmail",
+      "owner": false,
+      "success": 202,
+      "failed": 4
+    },
+    {
+      "method": "magic_link",
+      "deviceClass": "windows",
+      "mailProvider": "other",
+      "owner": true,
+      "success": 9,
+      "failed": 0
+    }
+  ]
+}
+```
+
+The unit is a method presented within an attempt, not an event. Every step taken on one
+ephemeral token carries the same `attempt_id`, so a completed OTP sign-in, which writes
+`verify_otp_success` twice, counts once, and a person who mistypes a code and then gets it right
+counts as one success rather than one failure and one success. A row with no attempt id (written
+before the claim existed, or from a magic link opened on another device) stands as its own
+attempt.
+
+`breakdown` is one flat row per combination. Pivot on whichever dimension is being reported:
+summing `success` and `failed` over `deviceClass` gives the failure rate by platform, over
+`mailProvider` gives deliverability, and filtering `owner = false` gives the sign-ins that were
+somebody other than the person who set the deployment up. Nothing is pre-aggregated per
+dimension, so the same rows answer every question.
+
+`attempts` counts distinct attempt ids, so it covers attempts started since the claim was added.
+`delivered` is not a strict step (a passkey attempt goes from `started` to `presented` with
+nothing sent). Read `started - presented` as "gave up before proving anything", `delivered -
+presented` as "was sent a code or link and never came back", and `presented - completed` as
+"tried a factor and it did not work".

@@ -97,7 +97,7 @@ describe('POST /registration/register', () => {
     expect(res.body.message).toBe('Success');
 
     expect(User.create).toHaveBeenCalled();
-    expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
+    expect(signEphemeralToken).toHaveBeenCalledWith(user.id, expect.any(String));
     expect(generateEmailOTP).toHaveBeenCalledWith(user, { sendMessage: true });
     expect(generatePhoneOTP).not.toHaveBeenCalled();
   });
@@ -112,7 +112,7 @@ describe('POST /registration/register', () => {
     expect(res.status).toBe(200);
 
     expect(User.create).not.toHaveBeenCalled();
-    expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
+    expect(signEphemeralToken).toHaveBeenCalledWith(user.id, expect.any(String));
     expect(generateEmailOTP).toHaveBeenCalledWith(user, { sendMessage: true });
     expect(generatePhoneOTP).not.toHaveBeenCalled();
   });
@@ -132,7 +132,7 @@ describe('POST /registration/register', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.sub).toBe(user.id);
-    expect(signEphemeralToken).toHaveBeenCalledWith(user.id);
+    expect(signEphemeralToken).toHaveBeenCalledWith(user.id, expect.any(String));
     expect(generateEmailOTP).toHaveBeenCalledWith(user, { sendMessage: true });
     expect(AuthEventService.log).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'registration_failed' }),
@@ -309,6 +309,68 @@ describe('POST /registration/register', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: 'Invalid data.', message: 'Invalid data.' });
     expect(User.create).not.toHaveBeenCalled();
+  });
+
+  describe('attempt and delivery telemetry', () => {
+    it('starts one attempt and stamps it, with the address, on every row it writes', async () => {
+      (User.findOne as any).mockResolvedValue(null);
+
+      const user = buildUser({ phone: null });
+
+      (User.create as any).mockResolvedValue(user);
+
+      const res = await request(app)
+        .post('/registration/register')
+        .send(buildRegistrationRequest());
+
+      expect(res.status).toBe(200);
+
+      const [, attemptId] = (signEphemeralToken as any).mock.calls[0];
+      const rows = (AuthEventService.log as any).mock.calls.map(([options]: [any]) => options);
+      const stamped = rows.filter((row: any) =>
+        ['user_created', 'otp_success', 'registration_success'].includes(row.type),
+      );
+
+      expect(stamped).toHaveLength(3);
+
+      for (const row of stamped) {
+        expect(row).toMatchObject({ userId: user.id, attemptId, subjectEmail: user.email });
+      }
+
+      expect(rows.find((row: any) => row.type === 'otp_success')).toMatchObject({
+        metadata: { channel: 'email' },
+      });
+    });
+
+    it('records a refused send as otp_failed before answering 500', async () => {
+      const { DeliveryError } = await import('../../../src/services/deliveryError.js');
+
+      (User.findOne as any).mockResolvedValue(null);
+
+      const user = buildUser({ phone: null });
+
+      (User.create as any).mockResolvedValue(user);
+      (generateEmailOTP as any).mockRejectedValueOnce(
+        new DeliveryError('Failed to send verification email', new Error('provider down')),
+      );
+
+      const res = await request(app)
+        .post('/registration/register')
+        .send(buildRegistrationRequest());
+
+      expect(res.status).toBe(500);
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: user.id,
+          subjectEmail: user.email,
+          type: 'otp_failed',
+          metadata: { reason: 'Delivery failed', channel: 'email' },
+        }),
+      );
+      expect(AuthEventService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'otp_success' }),
+      );
+    });
   });
 });
 

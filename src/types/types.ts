@@ -28,6 +28,11 @@ export interface AuthenticatedRequest extends RouteRequest {
    * route's decoy responder, so a real handler never observes it as true.
    */
   decoy?: boolean;
+  /**
+   * The sign-in or registration attempt an ephemeral token belongs to, its `jti`.
+   * Unset on access sessions, and on ephemeral tokens minted before the claim existed.
+   */
+  attemptId?: string;
   organizationId?: string | null;
   clientId?: string;
   trustedClientIp?: string;

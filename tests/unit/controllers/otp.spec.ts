@@ -154,7 +154,8 @@ describe('otp controller', () => {
     await sendPhoneOTP(req, res);
 
     expect(generatePhoneOTPMock).toHaveBeenCalledWith(user, { sendMessage: false });
-    expect(signEphemeralTokenMock).toHaveBeenCalledWith(user.id);
+    // No attempt arrived on the request, so the re-mint starts one.
+    expect(signEphemeralTokenMock).toHaveBeenCalledWith(user.id, undefined);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'success',
@@ -865,5 +866,92 @@ describe('otp controller', () => {
     expect(issueSessionAndRespondMock).toHaveBeenCalledWith(
       expect.objectContaining({ user: expect.objectContaining({ roles: [] }) }),
     );
+  });
+
+  describe('attempt and delivery telemetry', () => {
+    it('re-mints the ephemeral token with the attempt it arrived on', async () => {
+      const { sendEmailOTP } = await loadOtpController();
+      const user = buildUser();
+      const req = buildReq(user, { attemptId: 'attempt-1' });
+      const res = buildRes();
+
+      await sendEmailOTP(req, res);
+
+      expect(signEphemeralTokenMock).toHaveBeenCalledWith(user.id, 'attempt-1');
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'otp_success', metadata: { channel: 'email' } }),
+      );
+    });
+
+    it('records the channel on a phone OTP send', async () => {
+      const { sendPhoneOTP } = await loadOtpController();
+      const user = buildUser();
+
+      await sendPhoneOTP(buildReq(user), buildRes());
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'otp_success', metadata: { channel: 'sms' } }),
+      );
+    });
+
+    it('records a refused email send as otp_failed and still answers 500', async () => {
+      const { sendEmailOTP } = await loadOtpController();
+      // After the controller, so both sides of the instanceof see the same class.
+      const { DeliveryError } = await import('../../../src/services/deliveryError.js');
+      const user = buildUser();
+      const res = buildRes();
+
+      generateEmailOTPMock.mockRejectedValueOnce(
+        new DeliveryError('Failed to send verification email', new Error('provider down')),
+      );
+
+      await sendEmailOTP(buildReq(user), res);
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: user.id,
+          type: 'otp_failed',
+          metadata: { reason: 'Delivery failed', channel: 'email' },
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    it('records a refused SMS send as otp_failed', async () => {
+      const { sendPhoneOTP } = await loadOtpController();
+      const { DeliveryError } = await import('../../../src/services/deliveryError.js');
+      const user = buildUser();
+      const res = buildRes();
+
+      generatePhoneOTPMock.mockRejectedValueOnce(
+        new DeliveryError('Failed to send verification SMS', new Error('sms down')),
+      );
+
+      await sendPhoneOTP(buildReq(user), res);
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'otp_failed',
+          metadata: { reason: 'Delivery failed', channel: 'sms' },
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    // The row that saves the code failing is a server fault, not a delivery failure.
+    it('does not record otp_failed when the failure was not delivery', async () => {
+      const { sendEmailOTP } = await loadOtpController();
+      const user = buildUser();
+      const res = buildRes();
+
+      generateEmailOTPMock.mockRejectedValueOnce(new Error('Failed to set user OTP'));
+
+      await sendEmailOTP(buildReq(user), res);
+
+      expect(authEventLogMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'otp_failed' }),
+      );
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
   });
 });
