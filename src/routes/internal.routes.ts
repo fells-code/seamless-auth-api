@@ -8,6 +8,7 @@ import { getDashboardMetrics } from '../controllers/internalDashboard.js';
 import {
   getAuthEventSummary,
   getAuthEventTimeseries,
+  getFunnelMetricsSummary,
   getGroupedEventSummary,
   getLoginStats,
 } from '../controllers/internalMetrics.js';
@@ -15,11 +16,12 @@ import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema } from '../schemas/generic.responses.js';
-import { MetricsQuerySchema } from '../schemas/internal.query.js';
+import { FunnelMetricsQuerySchema, MetricsQuerySchema } from '../schemas/internal.query.js';
 import {
   AuthEventSummaryResponseSchema,
   AuthEventTimeseriesResponseSchema,
   DashboardMetricsResponseSchema,
+  FunnelMetricsResponseSchema,
   GroupedAuthEventSummaryResponseSchema,
   LoginStatsResponseSchema,
   SecurityAnomaliesResponseSchema,
@@ -132,6 +134,27 @@ internalRouter.get(
     },
   },
   getGroupedEventSummary,
+);
+
+internalRouter.get(
+  '/metrics/funnel',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('read')],
+    summary: 'Funnel metrics',
+    description:
+      'Time to registration, time to login and passkey adoption over a window. Each block carries the count it was computed over.',
+    tags: ['Internal'],
+    schemas: {
+      query: FunnelMetricsQuerySchema,
+      response: {
+        200: FunnelMetricsResponseSchema,
+        400: ErrorSchema,
+        500: ErrorSchema,
+      },
+    },
+  },
+  getFunnelMetricsSummary,
 );
 
 export default internalRouter.router;

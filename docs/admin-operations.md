@@ -147,3 +147,32 @@ across the surface it came from. Everything else is matched on the event-type pr
 Each `/auth-events/timeseries` bucket carries `total` and a `categories` map alongside `success`
 and `failed`. Those two stay login-only for backwards compatibility with existing dashboards; use
 `categories` for OTP, WebAuthn, magic link, and OAuth activity.
+
+### Funnel
+
+`GET /internal/metrics/funnel` answers how long the passwordless path takes and how far it is
+adopted, over the same `from` and `to` window as the other metrics endpoints (capped at 366
+days; `userId` and `interval` are not accepted). With no window it covers all time.
+
+```json
+{
+  "timeToRegistration": { "count": 412, "medianSeconds": 84.2, "p90Seconds": 260.5 },
+  "timeToLogin": { "count": 3188, "medianSeconds": 6.4, "p90Seconds": 41.0 },
+  "passkeyAdoption": { "users": 512, "withPasskey": 301, "rate": 0.588 },
+  "timeToFirstPasskey": { "count": 301, "medianSeconds": 118.0, "p90Seconds": 86400.0 }
+}
+```
+
+Every block carries the `count` it was computed over, so a median of three readings is not
+read as one of three thousand. Percentiles are `null` when the count is zero.
+
+| Block                | What is measured                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `timeToRegistration` | Per self-registered account: `user_created` to the first completed sign-in. Accounts created by an administrator or through OAuth sign-up do not emit `user_created`.    |
+| `timeToLogin`        | Per attempt: `login_success` to the completed sign-in it led to, within the five minute ephemeral token TTL and before that user's next attempt. OAuth is not included.  |
+| `passkeyAdoption`    | Of the accounts created in the window, how many hold at least one passkey. Counted from `credentials` rows, since `registration_success` fires for more than enrollment. |
+| `timeToFirstPasskey` | For the accounts that enrolled one: account creation to the first passkey.                                                                                               |
+
+The window applies to where each reading starts (the registration, the attempt, the account
+creation), not where it completes, so a registration begun on the last day of the window and
+finished the next morning still counts.

@@ -11,6 +11,11 @@ import {
   getAuthEventSummary,
   getAuthEventTimeseries,
 } from '../../../src/controllers/internalMetrics.js';
+import { getFunnelMetrics } from '../../../src/services/funnelMetrics.js';
+
+vi.mock('../../../src/services/funnelMetrics.js', () => ({
+  getFunnelMetrics: vi.fn(),
+}));
 
 let app: Application;
 
@@ -105,6 +110,76 @@ describe('GET /internal/auth-events/login-stats', () => {
     expect(countedTypes).toContain('verify_otp_failed');
     expect(countedTypes).not.toContain('login_success');
     expect(countedTypes).not.toContain('login_failed');
+  });
+});
+
+describe('GET /internal/metrics/funnel', () => {
+  const metrics = {
+    timeToRegistration: { count: 3, medianSeconds: 90, p90Seconds: 258 },
+    timeToLogin: { count: 2, medianSeconds: 25, p90Seconds: 29 },
+    passkeyAdoption: { users: 5, withPasskey: 3, rate: 0.6 },
+    timeToFirstPasskey: { count: 3, medianSeconds: 86400, p90Seconds: 86400 },
+  };
+
+  it('returns the funnel blocks over all time when no window is given', async () => {
+    vi.mocked(getFunnelMetrics).mockResolvedValue(metrics);
+
+    const res = await request(app).get('/internal/metrics/funnel');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(metrics);
+    expect(getFunnelMetrics).toHaveBeenCalledWith({ from: undefined, to: undefined });
+  });
+
+  it('passes the window through as dates', async () => {
+    vi.mocked(getFunnelMetrics).mockResolvedValue(metrics);
+
+    const res = await request(app).get(
+      '/internal/metrics/funnel?from=2026-09-01T00:00:00.000Z&to=2026-09-08T00:00:00.000Z',
+    );
+
+    expect(res.status).toBe(200);
+    expect(getFunnelMetrics).toHaveBeenCalledWith({
+      from: new Date('2026-09-01T00:00:00.000Z'),
+      to: new Date('2026-09-08T00:00:00.000Z'),
+    });
+  });
+
+  it('serialises an empty deployment without NaN', async () => {
+    const empty = { count: 0, medianSeconds: null, p90Seconds: null };
+
+    vi.mocked(getFunnelMetrics).mockResolvedValue({
+      timeToRegistration: empty,
+      timeToLogin: empty,
+      passkeyAdoption: { users: 0, withPasskey: 0, rate: 0 },
+      timeToFirstPasskey: empty,
+    });
+
+    const res = await request(app).get('/internal/metrics/funnel');
+
+    expect(res.status).toBe(200);
+    expect(res.body.timeToRegistration).toEqual(empty);
+    expect(res.body.passkeyAdoption.rate).toBe(0);
+  });
+
+  it.each([
+    ['an unparseable bound', 'from=bad'],
+    ['an inverted window', 'from=2026-09-08T00:00:00.000Z&to=2026-09-01T00:00:00.000Z'],
+    ['a window wider than a year', 'from=2024-01-01T00:00:00.000Z&to=2026-01-02T00:00:00.000Z'],
+  ])('returns 400 for %s', async (_label, search) => {
+    const res = await request(app).get(`/internal/metrics/funnel?${search}`);
+
+    expect(res.status).toBe(400);
+    expect(getFunnelMetrics).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the queries fail', async () => {
+    vi.mocked(getFunnelMetrics).mockRejectedValue(new Error('connection refused'));
+
+    const res = await request(app).get('/internal/metrics/funnel');
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Failed to compute funnel metrics' });
   });
 });
 
