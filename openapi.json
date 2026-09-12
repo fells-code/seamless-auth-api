@@ -4725,6 +4725,147 @@
         }
       }
     },
+    "/internal/metrics/funnel": {
+      "get": {
+        "summary": "Funnel metrics",
+        "description": "Time to registration, time to login and passkey adoption over a window. Each block carries the count it was computed over.",
+        "tags": ["Internal"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": false, "name": "from", "in": "query" },
+          { "schema": { "type": "string" }, "required": false, "name": "to", "in": "query" }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "timeToRegistration": { "count": 0, "medianSeconds": 0, "p90Seconds": 0 },
+                  "timeToLogin": { "count": 0, "medianSeconds": 0, "p90Seconds": 0 },
+                  "passkeyAdoption": { "users": 0, "withPasskey": 0, "rate": 0 },
+                  "timeToFirstPasskey": { "count": 0, "medianSeconds": 0, "p90Seconds": 0 }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "timeToRegistration": {
+                      "type": "object",
+                      "properties": {
+                        "count": { "type": "integer", "minimum": 0 },
+                        "medianSeconds": { "type": "number", "nullable": true },
+                        "p90Seconds": { "type": "number", "nullable": true }
+                      },
+                      "required": ["count", "medianSeconds", "p90Seconds"]
+                    },
+                    "timeToLogin": {
+                      "type": "object",
+                      "properties": {
+                        "count": { "type": "integer", "minimum": 0 },
+                        "medianSeconds": { "type": "number", "nullable": true },
+                        "p90Seconds": { "type": "number", "nullable": true }
+                      },
+                      "required": ["count", "medianSeconds", "p90Seconds"]
+                    },
+                    "passkeyAdoption": {
+                      "type": "object",
+                      "properties": {
+                        "users": { "type": "integer", "minimum": 0 },
+                        "withPasskey": { "type": "integer", "minimum": 0 },
+                        "rate": { "type": "number", "minimum": 0, "maximum": 1 }
+                      },
+                      "required": ["users", "withPasskey", "rate"]
+                    },
+                    "timeToFirstPasskey": {
+                      "type": "object",
+                      "properties": {
+                        "count": { "type": "integer", "minimum": 0 },
+                        "medianSeconds": { "type": "number", "nullable": true },
+                        "p90Seconds": { "type": "number", "nullable": true }
+                      },
+                      "required": ["count", "medianSeconds", "p90Seconds"]
+                    }
+                  },
+                  "required": [
+                    "timeToRegistration",
+                    "timeToLogin",
+                    "passkeyAdoption",
+                    "timeToFirstPasskey"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/.well-known/jwks.json": {
       "get": {
         "summary": "Public JSON Web Key Set",

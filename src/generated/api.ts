@@ -4819,6 +4819,159 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/internal/metrics/funnel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Funnel metrics
+     * @description Time to registration, time to login and passkey adoption over a window. Each block carries the count it was computed over.
+     */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "timeToRegistration": {
+             *         "count": 0,
+             *         "medianSeconds": 0,
+             *         "p90Seconds": 0
+             *       },
+             *       "timeToLogin": {
+             *         "count": 0,
+             *         "medianSeconds": 0,
+             *         "p90Seconds": 0
+             *       },
+             *       "passkeyAdoption": {
+             *         "users": 0,
+             *         "withPasskey": 0,
+             *         "rate": 0
+             *       },
+             *       "timeToFirstPasskey": {
+             *         "count": 0,
+             *         "medianSeconds": 0,
+             *         "p90Seconds": 0
+             *       }
+             *     }
+             */
+            'application/json': {
+              timeToRegistration: {
+                count: number;
+                medianSeconds: number | null;
+                p90Seconds: number | null;
+              };
+              timeToLogin: {
+                count: number;
+                medianSeconds: number | null;
+                p90Seconds: number | null;
+              };
+              passkeyAdoption: {
+                users: number;
+                withPasskey: number;
+                rate: number;
+              };
+              timeToFirstPasskey: {
+                count: number;
+                medianSeconds: number | null;
+                p90Seconds: number | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/.well-known/jwks.json': {
     parameters: {
       query?: never;

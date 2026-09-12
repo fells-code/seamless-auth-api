@@ -78,3 +78,46 @@ export const MetricsQuerySchema = SharedMetricsQuerySchema.superRefine((data, ct
     });
   }
 });
+
+/**
+ * The funnel endpoint takes a window and nothing else. `interval` has no meaning for
+ * it, and `userId` would reduce every distribution to one reading, so neither is
+ * accepted rather than silently ignored. The window rules match the shared metrics
+ * schema, with the cap fixed at the day-interval maximum since nothing is bucketed.
+ */
+export const FunnelMetricsQuerySchema = z
+  .object({
+    from: z.string().optional(),
+    to: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const fromDate = data.from ? new Date(data.from) : undefined;
+    const toDate = data.to ? new Date(data.to) : undefined;
+    const fromValid = fromDate !== undefined && !Number.isNaN(fromDate.getTime());
+    const toValid = toDate !== undefined && !Number.isNaN(toDate.getTime());
+
+    if (data.from !== undefined && !fromValid) {
+      ctx.addIssue({ code: 'custom', path: ['from'], message: 'Invalid from date' });
+    }
+
+    if (data.to !== undefined && !toValid) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'Invalid to date' });
+    }
+
+    if (!fromValid || !fromDate) return;
+
+    const end = toValid && toDate ? toDate.getTime() : Date.now();
+
+    if (fromDate.getTime() > end) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'from must be on or before to' });
+      return;
+    }
+
+    if (end - fromDate.getTime() > MAX_METRICS_WINDOW_MS.day) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['to'],
+        message: 'time range exceeds the maximum window',
+      });
+    }
+  });

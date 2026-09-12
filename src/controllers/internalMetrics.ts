@@ -15,7 +15,12 @@ import {
 } from '../lib/authEventCategories.js';
 import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { SIGN_IN_FAILURE_TYPES, SIGN_IN_SUCCESS_TYPES } from '../schemas/authEvent.types.js';
-import { MetricsInterval, MetricsQuerySchema } from '../schemas/internal.query.js';
+import {
+  FunnelMetricsQuerySchema,
+  MetricsInterval,
+  MetricsQuerySchema,
+} from '../schemas/internal.query.js';
+import { getFunnelMetrics } from '../services/funnelMetrics.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal-metrics');
@@ -277,5 +282,27 @@ export const getGroupedEventSummary = async (req: Request, res: Response) => {
   } catch (err) {
     logger.error(`Failed to group auth events: ${err}`);
     return res.status(500).json({ error: 'Failed to group events' });
+  }
+};
+
+export const getFunnelMetricsSummary = async (req: Request, res: Response) => {
+  const parsed = FunnelMetricsQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid query params' });
+  }
+
+  const { from, to } = parsed.data;
+
+  try {
+    return res.json(
+      await getFunnelMetrics({
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+      }),
+    );
+  } catch (err) {
+    logger.error(`Failed to compute funnel metrics: ${err}`);
+    return res.status(500).json({ error: 'Failed to compute funnel metrics' });
   }
 };
