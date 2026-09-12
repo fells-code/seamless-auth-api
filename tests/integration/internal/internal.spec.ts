@@ -12,10 +12,17 @@ import {
   getAuthEventTimeseries,
 } from '../../../src/controllers/internalMetrics.js';
 import { getFunnelMetrics } from '../../../src/services/funnelMetrics.js';
+import { getSignInMetrics } from '../../../src/services/signInMetrics.js';
 
 vi.mock('../../../src/services/funnelMetrics.js', () => ({
   getFunnelMetrics: vi.fn(),
 }));
+
+vi.mock('../../../src/services/signInMetrics.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/services/signInMetrics.js')>();
+
+  return { ...actual, getSignInMetrics: vi.fn() };
+});
 
 let app: Application;
 
@@ -180,6 +187,92 @@ describe('GET /internal/metrics/funnel', () => {
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: 'Failed to compute funnel metrics' });
+  });
+});
+
+describe('GET /internal/metrics/sign-ins', () => {
+  const metrics = {
+    deploymentId: 'gen-42',
+    attempts: { started: 60, delivered: 20, presented: 55, completed: 48 },
+    signIns: { success: 48, failed: 7, successRate: 48 / 55 },
+    breakdown: [
+      {
+        method: 'passkey' as const,
+        deviceClass: 'ios',
+        mailProvider: 'gmail',
+        owner: false,
+        success: 40,
+        failed: 2,
+      },
+      {
+        method: 'otp' as const,
+        deviceClass: null,
+        mailProvider: null,
+        owner: null,
+        success: 8,
+        failed: 5,
+      },
+    ],
+  };
+
+  it('returns the breakdown over all time when no window is given', async () => {
+    vi.mocked(getSignInMetrics).mockResolvedValue(metrics);
+
+    const res = await request(app).get('/internal/metrics/sign-ins');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(metrics);
+    expect(getSignInMetrics).toHaveBeenCalledWith({ from: undefined, to: undefined });
+  });
+
+  it('passes the window through as dates', async () => {
+    vi.mocked(getSignInMetrics).mockResolvedValue(metrics);
+
+    const res = await request(app).get(
+      '/internal/metrics/sign-ins?from=2026-09-01T00:00:00.000Z&to=2026-09-08T00:00:00.000Z',
+    );
+
+    expect(res.status).toBe(200);
+    expect(getSignInMetrics).toHaveBeenCalledWith({
+      from: new Date('2026-09-01T00:00:00.000Z'),
+      to: new Date('2026-09-08T00:00:00.000Z'),
+    });
+  });
+
+  it('serialises an empty deployment with a null deployment id and no NaN', async () => {
+    vi.mocked(getSignInMetrics).mockResolvedValue({
+      deploymentId: null,
+      attempts: { started: 0, delivered: 0, presented: 0, completed: 0 },
+      signIns: { success: 0, failed: 0, successRate: 0 },
+      breakdown: [],
+    });
+
+    const res = await request(app).get('/internal/metrics/sign-ins');
+
+    expect(res.status).toBe(200);
+    expect(res.body.deploymentId).toBeNull();
+    expect(res.body.signIns.successRate).toBe(0);
+    expect(res.body.breakdown).toEqual([]);
+  });
+
+  it.each([
+    ['an unparseable bound', 'from=bad'],
+    ['an inverted window', 'from=2026-09-08T00:00:00.000Z&to=2026-09-01T00:00:00.000Z'],
+    ['a window wider than a year', 'from=2024-01-01T00:00:00.000Z&to=2026-01-02T00:00:00.000Z'],
+  ])('returns 400 for %s', async (_label, search) => {
+    const res = await request(app).get(`/internal/metrics/sign-ins?${search}`);
+
+    expect(res.status).toBe(400);
+    expect(getSignInMetrics).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when the queries fail', async () => {
+    vi.mocked(getSignInMetrics).mockRejectedValue(new Error('connection refused'));
+
+    const res = await request(app).get('/internal/metrics/sign-ins');
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Failed to compute sign-in metrics' });
   });
 });
 

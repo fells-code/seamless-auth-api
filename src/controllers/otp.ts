@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { DeliveryError } from '../services/deliveryError.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import {
   getLoginPolicy,
@@ -94,9 +95,11 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'otp_success',
       req,
+      metadata: { channel: 'sms' },
     });
 
-    const token = await signEphemeralToken(user.id);
+    // Re-minted with the attempt it arrived on, so a resend does not start a new one.
+    const token = await signEphemeralToken(user.id, authReq.attemptId);
 
     return res.status(200).json({
       message: 'success',
@@ -112,6 +115,15 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
         : {}),
     });
   } catch (error: unknown) {
+    if (error instanceof DeliveryError) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'otp_failed',
+        req,
+        metadata: { reason: 'Delivery failed', channel: 'sms' },
+      });
+    }
+
     if (error instanceof Error) {
       logger.error(`Error sending phone OTP ${error.message}`);
     } else {
@@ -161,9 +173,10 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'otp_success',
       req,
+      metadata: { channel: 'email' },
     });
 
-    const token = await signEphemeralToken(user.id);
+    const token = await signEphemeralToken(user.id, authReq.attemptId);
 
     return res.status(200).json({
       message: 'success',
@@ -179,6 +192,15 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
         : {}),
     });
   } catch (error: unknown) {
+    if (error instanceof DeliveryError) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'otp_failed',
+        req,
+        metadata: { reason: 'Delivery failed', channel: 'email' },
+      });
+    }
+
     if (error instanceof Error) {
       logger.error(`Error sending email OTP ${error.message}`);
     } else {

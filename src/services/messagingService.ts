@@ -10,6 +10,7 @@ import { createDirectAuthMessagingService } from '../config/directMessaging.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import getLogger from '../utils/logger.js';
 import { normalizePhoneNumber } from '../utils/utils.js';
+import { DeliveryError } from './deliveryError.js';
 
 const logger = getLogger('messaging');
 
@@ -61,7 +62,7 @@ export const sendOTPEmail = async (to: string, token: string) => {
     logger.info('Verification email sent');
   } catch (error) {
     logger.error(`Failed to send verification email ${error}`);
-    throw error;
+    throw new DeliveryError('Failed to send verification email', error);
   }
 };
 
@@ -87,7 +88,7 @@ export const sendOTPSMS = async (to: string, token: number) => {
     });
   } catch (error) {
     logger.error(`Failed to send verification SMS ${error}`);
-    throw error;
+    throw new DeliveryError('Failed to send verification SMS', error);
   }
 };
 
@@ -109,6 +110,6 @@ export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect
     });
   } catch (error) {
     logger.error(`Failed to send magic link email ${error}`);
-    throw error;
+    throw new DeliveryError('Failed to send magic link email', error);
   }
 };

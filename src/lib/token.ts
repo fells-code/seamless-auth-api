@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { createHmac, randomBytes } from 'crypto';
+import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -76,7 +76,14 @@ export async function signAccessToken(
   return jwt;
 }
 
-export async function signEphemeralToken(userId: string) {
+/**
+ * `attemptId` becomes the token's `jti`, and is what every audit row written on the
+ * token carries as `attempt_id`. A flow that starts an attempt (`/login`,
+ * `/registration/register`) lets it default to a fresh id; a step that re-mints the
+ * token mid-flow, such as an OTP resend, passes the one it received so the attempt
+ * stays whole.
+ */
+export async function signEphemeralToken(userId: string, attemptId: string = randomUUID()) {
   try {
     const { kid, privateKeyPem } = await getSigningKey();
 
@@ -88,6 +95,7 @@ export async function signEphemeralToken(userId: string) {
       typ: 'ephemeral',
     })
       .setProtectedHeader({ alg: 'RS256', kid })
+      .setJti(attemptId)
       .setIssuedAt()
       .setIssuer(ISSUER)
       .setAudience(ISSUER)

@@ -1884,6 +1884,7 @@ export interface paths {
                 | 'oauth_login_failed'
                 | 'oauth_login_started'
                 | 'oauth_login_success'
+                | 'otp_failed'
                 | 'otp_success'
                 | 'otp_suspicious'
                 | 'refresh_token_failed'
@@ -1949,6 +1950,7 @@ export interface paths {
                     | 'oauth_login_failed'
                     | 'oauth_login_started'
                     | 'oauth_login_success'
+                    | 'otp_failed'
                     | 'otp_success'
                     | 'otp_suspicious'
                     | 'refresh_token_failed'
@@ -4893,6 +4895,178 @@ export interface paths {
                 medianSeconds: number | null;
                 p90Seconds: number | null;
               };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/metrics/sign-ins': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Sign-in outcomes by method, device class, mail provider and owner
+     * @description How many sign-in attempts succeeded and failed over a window, per method, device class, mail provider and owner flag, with where attempts stop. Counted per attempt rather than per event.
+     */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "deploymentId": "string",
+             *       "attempts": {
+             *         "started": 0,
+             *         "delivered": 0,
+             *         "presented": 0,
+             *         "completed": 0
+             *       },
+             *       "signIns": {
+             *         "success": 0,
+             *         "failed": 0,
+             *         "successRate": 0
+             *       },
+             *       "breakdown": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              deploymentId: string | null;
+              attempts: {
+                started: number;
+                delivered: number;
+                presented: number;
+                completed: number;
+              };
+              signIns: {
+                success: number;
+                failed: number;
+                successRate: number;
+              };
+              breakdown: {
+                /** @enum {string} */
+                method: 'passkey' | 'otp' | 'magic_link' | 'oauth' | 'totp';
+                /** @enum {string|null} */
+                deviceClass:
+                  | 'ios'
+                  | 'android'
+                  | 'macos'
+                  | 'windows'
+                  | 'linux'
+                  | 'chromeos'
+                  | 'bot'
+                  | 'unknown'
+                  | null;
+                /** @enum {string|null} */
+                mailProvider:
+                  | 'gmail'
+                  | 'outlook'
+                  | 'yahoo'
+                  | 'icloud'
+                  | 'proton'
+                  | 'aol'
+                  | 'fastmail'
+                  | 'gmx'
+                  | 'zoho'
+                  | 'yandex'
+                  | 'other'
+                  | null;
+                owner: boolean | null;
+                success: number;
+                failed: number;
+              }[];
             };
           };
         };

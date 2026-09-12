@@ -21,6 +21,7 @@ import {
   MetricsQuerySchema,
 } from '../schemas/internal.query.js';
 import { getFunnelMetrics } from '../services/funnelMetrics.js';
+import { getSignInMetrics } from '../services/signInMetrics.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('internal-metrics');
@@ -304,5 +305,27 @@ export const getFunnelMetricsSummary = async (req: Request, res: Response) => {
   } catch (err) {
     logger.error(`Failed to compute funnel metrics: ${err}`);
     return res.status(500).json({ error: 'Failed to compute funnel metrics' });
+  }
+};
+
+export const getSignInMetricsSummary = async (req: Request, res: Response) => {
+  const parsed = FunnelMetricsQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid query params' });
+  }
+
+  const { from, to } = parsed.data;
+
+  try {
+    return res.json(
+      await getSignInMetrics({
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+      }),
+    );
+  } catch (err) {
+    logger.error(`Failed to compute sign-in metrics: ${err}`);
+    return res.status(500).json({ error: 'Failed to compute sign-in metrics' });
   }
 };

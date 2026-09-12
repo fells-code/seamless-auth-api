@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -88,16 +89,18 @@ async function respondWithPreAuth({
   res,
   startedAt,
   subject,
+  attemptId,
   identifierType,
   loginMethods,
 }: {
   res: Response;
   startedAt: number;
   subject: string;
+  attemptId: string;
   identifierType: string;
   loginMethods: LoginMethod[];
 }) {
-  const token = await signEphemeralToken(subject);
+  const token = await signEphemeralToken(subject, attemptId);
 
   // Signing normally throws rather than returning empty. Treating a falsy token as a
   // server fault keeps the decoy and the real path failing the same way, instead of one
@@ -150,8 +153,12 @@ async function respondWithDecoy({
   reason: string;
   passkeyAvailable?: boolean;
 }) {
+  // A decoy gets an attempt id too, so its continuation events read as one probe.
+  const attemptId = randomUUID();
+
   await AuthEventService.log({
     userId,
+    attemptId,
     type: 'login_failed',
     req,
     metadata: { reason, decoy: true },
@@ -186,6 +193,7 @@ async function respondWithDecoy({
     res,
     startedAt,
     subject,
+    attemptId,
     identifierType,
     // The method list is filtered by what an account can actually do, so a decoy that
     // always claimed the full set would make any narrower set proof that a real account
@@ -334,8 +342,14 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    // Minted here rather than in the token, so the row that starts the attempt
+    // carries the same id as every step taken on the token it is about to sign.
+    const attemptId = randomUUID();
+
     await AuthEventService.log({
       userId: user.id,
+      attemptId,
+      subjectEmail: user.email,
       type: 'login_success',
       req,
       metadata: {},
@@ -345,6 +359,7 @@ export const login = async (req: Request, res: Response) => {
       res,
       startedAt,
       subject: user.id,
+      attemptId,
       identifierType: identifierType!,
       loginMethods,
     });

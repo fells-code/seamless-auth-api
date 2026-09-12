@@ -113,7 +113,7 @@ async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | '
     return res.status(400).json({ error: 'Invalid data' });
   }
 
-  const token = await signEphemeralToken(subject);
+  const token = await signEphemeralToken(subject, authReq.attemptId);
 
   return res.status(200).json({
     message: 'success',

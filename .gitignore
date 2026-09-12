@@ -46,4 +46,5 @@ docs/*
 !docs/oauth.md
 !docs/production-operations.md
 !docs/security-posture.md
+!docs/telemetry.md
 !docs/webauthn-prf.md

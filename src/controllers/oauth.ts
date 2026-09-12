@@ -138,6 +138,7 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
 
     await AuthEventService.log({
       userId: user.id,
+      subjectEmail: user.email,
       type: 'oauth_login_success',
       req,
       metadata: { providerId: provider.id },

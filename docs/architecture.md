@@ -39,8 +39,11 @@ only party that presents this API's service token. Its responsibilities:
 
 - Terminate the browser's cookie-based session and translate it into an `Authorization: Bearer`
   header for this API.
-- Attach the service token (`x-seamless-service-token`) and forwarded client IP
-  (`x-seamless-client-ip`) on calls that require them.
+- Attach the service token (`x-seamless-service-token`), forwarded client IP
+  (`x-seamless-client-ip`) and forwarded browser user agent (`x-seamless-client-user-agent`)
+  on calls that require them. Without the last, every audit row records the adapter's own
+  user agent and the device class telemetry reads `unknown` (see
+  [telemetry.md](./telemetry.md)).
 - Verify access-token signatures against this API's JWKS (`/.well-known/jwks.json`, RS256).
 
 Direct browser-to-API integration is possible (see the "Direct HTTP APIs (advanced)" path in the

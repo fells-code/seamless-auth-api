@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.10.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.12.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -2056,6 +2056,7 @@
                     "oauth_login_failed",
                     "oauth_login_started",
                     "oauth_login_success",
+                    "otp_failed",
                     "otp_success",
                     "otp_suspicious",
                     "refresh_token_failed",
@@ -2127,6 +2128,7 @@
                           "oauth_login_failed",
                           "oauth_login_started",
                           "oauth_login_success",
+                          "otp_failed",
                           "otp_success",
                           "otp_suspicious",
                           "refresh_token_failed",
@@ -4792,6 +4794,182 @@
                     "passkeyAdoption",
                     "timeToFirstPasskey"
                   ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/metrics/sign-ins": {
+      "get": {
+        "summary": "Sign-in outcomes by method, device class, mail provider and owner",
+        "description": "How many sign-in attempts succeeded and failed over a window, per method, device class, mail provider and owner flag, with where attempts stop. Counted per attempt rather than per event.",
+        "tags": ["Internal"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": false, "name": "from", "in": "query" },
+          { "schema": { "type": "string" }, "required": false, "name": "to", "in": "query" }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "deploymentId": "string",
+                  "attempts": { "started": 0, "delivered": 0, "presented": 0, "completed": 0 },
+                  "signIns": { "success": 0, "failed": 0, "successRate": 0 },
+                  "breakdown": [null]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deploymentId": { "type": "string", "nullable": true },
+                    "attempts": {
+                      "type": "object",
+                      "properties": {
+                        "started": { "type": "integer", "minimum": 0 },
+                        "delivered": { "type": "integer", "minimum": 0 },
+                        "presented": { "type": "integer", "minimum": 0 },
+                        "completed": { "type": "integer", "minimum": 0 }
+                      },
+                      "required": ["started", "delivered", "presented", "completed"]
+                    },
+                    "signIns": {
+                      "type": "object",
+                      "properties": {
+                        "success": { "type": "integer", "minimum": 0 },
+                        "failed": { "type": "integer", "minimum": 0 },
+                        "successRate": { "type": "number", "minimum": 0, "maximum": 1 }
+                      },
+                      "required": ["success", "failed", "successRate"]
+                    },
+                    "breakdown": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "method": {
+                            "type": "string",
+                            "enum": ["passkey", "otp", "magic_link", "oauth", "totp"]
+                          },
+                          "deviceClass": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "ios",
+                              "android",
+                              "macos",
+                              "windows",
+                              "linux",
+                              "chromeos",
+                              "bot",
+                              "unknown",
+                              null
+                            ]
+                          },
+                          "mailProvider": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "gmail",
+                              "outlook",
+                              "yahoo",
+                              "icloud",
+                              "proton",
+                              "aol",
+                              "fastmail",
+                              "gmx",
+                              "zoho",
+                              "yandex",
+                              "other",
+                              null
+                            ]
+                          },
+                          "owner": { "type": "boolean", "nullable": true },
+                          "success": { "type": "integer", "minimum": 0 },
+                          "failed": { "type": "integer", "minimum": 0 }
+                        },
+                        "required": [
+                          "method",
+                          "deviceClass",
+                          "mailProvider",
+                          "owner",
+                          "success",
+                          "failed"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["deploymentId", "attempts", "signIns", "breakdown"]
                 }
               }
             }

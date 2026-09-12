@@ -456,7 +456,36 @@ describe('sessionService', () => {
 
     const result = await validateBearerToken('token', 'ephemeral');
 
+    // No attempt id on a token minted before the claim existed.
     expect(result).toEqual({ user });
+  });
+
+  it('carries the ephemeral token jti as the attempt id, for real and decoy subjects', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { User } = await import('../../../src/models/users');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'ephemeral', sub: 'user', jti: 'attempt-1' },
+    });
+
+    const user = { id: 'user' };
+    (User.findOne as any).mockResolvedValue(user);
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    expect(await validateBearerToken('token', 'ephemeral')).toEqual({
+      user,
+      attemptId: 'attempt-1',
+    });
+
+    (User.findOne as any).mockResolvedValue(null);
+
+    expect(await validateBearerToken('token', 'ephemeral')).toMatchObject({
+      decoy: true,
+      attemptId: 'attempt-1',
+    });
   });
 
   it('returns null if jwt verification fails', async () => {

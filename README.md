@@ -421,6 +421,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 - [docs/api-contract.md](./docs/api-contract.md) for tokens, per-flow status codes, and terminology
 - [docs/direct-http-quickstart.md](./docs/direct-http-quickstart.md) for a curl login/token/refresh walkthrough
 - [docs/extending.md](./docs/extending.md) for message-delivery providers and extension points
+- [docs/telemetry.md](./docs/telemetry.md) for the dimensions recorded on every auth event, the sign-in query, and what can be published
 - [docs/oauth.md](./docs/oauth.md) for OAuth provider setup and security behavior
 - [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
 - [docs/fido-conformance.md](./docs/fido-conformance.md) for running the FIDO2 conformance tools locally

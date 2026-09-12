@@ -25,7 +25,7 @@ function buildReq(overrides: any = {}) {
   } as any;
 }
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach } from 'vitest';
 
 describe('AuthEventService', () => {
   beforeEach(() => {
@@ -52,6 +52,11 @@ describe('AuthEventService', () => {
       type: 'login_success',
       ip_address: '127.0.0.1',
       user_agent: 'agent',
+      deployment_id: null,
+      device_class: 'unknown',
+      mail_provider: null,
+      owner: null,
+      attempt_id: null,
       metadata: null,
     });
   });
@@ -309,6 +314,11 @@ describe('AuthEventService', () => {
       type: 'request_suspicious',
       ip_address: '10.0.0.1',
       user_agent: 'probe',
+      deployment_id: null,
+      device_class: 'unknown',
+      mail_provider: null,
+      owner: null,
+      attempt_id: null,
       metadata: { reason: 'no session' },
     });
   });
@@ -347,6 +357,11 @@ describe('AuthEventService', () => {
       type: 'request_suspicious',
       ip_address: '127.0.0.1',
       user_agent: 'agent',
+      deployment_id: null,
+      device_class: 'unknown',
+      mail_provider: null,
+      owner: null,
+      attempt_id: null,
       metadata: { reason: 'legacy typo' },
     });
   });
@@ -439,5 +454,127 @@ describe('AuthEventService session correlation', () => {
     expect(AuthEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({ session_id: 'sess-other' }),
     );
+  });
+
+  describe('dimensions', () => {
+    const iphone =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('stamps the deployment, device class and attempt on every row', async () => {
+      vi.stubEnv('APP_ID', 'gen-42');
+
+      const { AuthEvent } = await import('../../../src/models/authEvents.js');
+      const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+      await AuthEventService.log({
+        userId: 'user-1',
+        type: 'webauthn_login_failed',
+        req: buildReq({ headers: { 'user-agent': iphone }, attemptId: 'attempt-1' }),
+      });
+
+      expect(AuthEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deployment_id: 'gen-42',
+          device_class: 'ios',
+          attempt_id: 'attempt-1',
+        }),
+      );
+    });
+
+    it('derives the mail provider and owner flag from the principal when it is the subject', async () => {
+      vi.stubEnv('OWNER_EMAIL', 'Owner@Example.com');
+
+      const { AuthEvent } = await import('../../../src/models/authEvents.js');
+      const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+      await AuthEventService.log({
+        userId: 'user-1',
+        type: 'verify_otp_success',
+        req: buildReq({ user: { id: 'user-1', email: 'owner@example.com' } }),
+      });
+
+      expect(AuthEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({ mail_provider: 'other', owner: true }),
+      );
+
+      await AuthEventService.log({
+        userId: 'user-2',
+        type: 'verify_otp_success',
+        req: buildReq({ user: { id: 'user-2', email: 'friend@gmail.com' } }),
+      });
+
+      expect(AuthEvent.create).toHaveBeenLastCalledWith(
+        expect.objectContaining({ mail_provider: 'gmail', owner: false }),
+      );
+    });
+
+    // An administrator acting on another account, and a decoy principal, both say
+    // nothing about the subject.
+    it('leaves the subject dimensions null when the principal is not the subject', async () => {
+      const { AuthEvent } = await import('../../../src/models/authEvents.js');
+      const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+      await AuthEventService.log({
+        userId: 'target',
+        actorUserId: 'admin',
+        type: 'user_deleted',
+        req: buildReq({ user: { id: 'admin', email: 'admin@gmail.com' } }),
+      });
+
+      expect(AuthEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({ mail_provider: null, owner: null }),
+      );
+
+      await AuthEventService.log({
+        userId: 'decoy-subject',
+        type: 'login_failed',
+        req: buildReq({ user: { id: 'decoy-subject', email: 'ghost@gmail.com' }, decoy: true }),
+      });
+
+      expect(AuthEvent.create).toHaveBeenLastCalledWith(
+        expect.objectContaining({ mail_provider: null, owner: null }),
+      );
+    });
+
+    it('takes an explicit subject address and attempt over the request', async () => {
+      const { AuthEvent } = await import('../../../src/models/authEvents.js');
+      const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+      await AuthEventService.log({
+        userId: 'user-1',
+        attemptId: 'attempt-2',
+        subjectEmail: 'someone@icloud.com',
+        type: 'login_success',
+        req: buildReq({ attemptId: 'attempt-1' }),
+      });
+
+      expect(AuthEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mail_provider: 'icloud',
+          owner: false,
+          attempt_id: 'attempt-2',
+        }),
+      );
+    });
+
+    it('does not write the subject address anywhere on the row', async () => {
+      const { AuthEvent } = await import('../../../src/models/authEvents.js');
+      const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+      await AuthEventService.log({
+        userId: 'user-1',
+        subjectEmail: 'someone@icloud.com',
+        type: 'login_success',
+        req: buildReq(),
+      });
+
+      const [[row]] = (AuthEvent.create as any).mock.calls;
+
+      expect(JSON.stringify(row)).not.toContain('someone@icloud.com');
+    });
   });
 });

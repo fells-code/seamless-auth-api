@@ -35,7 +35,9 @@ path goes through the adapter.
 The server-side adapter SDK; a thin stateless proxy + cookie manager. **Highest coupling.**
 
 - Calls ~50 of this API's routes via `authFetch()` with `Authorization: Bearer`,
-  `x-seamless-service-token`, `x-seamless-client-ip`. Covers `/login`, `/registration/register`,
+  `x-seamless-service-token`, `x-seamless-client-ip`. Does not yet forward
+  `x-seamless-client-user-agent`, which this API honours under the same service-token rule
+  and which the device class telemetry depends on. Covers `/login`, `/registration/register`,
   all `/otp/*`, `/webAuthn/*`, `/magic-link*`, `/refresh`, `/users/*`, `/organizations/*`,
   `/step-up/*`, `/sessions*`, all `/admin/*`, all `/internal/*`, `/system-config/*`.
 - **JWKS:** fetches `/.well-known/jwks.json` (`createRemoteJWKSet` + `jwtVerify`, RS256),

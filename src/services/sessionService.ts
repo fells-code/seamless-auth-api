@@ -225,6 +225,8 @@ export interface ValidatedBearerToken {
   sessionId?: string;
   organizationId?: string | null;
   decoy?: boolean;
+  /** The ephemeral token's `jti`, absent on tokens minted before it was set. */
+  attemptId?: string;
 }
 
 export async function validateEphemeralToken(token: string): Promise<ValidatedBearerToken | null> {
@@ -234,12 +236,14 @@ export async function validateEphemeralToken(token: string): Promise<ValidatedBe
     return null;
   }
 
+  const attempt = typeof payload.jti === 'string' ? { attemptId: payload.jti } : {};
+
   const user = await User.findOne({
     where: { id: payload.sub, revoked: false },
   });
 
   if (user) {
-    return { user };
+    return { user, ...attempt };
   }
 
   // The signature, issuer, audience, type and expiry have all already been checked, so
@@ -250,7 +254,11 @@ export async function validateEphemeralToken(token: string): Promise<ValidatedBe
   //
   // A token whose user was deleted or revoked mid-flow lands here too, and is likewise
   // answered as a decoy rather than with a distinguishable 401.
-  return { user: decoyPrincipalAsUser(decoyPrincipalForSubject(payload.sub)), decoy: true };
+  return {
+    user: decoyPrincipalAsUser(decoyPrincipalForSubject(payload.sub)),
+    decoy: true,
+    ...attempt,
+  };
 }
 
 export async function validateBearerToken(

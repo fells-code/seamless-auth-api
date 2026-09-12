@@ -6,6 +6,9 @@
 
 import { Request } from 'express';
 
+import { classifyDeviceClass } from '../lib/deviceClass.js';
+import { mailProviderFor } from '../lib/mailProvider.js';
+import { isOwnerEmail } from '../lib/ownerAdmin.js';
 import { AuthEvent } from '../models/authEvents.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
 import type { AuthenticatedRequest } from '../types/types.js';
@@ -41,6 +44,22 @@ export interface AuthEventOptions {
    * authenticated events correlate without every call site passing it.
    */
   sessionId?: string | null;
+  /**
+   * The sign-in or registration attempt the event belongs to. Defaults to the
+   * attempt on the request, which the bearer middleware sets from the ephemeral
+   * token's `jti`, so every step taken on that token correlates without call sites
+   * passing it. `/login` and `/registration/register` start an attempt, so they
+   * pass the id they are about to mint the token with.
+   */
+  attemptId?: string | null;
+  /**
+   * The address of the user the event is about, for the mail provider and owner
+   * dimensions. Never stored. Defaults to the request principal's address when the
+   * principal is the subject, which covers every step taken on a token. Pass it
+   * where the subject is known before a token exists (`/login`,
+   * `/registration/register`) or without one (OAuth).
+   */
+  subjectEmail?: string | null;
   type: LoggableAuthEventType;
   req: Request;
   metadata?: Record<string, unknown> | null;
@@ -50,10 +69,31 @@ interface AuthEventContextOptions {
   userId?: string | null;
   actorUserId?: string | null;
   sessionId?: string | null;
+  attemptId?: string | null;
+  subjectEmail?: string | null;
   type: LoggableAuthEventType;
   ipAddress?: string | null;
   userAgent?: string | null;
   metadata?: Record<string, unknown> | null;
+}
+
+function deploymentId() {
+  return process.env.APP_ID?.trim() || null;
+}
+
+/**
+ * The principal's address, when the principal is the subject of the event.
+ *
+ * An administrator acting on someone else's account is on the request with the
+ * target in `userId`, and a decoy principal's address belongs to nobody, so neither
+ * says anything about the subject.
+ */
+function principalEmailFor(req: Request, userId: string | null) {
+  const { user, decoy } = req as AuthenticatedRequest;
+
+  if (!user || decoy || !userId || user.id !== userId) return null;
+
+  return user.email ?? null;
 }
 
 export class AuthEventService {
@@ -61,6 +101,8 @@ export class AuthEventService {
     userId = null,
     actorUserId = null,
     sessionId = null,
+    attemptId = null,
+    subjectEmail = null,
     type,
     ipAddress = 'unknown',
     userAgent = 'unknown',
@@ -82,6 +124,11 @@ export class AuthEventService {
         type: normalizedType,
         ip_address: ipAddress || 'unknown',
         user_agent: userAgent || 'unknown',
+        deployment_id: deploymentId(),
+        device_class: classifyDeviceClass(userAgent),
+        mail_provider: mailProviderFor(subjectEmail),
+        owner: subjectEmail ? isOwnerEmail(subjectEmail) : null,
+        attempt_id: attemptId,
         metadata: redactMetadata(metadata),
       });
     } catch (err) {
@@ -97,6 +144,8 @@ export class AuthEventService {
     userId = null,
     actorUserId = null,
     sessionId,
+    attemptId,
+    subjectEmail,
     type,
     req,
     metadata = null,
@@ -105,6 +154,8 @@ export class AuthEventService {
       userId,
       actorUserId,
       sessionId: sessionId ?? (req as AuthenticatedRequest).sessionId ?? null,
+      attemptId: attemptId ?? (req as AuthenticatedRequest).attemptId ?? null,
+      subjectEmail: subjectEmail ?? principalEmailFor(req, userId),
       type,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],

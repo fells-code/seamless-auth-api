@@ -21,6 +21,7 @@ import {
 } from '../../../src/services/sessionService';
 import { AuthEvent } from '../../../src/models/authEvents';
 import { AuthFailure } from '../../../src/models/authFailures';
+import { AuthEventService } from '../../../src/services/authEventService';
 import { logoutCurrentSession } from '../../../src/controllers/authentication';
 
 let app: Application;
@@ -384,6 +385,57 @@ describe('POST /login', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ttl).toBe(900);
+  });
+
+  it('starts an attempt: the login_success row and the token carry the same id', async () => {
+    const user = buildUser({ verified: true });
+
+    (User.findOne as any).mockResolvedValue(user);
+    (Credential.findOne as any).mockResolvedValue({});
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
+
+    expect(res.status).toBe(200);
+
+    const [subject, attemptId] = (signEphemeralToken as any).mock.calls[0];
+
+    expect(subject).toBe(user.id);
+    expect(attemptId).toEqual(expect.any(String));
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: user.id,
+        attemptId,
+        subjectEmail: user.email,
+        type: 'login_success',
+      }),
+    );
+  });
+
+  it('gives a decoy its own attempt id, so its continuation reads as one probe', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    const res = await request(app).post('/login').send({ identifier: 'nobody@example.com' });
+
+    expect(res.status).toBe(200);
+
+    const [, attemptId] = (signEphemeralToken as any).mock.calls[0];
+
+    expect(attemptId).toEqual(expect.any(String));
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'login_failed',
+        attemptId,
+        metadata: expect.objectContaining({ decoy: true }),
+      }),
+    );
+    // Nothing is known about the subject of a decoy.
+    expect(AuthEventService.log).not.toHaveBeenCalledWith(
+      expect.objectContaining({ subjectEmail: expect.any(String) }),
+    );
   });
 });
 
