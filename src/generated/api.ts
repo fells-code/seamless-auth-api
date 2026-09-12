@@ -2023,6 +2023,11 @@ export interface paths {
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
+                deployment_id?: string | null;
+                device_class?: string | null;
+                mail_provider?: string | null;
+                owner?: boolean | null;
+                attempt_id?: string | null;
                 metadata: {
                   [key: string]: unknown;
                 } | null;
@@ -2297,6 +2302,11 @@ export interface paths {
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
+                deployment_id?: string | null;
+                device_class?: string | null;
+                mail_provider?: string | null;
+                owner?: boolean | null;
+                attempt_id?: string | null;
                 metadata: {
                   [key: string]: unknown;
                 } | null;
@@ -2779,6 +2789,11 @@ export interface paths {
                 type: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
+                deployment_id?: string | null;
+                device_class?: string | null;
+                mail_provider?: string | null;
+                owner?: boolean | null;
+                attempt_id?: string | null;
                 metadata: {
                   [key: string]: unknown;
                 } | null;
@@ -4542,6 +4557,11 @@ export interface paths {
                 type?: string;
                 ip_address?: string | null;
                 user_agent?: string | null;
+                deployment_id?: string | null;
+                device_class?: string | null;
+                mail_provider?: string | null;
+                owner?: boolean | null;
+                attempt_id?: string | null;
                 metadata?: {
                   [key: string]: unknown;
                 } | null;

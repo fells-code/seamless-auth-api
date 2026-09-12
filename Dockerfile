@@ -28,7 +28,7 @@ WORKDIR /dashboard
 
 ARG SEAMLESS_ADMIN_DASHBOARD_REPO=https://github.com/fells-code/seamless-auth-admin-dashboard.git
 # Pinned dashboard release tag. The same-origin /console build has shipped since v0.2.0.
-ARG SEAMLESS_ADMIN_DASHBOARD_REF=v0.6.0
+ARG SEAMLESS_ADMIN_DASHBOARD_REF=v0.7.0
 
 RUN apt-get update && \
   apt-get install -y git python3 make g++ && \
