@@ -44,6 +44,12 @@ RUN npm run build:console
 FROM node:24-slim AS runner
 WORKDIR /app
 
+# The node base image is rebuilt on its own cadence, so Debian security fixes can lag
+# behind by weeks. Upgrading here means every release picks them up at build time.
+RUN apt-get update && \
+  apt-get upgrade -y && \
+  rm -rf /var/lib/apt/lists/*
+
 RUN useradd -m appuser
 
 COPY validateEnvs.sh /usr/local/bin/validateEnvs.sh
