@@ -9,7 +9,7 @@ import path from 'path';
 import { Sequelize } from 'sequelize';
 import { fileURLToPath } from 'url';
 
-import { buildDatabaseUrl, resolveSslOptions } from '../config/database.cjs';
+import { buildDatabaseUrl, resolveSslOptions, withoutSslMode } from '../config/database.cjs';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('sequelize');
@@ -42,7 +42,7 @@ export function getSequelize(): Sequelize {
 
   logger.info(`Using Postgres database (TLS ${ssl ? 'enabled' : 'disabled'})`);
 
-  sequelizeInstance = new Sequelize(DATABASE_URL, {
+  sequelizeInstance = new Sequelize(withoutSslMode(DATABASE_URL), {
     logging: enableDbLogging ? (msg) => logger.debug(msg) : false,
     ...(ssl ? { dialectOptions: { ssl } } : {}),
   });

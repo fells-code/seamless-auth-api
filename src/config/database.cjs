@@ -103,9 +103,29 @@ function resolveSslOptions(url) {
   return ca ? { ca, rejectUnauthorized } : { rejectUnauthorized };
 }
 
+// The connection string to construct Sequelize with. Sequelize reads the query of a
+// connection string for itself and lets pg-connection-string's reading of `sslmode`
+// replace the `ssl` it was given in `dialectOptions`, so with `sslmode` on the URL the
+// options above would be thrown away and the certificate verified whatever `DB_SSL` or
+// `DB_SSL_REJECT_UNAUTHORIZED` said. `resolveSslOptions` has read `sslmode` by then, so
+// it comes out of the URL here. Migrations are not affected: config.cjs hands
+// sequelize-cli discrete fields, never the string.
+function withoutSslMode(url) {
+  const query = url.indexOf('?');
+  if (query === -1) return url;
+
+  const params = new URLSearchParams(url.slice(query + 1));
+  if (!params.has('sslmode')) return url;
+
+  params.delete('sslmode');
+  const rest = params.toString();
+  return rest ? `${url.slice(0, query)}?${rest}` : url.slice(0, query);
+}
+
 module.exports = {
   buildDatabaseUrl,
   parseDatabaseUrl,
   resolveDatabaseUrl,
   resolveSslOptions,
+  withoutSslMode,
 };
