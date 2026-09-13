@@ -26,6 +26,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
 
     case 'lockout_policy':
     case 'authenticator_policy':
+    case 'flow_rate_limits':
       return JSON.parse(raw);
 
     case 'rate_limit':

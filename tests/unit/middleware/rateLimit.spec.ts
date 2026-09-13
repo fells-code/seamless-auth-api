@@ -162,76 +162,144 @@ describe('dynamicRateLimit', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it('creates limiter instances once at module initialization', async () => {
+  it('creates the general limiter once at module initialization', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
     const rateLimit = await import('express-rate-limit');
-
     (getSystemConfig as any).mockResolvedValue({ rate_limit: 100 });
-
     const { dynamicRateLimit } = await import('../../../src/middleware/rateLimit');
 
     await dynamicRateLimit(req, res, next);
     await dynamicRateLimit(req, res, next);
 
-    expect(rateLimit.default).toHaveBeenCalledTimes(7);
+    // The flow limiters are built on first use, per configured window, not here.
+    expect(rateLimit.default).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('magicLinkIpLimiter', () => {
-  it('uses fixed limit of 20', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
+// The six flow limiters read `flow_rate_limits` from system config. With no
+// value configured they carry the constants they had before the key existed.
+const FLOW_LIMITS = {
+  windowSeconds: 900,
+  otp: { perIp: 10, perIdentity: 5 },
+  magicLink: { perIp: 20, perIdentity: 5 },
+  oauth: { perIp: 30, perProvider: 10 },
+};
 
-    (getSystemConfig as any).mockResolvedValue({});
+async function loadFlowLimiters(config: Record<string, unknown> = {}) {
+  const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
+  const rateLimit = await import('express-rate-limit');
+  (getSystemConfig as any).mockResolvedValue(config);
+  const limiters = await import('../../../src/middleware/rateLimit');
+  return { getSystemConfig, rateLimit, limiters };
+}
 
-    const { magicLinkIpLimiter } = await import('../../../src/middleware/rateLimit');
+/** The options of the last limiter express-rate-limit was asked to build. */
+function lastOptions(rateLimit: any) {
+  const calls = rateLimit.default.mock.calls;
+  return calls[calls.length - 1][0];
+}
 
-    const next = vi.fn();
+describe('flow limiters', () => {
+  it.each([
+    ['magicLinkIpLimiter', 20],
+    ['magicLinkEmailLimiter', 5],
+    ['otpIpLimiter', 10],
+    ['otpIdentityLimiter', 5],
+    ['oauthIpLimiter', 30],
+    ['oauthProviderLimiter', 10],
+  ] as const)(
+    '%s keeps its historical limit when nothing is configured',
+    async (name, expected) => {
+      const { rateLimit, limiters } = await loadFlowLimiters();
+      const next = vi.fn();
+
+      // @ts-ignore
+      await limiters[name]({ ip: '1.1.1.1', params: {} }, {}, next);
+
+      const options = lastOptions(rateLimit);
+      expect(options).toEqual(
+        expect.objectContaining({
+          legacyHeaders: false,
+          standardHeaders: true,
+          windowMs: 15 * 60 * 1000,
+          limit: expect.any(Function),
+        }),
+      );
+      await expect(options.limit()).resolves.toBe(expected);
+      expect(next).toHaveBeenCalled();
+    },
+  );
+
+  it('reads the configured per-IP value for a flow and leaves the others alone', async () => {
+    const { rateLimit, limiters } = await loadFlowLimiters({
+      flow_rate_limits: { ...FLOW_LIMITS, otp: { perIp: 500, perIdentity: 5 } },
+    });
 
     // @ts-ignore
-    await magicLinkIpLimiter({}, {}, next);
+    await limiters.otpIpLimiter({}, {}, vi.fn());
+    const otpIp = lastOptions(rateLimit);
+    // @ts-ignore
+    await limiters.otpIdentityLimiter({ body: { email: 'a@b.c' } }, {}, vi.fn());
+    const otpIdentity = lastOptions(rateLimit);
 
-    expect(rateLimit.default).toHaveBeenCalledWith(
-      expect.objectContaining({
-        limit: 20,
-      }),
-    );
+    await expect(otpIp.limit()).resolves.toBe(500);
+    await expect(otpIdentity.limit()).resolves.toBe(5);
+  });
+
+  it('takes a changed limit on the next hit without rebuilding the limiter', async () => {
+    const { getSystemConfig, rateLimit, limiters } = await loadFlowLimiters({
+      flow_rate_limits: FLOW_LIMITS,
+    });
+
+    // @ts-ignore
+    await limiters.magicLinkIpLimiter({}, {}, vi.fn());
+    const built = rateLimit.default.mock.calls.length;
+    const options = lastOptions(rateLimit);
+
+    (getSystemConfig as any).mockResolvedValue({
+      flow_rate_limits: { ...FLOW_LIMITS, magicLink: { perIp: 75, perIdentity: 5 } },
+    });
+    // @ts-ignore
+    await limiters.magicLinkIpLimiter({}, {}, vi.fn());
+
+    expect(rateLimit.default.mock.calls.length).toBe(built);
+    await expect(options.limit()).resolves.toBe(75);
+  });
+
+  it('builds one limiter per configured window', async () => {
+    const { getSystemConfig, rateLimit, limiters } = await loadFlowLimiters({
+      flow_rate_limits: FLOW_LIMITS,
+    });
+
+    // @ts-ignore
+    await limiters.oauthIpLimiter({}, {}, vi.fn());
+    // @ts-ignore
+    await limiters.oauthIpLimiter({}, {}, vi.fn());
+    const withDefaultWindow = rateLimit.default.mock.calls.length;
+
+    (getSystemConfig as any).mockResolvedValue({
+      flow_rate_limits: { ...FLOW_LIMITS, windowSeconds: 60 },
+    });
+    // @ts-ignore
+    await limiters.oauthIpLimiter({}, {}, vi.fn());
+
+    expect(rateLimit.default.mock.calls.length).toBe(withDefaultWindow + 1);
+    expect(lastOptions(rateLimit).windowMs).toBe(60 * 1000);
   });
 });
 
 describe('magicLinkEmailLimiter', () => {
   it('uses authenticated email or ip as key', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    const { magicLinkEmailLimiter } = await import('../../../src/middleware/rateLimit');
-
+    const { rateLimit, limiters } = await loadFlowLimiters();
     const req: any = {
       user: { email: 'Test@Example.com' },
       ip: '127.0.0.1',
     };
 
-    const next = vi.fn();
-
     // @ts-ignore
-    await magicLinkEmailLimiter(req, {}, next);
+    await limiters.magicLinkEmailLimiter(req, {}, vi.fn());
 
-    expect(rateLimit.default).toHaveBeenCalledWith(
-      expect.objectContaining({
-        keyGenerator: expect.any(Function),
-        legacyHeaders: false,
-        limit: 5,
-        standardHeaders: true,
-        windowMs: 15 * 60 * 1000,
-      }),
-    );
-
-    const options = (rateLimit.default as any).mock.calls.find(
-      ([options]: any[]) => options.keyGenerator,
-    )[0];
-
+    const options = lastOptions(rateLimit);
     expect(options.keyGenerator(req)).toBe('email:test@example.com');
     expect(options.keyGenerator({ ip: '127.0.0.1' })).toBe('ip:127.0.0.1');
   });
@@ -239,96 +307,35 @@ describe('magicLinkEmailLimiter', () => {
 
 describe('otpIdentityLimiter', () => {
   it('uses authenticated email or phone as key', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    const { otpIdentityLimiter } = await import('../../../src/middleware/rateLimit');
-
+    const { rateLimit, limiters } = await loadFlowLimiters();
     const req: any = {
       user: { email: null, phone: '+14155552671' },
       ip: '127.0.0.1',
     };
-    const next = vi.fn();
 
     // @ts-ignore
-    await otpIdentityLimiter(req, {}, next);
+    await limiters.otpIdentityLimiter(req, {}, vi.fn());
 
-    const options = (rateLimit.default as any).mock.calls
-      .map(([options]: any[]) => options)
-      .find((options: any) => options.keyGenerator?.(req) === 'phone:+14155552671');
-
-    expect(options).toEqual(
-      expect.objectContaining({
-        keyGenerator: expect.any(Function),
-        legacyHeaders: false,
-        limit: 5,
-        standardHeaders: true,
-        windowMs: 15 * 60 * 1000,
-      }),
-    );
+    const options = lastOptions(rateLimit);
+    expect(options.keyGenerator(req)).toBe('phone:+14155552671');
     expect(options.keyGenerator({ user: { email: 'Test@Example.com' } })).toBe(
       'email:test@example.com',
     );
   });
 });
 
-describe('otpIpLimiter', () => {
-  it('invokes the fixed IP-based OTP limiter and continues', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    const { otpIpLimiter } = await import('../../../src/middleware/rateLimit');
-    const next = vi.fn();
-
-    // @ts-ignore
-    await otpIpLimiter({}, {}, next);
-
-    expect((rateLimit.default as any).mock.calls[3][0]).toEqual(
-      expect.objectContaining({ limit: 10 }),
-    );
-    expect(next).toHaveBeenCalled();
-  });
-});
-
-describe('oauthIpLimiter', () => {
-  it('invokes the fixed IP-based OAuth limiter and continues', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    const { oauthIpLimiter } = await import('../../../src/middleware/rateLimit');
-    const next = vi.fn();
-
-    // @ts-ignore
-    await oauthIpLimiter({}, {}, next);
-
-    expect((rateLimit.default as any).mock.calls[5][0]).toEqual(
-      expect.objectContaining({ limit: 30 }),
-    );
-    expect(next).toHaveBeenCalled();
-  });
-});
-
 describe('rate limiter key generators', () => {
   async function keyGenerators() {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    await import('../../../src/middleware/rateLimit');
-
-    const calls = (rateLimit.default as any).mock.calls;
+    const { rateLimit, limiters } = await loadFlowLimiters();
+    const keyOf = async (limiter: any) => {
+      await limiter({ params: {} }, {}, vi.fn());
+      return lastOptions(rateLimit).keyGenerator;
+    };
 
     return {
-      magicLink: calls[2][0].keyGenerator,
-      otp: calls[4][0].keyGenerator,
-      oauth: calls[6][0].keyGenerator,
+      magicLink: await keyOf(limiters.magicLinkEmailLimiter),
+      otp: await keyOf(limiters.otpIdentityLimiter),
+      oauth: await keyOf(limiters.oauthProviderLimiter),
     };
   }
 
@@ -362,35 +369,16 @@ describe('rate limiter key generators', () => {
 
 describe('oauthProviderLimiter', () => {
   it('keys by provider and ip', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    const { oauthProviderLimiter } = await import('../../../src/middleware/rateLimit');
-
+    const { rateLimit, limiters } = await loadFlowLimiters();
     const req: any = {
       params: { providerId: 'google' },
       ip: '127.0.0.1',
     };
-    const next = vi.fn();
 
     // @ts-ignore
-    await oauthProviderLimiter(req, {}, next);
+    await limiters.oauthProviderLimiter(req, {}, vi.fn());
 
-    const options = (rateLimit.default as any).mock.calls
-      .map(([options]: any[]) => options)
-      .find((options: any) => options.keyGenerator?.(req) === 'google:127.0.0.1');
-
-    expect(options).toEqual(
-      expect.objectContaining({
-        keyGenerator: expect.any(Function),
-        legacyHeaders: false,
-        limit: 10,
-        standardHeaders: true,
-        windowMs: 15 * 60 * 1000,
-      }),
-    );
+    expect(lastOptions(rateLimit).keyGenerator(req)).toBe('google:127.0.0.1');
   });
 });
 
@@ -399,18 +387,24 @@ describe('refusal body', () => {
   // default, so grepping for the string found three of the nine sites. Asserted across
   // every constructed limiter rather than per-limiter for that reason.
   it('gives every limiter the JSON error shape', async () => {
-    const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
-    const rateLimit = await import('express-rate-limit');
-
-    (getSystemConfig as any).mockResolvedValue({});
-
-    await import('../../../src/middleware/rateLimit');
+    const { limiters, rateLimit } = await loadFlowLimiters();
     await import('../../../src/middleware/jwksRateLimit');
+
+    for (const name of [
+      'magicLinkIpLimiter',
+      'magicLinkEmailLimiter',
+      'otpIpLimiter',
+      'otpIdentityLimiter',
+      'oauthIpLimiter',
+      'oauthProviderLimiter',
+    ] as const) {
+      // @ts-ignore
+      await limiters[name]({ ip: '1.1.1.1', params: {} }, {}, vi.fn());
+    }
 
     const messages = (rateLimit.default as any).mock.calls.map(
       ([options]: any[]) => options.message,
     );
-
     expect(messages).toHaveLength(8);
     for (const message of messages) {
       expect(message).toEqual({ error: 'Too many requests, please try again later' });
@@ -459,7 +453,7 @@ describe('dynamicJWKSRateLimit', () => {
 });
 
 describe('rate limiter caches', () => {
-  it('keeps dynamic and magic link limiter instances isolated', async () => {
+  it('keeps the general limiter and each flow limiter as separate instances', async () => {
     const { getSystemConfig } = await import('../../../src/config/getSystemConfig');
     const rateLimit = await import('express-rate-limit');
 
@@ -476,21 +470,15 @@ describe('rate limiter caches', () => {
     await magicLinkIpLimiter({}, {}, next);
     // @ts-ignore
     await magicLinkEmailLimiter({}, {}, next);
+    // @ts-ignore
+    await magicLinkIpLimiter({}, {}, next);
 
-    expect(rateLimit.default).toHaveBeenCalledTimes(7);
-    expect((rateLimit.default as any).mock.calls[0][0]).toEqual(
-      expect.objectContaining({
-        limit: expect.any(Function),
-      }),
+    // One general limiter at load, then one per flow limiter on first use, and a
+    // repeat hit reuses the instance it built.
+    expect(rateLimit.default).toHaveBeenCalledTimes(3);
+    const limits = await Promise.all(
+      (rateLimit.default as any).mock.calls.map(([options]: any[]) => options.limit()),
     );
-    expect((rateLimit.default as any).mock.calls.map(([options]: any[]) => options.limit)).toEqual([
-      expect.any(Function),
-      20,
-      5,
-      10,
-      5,
-      30,
-      10,
-    ]);
+    expect(limits).toEqual([100, 20, 5]);
   });
 });

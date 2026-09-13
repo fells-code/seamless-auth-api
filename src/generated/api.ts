@@ -10223,6 +10223,7 @@ export interface paths {
              *       "max_concurrent_sessions": null,
              *       "rate_limit": 0,
              *       "delay_after": 0,
+             *       "flow_rate_limits": null,
              *       "rpid": "string",
              *       "origins": [
              *         null
@@ -10340,6 +10341,63 @@ export interface paths {
               max_concurrent_sessions: number | null;
               rate_limit: number;
               delay_after: number;
+              /**
+               * @default {
+               *       "windowSeconds": 900,
+               *       "otp": {
+               *         "perIp": 10,
+               *         "perIdentity": 5
+               *       },
+               *       "magicLink": {
+               *         "perIp": 20,
+               *         "perIdentity": 5
+               *       },
+               *       "oauth": {
+               *         "perIp": 30,
+               *         "perProvider": 10
+               *       }
+               *     }
+               */
+              flow_rate_limits: {
+                /** @default 900 */
+                windowSeconds: number;
+                /**
+                 * @default {
+                 *       "perIp": 10,
+                 *       "perIdentity": 5
+                 *     }
+                 */
+                otp: {
+                  /** @default 10 */
+                  perIp: number;
+                  /** @default 5 */
+                  perIdentity: number;
+                };
+                /**
+                 * @default {
+                 *       "perIp": 20,
+                 *       "perIdentity": 5
+                 *     }
+                 */
+                magicLink: {
+                  /** @default 20 */
+                  perIp: number;
+                  /** @default 5 */
+                  perIdentity: number;
+                };
+                /**
+                 * @default {
+                 *       "perIp": 30,
+                 *       "perProvider": 10
+                 *     }
+                 */
+                oauth: {
+                  /** @default 30 */
+                  perIp: number;
+                  /** @default 10 */
+                  perProvider: number;
+                };
+              };
               rpid: string;
               origins: string[];
               /** Format: uri */
@@ -10507,6 +10565,46 @@ export interface paths {
             max_concurrent_sessions?: number | null;
             rate_limit?: number;
             delay_after?: number;
+            flow_rate_limits?: {
+              /** @default 900 */
+              windowSeconds?: number;
+              /**
+               * @default {
+               *       "perIp": 10,
+               *       "perIdentity": 5
+               *     }
+               */
+              otp?: {
+                /** @default 10 */
+                perIp?: number;
+                /** @default 5 */
+                perIdentity?: number;
+              };
+              /**
+               * @default {
+               *       "perIp": 20,
+               *       "perIdentity": 5
+               *     }
+               */
+              magicLink?: {
+                /** @default 20 */
+                perIp?: number;
+                /** @default 5 */
+                perIdentity?: number;
+              };
+              /**
+               * @default {
+               *       "perIp": 30,
+               *       "perProvider": 10
+               *     }
+               */
+              oauth?: {
+                /** @default 30 */
+                perIp?: number;
+                /** @default 10 */
+                perProvider?: number;
+              };
+            };
             rpid?: string;
             origins?: string[];
             magic_link_redirect_uris?: string[];

@@ -309,10 +309,34 @@ Validation is enforced by [`systemConfig.schema.ts`](../src/schemas/systemConfig
 | `refresh_token_ttl`              | string (`\d+[smhd]`) | `REFRESH_TOKEN_TTL`              | -                                                                                                                                                               |
 | `rate_limit`                     | integer > 0          | `RATE_LIMIT`                     | -                                                                                                                                                               |
 | `delay_after`                    | integer >= 0         | `DELAY_AFTER`                    | -                                                                                                                                                               |
+| `flow_rate_limits`               | object               | `FLOW_RATE_LIMITS`               | `{windowSeconds:900,otp:{perIp:10,perIdentity:5},magicLink:{perIp:20,perIdentity:5},oauth:{perIp:30,perProvider:10}}`                                           |
 | `rpid`                           | string               | `RPID`                           | -                                                                                                                                                               |
 | `origins`                        | url[]                | `ORIGINS`                        | -                                                                                                                                                               |
 | `frontend_url`                   | url                  | `FRONTEND_URL`                   | -                                                                                                                                                               |
 | `magic_link_redirect_uris`       | string[]             | `MAGIC_LINK_REDIRECT_URIS`       | `[]`                                                                                                                                                            |
+
+### Flow rate limits
+
+`rate_limit` bounds every request per IP per minute. The message-carrying and provider flows
+carry a second, tighter set of limits, `flow_rate_limits`, applied per 15-minute window (the
+`windowSeconds` default) and split two ways per flow:
+
+- `perIdentity` bounds how often one address or phone can be messaged (`otp`, `magicLink`) and
+  how often one provider can be started from one address (`oauth.perProvider`). This is the
+  abuse a sender cares about, and it rarely needs changing.
+- `perIp` bounds how many distinct flows one network location can drive. This is the
+  enumeration and spam guard, and it is the one a mobile audience runs into: carriers put
+  thousands of subscribers behind one IPv4 address, so `otp.perIp: 10` refuses a phone
+  audience at modest scale while never troubling a web one. A deployment that serves a native
+  app should raise the `perIp` values and leave `perIdentity` where it is.
+
+The defaults are the constants these limiters carried before the key existed, so an instance
+that sets nothing behaves as it did. A partial value fills in the flows it leaves out. A changed
+limit applies on the next request; a changed `windowSeconds` starts fresh counters.
+
+```json
+{ "otp": { "perIp": 500 }, "magicLink": { "perIp": 500 } }
+```
 
 ## Environment vs `system_config`
 

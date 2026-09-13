@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthenticatorPolicySchema } from '@seamless-auth/types';
+import { AuthenticatorPolicySchema, DefaultFlowRateLimits } from '@seamless-auth/types';
 
 import type { SystemConfig } from '../schemas/systemConfig.schema.js';
 
@@ -33,4 +33,7 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   // left absent so the key is settable from the environment like every other one.
   magic_link_redirect_uris: [],
   passkey_login_fallback_enabled: true,
+  // The constants the flow limiters carried in code before the key existed, so an
+  // instance that predates it keeps the limits it had.
+  flow_rate_limits: DefaultFlowRateLimits,
 };
