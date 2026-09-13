@@ -104,6 +104,9 @@
     "typescript-eslint": "^8.69.0",
     "vitest": "^5.0.0"
   },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "allowScripts": {
     "@scarf/scarf@1.4.0": true,
     "esbuild@0.28.1": true,
