@@ -26,6 +26,7 @@ describe('SYSTEM_CONFIG_ENV_MAP', () => {
       max_concurrent_sessions: 'MAX_CONCURRENT_SESSIONS',
       rate_limit: 'RATE_LIMIT',
       delay_after: 'DELAY_AFTER',
+      flow_rate_limits: 'FLOW_RATE_LIMITS',
       rpid: 'RPID',
       origins: 'ORIGINS',
       frontend_url: 'FRONTEND_URL',

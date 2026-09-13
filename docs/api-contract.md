@@ -85,6 +85,41 @@ a destination on a configured origin that is not listed is refused. That is deli
 that needs a mobile scheme should not have to widen `origins`, which gates passkey ceremonies, to
 get it.
 
+### Native and mobile clients
+
+Nothing in this contract is browser-specific. A native app completes every flow with the same
+routes, either directly against this API or, more usually, through a server adapter running in
+bearer transport (`x-seamless-auth-transport: bearer`, `@seamless-auth/express` or
+`@seamless-auth/fastify` 0.16 or later), which keeps the adapter's message delivery and client
+IP forwarding in the path while the app holds the tokens. What a deployment has to configure:
+
+- **`rpid` and `origins`.** The RP ID is the domain the app's association files are hosted on
+  (`apple-app-site-association` with `webcredentials`, `assetlinks.json`), and the web app must
+  be same-site with it. iOS reports a passkey's origin as `https://<rpid>`, so that exact
+  origin belongs in `origins` even when the web app lives on a subdomain. Android reports
+  `android:apk-key-hash:<base64url of the signing certificate's SHA-256>`, which is accepted
+  as an opaque URL and must be listed for native passkeys to verify. Keep the web origin first:
+  `origins[0]` is the fallback destination for magic links and OAuth.
+- **Magic links.** A universal link on the web origin needs nothing extra. A custom scheme goes
+  in `magic_link_redirect_uris` (exact match, see above). The app can also skip the link entirely
+  and poll `GET /magic-link/check` with the ephemeral token until the session arrives, since
+  `/magic-link/verify/:token` completes the link from whichever device opened it.
+- **OAuth.** A custom-scheme `redirectUri` is accepted when it is on the provider's
+  `redirectUris` allowlist. Some providers refuse custom schemes on a web client type; a
+  universal link on the web origin's `/oauth/callback` sidesteps that.
+- **Rate limits.** The per-IP flow limits in `flow_rate_limits` are sized for a web audience.
+  Raise the `perIp` values for an app behind carrier NAT; see
+  [configuration.md](./configuration.md#flow-rate-limits).
+- **Session lifetime** is tenant-wide. `refresh_token_ttl` is the absolute lifetime and
+  `session_idle_ttl` the idle bound; a phone that is closed for longer than the shorter of the
+  two signs out. There is no per-client profile, so a deployment that wants a long-lived mobile
+  session gives every client one.
+- **Refresh** rotates the refresh token and treats a replay as theft, revoking the whole chain
+  with `401 { "error": "refresh_token_reused" }`. A client must refresh once at a time.
+- **Authenticator policy.** The defaults (`attestation: "none"`, `syncedPasskeys: "allow"`)
+  admit iCloud Keychain and Google Password Manager passkeys. A tenant on
+  `syncedPasskeys: "block"` refuses every iOS passkey.
+
 ### Error body
 
 Every `4xx` and `5xx` response uses one shape, with one additive extension for schema

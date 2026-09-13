@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.12.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.13.1" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -9733,6 +9733,7 @@
                   "max_concurrent_sessions": null,
                   "rate_limit": 0,
                   "delay_after": 0,
+                  "flow_rate_limits": null,
                   "rpid": "string",
                   "origins": [null],
                   "frontend_url": null,
@@ -9911,6 +9912,77 @@
                     },
                     "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
                     "delay_after": { "type": "integer", "minimum": 0 },
+                    "flow_rate_limits": {
+                      "type": "object",
+                      "properties": {
+                        "windowSeconds": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "default": 900
+                        },
+                        "otp": {
+                          "type": "object",
+                          "properties": {
+                            "perIp": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 10
+                            },
+                            "perIdentity": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 5
+                            }
+                          },
+                          "default": { "perIp": 10, "perIdentity": 5 }
+                        },
+                        "magicLink": {
+                          "type": "object",
+                          "properties": {
+                            "perIp": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 20
+                            },
+                            "perIdentity": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 5
+                            }
+                          },
+                          "default": { "perIp": 20, "perIdentity": 5 }
+                        },
+                        "oauth": {
+                          "type": "object",
+                          "properties": {
+                            "perIp": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 30
+                            },
+                            "perProvider": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 10
+                            }
+                          },
+                          "default": { "perIp": 30, "perProvider": 10 }
+                        }
+                      },
+                      "default": {
+                        "windowSeconds": 900,
+                        "otp": { "perIp": 10, "perIdentity": 5 },
+                        "magicLink": { "perIp": 20, "perIdentity": 5 },
+                        "oauth": { "perIp": 30, "perProvider": 10 }
+                      }
+                    },
                     "rpid": { "type": "string", "minLength": 1 },
                     "origins": {
                       "type": "array",
@@ -10141,6 +10213,71 @@
                   },
                   "rate_limit": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
                   "delay_after": { "type": "integer", "minimum": 0 },
+                  "flow_rate_limits": {
+                    "type": "object",
+                    "properties": {
+                      "windowSeconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "exclusiveMinimum": true,
+                        "default": 900
+                      },
+                      "otp": {
+                        "type": "object",
+                        "properties": {
+                          "perIp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 10
+                          },
+                          "perIdentity": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 5
+                          }
+                        },
+                        "default": { "perIp": 10, "perIdentity": 5 }
+                      },
+                      "magicLink": {
+                        "type": "object",
+                        "properties": {
+                          "perIp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 20
+                          },
+                          "perIdentity": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 5
+                          }
+                        },
+                        "default": { "perIp": 20, "perIdentity": 5 }
+                      },
+                      "oauth": {
+                        "type": "object",
+                        "properties": {
+                          "perIp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 30
+                          },
+                          "perProvider": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 10
+                          }
+                        },
+                        "default": { "perIp": 30, "perProvider": 10 }
+                      }
+                    }
+                  },
                   "rpid": { "type": "string", "minLength": 1 },
                   "origins": {
                     "type": "array",

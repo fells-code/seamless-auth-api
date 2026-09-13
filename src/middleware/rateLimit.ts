@@ -4,8 +4,9 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { DefaultFlowRateLimits } from '@seamless-auth/types';
 import { NextFunction, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -67,62 +68,66 @@ const dynamicLimiter = rateLimit({
   message: TOO_MANY_REQUESTS_BODY,
 });
 
-const magicLinkIpCachedLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: rateLimitsDisabled,
-  message: TOO_MANY_REQUESTS_BODY,
-});
+/**
+ * The per-flow limiters read their values from `flow_rate_limits` in system
+ * config rather than carrying constants, because the right per-IP value differs
+ * by audience: mobile carriers put thousands of subscribers behind one address,
+ * so a limit that never troubles a web audience refuses a mobile one.
+ *
+ * `express-rate-limit` takes the limit as a function but the window only as a
+ * number, so one limiter is built per configured window and kept. Changing the
+ * window starts fresh counters; changing a limit takes effect on the next hit.
+ */
+type FlowRateLimits = NonNullable<Awaited<ReturnType<typeof getSystemConfig>>['flow_rate_limits']>;
 
-const magicLinkIdentityCachedLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 5,
-  keyGenerator: getMagicLinkIdentityKey,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: rateLimitsDisabled,
-  message: TOO_MANY_REQUESTS_BODY,
-});
+async function getFlowRateLimits(): Promise<FlowRateLimits> {
+  const { flow_rate_limits } = await getSystemConfig();
 
-const otpIpCachedLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: rateLimitsDisabled,
-  message: TOO_MANY_REQUESTS_BODY,
-});
+  return flow_rate_limits ?? DefaultFlowRateLimits;
+}
 
-const otpIdentityCachedLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 5,
-  keyGenerator: getOtpIdentityKey,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: rateLimitsDisabled,
-  message: TOO_MANY_REQUESTS_BODY,
-});
+function createFlowLimiter(
+  pick: (limits: FlowRateLimits) => number,
+  keyGenerator?: (req: Request) => string,
+) {
+  const byWindow = new Map<number, RateLimitRequestHandler>();
 
-const oauthIpCachedLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: rateLimitsDisabled,
-  message: TOO_MANY_REQUESTS_BODY,
-});
+  return async function flowLimiter(req: Request, res: Response, next: NextFunction) {
+    const windowMs = (await getFlowRateLimits()).windowSeconds * 1000;
 
-const oauthProviderCachedLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  keyGenerator: getOAuthFlowKey,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: rateLimitsDisabled,
-  message: TOO_MANY_REQUESTS_BODY,
-});
+    let limiter = byWindow.get(windowMs);
+    if (!limiter) {
+      limiter = rateLimit({
+        windowMs,
+        limit: async () => pick(await getFlowRateLimits()),
+        ...(keyGenerator ? { keyGenerator } : {}),
+        standardHeaders: true,
+        legacyHeaders: false,
+        skip: rateLimitsDisabled,
+        message: TOO_MANY_REQUESTS_BODY,
+      });
+      byWindow.set(windowMs, limiter);
+    }
+
+    return limiter(req, res, next);
+  };
+}
+
+const magicLinkIpCachedLimiter = createFlowLimiter((limits) => limits.magicLink.perIp);
+const magicLinkIdentityCachedLimiter = createFlowLimiter(
+  (limits) => limits.magicLink.perIdentity,
+  getMagicLinkIdentityKey,
+);
+const otpIpCachedLimiter = createFlowLimiter((limits) => limits.otp.perIp);
+const otpIdentityCachedLimiter = createFlowLimiter(
+  (limits) => limits.otp.perIdentity,
+  getOtpIdentityKey,
+);
+const oauthIpCachedLimiter = createFlowLimiter((limits) => limits.oauth.perIp);
+const oauthProviderCachedLimiter = createFlowLimiter(
+  (limits) => limits.oauth.perProvider,
+  getOAuthFlowKey,
+);
 
 export function dynamicRateLimit(req: Request, res: Response, next: NextFunction) {
   return dynamicLimiter(req, res, next);

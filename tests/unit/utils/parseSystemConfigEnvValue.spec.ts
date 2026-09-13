@@ -135,6 +135,20 @@ describe('parseSystemConfigEnvValue', () => {
     });
   });
 
+  describe('flow_rate_limits parsing', () => {
+    it('parses the flow rate limits JSON object', () => {
+      const raw = JSON.stringify({
+        windowSeconds: 600,
+        otp: { perIp: 200, perIdentity: 5 },
+      });
+
+      expect(parseSystemConfigEnvValue('flow_rate_limits', raw)).toEqual({
+        windowSeconds: 600,
+        otp: { perIp: 200, perIdentity: 5 },
+      });
+    });
+  });
+
   describe('authenticator_policy parsing', () => {
     it('parses the authenticator policy JSON object', () => {
       const raw = JSON.stringify({ attachment: 'cross-platform' });
