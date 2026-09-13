@@ -6,6 +6,7 @@ import {
   parseDatabaseUrl,
   resolveDatabaseUrl,
   resolveSslOptions,
+  withoutSslMode,
 } from '../../../src/config/database.cjs';
 
 const DB_VARS = [
@@ -191,5 +192,27 @@ describe('sequelize-cli config', () => {
       dialect: 'postgres',
       logging: false,
     });
+  });
+});
+
+describe('withoutSslMode', () => {
+  it('takes sslmode out and leaves the credentials and other parameters as they were', () => {
+    expect(
+      withoutSslMode(
+        'postgres://auth:p%40ss@db.internal:5432/auth_db?sslmode=require&application_name=auth',
+      ),
+    ).toBe('postgres://auth:p%40ss@db.internal:5432/auth_db?application_name=auth');
+  });
+
+  it('leaves no trailing query behind when sslmode was the only parameter', () => {
+    expect(withoutSslMode('postgres://auth@db.internal:5432/auth_db?sslmode=require')).toBe(
+      'postgres://auth@db.internal:5432/auth_db',
+    );
+  });
+
+  it('returns a string without sslmode untouched', () => {
+    expect(withoutSslMode('postgres://auth@db.internal:5432/auth_db')).toBe(
+      'postgres://auth@db.internal:5432/auth_db',
+    );
   });
 });

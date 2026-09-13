@@ -21,3 +21,4 @@ export declare function buildDatabaseUrl(): string;
 export declare function parseDatabaseUrl(url: string): DatabaseConnection | null;
 export declare function resolveDatabaseUrl(): string | null;
 export declare function resolveSslOptions(url: string | null): DatabaseSslOptions | null;
+export declare function withoutSslMode(url: string): string;

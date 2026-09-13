@@ -85,15 +85,17 @@ describe('getSequelize database URL building', () => {
     );
   });
 
-  it('uses DB_URI when DATABASE_URL is unset', async () => {
+  it('uses DB_URI when DATABASE_URL is unset, with its sslmode read and then taken out', async () => {
     process.env.DB_URI = 'postgres://user:pass@example.com:5432/auth_db?sslmode=verify-full';
 
     const { getSequelize } = await import('../../../src/models/index.js');
 
     getSequelize();
 
+    // Sequelize would read the sslmode itself and overwrite dialectOptions.ssl with
+    // pg-connection-string's version, so the URL it gets no longer carries it.
     expect(sequelizeConstructor).toHaveBeenCalledWith(
-      process.env.DB_URI,
+      'postgres://user:pass@example.com:5432/auth_db',
       expect.objectContaining({
         dialectOptions: { ssl: { rejectUnauthorized: true } },
       }),
