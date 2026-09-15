@@ -55,7 +55,7 @@
     "@seamless-auth/types": "^0.22.0",
     "@simplewebauthn/server": "^13.3.3",
     "base64url": "^3.0.1",
-    "bcrypt-ts": "^7.1.0",
+    "bcrypt-ts": "^9.0.2",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
