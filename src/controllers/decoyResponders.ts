@@ -8,15 +8,10 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { buildPrfAuthenticationExtensions } from '../lib/webauthnPrf.js';
 import { AuthEventService } from '../services/authEventService.js';
-import {
-  decoyCredentialIdFor,
-  decoyOtpFor,
-  decoyPrincipalForSubject,
-} from '../services/decoyPrincipal.js';
+import { decoyCredentialIdFor, decoyPrincipalForSubject } from '../services/decoyPrincipal.js';
 import {
   getLoginPolicy,
   isLoginMethodEnabled,
@@ -45,6 +40,12 @@ import { hashDeviceFingerprint } from '../utils/utils.js';
  *   records is the exception, and it is the one every request already writes.
  * - **No real handler.** `defineRoute` dispatches here instead of the controller, so the
  *   stand-in principal never reaches code that could persist it.
+ * - **No delivery block.** In external delivery mode a real send answers with the
+ *   address and the code for the SDK to mail. A decoy never does, whatever the header
+ *   says. The block is only readable by a caller holding a service token, so omitting it
+ *   discloses nothing to a stranger, and the alternative is the SDK mailing a synthetic
+ *   `@example.invalid` address for real: every one bounces, against the adopter's
+ *   sending reputation, fourteen hours after the probe.
  *
  * Policy-dependent branches are reproduced rather than skipped. A deployment with
  * `email_otp` disabled answers `403 login_method_disabled` for every identifier, so a
@@ -102,7 +103,6 @@ async function rejectDisabledMethod(method: LoginMethod, req: Request, res: Resp
 async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | 'otp_sms') {
   const authReq = req as AuthenticatedRequest;
   const subject = decoySubject(req);
-  const useExternalDelivery = await canReturnExternalDelivery(req);
 
   await logDecoy(req, `otp:${kind}`);
 
@@ -115,19 +115,7 @@ async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | '
 
   const token = await signEphemeralToken(subject, authReq.attemptId);
 
-  return res.status(200).json({
-    message: 'success',
-    token,
-    ...(useExternalDelivery
-      ? {
-          delivery: {
-            kind,
-            to: kind === 'otp_email' ? authReq.user.email : authReq.user.phone,
-            token: decoyOtpFor(subject),
-          },
-        }
-      : {}),
-  });
+  return res.status(200).json({ message: 'success', token });
 }
 
 export const decoySendEmailOtp = (req: Request, res: Response) =>
@@ -187,22 +175,19 @@ export const decoyRequestMagicLink = async (req: Request, res: Response) => {
     return;
   }
 
-  const authReq = req as AuthenticatedRequest;
-  const useExternalDelivery = await canReturnExternalDelivery(req);
-
   await logDecoy(req, 'magic_link:request');
-
-  const rawToken = decoyCredentialIdFor(decoySubject(req));
 
   // Both checks below answer 400 for a real account before anything is stored, and both
   // are reachable by choice: a caller picks the redirect it sends, and omitting a
   // User-Agent header is enough to trip the second. A decoy that skipped them would
   // answer 200 where a real account answers 400, which is a working oracle for the price
-  // of one deliberately bad request.
-  let magicLinkUrl: string;
-
+  // of one deliberately bad request. The URL the first one builds goes nowhere, since
+  // nothing is mailed; the call is made for its refusal.
   try {
-    magicLinkUrl = await resolveMagicLinkUrl(rawToken, req.query.redirectUri as string | undefined);
+    await resolveMagicLinkUrl(
+      decoyCredentialIdFor(decoySubject(req)),
+      req.query.redirectUri as string | undefined,
+    );
   } catch (error) {
     if (error instanceof MagicLinkRedirectNotAllowedError) {
       return res.status(400).json({ error: 'Redirect URI is not allowed' });
@@ -217,19 +202,7 @@ export const decoyRequestMagicLink = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid device data' });
   }
 
-  return res.json({
-    message: 'If an account exists, a login link has been sent.',
-    ...(useExternalDelivery
-      ? {
-          delivery: {
-            kind: 'magic_link_email',
-            to: authReq.user.email,
-            token: rawToken,
-            magicLinkUrl,
-          },
-        }
-      : {}),
-  });
+  return res.json({ message: 'If an account exists, a login link has been sent.' });
 };
 
 /**

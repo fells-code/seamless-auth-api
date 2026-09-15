@@ -165,11 +165,22 @@ key there means a coordinated release across both SDKs for an operational tuning
   understand what happened. Accepted, unchanged.
 - **A malformed identifier** answers `400`. This does not depend on whether any account
   exists, so it is not an enumeration signal.
-- **External delivery mode** returns a fabricated code and the decoy's synthetic address
-  rather than the identifier the caller supplied, so a caller comparing the two can tell.
-  That mode requires a valid internal service token, which makes the caller a trusted
-  backend that can enumerate through the admin API anyway. Accepted, and the reason it is
-  acceptable is the service token, not the fabrication.
+- **External delivery mode** answers a real OTP or magic link request with a `delivery`
+  block, the address and the code for the SDK to send, and answers a decoy with none. A
+  caller that can read the block can tell. That mode requires a valid internal service
+  token, which makes the caller a trusted backend that can enumerate through the admin
+  API anyway. Accepted, and the reason it is acceptable is the service token.
+
+  The block used to be fabricated for a decoy instead, for shape parity. It was addressed
+  to the decoy's synthetic `@example.invalid` email, and the SDK mailed it, because
+  mailing whatever it is handed is the SDK's job in that mode. The domain never resolves,
+  so every probe of an unknown identifier became a message the adopter's mail provider
+  retried for hours and then bounced against the adopter's sending identity (#321).
+  Parity at the SDK's edge is what the fabrication bought, and it is not worth a bounce
+  per probe: a decoy skipping the send answers faster than a real account, but that is
+  the same difference direct delivery already carries on these endpoints, where the real
+  handler's send is in-process and the decoy's is not.
+
 - **A deleted or revoked account** mid-flow is answered as a decoy rather than with a
   distinguishable `401`. That is the intended behaviour, and it means such a user sees a
   continuation that quietly never succeeds rather than a clear rejection.

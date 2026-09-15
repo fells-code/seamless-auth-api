@@ -57,6 +57,7 @@ import { signEphemeralToken } from '../../../src/lib/token.js';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges.js';
 import { generateEmailOTP, generatePhoneOTP } from '../../../src/utils/otp.js';
 import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
+import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js';
 
 let app: Application;
 
@@ -121,6 +122,25 @@ describe('decoy continuation: OTP', () => {
     expect(generatePhoneOTP).not.toHaveBeenCalled();
   });
 
+  it.each([['/otp/generate-email-otp'], ['/otp/generate-login-email-otp']])(
+    'hands the SDK nothing to mail for %s under external delivery',
+    async (path) => {
+      // A real send in this mode answers with the address and the code for the SDK to
+      // mail. A decoy's address is `@example.invalid`, so a block here would be a real
+      // message the SDK sends and SES bounces fourteen hours later, against the
+      // adopter's identity. The block is only readable with a service token, so leaving
+      // it out discloses nothing to a stranger.
+      const res = await request(app)
+        .get(path)
+        .set('x-seamless-auth-delivery-mode', 'external')
+        .set('x-seamless-service-token', await mintInternalServiceToken());
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ message: 'success', token: 'decoy-token' });
+      expect(res.body).not.toHaveProperty('delivery');
+    },
+  );
+
   it.each([
     ['/otp/verify-email-otp'],
     ['/otp/verify-phone-otp'],
@@ -154,6 +174,17 @@ describe('decoy continuation: magic link', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('If an account exists, a login link has been sent.');
+  });
+
+  it('hands the SDK nothing to mail under external delivery', async () => {
+    const res = await request(app)
+      .get('/magic-link')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: 'If an account exists, a login link has been sent.' });
+    expect(res.body).not.toHaveProperty('delivery');
   });
 
   it('polls as an unclicked link forever', async () => {
