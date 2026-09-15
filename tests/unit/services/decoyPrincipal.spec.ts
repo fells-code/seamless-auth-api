@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   decoyCredentialIdFor,
-  decoyOtpFor,
   decoyPrincipalForSubject,
   decoySubjectFor,
 } from '../../../src/services/decoyPrincipal.js';
@@ -121,13 +120,6 @@ describe('decoy principal', () => {
 });
 
 describe('fabricated secrets', () => {
-  it('produces a six digit OTP', () => {
-    const subject = decoySubjectFor('nobody@example.com', 'email');
-
-    expect(decoyOtpFor(subject)).toMatch(/^\d{6}$/);
-    expect(decoyOtpFor(subject)).toBe(decoyOtpFor(subject));
-  });
-
   it('produces a credential id shaped like a real one', () => {
     const subject = decoySubjectFor('nobody@example.com', 'email');
 

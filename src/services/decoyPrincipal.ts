@@ -33,7 +33,6 @@ import { User } from '../models/users.js';
 const DECOY_SUBJECT_INFO = 'seamless-auth/decoy-subject';
 const DECOY_EMAIL_INFO = 'seamless-auth/decoy-email';
 const DECOY_PHONE_INFO = 'seamless-auth/decoy-phone';
-const DECOY_OTP_INFO = 'seamless-auth/decoy-otp';
 const DECOY_CREDENTIAL_INFO = 'seamless-auth/decoy-credential';
 const DECOY_SHAPE_INFO = 'seamless-auth/decoy-shape';
 
@@ -114,15 +113,6 @@ function decoyPhoneFor(subject: string) {
   const digits = derive(DECOY_PHONE_INFO, subject).readUInt32BE(0) % 10_000_000;
 
   return `+1555${digits.toString().padStart(7, '0')}`;
-}
-
-/**
- * The code a decoy's OTP "is". Nothing ever compares against it, since a decoy
- * verification always fails, but external delivery mode returns the generated code in
- * the response body and a decoy has to put something of the right shape there.
- */
-export function decoyOtpFor(subject: string) {
-  return (derive(DECOY_OTP_INFO, subject).readUInt32BE(0) % 1_000_000).toString().padStart(6, '0');
 }
 
 /**
