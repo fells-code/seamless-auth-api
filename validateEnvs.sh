@@ -96,6 +96,14 @@ if [ "${NODE_ENV:-development}" = "production" ] && [ -z "$email_from" ] && [ -z
   warn "Direct email/SMS delivery is not configured. This is fine when using external delivery mode via a SeamlessAuth server adapter."
 fi
 
+if [ -n "${REVIEW_ACCOUNT_EMAILS:-}" ]; then
+  if ! printf '%s' "${REVIEW_ACCOUNT_CODE:-}" | grep -Eq '^ *[A-Za-z]{6} *$'; then
+    echo "REVIEW_ACCOUNT_CODE must be six letters when REVIEW_ACCOUNT_EMAILS is set"
+    exit 1
+  fi
+  warn "Review accounts are enabled. Clear REVIEW_ACCOUNT_EMAILS once store review is over."
+fi
+
 echo "Running migrations..."
 
 if ! run_migrations; then

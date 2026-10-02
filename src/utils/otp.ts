@@ -6,6 +6,7 @@
 
 import { randomInt, timingSafeEqual } from 'crypto';
 
+import { reviewCodeFor } from '../lib/reviewAccounts.js';
 import { User } from '../models/users.js';
 import { sendOTPEmail, sendOTPSMS } from '../services/messagingService.js';
 import getLogger from './logger.js';
@@ -77,7 +78,11 @@ export const generateEmailOTP = async (
   const now = new Date();
   now.setMinutes(now.getMinutes() + 5);
 
-  const emailToken = generateRandomEmailOTP();
+  const reviewCode = reviewCodeFor(user.email);
+  if (reviewCode) {
+    logger.info('Issuing the configured review code to a review account');
+  }
+  const emailToken = reviewCode ?? generateRandomEmailOTP();
   const emailVerificationTokenExpiry = now.getTime();
 
   try {

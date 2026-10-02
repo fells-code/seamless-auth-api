@@ -255,6 +255,23 @@ combinations (for example, Twilio requires SID, auth token, and a from-number).
 | `MESSAGING_TWILIO_ACCOUNT_SID` | Conditional   | -           | Required for Twilio.                                       |
 | `MESSAGING_TWILIO_AUTH_TOKEN`  | Conditional   | -           | Required for Twilio.                                       |
 
+### Store review accounts (optional)
+
+App Store and Google Play review sign in to a demo account, and a reviewer cannot read the inbox a
+passwordless code is sent to. A listed address is issued a fixed email code instead of a random
+one, so the code can go in the review notes. The rest of the flow is unchanged: the code is stored
+hashed, expires after five minutes, is rate limited, and is still delivered. Phone codes, magic
+links and passkeys are not affected.
+
+| Variable                | Required    | Default | Notes                                                                            |
+| ----------------------- | ----------- | ------- | -------------------------------------------------------------------------------- |
+| `REVIEW_ACCOUNT_EMAILS` | No          | -       | Comma separated addresses, matched case-insensitively.                           |
+| `REVIEW_ACCOUNT_CODE`   | Conditional | -       | Six letters. Required when `REVIEW_ACCOUNT_EMAILS` is set; boot fails otherwise. |
+
+The code does not rotate, so use an inbox you own, keep nothing of value in the account, create
+it before review (an unknown address gets the ordinary decoy answer), and clear both variables once
+review is over.
+
 ### Production signing and JWKS
 
 Required when `NODE_ENV=production`. In development, signing keys are generated locally.
