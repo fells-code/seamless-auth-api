@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 
 import { Session } from '../models/sessions.js';
 import { serializeSession } from '../services/apiResponseSerializers.js';
@@ -22,10 +23,17 @@ export const listSessions = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Not allowed' });
   }
 
+  const now = new Date();
+
+  // Rotation leaves the superseded row unrevoked, and an expired row is never revoked at
+  // all, so filtering on revokedAt alone listed every session a refresh ever replaced.
   const sessions = await Session.findAll({
     where: {
       userId: user.id,
       revokedAt: null,
+      replacedBySessionId: null,
+      expiresAt: { [Op.gt]: now },
+      idleExpiresAt: { [Op.gt]: now },
     },
   });
 

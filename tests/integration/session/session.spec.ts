@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { createApp } from '../../../src/app';
 import { Application } from 'express';
+import { Op } from 'sequelize';
 
 import { Session } from '../../../src/models/sessions.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
@@ -32,6 +33,17 @@ describe('GET /sessions', () => {
 
     const current = res.body.sessions.find((s: any) => s.id === 'session-1');
     expect(current.current).toBe(true);
+  });
+
+  it('lists only sessions that are current, not rotated away or expired', async () => {
+    (Session.findAll as any).mockResolvedValue([]);
+
+    await request(app).get('/sessions');
+
+    const { where } = (Session.findAll as any).mock.calls[0][0];
+    expect(where).toMatchObject({ revokedAt: null, replacedBySessionId: null });
+    expect(where.expiresAt[Op.gt]).toBeInstanceOf(Date);
+    expect(where.idleExpiresAt[Op.gt]).toBeInstanceOf(Date);
   });
 
   it('returns empty list', async () => {
