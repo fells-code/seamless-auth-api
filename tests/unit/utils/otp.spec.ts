@@ -92,6 +92,29 @@ describe('OTP utils', () => {
 
       await expect(generateEmailOTP(user as any)).rejects.toThrow();
     });
+
+    it('issues the configured code to a review account, which then verifies', async () => {
+      process.env.REVIEW_ACCOUNT_EMAILS = 'test@example.com';
+      process.env.REVIEW_ACCOUNT_CODE = 'REVUEW';
+      try {
+        const user = buildUser();
+
+        const token = await generateEmailOTP(user as any);
+
+        expect(token).toBe('REVUEW');
+        expect(user.update).toHaveBeenCalledWith(
+          expect.objectContaining({ emailVerificationToken: hashOtpToken('REVUEW') }),
+        );
+        expect(sendOTPEmail).toHaveBeenCalledWith('test@example.com', 'REVUEW');
+
+        const issued = user.update.mock.calls[0][0];
+        const result = await verifyEmailOTP(buildUser({ ...issued }) as any, 'revuew');
+        expect(result.verified).toBe(true);
+      } finally {
+        delete process.env.REVIEW_ACCOUNT_EMAILS;
+        delete process.env.REVIEW_ACCOUNT_CODE;
+      }
+    });
   });
 
   describe('generatePhoneOTP', () => {
