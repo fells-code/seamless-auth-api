@@ -1,5 +1,17 @@
 # seamless-auth-api
 
+## 0.15.0
+
+### Minor Changes
+
+- 4ff2077: Store review accounts: an address listed in `REVIEW_ACCOUNT_EMAILS` is issued `REVIEW_ACCOUNT_CODE` as its email code instead of a random one.
+
+  App Store and Google Play reviewers sign in to a demo account and cannot read the inbox a passwordless code goes to. With both variables set, the listed addresses get the configured six-letter code, which can go in the review notes. The code is still stored hashed, expires, is rate limited and is delivered as usual. Boot fails when the addresses are set without a valid code. Both unset, nothing changes.
+
+### Patch Changes
+
+- 8fbd5ee: Update transitive dependencies to clear npm audit advisories in axios, brace-expansion, ip-address and moment.
+
 ## 0.14.1
 
 ### Patch Changes
