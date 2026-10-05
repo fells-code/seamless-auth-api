@@ -10451,6 +10451,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               }[];
               /**
                * @default {
@@ -10696,6 +10702,12 @@ export interface paths {
               /** @default false */
               requireEmailVerified?: boolean;
               pkce?: boolean;
+              /** Format: uri */
+              issuer?: string;
+              /** Format: uri */
+              jwksUri?: string;
+              externalIdSource?: string;
+              externalIdJsonPath?: string;
             }[];
             lockout_policy?: {
               /** @default true */
@@ -10951,6 +10963,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               }[];
             };
           };
@@ -11058,6 +11076,12 @@ export interface paths {
             /** @default false */
             requireEmailVerified?: boolean;
             pkce?: boolean;
+            /** Format: uri */
+            issuer?: string;
+            /** Format: uri */
+            jwksUri?: string;
+            externalIdSource?: string;
+            externalIdJsonPath?: string;
           };
         };
       };
@@ -11089,7 +11113,11 @@ export interface paths {
              *         "allowSignup": null,
              *         "accountLinking": null,
              *         "requireEmailVerified": null,
-             *         "pkce": true
+             *         "pkce": true,
+             *         "issuer": null,
+             *         "jwksUri": null,
+             *         "externalIdSource": "string",
+             *         "externalIdJsonPath": "string"
              *       }
              *     }
              */
@@ -11130,6 +11158,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               };
             };
           };
@@ -11426,6 +11460,12 @@ export interface paths {
             /** @default false */
             requireEmailVerified?: boolean;
             pkce?: boolean;
+            /** Format: uri */
+            issuer?: string;
+            /** Format: uri */
+            jwksUri?: string;
+            externalIdSource?: string;
+            externalIdJsonPath?: string;
           };
         };
       };
@@ -11457,7 +11497,11 @@ export interface paths {
              *         "allowSignup": null,
              *         "accountLinking": null,
              *         "requireEmailVerified": null,
-             *         "pkce": true
+             *         "pkce": true,
+             *         "issuer": null,
+             *         "jwksUri": null,
+             *         "externalIdSource": "string",
+             *         "externalIdJsonPath": "string"
              *       }
              *     }
              */
@@ -11498,6 +11542,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               };
             };
           };

@@ -10018,7 +10018,14 @@
                             "default": "email"
                           },
                           "requireEmailVerified": { "type": "boolean", "default": false },
-                          "pkce": { "type": "boolean" }
+                          "pkce": { "type": "boolean" },
+                          "issuer": { "type": "string", "format": "uri" },
+                          "jwksUri": { "type": "string", "format": "uri" },
+                          "externalIdSource": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                          },
+                          "externalIdJsonPath": { "type": "string", "minLength": 1 }
                         },
                         "required": [
                           "id",
@@ -10340,7 +10347,14 @@
                           "default": "email"
                         },
                         "requireEmailVerified": { "type": "boolean", "default": false },
-                        "pkce": { "type": "boolean" }
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
                       },
                       "required": [
                         "id",
@@ -10630,7 +10644,14 @@
                             "default": "email"
                           },
                           "requireEmailVerified": { "type": "boolean", "default": false },
-                          "pkce": { "type": "boolean" }
+                          "pkce": { "type": "boolean" },
+                          "issuer": { "type": "string", "format": "uri" },
+                          "jwksUri": { "type": "string", "format": "uri" },
+                          "externalIdSource": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                          },
+                          "externalIdJsonPath": { "type": "string", "minLength": 1 }
                         },
                         "required": [
                           "id",
@@ -10734,7 +10755,11 @@
                     "default": "email"
                   },
                   "requireEmailVerified": { "type": "boolean", "default": false },
-                  "pkce": { "type": "boolean" }
+                  "pkce": { "type": "boolean" },
+                  "issuer": { "type": "string", "format": "uri" },
+                  "jwksUri": { "type": "string", "format": "uri" },
+                  "externalIdSource": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+                  "externalIdJsonPath": { "type": "string", "minLength": 1 }
                 },
                 "required": [
                   "id",
@@ -10774,7 +10799,11 @@
                     "allowSignup": null,
                     "accountLinking": null,
                     "requireEmailVerified": null,
-                    "pkce": true
+                    "pkce": true,
+                    "issuer": null,
+                    "jwksUri": null,
+                    "externalIdSource": "string",
+                    "externalIdJsonPath": "string"
                   }
                 },
                 "schema": {
@@ -10817,7 +10846,14 @@
                           "default": "email"
                         },
                         "requireEmailVerified": { "type": "boolean", "default": false },
-                        "pkce": { "type": "boolean" }
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
                       },
                       "required": [
                         "id",
@@ -10955,7 +10991,11 @@
                     "default": "email"
                   },
                   "requireEmailVerified": { "type": "boolean", "default": false },
-                  "pkce": { "type": "boolean" }
+                  "pkce": { "type": "boolean" },
+                  "issuer": { "type": "string", "format": "uri" },
+                  "jwksUri": { "type": "string", "format": "uri" },
+                  "externalIdSource": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+                  "externalIdJsonPath": { "type": "string", "minLength": 1 }
                 },
                 "additionalProperties": false
               }
@@ -10987,7 +11027,11 @@
                     "allowSignup": null,
                     "accountLinking": null,
                     "requireEmailVerified": null,
-                    "pkce": true
+                    "pkce": true,
+                    "issuer": null,
+                    "jwksUri": null,
+                    "externalIdSource": "string",
+                    "externalIdJsonPath": "string"
                   }
                 },
                 "schema": {
@@ -11030,7 +11074,14 @@
                           "default": "email"
                         },
                         "requireEmailVerified": { "type": "boolean", "default": false },
-                        "pkce": { "type": "boolean" }
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
                       },
                       "required": [
                         "id",
