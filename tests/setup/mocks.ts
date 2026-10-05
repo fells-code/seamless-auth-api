@@ -103,6 +103,7 @@ vi.mock('../../src/models/organizations.js', () => ({
 vi.mock('../../src/models/organizationMemberships.js', () => ({
   OrganizationMembership: {
     create: vi.fn(),
+    update: vi.fn(),
     destroy: vi.fn(),
     findAll: vi.fn(async () => []),
     findOne: vi.fn(),
@@ -121,12 +122,23 @@ vi.mock('../../src/models/sessions.js', () => ({
 
 vi.mock('../../src/models/users.js', () => ({
   User: {
+    sequelize: {
+      transaction: vi.fn((fn: any) => fn({})),
+    },
     create: vi.fn(),
+    update: vi.fn(),
     findOne: vi.fn(),
     findByPk: vi.fn(),
     findAll: vi.fn(),
     count: vi.fn(),
     save: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/models/userExternalIds.js', () => ({
+  UserExternalId: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
   },
 }));
 

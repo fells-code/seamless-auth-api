@@ -1863,6 +1863,8 @@ export interface paths {
                 | 'auth_action_incremented'
                 | 'admin_device_replacement_recovery'
                 | 'admin_session_revoked'
+                | 'admin_user_import_completed'
+                | 'admin_user_imported'
                 | 'bearer_token_failed'
                 | 'credentials_deleted'
                 | 'informational'
@@ -1929,6 +1931,8 @@ export interface paths {
                     | 'auth_action_incremented'
                     | 'admin_device_replacement_recovery'
                     | 'admin_session_revoked'
+                    | 'admin_user_import_completed'
+                    | 'admin_user_imported'
                     | 'bearer_token_failed'
                     | 'credentials_deleted'
                     | 'informational'
@@ -2189,6 +2193,178 @@ export interface paths {
     };
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/users/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Import users from another identity system
+     * @description Creates or updates up to 200 users per request, matched on the source system id and then on email. Imports carry no credentials: an imported user signs in first by registering with the imported email. Roles and memberships are only ever added, never removed, and admin roles are refused. Each row is applied on its own, so one rejected row does not stop the batch. With `dryRun`, nothing is written and the response reports what would happen.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            source: string;
+            /** @default false */
+            dryRun?: boolean;
+            users: {
+              externalId?: string;
+              /** Format: email */
+              email: string;
+              phone?: string | null;
+              roles?: string[];
+              organizations?: {
+                /** Format: uuid */
+                organizationId?: string;
+                slug?: string;
+                roles?: string[];
+                scopes?: string[];
+              }[];
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "source": "string",
+             *       "dryRun": true,
+             *       "summary": {
+             *         "created": 0,
+             *         "updated": 0,
+             *         "unchanged": 0,
+             *         "rejected": 0
+             *       },
+             *       "results": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              source: string;
+              dryRun: boolean;
+              summary: {
+                created: number;
+                updated: number;
+                unchanged: number;
+                rejected: number;
+              };
+              results: {
+                index: number;
+                email: string;
+                externalId?: string;
+                /** @enum {string} */
+                status: 'created' | 'updated' | 'unchanged' | 'rejected';
+                userId?: string;
+                changes?: ('created' | 'linked' | 'phone' | 'roles' | 'organizations')[];
+                /** @enum {string} */
+                reason?:
+                  | 'admin_role_not_allowed'
+                  | 'role_unavailable'
+                  | 'organization_not_found'
+                  | 'duplicate_in_batch'
+                  | 'email_mismatch'
+                  | 'phone_invalid'
+                  | 'phone_in_use'
+                  | 'external_id_conflict'
+                  | 'write_failed';
+                detail?: string;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
@@ -10275,6 +10451,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               }[];
               /**
                * @default {
@@ -10520,6 +10702,12 @@ export interface paths {
               /** @default false */
               requireEmailVerified?: boolean;
               pkce?: boolean;
+              /** Format: uri */
+              issuer?: string;
+              /** Format: uri */
+              jwksUri?: string;
+              externalIdSource?: string;
+              externalIdJsonPath?: string;
             }[];
             lockout_policy?: {
               /** @default true */
@@ -10775,6 +10963,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               }[];
             };
           };
@@ -10882,6 +11076,12 @@ export interface paths {
             /** @default false */
             requireEmailVerified?: boolean;
             pkce?: boolean;
+            /** Format: uri */
+            issuer?: string;
+            /** Format: uri */
+            jwksUri?: string;
+            externalIdSource?: string;
+            externalIdJsonPath?: string;
           };
         };
       };
@@ -10913,7 +11113,11 @@ export interface paths {
              *         "allowSignup": null,
              *         "accountLinking": null,
              *         "requireEmailVerified": null,
-             *         "pkce": true
+             *         "pkce": true,
+             *         "issuer": null,
+             *         "jwksUri": null,
+             *         "externalIdSource": "string",
+             *         "externalIdJsonPath": "string"
              *       }
              *     }
              */
@@ -10954,6 +11158,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               };
             };
           };
@@ -11250,6 +11460,12 @@ export interface paths {
             /** @default false */
             requireEmailVerified?: boolean;
             pkce?: boolean;
+            /** Format: uri */
+            issuer?: string;
+            /** Format: uri */
+            jwksUri?: string;
+            externalIdSource?: string;
+            externalIdJsonPath?: string;
           };
         };
       };
@@ -11281,7 +11497,11 @@ export interface paths {
              *         "allowSignup": null,
              *         "accountLinking": null,
              *         "requireEmailVerified": null,
-             *         "pkce": true
+             *         "pkce": true,
+             *         "issuer": null,
+             *         "jwksUri": null,
+             *         "externalIdSource": "string",
+             *         "externalIdJsonPath": "string"
              *       }
              *     }
              */
@@ -11322,6 +11542,12 @@ export interface paths {
                 /** @default false */
                 requireEmailVerified: boolean;
                 pkce?: boolean;
+                /** Format: uri */
+                issuer?: string;
+                /** Format: uri */
+                jwksUri?: string;
+                externalIdSource?: string;
+                externalIdJsonPath?: string;
               };
             };
           };

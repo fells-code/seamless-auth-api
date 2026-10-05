@@ -7,5 +7,6 @@
 export {
   CreateUserSchema,
   DeviceReplacementRecoverySchema,
+  ImportUsersRequestSchema,
   UpdateUserSchema,
 } from '@seamless-auth/types';

@@ -463,6 +463,74 @@ describe('GET /admin/credential-count', () => {
   });
 });
 
+describe('POST /admin/users/import', () => {
+  const importEvents = (type: string) =>
+    (AuthEventService.log as any).mock.calls
+      .map(([arg]: any[]) => arg)
+      .filter((arg: any) => arg.type === type);
+
+  beforeEach(() => {
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
+    (User.findAll as any).mockResolvedValue([]);
+    (User.create as any).mockImplementation(async (values: any) => ({
+      id: 'imported-1',
+      ...values,
+    }));
+  });
+
+  it('imports users and records each account and the batch against the acting admin', async () => {
+    const res = await request(app)
+      .post('/admin/users/import')
+      .send({ source: 'csv', users: [{ externalId: 'emp-1', email: 'grace@example.com' }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.summary).toEqual({ created: 1, updated: 0, unchanged: 0, rejected: 0 });
+
+    const [imported] = importEvents('admin_user_imported');
+    expect(imported).toMatchObject({
+      userId: 'imported-1',
+      subjectEmail: 'grace@example.com',
+      metadata: { source: 'csv', status: 'created', externalId: 'emp-1' },
+    });
+    expect(imported.actorUserId).toBeTruthy();
+
+    const [completed] = importEvents('admin_user_import_completed');
+    expect(completed.metadata).toEqual({
+      source: 'csv',
+      summary: { created: 1, updated: 0, unchanged: 0, rejected: 0 },
+    });
+  });
+
+  it('records nothing for a dry run', async () => {
+    const res = await request(app)
+      .post('/admin/users/import')
+      .send({ source: 'csv', dryRun: true, users: [{ email: 'grace@example.com' }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.dryRun).toBe(true);
+    expect(User.create).not.toHaveBeenCalled();
+    expect(importEvents('admin_user_imported')).toHaveLength(0);
+    expect(importEvents('admin_user_import_completed')).toHaveLength(0);
+  });
+
+  it('refuses a row carrying a password hash', async () => {
+    const res = await request(app)
+      .post('/admin/users/import')
+      .send({ source: 'csv', users: [{ email: 'grace@example.com', passwordHash: '$2b$10$x' }] });
+
+    expect(res.status).toBe(400);
+    expect(User.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a batch over the row limit', async () => {
+    const users = Array.from({ length: 201 }, (_, i) => ({ email: `u${i}@example.com` }));
+
+    const res = await request(app).post('/admin/users/import').send({ source: 'csv', users });
+
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('POST /admin/users', () => {
   it('creates user successfully', async () => {
     (User.findOne as any).mockResolvedValue(null);

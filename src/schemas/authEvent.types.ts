@@ -11,6 +11,8 @@ export const AUTH_EVENT_TYPES = [
   'auth_action_incremented',
   'admin_device_replacement_recovery',
   'admin_session_revoked',
+  'admin_user_import_completed',
+  'admin_user_imported',
   'bearer_token_failed',
   'credentials_deleted',
   'informational',

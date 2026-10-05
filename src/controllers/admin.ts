@@ -19,6 +19,7 @@ import { AdminUserListQuerySchema } from '../schemas/admin.query.js';
 import {
   CreateUserSchema,
   DeviceReplacementRecoverySchema,
+  ImportUsersRequestSchema,
   UpdateUserSchema,
 } from '../schemas/admin.requests.js';
 import { authEventTypesFor, SUSPICIOUS_EVENT_TYPES } from '../schemas/authEvent.types.js';
@@ -31,6 +32,7 @@ import {
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
+import { importUsers as runUserImport } from '../services/userImportService.js';
 import type { AuthenticatedRequest } from '../types/types.js';
 import { RouteRequest, ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -177,6 +179,42 @@ export const createUser = async (req: Request, res: Response) => {
     logger.error(`Failed to create user. Reason: ${err}`);
     return res.status(500).json({ error: 'Failed to create user' });
   }
+};
+
+export const importUsers = async (req: Request, res: Response) => {
+  const request = ImportUsersRequestSchema.parse(req.body);
+  const response = await runUserImport(request);
+
+  if (!response.dryRun) {
+    const actorUserId = actingAdminId(req);
+
+    for (const result of response.results) {
+      if (result.status !== 'created' && result.status !== 'updated') continue;
+
+      await AuthEventService.log({
+        userId: result.userId ?? null,
+        actorUserId,
+        subjectEmail: result.email,
+        type: 'admin_user_imported',
+        req,
+        metadata: {
+          source: response.source,
+          status: result.status,
+          changes: result.changes ?? [],
+          ...(result.externalId ? { externalId: result.externalId } : {}),
+        },
+      });
+    }
+
+    await AuthEventService.log({
+      actorUserId,
+      type: 'admin_user_import_completed',
+      req,
+      metadata: { source: response.source, summary: response.summary },
+    });
+  }
+
+  return res.status(200).json(response);
 };
 
 export const deleteUser = async (req: ServiceRequest, res: Response) => {

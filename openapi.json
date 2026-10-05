@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.13.1" },
+  "info": { "title": "Seamless Auth API", "version": "0.15.1" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -2035,6 +2035,8 @@
                     "auth_action_incremented",
                     "admin_device_replacement_recovery",
                     "admin_session_revoked",
+                    "admin_user_import_completed",
+                    "admin_user_imported",
                     "bearer_token_failed",
                     "credentials_deleted",
                     "informational",
@@ -2107,6 +2109,8 @@
                           "auth_action_incremented",
                           "admin_device_replacement_recovery",
                           "admin_session_revoked",
+                          "admin_user_import_completed",
+                          "admin_user_imported",
                           "bearer_token_failed",
                           "credentials_deleted",
                           "informational",
@@ -2318,6 +2322,213 @@
                   "type": "object",
                   "properties": { "count": { "type": "number" } },
                   "required": ["count"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/import": {
+      "post": {
+        "summary": "Import users from another identity system",
+        "description": "Creates or updates up to 200 users per request, matched on the source system id and then on email. Imports carry no credentials: an imported user signs in first by registering with the imported email. Roles and memberships are only ever added, never removed, and admin roles are refused. Each row is applied on its own, so one rejected row does not stop the batch. With `dryRun`, nothing is written and the response reports what would happen.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+                  "dryRun": { "type": "boolean", "default": false },
+                  "users": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "externalId": { "type": "string", "minLength": 1, "maxLength": 255 },
+                        "email": { "type": "string", "format": "email" },
+                        "phone": { "type": "string", "nullable": true, "minLength": 5 },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^(?!.*[_/\\\\\\s])(?=.{1,80}$)[A-Za-z0-9-]+(?::[A-Za-z0-9-]+)*$"
+                          },
+                          "maxItems": 50
+                        },
+                        "organizations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "organizationId": { "type": "string", "format": "uuid" },
+                              "slug": { "type": "string", "minLength": 1, "maxLength": 100 },
+                              "roles": {
+                                "type": "array",
+                                "items": { "type": "string", "minLength": 1, "maxLength": 80 },
+                                "maxItems": 50
+                              },
+                              "scopes": {
+                                "type": "array",
+                                "items": { "type": "string", "minLength": 1, "maxLength": 120 },
+                                "maxItems": 50
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "maxItems": 50
+                        }
+                      },
+                      "required": ["email"],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": ["source", "users"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "source": "string",
+                  "dryRun": true,
+                  "summary": { "created": 0, "updated": 0, "unchanged": 0, "rejected": 0 },
+                  "results": [null]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": { "type": "string" },
+                    "dryRun": { "type": "boolean" },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "created": { "type": "integer", "minimum": 0 },
+                        "updated": { "type": "integer", "minimum": 0 },
+                        "unchanged": { "type": "integer", "minimum": 0 },
+                        "rejected": { "type": "integer", "minimum": 0 }
+                      },
+                      "required": ["created", "updated", "unchanged", "rejected"]
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": { "type": "integer", "minimum": 0 },
+                          "email": { "type": "string" },
+                          "externalId": { "type": "string" },
+                          "status": {
+                            "type": "string",
+                            "enum": ["created", "updated", "unchanged", "rejected"]
+                          },
+                          "userId": { "type": "string" },
+                          "changes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": ["created", "linked", "phone", "roles", "organizations"]
+                            }
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "admin_role_not_allowed",
+                              "role_unavailable",
+                              "organization_not_found",
+                              "duplicate_in_batch",
+                              "email_mismatch",
+                              "phone_invalid",
+                              "phone_in_use",
+                              "external_id_conflict",
+                              "write_failed"
+                            ]
+                          },
+                          "detail": { "type": "string" }
+                        },
+                        "required": ["index", "email", "status"]
+                      }
+                    }
+                  },
+                  "required": ["source", "dryRun", "summary", "results"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -9807,7 +10018,14 @@
                             "default": "email"
                           },
                           "requireEmailVerified": { "type": "boolean", "default": false },
-                          "pkce": { "type": "boolean" }
+                          "pkce": { "type": "boolean" },
+                          "issuer": { "type": "string", "format": "uri" },
+                          "jwksUri": { "type": "string", "format": "uri" },
+                          "externalIdSource": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                          },
+                          "externalIdJsonPath": { "type": "string", "minLength": 1 }
                         },
                         "required": [
                           "id",
@@ -10129,7 +10347,14 @@
                           "default": "email"
                         },
                         "requireEmailVerified": { "type": "boolean", "default": false },
-                        "pkce": { "type": "boolean" }
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
                       },
                       "required": [
                         "id",
@@ -10419,7 +10644,14 @@
                             "default": "email"
                           },
                           "requireEmailVerified": { "type": "boolean", "default": false },
-                          "pkce": { "type": "boolean" }
+                          "pkce": { "type": "boolean" },
+                          "issuer": { "type": "string", "format": "uri" },
+                          "jwksUri": { "type": "string", "format": "uri" },
+                          "externalIdSource": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                          },
+                          "externalIdJsonPath": { "type": "string", "minLength": 1 }
                         },
                         "required": [
                           "id",
@@ -10523,7 +10755,11 @@
                     "default": "email"
                   },
                   "requireEmailVerified": { "type": "boolean", "default": false },
-                  "pkce": { "type": "boolean" }
+                  "pkce": { "type": "boolean" },
+                  "issuer": { "type": "string", "format": "uri" },
+                  "jwksUri": { "type": "string", "format": "uri" },
+                  "externalIdSource": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+                  "externalIdJsonPath": { "type": "string", "minLength": 1 }
                 },
                 "required": [
                   "id",
@@ -10563,7 +10799,11 @@
                     "allowSignup": null,
                     "accountLinking": null,
                     "requireEmailVerified": null,
-                    "pkce": true
+                    "pkce": true,
+                    "issuer": null,
+                    "jwksUri": null,
+                    "externalIdSource": "string",
+                    "externalIdJsonPath": "string"
                   }
                 },
                 "schema": {
@@ -10606,7 +10846,14 @@
                           "default": "email"
                         },
                         "requireEmailVerified": { "type": "boolean", "default": false },
-                        "pkce": { "type": "boolean" }
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
                       },
                       "required": [
                         "id",
@@ -10744,7 +10991,11 @@
                     "default": "email"
                   },
                   "requireEmailVerified": { "type": "boolean", "default": false },
-                  "pkce": { "type": "boolean" }
+                  "pkce": { "type": "boolean" },
+                  "issuer": { "type": "string", "format": "uri" },
+                  "jwksUri": { "type": "string", "format": "uri" },
+                  "externalIdSource": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+                  "externalIdJsonPath": { "type": "string", "minLength": 1 }
                 },
                 "additionalProperties": false
               }
@@ -10776,7 +11027,11 @@
                     "allowSignup": null,
                     "accountLinking": null,
                     "requireEmailVerified": null,
-                    "pkce": true
+                    "pkce": true,
+                    "issuer": null,
+                    "jwksUri": null,
+                    "externalIdSource": "string",
+                    "externalIdJsonPath": "string"
                   }
                 },
                 "schema": {
@@ -10819,7 +11074,14 @@
                           "default": "email"
                         },
                         "requireEmailVerified": { "type": "boolean", "default": false },
-                        "pkce": { "type": "boolean" }
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
                       },
                       "required": [
                         "id",

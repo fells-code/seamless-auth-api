@@ -12,6 +12,7 @@ import {
   getUserAnomalies,
   getUserDetail,
   getUsers,
+  importUsers,
   listAllSessions,
   listUserSessions,
   recoverUserForDeviceReplacement,
@@ -37,6 +38,7 @@ import { AdminUserListQuerySchema, UserIdParamSchema } from '../schemas/admin.qu
 import {
   CreateUserSchema,
   DeviceReplacementRecoverySchema,
+  ImportUsersRequestSchema,
   UpdateUserSchema,
 } from '../schemas/admin.requests.js';
 import {
@@ -44,6 +46,7 @@ import {
   AdminUserDetailResponseSchema,
   AdminValidationErrorSchema,
   DeviceReplacementRecoveryResponseSchema,
+  ImportUsersResponseSchema,
   UserResponseSchema,
 } from '../schemas/admin.responses.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
@@ -314,6 +317,25 @@ adminRouter.post(
     },
   },
   createUser,
+);
+
+adminRouter.post(
+  '/users/import',
+  {
+    auth: 'access',
+    summary: 'Import users from another identity system',
+    description:
+      'Creates or updates up to 200 users per request, matched on the source system id and then on email. Imports carry no credentials: an imported user signs in first by registering with the imported email. Roles and memberships are only ever added, never removed, and admin roles are refused. Each row is applied on its own, so one rejected row does not stop the batch. With `dryRun`, nothing is written and the response reports what would happen.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('write')],
+    schemas: {
+      body: ImportUsersRequestSchema,
+      response: {
+        200: ImportUsersResponseSchema,
+      },
+    },
+  },
+  importUsers,
 );
 
 adminRouter.delete(
