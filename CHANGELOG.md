@@ -1,5 +1,27 @@
 # seamless-auth-api
 
+## 0.16.0
+
+### Minor Changes
+
+- e1fe45a: Add `POST /admin/users/import` for moving users across from another identity system. It takes up to 200 rows per request, matches each on the source system's id and then on email, and applies each row on its own so one rejected row does not stop the batch. `dryRun` reports the outcome without writing.
+
+  Imports carry no credentials: an imported user stays unverified until they register with the imported email. Roles and organization memberships are only ever added, an existing account's email is never changed, admin roles are refused, and an external id is never linked to an existing account that holds an admin role. Each created or updated account is recorded as `admin_user_imported` and each batch as `admin_user_import_completed`, against the acting admin.
+
+  Adds the `user_external_ids` table (migration `20261005120000`). Requires `@seamless-auth/types` 0.24.0.
+
+- 1189573: OAuth providers can now be OpenID Connect providers. With `issuer` and `jwksUri` set, the callback requires an ID token, verifies it (signature against the provider's published keys, issuer, audience, expiry, and the nonce bound into the signed OAuth state, asymmetric algorithms only), and reads the profile from its claims instead of calling `userInfoUrl`. A token that fails is refused with `400` and code `oauth_invalid_id_token`.
+
+  A provider with `externalIdSource` and `externalIdJsonPath` also links a first sign-in to the user imported under that source (`POST /admin/users/import`) whose external id equals that ID token claim, such as Entra ID's `oid`, so imported users can sign in through the directory they came from without relying on its email. The account is marked claimed, and a phone verified before then is removed. Requires `@seamless-auth/types` 0.24.0.
+
+- 1189573: OAuth sign-in now links to an existing account, or creates a new one, only when the provider asserts the email is verified (`email_verified: true`), whatever `requireEmailVerified` is set to. A profile without that assertion is refused with `400` and code `oauth_email_not_verified`, the same response an explicitly unverified email already gets. Identities that are already linked keep signing in as before.
+
+  GitHub's `/user` carries no verification status, so a GitHub provider (recognised by a `userInfoUrl` of `https://api.github.com/user` or a GitHub Enterprise Server `/api/v3/user`) now reads `/user/emails` and uses the address GitHub lists as verified: the profile email when it is verified, otherwise the primary verified one. This needs the `user:email` scope, which the CLI preset already requests.
+
+  This is a breaking change for providers whose profile does not include `email_verified`, such as Microsoft Graph's `oidc/userinfo`: new users and first-time links through them are refused until the provider supplies a verified email. An existing account that had not yet verified its email (for example one created by an admin) is marked verified when a verified provider email links to it.
+
+  When an account's email is verified for the first time, through email OTP or a verified OAuth email, a phone that was verified before then is kept only if the same registration attempt verified it. Phone-first sign up is unaffected; a phone verified under a different attempt is removed. Adds the `users.phone_verified_attempt_id` column (migration `20261005150000`).
+
 ## 0.15.1
 
 ### Patch Changes
