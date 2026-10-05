@@ -9,7 +9,10 @@ import {
   generateRefreshToken,
   signAccessToken,
 } from '../../../src/lib/token.js';
+import { exportJWK, generateKeyPair, SignJWT } from 'jose';
+
 import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
+import { UserExternalId } from '../../../src/models/userExternalIds.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
@@ -289,6 +292,120 @@ describe('OAuth routes', () => {
     expect(replay.status).toBe(400);
     expect(replay.body.error).toBe('Invalid OAuth state');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('signs in through a verified ID token and links the imported user it names', async () => {
+    const tenant = '2c0d53c2-a541-452b-b71b-54c7f15e5877';
+    const issuer = `https://login.microsoftonline.com/${tenant}/v2.0`;
+    const jwksUri = `https://login.microsoftonline.com/${tenant}/discovery/v2.0/keys`;
+    const entra = {
+      ...provider,
+      id: 'microsoft',
+      clientSecretEnv: 'MICROSOFT_CLIENT_SECRET',
+      authorizationUrl: `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`,
+      tokenUrl: `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
+      userInfoUrl: 'https://graph.microsoft.com/oidc/userinfo',
+      emailVerifiedJsonPath: 'xms_edov',
+      issuer,
+      jwksUri,
+      externalIdSource: 'entra-id',
+      externalIdJsonPath: 'oid',
+    };
+    vi.stubEnv('MICROSOFT_CLIENT_SECRET', 'secret');
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ login_methods: ['passkey', 'oauth'], oauth_providers: [entra] }),
+    );
+
+    const start = await request(app).post('/oauth/microsoft/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+    expect(new URL(start.body.authorizationUrl).searchParams.get('nonce')).toBeTruthy();
+    const { nonce } = JSON.parse(
+      Buffer.from(start.body.state.split('.')[0], 'base64url').toString('utf8'),
+    );
+
+    const { privateKey, publicKey } = await generateKeyPair('RS256');
+    const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' };
+    const idToken = await new SignJWT({ nonce, oid: 'oid-ada', email: 'ada@town.example' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+      .setIssuer(issuer)
+      .setAudience('client-id')
+      .setSubject('pairwise-sub')
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(privateKey);
+
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const target = String(url);
+      if (target === entra.tokenUrl) {
+        return { ok: true, json: async () => ({ access_token: 'at', id_token: idToken }) };
+      }
+      if (target === jwksUri) {
+        return new Response(JSON.stringify({ keys: [jwk] }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch ${target}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const imported = buildUser({ id: 'imported-ada', email: 'ada@town.example', verified: false });
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+    (UserExternalId.findOne as any).mockResolvedValue({ userId: 'imported-ada' });
+    (User.findByPk as any).mockResolvedValue(imported);
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+
+    const res = await request(app)
+      .post('/oauth/microsoft/callback')
+      .send({ code: 'oauth-code', state: start.body.state });
+
+    expect(res.status).toBe(200);
+    expect(res.body.sub).toBe('imported-ada');
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain(entra.userInfoUrl);
+    expect(UserExternalId.findOne).toHaveBeenCalledWith({
+      where: { source: 'entra-id', externalId: 'oid-ada' },
+    });
+  });
+
+  it('refuses an ID token minted for a different sign-in', async () => {
+    const issuer = 'https://idp.example.com';
+    const jwksUri = 'https://idp.example.com/keys';
+    const oidc = { ...provider, id: 'idp', issuer, jwksUri };
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ login_methods: ['passkey', 'oauth'], oauth_providers: [oidc] }),
+    );
+    const start = await request(app)
+      .post('/oauth/idp/start')
+      .send({ redirectUri: 'http://localhost:5174/oauth/callback' });
+
+    const { privateKey, publicKey } = await generateKeyPair('RS256');
+    const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256' };
+    const idToken = await new SignJWT({ nonce: 'someone-elses-nonce', email: 'a@example.com' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+      .setIssuer(issuer)
+      .setAudience('client-id')
+      .setSubject('s')
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(privateKey);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: unknown) =>
+        String(url) === jwksUri
+          ? new Response(JSON.stringify({ keys: [jwk] }), { status: 200 })
+          : { ok: true, json: async () => ({ access_token: 'at', id_token: idToken }) },
+      ),
+    );
+
+    const res = await request(app)
+      .post('/oauth/idp/callback')
+      .send({ code: 'oauth-code', state: start.body.state });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('oauth_invalid_id_token');
+    expect(OAuthIdentity.findOrCreate).not.toHaveBeenCalled();
   });
 
   it('logs and returns 400 when the login start fails', async () => {

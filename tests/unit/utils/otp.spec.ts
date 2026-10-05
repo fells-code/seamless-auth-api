@@ -184,6 +184,18 @@ describe('OTP utils', () => {
       expect(result.verified).toBe(false);
     });
 
+    it('records the attempt that verified the phone', async () => {
+      const user = buildUser({
+        phoneVerificationToken: hashOtpToken('123456'),
+        phoneVerificationTokenExpiry: Date.now() + 10000,
+      });
+
+      await verifyPhoneOTP(user as any, '123456', 'attempt-a');
+
+      expect(user.phoneVerified).toBe(true);
+      expect(user.phoneVerifiedAttemptId).toBe('attempt-a');
+    });
+
     it('returns false for expired token', async () => {
       const user = buildUser({
         phoneVerificationToken: hashOtpToken('123456'),
@@ -236,6 +248,59 @@ describe('OTP utils', () => {
       const user = buildUser();
 
       await expect(verifyEmailOTP(user as any, '123')).rejects.toThrow();
+    });
+
+    describe('a phone verified before the address was proven', () => {
+      // Anyone can start a registration for an address and verify their own phone on
+      // the account it creates. Only the attempt that verified the phone keeps it.
+      const pending = (overrides: any = {}) =>
+        buildUser({
+          emailVerificationToken: hashOtpToken('ABCDEF'),
+          emailVerificationTokenExpiry: Date.now() + 10000,
+          phoneVerified: true,
+          phoneVerifiedAttemptId: 'attempt-a',
+          ...overrides,
+        });
+
+      it('is kept when the same attempt verifies the email (phone-first sign up)', async () => {
+        const user = pending();
+
+        await verifyEmailOTP(user as any, 'abcdef', 'attempt-a');
+
+        expect(user.verified).toBe(true);
+        expect(user.phone).toBe('+14155552671');
+        expect(user.phoneVerified).toBe(true);
+        expect(user.phoneVerifiedAttemptId).toBeNull();
+      });
+
+      it('is removed when a different attempt verifies the email', async () => {
+        const user = pending();
+
+        await verifyEmailOTP(user as any, 'abcdef', 'attempt-b');
+
+        expect(user.verified).toBe(true);
+        expect(user.phone).toBeNull();
+        expect(user.phoneVerified).toBe(false);
+        expect(user.phoneVerifiedAttemptId).toBeNull();
+      });
+
+      it('is removed when the attempt is unknown', async () => {
+        const user = pending();
+
+        await verifyEmailOTP(user as any, 'abcdef');
+
+        expect(user.phone).toBeNull();
+        expect(user.phoneVerified).toBe(false);
+      });
+
+      it('is left alone once the account is already verified', async () => {
+        const user = pending({ verified: true, emailVerified: true });
+
+        await verifyEmailOTP(user as any, 'abcdef', 'attempt-b');
+
+        expect(user.phone).toBe('+14155552671');
+        expect(user.phoneVerified).toBe(true);
+      });
     });
   });
 });

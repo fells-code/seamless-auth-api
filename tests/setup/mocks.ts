@@ -139,6 +139,7 @@ vi.mock('../../src/models/userExternalIds.js', () => ({
   UserExternalId: {
     create: vi.fn(),
     findAll: vi.fn(async () => []),
+    findOne: vi.fn(async () => null),
   },
 }));
 

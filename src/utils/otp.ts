@@ -142,6 +142,7 @@ export const generatePhoneOTP = async (
 export const verifyPhoneOTP = async (
   user: User,
   verificationToken: string,
+  attemptId?: string,
 ): Promise<{ user: User; verified: boolean }> => {
   if (!user || !user.phoneVerificationToken || !user.phoneVerificationTokenExpiry) {
     throw new Error('Cannot verify phone OTP due to incomplete user data');
@@ -154,6 +155,7 @@ export const verifyPhoneOTP = async (
     user.phoneVerified = true;
     user.phoneVerificationToken = null;
     user.phoneVerificationTokenExpiry = null;
+    user.phoneVerifiedAttemptId = attemptId ?? null;
 
     if (user.emailVerified && !user.verified) {
       user.verified = true;
@@ -175,6 +177,7 @@ export const verifyPhoneOTP = async (
 export const verifyEmailOTP = async (
   user: User,
   verificationToken: string,
+  attemptId?: string,
 ): Promise<{ user: User; verified: boolean }> => {
   if (!user || !user.emailVerificationToken || !user.emailVerificationTokenExpiry) {
     throw new Error('Cannot verify email OTP due to incomplete user data');
@@ -190,6 +193,18 @@ export const verifyEmailOTP = async (
 
     if (user.emailVerified && !user.verified) {
       user.verified = true;
+
+      // Anyone can start a registration for an address and verify a phone on the
+      // account it creates, so a phone verified before the address was proven only
+      // stays if this same attempt verified it. Phone-first sign up does exactly that;
+      // a phone planted through an earlier attempt by someone else does not.
+      if (user.phoneVerified && (!attemptId || user.phoneVerifiedAttemptId !== attemptId)) {
+        user.phone = null;
+        user.phoneVerified = false;
+        user.phoneVerificationToken = null;
+        user.phoneVerificationTokenExpiry = null;
+      }
+      user.phoneVerifiedAttemptId = null;
     }
 
     try {

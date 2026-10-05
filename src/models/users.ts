@@ -23,6 +23,7 @@ export interface UserAttributes {
   phoneVerificationTokenExpiry?: number | null;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  phoneVerifiedAttemptId?: string | null;
   verified?: boolean;
   lastLogin?: Date;
   createdAt?: Date;
@@ -44,6 +45,7 @@ export class User extends Model<UserAttributes> implements UserAttributes {
   declare phoneVerificationTokenExpiry: number | null;
   declare emailVerified: boolean;
   declare phoneVerified: boolean;
+  declare phoneVerifiedAttemptId: string | null;
   declare verified: boolean;
   declare roles?: string[];
   declare lastLogin?: Date;
@@ -145,6 +147,10 @@ const initializeUserModel = (sequelize: Sequelize) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
+      },
+      phoneVerifiedAttemptId: {
+        type: DataTypes.UUID,
+        allowNull: true,
       },
       lastLogin: {
         type: DataTypes.DATE,

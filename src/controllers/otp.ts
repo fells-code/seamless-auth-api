@@ -259,7 +259,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not Allowed.' });
     }
 
-    const verificationResult = await verifyPhoneOTP(user, verificationToken);
+    const verificationResult = await verifyPhoneOTP(user, verificationToken, authReq.attemptId);
 
     user = verificationResult.user;
     const verified = verificationResult.verified;
@@ -352,7 +352,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Invalid data' });
   }
 
-  const verificationResult = await verifyEmailOTP(user, verificationToken);
+  const verificationResult = await verifyEmailOTP(user, verificationToken, authReq.attemptId);
 
   user = verificationResult.user;
   const verified = verificationResult.verified;

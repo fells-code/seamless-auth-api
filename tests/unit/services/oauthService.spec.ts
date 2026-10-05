@@ -221,6 +221,121 @@ describe('oauthService', () => {
     });
   });
 
+  describe('GitHub', () => {
+    const github = {
+      ...provider,
+      id: 'github',
+      userInfoUrl: 'https://api.github.com/user',
+      subjectJsonPath: 'id',
+    };
+    const user = { id: 42, email: 'Public@Example.com', name: 'Octo' };
+    const respond = (body: unknown, ok = true, status = 200) => ({
+      ok,
+      status,
+      json: async () => body,
+    });
+
+    it('takes the verification status from /user/emails', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(respond(user))
+        .mockResolvedValueOnce(
+          respond([
+            { email: 'primary@example.com', primary: true, verified: true },
+            { email: 'public@example.com', primary: false, verified: true },
+          ]),
+        );
+      vi.stubGlobal('fetch', fetchMock);
+
+      const profile = await fetchOAuthProfile(github, 'gh-token');
+
+      expect(fetchMock.mock.calls[1][0]).toBe('https://api.github.com/user/emails');
+      expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer gh-token');
+      expect(profile).toMatchObject({
+        subject: '42',
+        email: 'public@example.com',
+        emailVerified: true,
+      });
+    });
+
+    it('falls back to the primary verified email when the profile email is private', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce(respond({ ...user, email: null }))
+          .mockResolvedValueOnce(
+            respond([
+              { email: 'old@example.com', primary: false, verified: true },
+              { email: 'main@example.com', primary: true, verified: true },
+            ]),
+          ),
+      );
+
+      await expect(fetchOAuthProfile(github, 'gh-token')).resolves.toMatchObject({
+        email: 'main@example.com',
+        emailVerified: true,
+      });
+    });
+
+    it('does not vouch for an address GitHub lists as unverified', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce(respond(user))
+          .mockResolvedValueOnce(
+            respond([{ email: 'public@example.com', primary: true, verified: false }]),
+          ),
+      );
+
+      const profile = await fetchOAuthProfile(github, 'gh-token');
+
+      expect(profile.email).toBe('public@example.com');
+      expect(profile.emailVerified).toBeUndefined();
+    });
+
+    it('leaves the profile unverified when the email list cannot be read', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce(respond(user))
+          .mockResolvedValueOnce(respond({ message: 'Not Found' }, false, 404)),
+      );
+
+      const profile = await fetchOAuthProfile(github, 'gh-token');
+
+      expect(profile.emailVerified).toBeUndefined();
+    });
+
+    it('recognises GitHub Enterprise Server', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(respond(user))
+        .mockResolvedValueOnce(respond([{ email: 'public@example.com', verified: true }]));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await fetchOAuthProfile(
+        { ...github, userInfoUrl: 'https://ghe.example.com/api/v3/user' },
+        'gh-token',
+      );
+
+      expect(fetchMock.mock.calls[1][0]).toBe('https://ghe.example.com/api/v3/user/emails');
+    });
+
+    it('does not ask other providers for an email list', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(respond({ sub: 's', email: 'a@example.com', email_verified: true }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await fetchOAuthProfile(provider, 'token');
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('rejects provider profiles with explicitly unverified email addresses', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -250,6 +365,7 @@ describe('oauthService', () => {
       resolveOAuthUser(provider, {
         subject: 'provider-user',
         email: 'person@example.com',
+        emailVerified: true,
         name: 'Person Example',
         raw: {},
       }),
@@ -748,9 +864,109 @@ describe('oauthService', () => {
       resolveOAuthUser(provider, {
         subject: 'provider-user',
         email: 'person@example.com',
+        emailVerified: true,
         raw: {},
       }),
     ).resolves.toBe(emailUser);
+  });
+
+  describe('a provider email that is not asserted as verified', () => {
+    // A provider whose profile carries no email_verified claim (Microsoft's Graph
+    // userinfo, for one) may be reporting an address its own tenant administrator set.
+    const unverified = { subject: 'attacker-subject', email: 'victim@example.com', raw: {} };
+
+    it('is not linked to the existing account that holds the address', async () => {
+      (OAuthIdentity.findOne as any).mockResolvedValue(null);
+      (User.findOne as any).mockResolvedValue(
+        buildUser({ id: 'victim', email: 'victim@example.com' }),
+      );
+
+      await expect(resolveOAuthUser(provider, unverified)).rejects.toMatchObject({
+        code: 'oauth_email_not_verified',
+      });
+      expect(OAuthIdentity.findOrCreate).not.toHaveBeenCalled();
+    });
+
+    it('does not create an account, so it cannot claim the owner grant', async () => {
+      process.env.OWNER_EMAIL = 'victim@example.com';
+      (OAuthIdentity.findOne as any).mockResolvedValue(null);
+      (User.findOne as any).mockResolvedValue(null);
+
+      try {
+        await expect(resolveOAuthUser(provider, unverified)).rejects.toMatchObject({
+          code: 'oauth_email_not_verified',
+        });
+      } finally {
+        delete process.env.OWNER_EMAIL;
+      }
+      expect(User.create).not.toHaveBeenCalled();
+      expect(OAuthIdentity.findOrCreate).not.toHaveBeenCalled();
+    });
+
+    it('is refused even when the provider explicitly opts out of requiring verification', async () => {
+      (OAuthIdentity.findOne as any).mockResolvedValue(null);
+      (User.findOne as any).mockResolvedValue(buildUser({ email: 'victim@example.com' }));
+
+      await expect(
+        resolveOAuthUser({ ...provider, requireEmailVerified: false }, unverified),
+      ).rejects.toMatchObject({ code: 'oauth_email_not_verified' });
+    });
+
+    it('still signs in an identity that was already linked', async () => {
+      const user = buildUser({ id: 'linked' });
+      (OAuthIdentity.findOne as any).mockResolvedValue({ userId: 'linked' });
+      (User.findByPk as any).mockResolvedValue(user);
+
+      await expect(resolveOAuthUser(provider, unverified)).resolves.toBe(user);
+    });
+  });
+
+  it('marks an unclaimed account verified when a verified provider email links to it', async () => {
+    const imported = buildUser({ id: 'imported', email: 'ada@example.com', verified: false });
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (User.findOne as any).mockResolvedValue(imported);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+
+    await expect(
+      resolveOAuthUser(provider, {
+        subject: 'provider-user',
+        email: 'ada@example.com',
+        emailVerified: true,
+        raw: {},
+      }),
+    ).resolves.toBe(imported);
+
+    expect(imported.update).toHaveBeenCalledWith(
+      expect.objectContaining({ verified: true, emailVerified: true }),
+    );
+    // The factory's phone is verified, which on an unclaimed account means someone other
+    // than the owner proved it.
+    expect(imported.update).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: null, phoneVerified: false }),
+    );
+  });
+
+  it('keeps an unverified phone, such as an imported one, when the account is claimed', async () => {
+    const imported = buildUser({
+      email: 'ada@example.com',
+      verified: false,
+      phone: '+14155552671',
+      phoneVerified: false,
+    });
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (User.findOne as any).mockResolvedValue(imported);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+
+    await resolveOAuthUser(provider, {
+      subject: 'provider-user',
+      email: 'ada@example.com',
+      emailVerified: true,
+      raw: {},
+    });
+
+    const [values] = (imported.update as any).mock.calls[0];
+    expect(values).not.toHaveProperty('phone');
+    expect(values).toMatchObject({ verified: true, phoneVerificationToken: null });
   });
 
   it('does not create a new user when signup is disabled', async () => {
@@ -767,7 +983,7 @@ describe('oauthService', () => {
     expect(User.create).not.toHaveBeenCalled();
   });
 
-  it('creates a signup user with default roles and verified email fallbacks', async () => {
+  it('creates a signup user with default roles', async () => {
     const created = buildUser({ id: 'user-11', email: 'signup@example.com' });
 
     (getSystemConfig as any).mockResolvedValue(
@@ -786,6 +1002,7 @@ describe('oauthService', () => {
       resolveOAuthUser(provider, {
         subject: 'provider-user',
         email: 'signup@example.com',
+        emailVerified: true,
         raw: {},
       }),
     ).resolves.toBe(created);

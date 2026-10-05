@@ -14,14 +14,17 @@ import {
   createOAuthPkceCodeChallenge,
   createOAuthPkceCodeVerifier,
   createOAuthState,
-  exchangeOAuthCode,
+  exchangeOAuthTokens,
   fetchOAuthProfile,
   getEnabledOAuthProviders,
   getOAuthProvider,
+  isOidcProvider,
   OAuthProfileError,
+  oauthProfileFromIdToken,
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
+  verifyOAuthIdToken,
 } from '../services/oauthService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { RouteRequest } from '../types/types.js';
@@ -118,13 +121,18 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
   }
 
   try {
-    const accessToken = await exchangeOAuthCode({
+    const { accessToken, idToken } = await exchangeOAuthTokens({
       provider,
       code,
       redirectUri: statePayload.redirectUri,
       codeVerifier: createOAuthPkceCodeVerifier(provider, statePayload),
     });
-    const profile = await fetchOAuthProfile(provider, accessToken);
+    const profile = isOidcProvider(provider)
+      ? oauthProfileFromIdToken(
+          provider,
+          await verifyOAuthIdToken(provider, idToken, statePayload.nonce),
+        )
+      : await fetchOAuthProfile(provider, accessToken);
     const user = await resolveOAuthUser(provider, profile);
 
     if (!user) {
