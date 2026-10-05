@@ -10,6 +10,7 @@ export {
   AdminUserAnomaliesResponseSchema,
   AdminUserDetailResponseSchema,
   DeviceReplacementRecoveryResponseSchema,
+  ImportUsersResponseSchema,
   UserResponseSchema,
 } from '@seamless-auth/types';
 
