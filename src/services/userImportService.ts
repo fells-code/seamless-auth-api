@@ -242,6 +242,12 @@ function planRow(
       if (current && current !== externalId) {
         return reject('external_id_conflict');
       }
+      // A linked external id becomes a way to sign in once a provider links imported
+      // users by it, so tying an administrator's existing account to one is refused
+      // here like granting an admin role is. Link an administrator individually.
+      if (!current && (user.roles ?? []).some(isAdminRole)) {
+        return reject('admin_role_not_allowed', 'existing account holds an admin role');
+      }
       linkExternalId = !current;
     } else if (!user && externalId) {
       linkExternalId = true;

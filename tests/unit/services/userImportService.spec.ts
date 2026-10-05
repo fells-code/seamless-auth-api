@@ -189,6 +189,23 @@ describe('importUsers', () => {
     });
   });
 
+  it('refuses to link an external id to an existing administrator', async () => {
+    mockUsers({ byEmail: [existingUser({ roles: ['user', 'admin:write'] })] });
+
+    const response = await importUsers({
+      source: 'entra-id',
+      dryRun: false,
+      users: [{ externalId: 'oid-9', email: 'ada@example.com' }],
+    });
+
+    expect(response.results[0]).toMatchObject({
+      status: 'rejected',
+      reason: 'admin_role_not_allowed',
+      detail: 'existing account holds an admin role',
+    });
+    expect(UserExternalId.create).not.toHaveBeenCalled();
+  });
+
   it('refuses admin roles, including scoped ones', async () => {
     const response = await importUsers({
       source: 'csv',
