@@ -39,7 +39,15 @@ jobs:
         run: ./actionlint -color
 
   test:
+    name: test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The supported range is engines >=22: the oldest supported LTS, the
+        # development default from .nvmrc, and the newest release.
+        node-version: [22, 24, latest]
 
     steps:
       - name: Checkout repo
@@ -48,7 +56,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version-file: '.nvmrc'
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
       - name: Install dependencies
@@ -80,6 +88,7 @@ jobs:
         run: CI=true npm run coverage
 
       - name: Upload coverage reports to Codecov
+        if: matrix.node-version == 24
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
