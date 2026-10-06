@@ -117,6 +117,7 @@ vi.mock('../../src/models/sessions.js', () => ({
     findAll: vi.fn(),
     findOne: vi.fn(),
     count: vi.fn(),
+    update: vi.fn(async () => [0]),
   },
 }));
 

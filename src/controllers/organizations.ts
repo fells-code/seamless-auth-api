@@ -323,11 +323,13 @@ async function changeOAuthProviderRetirement(req: RouteRequest, res: Response, r
     }
   }
 
-  const organization = await setOAuthProviderRetired(organizationId, providerId, retired);
+  const result = await setOAuthProviderRetired(organizationId, providerId, retired);
 
-  if (!organization) {
+  if (!result) {
     return res.status(404).json({ error: 'Organization not found' });
   }
+
+  const { organization, revokedSessions } = result;
 
   await AuthEventService.log({
     actorUserId: authUser(req)?.id ?? null,
@@ -335,7 +337,7 @@ async function changeOAuthProviderRetirement(req: RouteRequest, res: Response, r
       ? { type: 'admin_oauth_provider_retired' as const }
       : { type: 'admin_oauth_provider_restored' as const }),
     req,
-    metadata: { organizationId, providerId },
+    metadata: { organizationId, providerId, ...(retired ? { revokedSessions } : {}) },
   });
 
   return res.json({ organization: serializeOrganization(organization) });

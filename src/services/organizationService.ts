@@ -9,6 +9,7 @@ import { Op, UniqueConstraintError, WhereOptions } from 'sequelize';
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
+import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 
 export type OrganizationRole = 'owner' | 'admin' | 'member';
@@ -361,6 +362,11 @@ export async function getDefaultOrganizationIdForUser(userId: string) {
  * Adds or removes a provider from the organization's retired list under a row lock, so
  * two administrators changing different providers at once do not drop each other's
  * change. Returns null when the organization does not exist.
+ *
+ * Retiring also revokes every live session of every member, in the same transaction,
+ * so a cutover takes effect now rather than when sessions issued through the provider
+ * expire. Only a provider newly added to the list does this: repeating the call would
+ * otherwise sign members out of the sessions they started after the cutover.
  */
 export async function setOAuthProviderRetired(
   organizationId: string,
@@ -384,7 +390,24 @@ export async function setOAuthProviderRetired(
 
     await organization.update({ retiredOAuthProviders: next }, { transaction });
 
-    return organization;
+    let revokedSessions = 0;
+
+    if (retired && !current.includes(providerId)) {
+      const memberships = await OrganizationMembership.findAll({
+        where: { organizationId },
+        transaction,
+      });
+      const userIds = memberships.map((membership) => membership.userId);
+
+      if (userIds.length > 0) {
+        [revokedSessions] = await Session.update(
+          { revokedAt: new Date(), revokedReason: 'oauth_provider_retired' },
+          { where: { userId: userIds, revokedAt: null }, transaction },
+        );
+      }
+    }
+
+    return { organization, revokedSessions };
   });
 }
 
