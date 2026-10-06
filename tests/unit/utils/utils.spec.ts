@@ -5,6 +5,7 @@ vi.unmock('../../../src/utils/utils');
 import {
   isValidEmail,
   isValidPhoneNumber,
+  computeRotatedSessionTimes,
   computeSessionTimes,
   normalizePhoneNumber,
   parseDurationToSeconds,
@@ -85,6 +86,59 @@ describe('utils', () => {
       expect(() => computeSessionTimes({ absoluteTtl: '1d', idleTtl: 'eight hours' }, now)).toThrow(
         /Invalid duration/,
       );
+    });
+  });
+
+  describe('computeRotatedSessionTimes', () => {
+    const chainStartedAt = new Date('2024-01-01T00:00:00Z');
+
+    it('measures the absolute bound from the start of the chain, not from the refresh', () => {
+      const now = new Date('2024-01-01T20:00:00Z');
+      const { expiresAt } = computeRotatedSessionTimes(
+        { absoluteTtl: '1d', idleTtl: '8h' },
+        chainStartedAt,
+        now,
+      );
+
+      expect(expiresAt.toISOString()).toBe('2024-01-02T00:00:00.000Z');
+    });
+
+    it('slides the idle bound from the refresh', () => {
+      const now = new Date('2024-01-01T10:00:00Z');
+      const { idleExpiresAt } = computeRotatedSessionTimes(
+        { absoluteTtl: '1d', idleTtl: '8h' },
+        chainStartedAt,
+        now,
+      );
+
+      expect(idleExpiresAt.toISOString()).toBe('2024-01-01T18:00:00.000Z');
+    });
+
+    it('never lets the idle bound reach past the absolute one', () => {
+      const now = new Date('2024-01-01T20:00:00Z');
+      const { expiresAt, idleExpiresAt } = computeRotatedSessionTimes(
+        { absoluteTtl: '1d', idleTtl: '8h' },
+        chainStartedAt,
+        now,
+      );
+
+      expect(idleExpiresAt.getTime()).toBe(expiresAt.getTime());
+    });
+
+    it('stays capped however often the chain is refreshed', () => {
+      let now = chainStartedAt;
+      let expiresAt = new Date(0);
+
+      for (let i = 0; i < 100; i += 1) {
+        now = new Date(now.getTime() + 15 * 60 * 1000);
+        ({ expiresAt } = computeRotatedSessionTimes(
+          { absoluteTtl: '1d', idleTtl: '8h' },
+          chainStartedAt,
+          now,
+        ));
+      }
+
+      expect(expiresAt.toISOString()).toBe('2024-01-02T00:00:00.000Z');
     });
   });
 

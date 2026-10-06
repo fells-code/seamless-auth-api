@@ -157,6 +157,7 @@ vi.mock('../../src/services/sessionService.js', () => ({
   validateBearerToken: vi.fn(),
   validateSessionRecord: vi.fn(),
   findRefreshSessionByToken: vi.fn(),
+  classifyExpiredRefreshToken: vi.fn(async () => null),
   getUserFromSession: vi.fn(),
   verifyJwtWithKid: vi.fn(),
   revokeSessionChain: vi.fn(),

@@ -112,8 +112,11 @@ IP forwarding in the path while the app holds the tokens. What a deployment has 
   [configuration.md](./configuration.md#flow-rate-limits).
 - **Session lifetime** is tenant-wide. `refresh_token_ttl` is the absolute lifetime and
   `session_idle_ttl` the idle bound; a phone that is closed for longer than the shorter of the
-  two signs out. There is no per-client profile, so a deployment that wants a long-lived mobile
-  session gives every client one.
+  two signs out. The absolute lifetime is measured from sign-in and survives refresh, so a
+  session that refreshes continuously still ends at it and the user signs in again. The
+  `refreshTtl` a refresh returns is what is left of that lifetime, not a fresh full one. There
+  is no per-client profile, so a deployment that wants a long-lived mobile session gives every
+  client one.
 - **Refresh** rotates the refresh token and treats a replay as theft, revoking the whole chain
   with `401 { "error": "refresh_token_reused" }`. A client must refresh once at a time.
 - **Authenticator policy.** The defaults (`attestation: "none"`, `syncedPasskeys: "allow"`)

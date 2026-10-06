@@ -31,14 +31,16 @@ import {
 } from '../services/loginPolicyService.js';
 import {
   claimSessionRotation,
+  classifyExpiredRefreshToken,
   findRefreshSessionByToken,
   hardRevokeSession,
+  RefreshRefusalReason,
   revokeSessionChain,
 } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import {
-  computeSessionTimes,
+  computeRotatedSessionTimes,
   isValidEmail,
   isValidPhoneNumber,
   normalizePhoneNumber,
@@ -46,6 +48,11 @@ import {
 } from '../utils/utils.js';
 
 const logger = getLogger('authentication');
+
+const REFRESH_REFUSAL_MESSAGES: Record<RefreshRefusalReason, string> = {
+  absolute_lifetime_reached: 'Session absolute lifetime reached',
+  idle_timeout: 'Session idle timeout reached',
+};
 
 /**
  * How long `/login` takes at minimum, in milliseconds.
@@ -477,10 +484,28 @@ export const refreshSession = async (req: Request, res: Response) => {
       );
     }
 
-    await AuthEventService.refreshTokenFailed(req, {
-      reason: 'No refresh session found for refresh token',
-      tokenFormat: looksLikeJwt ? 'jwt_like' : 'opaque',
-    });
+    const expired = looksLikeJwt ? null : await classifyExpiredRefreshToken(refreshToken, now);
+
+    if (expired) {
+      await AuthEventService.log({
+        userId: expired.session.userId,
+        sessionId: expired.session.id,
+        type: 'refresh_token_failed',
+        req,
+        metadata: {
+          reason: REFRESH_REFUSAL_MESSAGES[expired.reason],
+          refusal: expired.reason,
+          chainStartedAt: (
+            expired.session.chainStartedAt ?? expired.session.createdAt
+          )?.toISOString(),
+        },
+      });
+    } else {
+      await AuthEventService.refreshTokenFailed(req, {
+        reason: 'No refresh session found for refresh token',
+        tokenFormat: looksLikeJwt ? 'jwt_like' : 'opaque',
+      });
+    }
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
 
@@ -525,10 +550,30 @@ export const refreshSession = async (req: Request, res: Response) => {
   }
 
   const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
-  const { expiresAt, idleExpiresAt } = computeSessionTimes(
+  const chainStartedAt = session.chainStartedAt ?? session.createdAt ?? now;
+  const { expiresAt, idleExpiresAt } = computeRotatedSessionTimes(
     { absoluteTtl: refresh_token_ttl || '1d', idleTtl: session_idle_ttl || '8h' },
+    chainStartedAt,
     now,
   );
+
+  // Only reachable when the absolute lifetime was shortened after this chain began, since
+  // the lookup already refuses a session past its own expiry.
+  if (expiresAt <= now) {
+    await hardRevokeSession(session, 'absolute_lifetime_reached');
+    await AuthEventService.log({
+      userId: user.id,
+      sessionId: session.id,
+      type: 'refresh_token_failed',
+      req,
+      metadata: {
+        reason: REFRESH_REFUSAL_MESSAGES.absolute_lifetime_reached,
+        refusal: 'absolute_lifetime_reached',
+        chainStartedAt: chainStartedAt.toISOString(),
+      },
+    });
+    return res.status(401).json({ error: 'invalid_refresh_token' });
+  }
   const newRefreshToken = generateRefreshToken();
   const newRefreshTokenLookup = createRefreshTokenLookup(newRefreshToken);
 
@@ -542,6 +587,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     ipAddress: req.ip,
     expiresAt,
     idleExpiresAt,
+    chainStartedAt,
   });
 
   // The read, the reuse check and this link are separate statements, so two refreshes
@@ -600,7 +646,9 @@ export const refreshSession = async (req: Request, res: Response) => {
       email: user.email,
       phone: user.phone,
       ttl: parseDurationToSeconds(access_token_ttl || '15m'),
-      refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1d'),
+      // What is left of the chain, not a full lifetime, so a caller sizing a cookie or a
+      // keychain entry from it does not outlive the session.
+      refreshTtl: Math.floor((expiresAt.getTime() - now.getTime()) / 1000),
     });
   }
 

@@ -19,6 +19,7 @@ export interface SessionAttributes {
   lastUsedAt: Date;
   expiresAt: Date;
   idleExpiresAt: Date;
+  chainStartedAt?: Date | null;
   stepUpVerifiedAt?: Date | null;
   stepUpMethod?: string | null;
   replacedBySessionId?: string | null;
@@ -56,6 +57,7 @@ export class Session
   declare lastUsedAt: Date;
   declare expiresAt: Date;
   declare idleExpiresAt: Date;
+  declare chainStartedAt: Date | null;
   declare stepUpVerifiedAt: Date | null;
   declare stepUpMethod: string | null;
   declare replacedBySessionId: string | null;
@@ -111,6 +113,10 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       idleExpiresAt: {
         type: DataTypes.DATE,
         allowNull: false,
+      },
+      chainStartedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
       },
       stepUpVerifiedAt: {
         type: DataTypes.DATE,

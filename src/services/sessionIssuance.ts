@@ -40,10 +40,14 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
   const { access_token_ttl, refresh_token_ttl, session_idle_ttl, max_concurrent_sessions } =
     await getSystemConfig();
-  const { expiresAt, idleExpiresAt } = computeSessionTimes({
-    absoluteTtl: refresh_token_ttl || '1d',
-    idleTtl: session_idle_ttl || '8h',
-  });
+  const now = new Date();
+  const { expiresAt, idleExpiresAt } = computeSessionTimes(
+    {
+      absoluteTtl: refresh_token_ttl || '1d',
+      idleTtl: session_idle_ttl || '8h',
+    },
+    now,
+  );
   const organizationId = await getDefaultOrganizationIdForUser(user.id);
 
   // Before the row exists, so the limit counts the session about to be created.
@@ -63,6 +67,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     ipAddress: req.ip,
     expiresAt,
     idleExpiresAt,
+    chainStartedAt: now,
     lastUsedAt: undefined,
   });
 

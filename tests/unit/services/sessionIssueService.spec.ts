@@ -123,10 +123,19 @@ describe('issueSessionAndRespond', () => {
   it('derives the session bounds from configured TTLs', async () => {
     await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
 
-    expect(computeSessionTimes).toHaveBeenCalledWith({
-      absoluteTtl: '1h',
-      idleTtl: '8h',
-    });
+    expect(computeSessionTimes).toHaveBeenCalledWith(
+      { absoluteTtl: '1h', idleTtl: '8h' },
+      expect.any(Date),
+    );
+  });
+
+  it('starts a new rotation chain at the time the bounds are measured from', async () => {
+    await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
+
+    const measuredFrom = (computeSessionTimes as any).mock.calls[0][1];
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({ chainStartedAt: measuredFrom }),
+    );
   });
 
   it('falls back to a default idle bound when config omits it', async () => {
@@ -134,10 +143,10 @@ describe('issueSessionAndRespond', () => {
 
     await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
 
-    expect(computeSessionTimes).toHaveBeenCalledWith({
-      absoluteTtl: '1h',
-      idleTtl: '8h',
-    });
+    expect(computeSessionTimes).toHaveBeenCalledWith(
+      { absoluteTtl: '1h', idleTtl: '8h' },
+      expect.any(Date),
+    );
   });
 
   it('throws if token generation fails', async () => {
