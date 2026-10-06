@@ -11871,7 +11871,6 @@ export interface paths {
         content: {
           'application/json': {
             name?: string;
-            /** @default true */
             enabled?: boolean;
             clientId?: string;
             clientSecretEnv?: string;
@@ -11881,27 +11880,17 @@ export interface paths {
             tokenUrl?: string;
             /** Format: uri */
             userInfoUrl?: string;
-            /** @default [] */
             scopes?: string[];
             /** Format: uri */
             redirectUri?: string;
-            /** @default [] */
             redirectUris?: string[];
-            /** @default sub */
             subjectJsonPath?: string;
-            /** @default email */
             emailJsonPath?: string;
-            /** @default email_verified */
             emailVerifiedJsonPath?: string;
             nameJsonPath?: string;
-            /** @default true */
             allowSignup?: boolean;
-            /**
-             * @default email
-             * @enum {string}
-             */
+            /** @enum {string} */
             accountLinking?: 'email' | 'disabled';
-            /** @default false */
             requireEmailVerified?: boolean;
             pkce?: boolean;
             /** Format: uri */
@@ -11910,7 +11899,6 @@ export interface paths {
             jwksUri?: string;
             externalIdSource?: string;
             externalIdJsonPath?: string;
-            /** @default false */
             promptPasskeyEnrollment?: boolean;
           };
         };

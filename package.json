@@ -52,7 +52,7 @@
     "@seamless-auth/messaging": "^0.1.0",
     "@seamless-auth/messaging-aws": "^0.1.0",
     "@seamless-auth/messaging-twilio": "^0.1.0",
-    "@seamless-auth/types": "^0.24.0",
+    "@seamless-auth/types": "^0.25.0",
     "@simplewebauthn/server": "^13.3.3",
     "base64url": "^3.0.1",
     "bcrypt-ts": "^9.0.2",
