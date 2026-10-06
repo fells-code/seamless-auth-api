@@ -1657,7 +1657,7 @@
     "/admin/organizations/{organizationId}/oauth-providers/{providerId}/retirement": {
       "put": {
         "summary": "Retire an OAuth provider for an organization",
-        "description": "Members of the organization can no longer sign in through the provider. The callback answers 403 with `code: oauth_provider_retired`, before any account is linked. Idempotent. Used to cut an organization over from a legacy identity provider.",
+        "description": "Members of the organization can no longer sign in through the provider. The callback answers 403 with `code: oauth_provider_retired`, before any account is linked. Retiring also revokes every live session of every member, whichever method started it, so they sign in again with a passkey or another method; the count is recorded on the `admin_oauth_provider_retired` auth event. Repeating the call for a provider already retired revokes nothing. Used to cut an organization over from a legacy identity provider.",
         "tags": ["Admin"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [

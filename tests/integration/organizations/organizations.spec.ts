@@ -688,9 +688,68 @@ describe('admin OAuth provider retirement', () => {
       expect.objectContaining({
         type: 'admin_oauth_provider_retired',
         actorUserId: 'user-1',
-        metadata: { organizationId: testOrganizationId, providerId: 'legacy-idp' },
+        metadata: expect.objectContaining({
+          organizationId: testOrganizationId,
+          providerId: 'legacy-idp',
+        }),
       }),
     );
+  });
+
+  it('revokes every live session of every member when it retires a provider', async () => {
+    (Organization.findByPk as any).mockResolvedValue(buildOrganization());
+    (OrganizationMembership.findAll as any).mockResolvedValue([
+      buildOrganizationMembership({ userId: 'user-1' }),
+      buildOrganizationMembership({ userId: otherUserId }),
+    ]);
+    (Session.update as any).mockResolvedValue([3]);
+
+    const res = await request(app).put(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(Session.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        revokedAt: expect.any(Date),
+        revokedReason: 'oauth_provider_retired',
+      }),
+      expect.objectContaining({
+        where: { userId: ['user-1', otherUserId], revokedAt: null },
+        transaction: expect.anything(),
+      }),
+    );
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'admin_oauth_provider_retired',
+        metadata: expect.objectContaining({ revokedSessions: 3 }),
+      }),
+    );
+  });
+
+  // Sessions started after the cutover came from another method, so a repeated call
+  // must not sign members out of them.
+  it('revokes nothing when the provider was already retired', async () => {
+    (Organization.findByPk as any).mockResolvedValue(
+      buildOrganization({ retiredOAuthProviders: ['legacy-idp'] }),
+    );
+
+    const res = await request(app).put(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(Session.update).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ revokedSessions: 0 }) }),
+    );
+  });
+
+  it('revokes nothing when it restores a provider', async () => {
+    (Organization.findByPk as any).mockResolvedValue(
+      buildOrganization({ retiredOAuthProviders: ['legacy-idp'] }),
+    );
+
+    const res = await request(app).delete(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(Session.update).not.toHaveBeenCalled();
   });
 
   it('does not list a provider twice when it is retired again', async () => {
