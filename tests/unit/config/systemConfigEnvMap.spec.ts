@@ -21,6 +21,7 @@ describe('SYSTEM_CONFIG_ENV_MAP', () => {
       authenticator_policy: 'AUTHENTICATOR_POLICY',
       passkey_login_fallback_enabled: 'PASSKEY_LOGIN_FALLBACK_ENABLED',
       prompt_passkey_enrollment: 'PROMPT_PASSKEY_ENROLLMENT',
+      phishing_resistant_only: 'PHISHING_RESISTANT_ONLY',
       access_token_ttl: 'ACCESS_TOKEN_TTL',
       refresh_token_ttl: 'REFRESH_TOKEN_TTL',
       session_idle_ttl: 'SESSION_IDLE_TTL',

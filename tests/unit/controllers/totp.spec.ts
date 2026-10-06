@@ -329,6 +329,38 @@ describe('totp controller', () => {
       expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
     });
 
+    it('refuses TOTP sign-in in phishing-resistant-only mode', async () => {
+      const { verifyTotpLogin } = await loadTotpController();
+      const res = buildRes();
+      getSystemConfigMock.mockResolvedValue({
+        login_methods: ['passkey'],
+        phishing_resistant_only: true,
+      });
+
+      await verifyTotpLogin(buildReq(buildUser(), { body: { code: '123456' } }), res);
+
+      expect(verifyEnabledTotpMock).not.toHaveBeenCalled();
+      expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
+    });
+
+    it('refuses TOTP sign-in to a passkey holder when fallback is off', async () => {
+      const { verifyTotpLogin } = await loadTotpController();
+      const { Credential } = await import('../../../src/models/credentials.js');
+      (Credential.count as any).mockResolvedValue(1);
+      const res = buildRes();
+      getSystemConfigMock.mockResolvedValue({
+        login_methods: ['passkey', 'email_otp'],
+        passkey_login_fallback_enabled: false,
+      });
+
+      await verifyTotpLogin(buildReq(buildUser(), { body: { code: '123456' } }), res);
+
+      expect(verifyEnabledTotpMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
     it('returns 401 and logs failure when the code is invalid', async () => {
       const { verifyTotpLogin } = await loadTotpController();
       const res = buildRes();
@@ -357,6 +389,7 @@ describe('totp controller', () => {
       await verifyTotpLogin(req, res);
 
       expect(issueSessionAndRespondMock).toHaveBeenCalledWith({
+        method: 'totp',
         user: {
           id: 'user-1',
           email: 'test@example.com',

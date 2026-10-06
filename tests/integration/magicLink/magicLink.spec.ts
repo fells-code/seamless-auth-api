@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
 
 import { User } from '../../../src/models/users.js';
+import { Credential } from '../../../src/models/credentials.js';
 import { MagicLinkToken } from '../../../src/models/magicLinks.js';
 import { Session } from '../../../src/models/sessions.js';
 
@@ -190,6 +191,37 @@ describe('GET /magic-link', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid device data');
+    expect(MagicLinkToken.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a magic link to a passkey holder when fallback is off', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      origins: ['http://localhost:5174'],
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: false,
+    });
+    (Credential.count as any).mockResolvedValue(1);
+
+    const requested = await request(app).get('/magic-link');
+    const polled = await request(app).get('/magic-link/check');
+
+    expect(requested.status).toBe(403);
+    expect(requested.body.error).toBe('login_method_disabled');
+    expect(polled.status).toBe(403);
+    expect(MagicLinkToken.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses magic links in phishing-resistant-only mode', async () => {
+    (getSystemConfig as any).mockResolvedValue({
+      origins: ['http://localhost:5174'],
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+      phishing_resistant_only: true,
+    });
+
+    const res = await request(app).get('/magic-link');
+
+    expect(res.status).toBe(403);
     expect(MagicLinkToken.create).not.toHaveBeenCalled();
   });
 

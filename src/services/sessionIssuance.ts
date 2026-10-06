@@ -11,9 +11,27 @@ import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from 
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
+import { getLoginPolicy } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
+/** The factor that proved the user, as far as session issuance needs to know it. */
+export type SessionMethod = 'passkey' | 'email_otp' | 'phone_otp' | 'magic_link' | 'totp' | 'oauth';
+
+export class PasskeyRequiredError extends Error {
+  constructor(method: SessionMethod) {
+    super(`Refused to issue a session from ${method} in phishing-resistant-only mode`);
+    this.name = 'PasskeyRequiredError';
+  }
+}
+
 type IssueSessionParams = {
+  method: SessionMethod;
+  /**
+   * The session that completes a new account's address verification. The one session a
+   * non-passkey factor may start in phishing-resistant-only mode, because the account has
+   * nothing else to sign in with until its first passkey is enrolled.
+   */
+  accountVerification?: boolean;
   user: {
     id: string;
     email: string;
@@ -34,7 +52,16 @@ type IssueSessionParams = {
 };
 
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
-  const { user, req, res, extraFields } = params;
+  const { user, req, res, extraFields, method, accountVerification } = params;
+
+  // Every endpoint that reaches here with another factor refuses first. This is the
+  // backstop for one that does not, so it fails closed rather than trusting the gates.
+  if (method !== 'passkey' && !accountVerification) {
+    const { phishingResistantOnly } = await getLoginPolicy();
+    if (phishingResistantOnly) {
+      throw new PasskeyRequiredError(method);
+    }
+  }
 
   const refreshToken = generateRefreshToken();
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);

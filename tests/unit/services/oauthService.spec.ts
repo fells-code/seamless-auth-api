@@ -435,6 +435,19 @@ describe('oauthService', () => {
     expect(OAuthIdentity.findOrCreate).not.toHaveBeenCalled();
   });
 
+  it('returns no providers in phishing-resistant-only mode', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({
+        login_methods: ['passkey', 'oauth'],
+        oauth_providers: [provider],
+        phishing_resistant_only: true,
+      }),
+    );
+
+    await expect(getEnabledOAuthProviders()).resolves.toEqual([]);
+    await expect(getOAuthProvider(provider.id)).resolves.toBeNull();
+  });
+
   it('returns no providers when oauth login is not enabled', async () => {
     (getSystemConfig as any).mockResolvedValue(
       buildSystemConfig({ login_methods: ['passkey'], oauth_providers: [provider] }),

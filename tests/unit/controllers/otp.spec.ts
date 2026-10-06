@@ -300,6 +300,7 @@ describe('otp controller', () => {
     await verifyLoginPhoneNumber(req, res);
 
     expect(issueSessionAndRespondMock).toHaveBeenCalledWith({
+      method: 'phone_otp',
       user: {
         id: verifiedUser.id,
         email: verifiedUser.email,
@@ -375,6 +376,8 @@ describe('otp controller', () => {
     await verifyEmail(req, res);
 
     expect(issueSessionAndRespondMock).toHaveBeenCalledWith({
+      method: 'email_otp',
+      accountVerification: true,
       user: {
         id: verifiedUser.id,
         email: verifiedUser.email,
@@ -492,6 +495,7 @@ describe('otp controller', () => {
     await verifyLoginEmail(req, res);
 
     expect(issueSessionAndRespondMock).toHaveBeenCalledWith({
+      method: 'email_otp',
       user: {
         id: verifiedUser.id,
         email: verifiedUser.email,
@@ -977,6 +981,124 @@ describe('otp controller', () => {
         expect.objectContaining({ type: 'otp_failed' }),
       );
       expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe('when a passkey is required', () => {
+    async function loadWithPasskeyHolder(credentialCount = 1) {
+      const controller = await loadOtpController();
+      const { Credential } = await import('../../../src/models/credentials.js');
+      (Credential.count as any).mockResolvedValue(credentialCount);
+      return controller;
+    }
+
+    const fallbackOff = {
+      login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp'],
+      passkey_login_fallback_enabled: false,
+    };
+
+    // The bypass this closes: `/login` offered such an account only a passkey, but the
+    // OTP endpoints checked the deployment-wide method list alone and signed it in.
+    it('refuses login email OTP to a passkey holder when fallback is off', async () => {
+      const { sendLoginEmailOTP, verifyLoginEmail } = await loadWithPasskeyHolder();
+      getSystemConfigMock.mockResolvedValue(fallbackOff);
+
+      const sendRes = buildRes();
+      await sendLoginEmailOTP(buildReq(buildUser()), sendRes);
+
+      const verifyRes = buildRes();
+      await verifyLoginEmail(
+        buildReq(buildUser(), { body: { verificationToken: 'EMAILOTP' } }),
+        verifyRes,
+      );
+
+      expect(generateEmailOTPMock).not.toHaveBeenCalled();
+      expect(verifyEmailOTPMock).not.toHaveBeenCalled();
+      expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
+      expect(sendRes.status).toHaveBeenCalledWith(403);
+      expect(verifyRes.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
+    });
+
+    it('refuses login phone OTP to a passkey holder when fallback is off', async () => {
+      const { verifyLoginPhoneNumber } = await loadWithPasskeyHolder();
+      getSystemConfigMock.mockResolvedValue(fallbackOff);
+      const res = buildRes();
+
+      await verifyLoginPhoneNumber(
+        buildReq(buildUser(), { body: { verificationToken: '123456' } }),
+        res,
+      );
+
+      expect(verifyPhoneOTPMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('still lets an account without a passkey use the fallback', async () => {
+      const { sendLoginEmailOTP } = await loadWithPasskeyHolder(0);
+      getSystemConfigMock.mockResolvedValue(fallbackOff);
+      const res = buildRes();
+
+      await sendLoginEmailOTP(buildReq(buildUser()), res);
+
+      expect(generateEmailOTPMock).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalledWith(403);
+    });
+
+    it('refuses to sign an already verified passkey holder in through email verification', async () => {
+      const { verifyEmail } = await loadWithPasskeyHolder();
+      getSystemConfigMock.mockResolvedValue(fallbackOff);
+      const res = buildRes();
+
+      await verifyEmail(buildReq(buildUser(), { body: { verificationToken: 'EMAILOTP' } }), res);
+
+      expect(verifyEmailOTPMock).not.toHaveBeenCalled();
+      expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
+    });
+
+    it('refuses every code sign-in in phishing-resistant-only mode', async () => {
+      const { sendLoginEmailOTP, verifyEmail } = await loadWithPasskeyHolder(0);
+      getSystemConfigMock.mockResolvedValue({
+        login_methods: ['passkey', 'email_otp'],
+        passkey_login_fallback_enabled: true,
+        phishing_resistant_only: true,
+      });
+
+      const sendRes = buildRes();
+      await sendLoginEmailOTP(buildReq(buildUser()), sendRes);
+      const verifyRes = buildRes();
+      await verifyEmail(
+        buildReq(buildUser(), { body: { verificationToken: 'EMAILOTP' } }),
+        verifyRes,
+      );
+
+      expect(sendRes.status).toHaveBeenCalledWith(403);
+      expect(verifyRes.status).toHaveBeenCalledWith(403);
+      expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
+    });
+
+    it('still verifies a new account in phishing-resistant-only mode, once', async () => {
+      const { verifyEmail } = await loadWithPasskeyHolder(0);
+      getSystemConfigMock.mockResolvedValue({
+        login_methods: ['passkey'],
+        passkey_login_fallback_enabled: false,
+        phishing_resistant_only: true,
+      });
+      const newcomer = buildUser({ verified: false, emailVerified: false });
+      verifyEmailOTPMock.mockResolvedValue({
+        user: buildUser({ verified: true, emailVerified: true }),
+        verified: true,
+      });
+
+      await verifyEmail(
+        buildReq(newcomer, { body: { verificationToken: 'EMAILOTP' } }),
+        buildRes(),
+      );
+
+      expect(issueSessionAndRespondMock).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'email_otp', accountVerification: true }),
+      );
     });
   });
 });

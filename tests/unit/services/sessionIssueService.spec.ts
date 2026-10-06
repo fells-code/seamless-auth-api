@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { issueSessionAndRespond } from '../../../src/services/sessionIssuance.js';
+import {
+  issueSessionAndRespond,
+  PasskeyRequiredError,
+} from '../../../src/services/sessionIssuance.js';
 
 vi.mock('../../../src/lib/token.js', () => ({
   generateRefreshToken: vi.fn(),
@@ -147,6 +150,52 @@ describe('issueSessionAndRespond', () => {
       { absoluteTtl: '1h', idleTtl: '8h' },
       expect.any(Date),
     );
+  });
+
+  describe('in phishing-resistant-only mode', () => {
+    beforeEach(() => {
+      (getSystemConfig as any).mockResolvedValue({
+        access_token_ttl: '15m',
+        refresh_token_ttl: '1h',
+        session_idle_ttl: '8h',
+        login_methods: ['passkey'],
+        phishing_resistant_only: true,
+      });
+    });
+
+    it.each(['email_otp', 'phone_otp', 'magic_link', 'totp', 'oauth'] as const)(
+      'refuses to start a session from %s even if an endpoint let it through',
+      async (method) => {
+        await expect(
+          issueSessionAndRespond({ method, user: mockUser, req: mockReq(), res: mockRes() }),
+        ).rejects.toBeInstanceOf(PasskeyRequiredError);
+
+        expect(Session.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it('starts a session from a passkey', async () => {
+      await issueSessionAndRespond({
+        method: 'passkey',
+        user: mockUser,
+        req: mockReq(),
+        res: mockRes(),
+      });
+
+      expect(Session.create).toHaveBeenCalled();
+    });
+
+    it("starts the one session that completes a new account's address verification", async () => {
+      await issueSessionAndRespond({
+        method: 'email_otp',
+        accountVerification: true,
+        user: mockUser,
+        req: mockReq(),
+        res: mockRes(),
+      });
+
+      expect(Session.create).toHaveBeenCalled();
+    });
   });
 
   it('throws if token generation fails', async () => {

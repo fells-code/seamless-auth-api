@@ -15,6 +15,7 @@ import { UserExternalId } from '../models/userExternalIds.js';
 import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
+import { normalizeLoginPolicy } from './loginPolicyService.js';
 import { findOrganizationsRetiringOAuthProvider } from './organizationService.js';
 
 const logger = getLogger('oauthService');
@@ -168,7 +169,13 @@ function providerRedirectAllowlist(provider: OAuthProviderConfig) {
 export async function getEnabledOAuthProviders() {
   const config = await getSystemConfig();
 
-  if (!config.login_methods.includes('oauth')) {
+  // Through the normalized policy rather than the raw list, so phishing-resistant-only
+  // mode switches every provider off along with the other non-passkey methods.
+  if (
+    !normalizeLoginPolicy(config as unknown as Record<string, unknown>).loginMethods.includes(
+      'oauth',
+    )
+  ) {
     return [];
   }
 

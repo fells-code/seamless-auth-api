@@ -159,6 +159,7 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
       (await Credential.count({ where: { userId: user.id } })) === 0;
 
     return issueSessionAndRespond({
+      method: 'oauth',
       user: {
         id: user.id,
         email: user.email,

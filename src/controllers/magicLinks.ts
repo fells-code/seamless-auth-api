@@ -15,7 +15,11 @@ import { User } from '../models/users.js';
 import { MagicLinkRequestQuerySchema } from '../schemas/magiclink.requests.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { passkeyEnrollmentPrompt } from '../services/enrollmentService.js';
-import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicyService.js';
+import {
+  getLoginPolicy,
+  isLoginMethodEnabled,
+  isPasskeyRequiredForUser,
+} from '../services/loginPolicyService.js';
 import {
   MagicLinkRedirectNotAllowedError,
   resolveMagicLinkUrl,
@@ -31,15 +35,18 @@ const logger = getLogger('magic-links');
 
 const TTL_MINUTES = 15;
 
-async function rejectDisabledMagicLink(req: Request, res: Response, userId?: string | null) {
+async function rejectDisabledMagicLink(req: Request, res: Response, user?: { id: string } | null) {
   const policy = await getLoginPolicy();
 
-  if (isLoginMethodEnabled(policy, 'magic_link')) {
+  if (
+    isLoginMethodEnabled(policy, 'magic_link') &&
+    !(user?.id && (await isPasskeyRequiredForUser(user.id, policy)))
+  ) {
     return false;
   }
 
   await AuthEventService.log({
-    userId: userId ?? null,
+    userId: user?.id ?? null,
     type: 'login_failed',
     req,
     metadata: { reason: 'Login method disabled', method: 'magic_link' },
@@ -72,7 +79,7 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
   const preAuthUser = authReq.user;
   const useExternalDelivery = await canReturnExternalDelivery(req);
 
-  if (await rejectDisabledMagicLink(req, res, preAuthUser?.id)) {
+  if (await rejectDisabledMagicLink(req, res, preAuthUser)) {
     return;
   }
 
@@ -237,7 +244,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
   const preAuthUser = authReq.user;
 
-  if (await rejectDisabledMagicLink(req, res, preAuthUser?.id)) {
+  if (await rejectDisabledMagicLink(req, res, preAuthUser)) {
     return;
   }
 
@@ -294,6 +301,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     });
 
     await issueSessionAndRespond({
+      method: 'magic_link',
       user: {
         id: user.id,
         email: user.email,

@@ -34,6 +34,7 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   magic_link_redirect_uris: [],
   passkey_login_fallback_enabled: true,
   prompt_passkey_enrollment: false,
+  phishing_resistant_only: false,
   // The constants the flow limiters carried in code before the key existed, so an
   // instance that predates it keeps the limits it had.
   flow_rate_limits: DefaultFlowRateLimits,
