@@ -137,7 +137,7 @@ Full per-flow status codes and terminology live in
 
 ### Prerequisites
 
-- Node.js 24 (the `engines` field requires `>=24 <25`; see `.nvmrc`)
+- Node.js 22 or newer (the `engines` field requires `>=22`; `.nvmrc` pins 24 for development)
 - Postgres (local, Docker, or managed)
 
 ### Configuration
