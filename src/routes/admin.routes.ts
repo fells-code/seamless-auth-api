@@ -20,6 +20,7 @@ import {
   revokeUserSessionById,
   updateUser,
 } from '../controllers/admin.js';
+import { getEnrollment, sendEnrollmentInvites } from '../controllers/enrollment.js';
 import {
   addMember,
   createOrganization,
@@ -51,6 +52,12 @@ import {
   ImportUsersResponseSchema,
   UserResponseSchema,
 } from '../schemas/admin.responses.js';
+import {
+  AdminEnrollmentQuerySchema,
+  AdminEnrollmentResponseSchema,
+  EnrollmentInviteRequestSchema,
+  EnrollmentInviteResponseSchema,
+} from '../schemas/enrollment.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { AuthEventQuerySchema, PaginationQuerySchema } from '../schemas/internal.query.js';
 import {
@@ -287,6 +294,46 @@ adminRouter.delete(
     },
   },
   restoreOAuthProvider,
+);
+
+adminRouter.get(
+  '/enrollment',
+  {
+    auth: 'access',
+    summary: 'Passkey enrollment progress',
+    description:
+      'Every active user with their WebAuthn credential count and enrollment status (`none`, `one`, `two_or_more`), optionally scoped to one organization or to imported users. `summary` counts all users matching `organizationId`, `imported` and `search`, whatever `status`; `users` and `total` are the filtered page.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('read')],
+    schemas: {
+      query: AdminEnrollmentQuerySchema,
+      response: {
+        200: AdminEnrollmentResponseSchema,
+      },
+    },
+  },
+  getEnrollment,
+);
+
+adminRouter.post(
+  '/enrollment/invites',
+  {
+    auth: 'access',
+    summary: 'Invite users to enroll a passkey',
+    description:
+      "Emails each target a notice to sign in and add a passkey. The link is the tenant's sign-in page (`signInUrl`, default `<frontend_url>/login`) and carries no credential. Targets are `userIds` (up to 200) or an `organizationId`, whose members at or below `status` are invited 200 at a time, skipping anyone invited in the last day; `remaining` says how many are left. Answers 409 when no sign-in method other than passkey is enabled. With `x-seamless-auth-delivery-mode: external` each result carries the delivery for the caller to send instead.",
+    tags: ['Admin'],
+    middleware: [requireAdmin('write')],
+    schemas: {
+      body: EnrollmentInviteRequestSchema,
+      response: {
+        200: EnrollmentInviteResponseSchema,
+        400: InternalErrorSchema,
+        409: InternalErrorSchema,
+      },
+    },
+  },
+  sendEnrollmentInvites,
 );
 
 adminRouter.get(

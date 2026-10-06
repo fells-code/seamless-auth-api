@@ -570,6 +570,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -1240,6 +1246,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -1873,6 +1885,337 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/enrollment': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Passkey enrollment progress
+     * @description Every active user with their WebAuthn credential count and enrollment status (`none`, `one`, `two_or_more`), optionally scoped to one organization or to imported users. `summary` counts all users matching `organizationId`, `imported` and `search`, whatever `status`; `users` and `total` are the filtered page.
+     */
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          offset?: number | null;
+          organizationId?: string;
+          status?: 'none' | 'one' | 'two_or_more';
+          imported?: boolean | ('true' | 'false');
+          search?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "summary": {
+             *         "total": 0,
+             *         "none": 0,
+             *         "one": 0,
+             *         "twoOrMore": 0
+             *       },
+             *       "users": [
+             *         null
+             *       ],
+             *       "total": 0
+             *     }
+             */
+            'application/json': {
+              summary: {
+                total: number;
+                none: number;
+                one: number;
+                twoOrMore: number;
+              };
+              users: {
+                id: string;
+                email: string;
+                imported: boolean;
+                credentialCount: number;
+                /** @enum {string} */
+                status: 'none' | 'one' | 'two_or_more';
+                /** Format: date-time */
+                lastLogin: string | null;
+                /** Format: date-time */
+                enrollmentInvitedAt: string | null;
+              }[];
+              total: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/enrollment/invites': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Invite users to enroll a passkey
+     * @description Emails each target a notice to sign in and add a passkey. The link is the tenant's sign-in page (`signInUrl`, default `<frontend_url>/login`) and carries no credential. Targets are `userIds` (up to 200) or an `organizationId`, whose members at or below `status` are invited 200 at a time, skipping anyone invited in the last day; `remaining` says how many are left. Answers 409 when no sign-in method other than passkey is enabled. With `x-seamless-auth-delivery-mode: external` each result carries the delivery for the caller to send instead.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            userIds?: string[];
+            /** Format: uuid */
+            organizationId?: string;
+            /**
+             * @default none
+             * @enum {string}
+             */
+            status?: 'none' | 'one';
+            /** Format: uri */
+            signInUrl?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "sent": 0,
+             *       "skipped": 0,
+             *       "remaining": 0,
+             *       "results": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              sent: number;
+              skipped: number;
+              remaining?: number;
+              results: {
+                userId: string;
+                /** @enum {string} */
+                status: 'sent' | 'skipped';
+                /** @enum {string} */
+                reason?: 'not_found' | 'already_enrolled' | 'recently_invited' | 'delivery_failed';
+                delivery?:
+                  | {
+                      /** @enum {string} */
+                      kind: 'otp_email';
+                      to: string;
+                      token: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'otp_sms';
+                      to: string;
+                      token: string | number;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'magic_link_email';
+                      to: string;
+                      token?: string;
+                      magicLinkUrl: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'enrollment_invite_email';
+                      to: string;
+                      signInUrl: string;
+                    };
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/users': {
     parameters: {
       query?: never;
@@ -2189,6 +2532,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -2255,6 +2604,7 @@ export interface paths {
             | (
                 | 'auth_action_incremented'
                 | 'admin_device_replacement_recovery'
+                | 'admin_enrollment_invite_sent'
                 | 'admin_oauth_provider_restored'
                 | 'admin_oauth_provider_retired'
                 | 'admin_session_revoked'
@@ -2325,6 +2675,7 @@ export interface paths {
                 | (
                     | 'auth_action_incremented'
                     | 'admin_device_replacement_recovery'
+                    | 'admin_enrollment_invite_sent'
                     | 'admin_oauth_provider_restored'
                     | 'admin_oauth_provider_retired'
                     | 'admin_session_revoked'
@@ -3757,6 +4108,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -3908,6 +4265,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -4187,6 +4550,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -4276,6 +4645,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -4396,6 +4771,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -5882,6 +6263,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -6015,7 +6402,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -6028,6 +6416,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -6066,6 +6456,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -6206,6 +6602,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -7987,6 +8389,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -8292,6 +8700,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -8412,6 +8826,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -8532,6 +8952,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -8652,6 +9078,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -8764,7 +9196,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -8778,6 +9211,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -8935,7 +9370,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -8949,6 +9385,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -9106,7 +9544,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -9120,6 +9559,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -9259,7 +9700,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -9273,6 +9715,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -9434,6 +9878,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -9590,6 +10040,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -9748,7 +10204,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -9762,6 +10219,8 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -10005,6 +10464,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -10127,6 +10592,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -10823,6 +11294,7 @@ export interface paths {
              *         null
              *       ],
              *       "passkey_login_fallback_enabled": true,
+             *       "prompt_passkey_enrollment": null,
              *       "oauth_providers": null,
              *       "lockout_policy": null,
              *       "authenticator_policy": null,
@@ -10847,6 +11319,8 @@ export interface paths {
               available_roles: string[];
               login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
               passkey_login_fallback_enabled: boolean;
+              /** @default false */
+              prompt_passkey_enrollment: boolean;
               /** @default [] */
               oauth_providers: {
                 id: string;
@@ -11101,6 +11575,7 @@ export interface paths {
             available_roles?: string[];
             login_methods?: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
             passkey_login_fallback_enabled?: boolean;
+            prompt_passkey_enrollment?: boolean;
             oauth_providers?: {
               id: string;
               name: string;
@@ -12489,6 +12964,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -13307,6 +13788,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };
@@ -13439,6 +13926,12 @@ export interface paths {
                     to: string;
                     token?: string;
                     magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
                   };
             };
           };

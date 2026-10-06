@@ -3,10 +3,12 @@ import { vi } from 'vitest';
 const sendOtpEmailMock = vi.fn();
 const sendOtpSmsMock = vi.fn();
 const sendMagicLinkEmailMock = vi.fn();
+const sendEnrollmentInviteEmailMock = vi.fn();
 const createDirectAuthMessagingServiceMock = vi.fn(() => ({
   sendOtpEmail: sendOtpEmailMock,
   sendOtpSms: sendOtpSmsMock,
   sendMagicLinkEmail: sendMagicLinkEmailMock,
+  sendEnrollmentInviteEmail: sendEnrollmentInviteEmailMock,
 }));
 
 vi.unmock('../../../src/services/messagingService');
@@ -115,6 +117,39 @@ describe('messagingService', () => {
     await expect(
       sendMagicLinkEmail('test@example.com', 'token', 'https://app.example.com/verify'),
     ).rejects.toThrow('email down');
+  });
+
+  it('does not send an enrollment invite in development', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const { sendEnrollmentInviteEmail } = await import('../../../src/services/messagingService');
+
+    await sendEnrollmentInviteEmail('test@example.com', 'https://app.example.com/login');
+    expect(sendEnrollmentInviteEmailMock).not.toHaveBeenCalled();
+  });
+
+  it('sends an enrollment invite in production', async () => {
+    process.env.NODE_ENV = 'production';
+
+    const { sendEnrollmentInviteEmail } = await import('../../../src/services/messagingService');
+
+    await sendEnrollmentInviteEmail('test@example.com', 'https://app.example.com/login');
+    expect(sendEnrollmentInviteEmailMock).toHaveBeenCalledWith({
+      to: 'test@example.com',
+      signInUrl: 'https://app.example.com/login',
+    });
+  });
+
+  it('reports a failed enrollment invite as a delivery error', async () => {
+    process.env.NODE_ENV = 'production';
+    sendEnrollmentInviteEmailMock.mockRejectedValueOnce(new Error('email down'));
+
+    const { sendEnrollmentInviteEmail } = await import('../../../src/services/messagingService');
+    const { DeliveryError } = await import('../../../src/services/deliveryError');
+
+    await expect(
+      sendEnrollmentInviteEmail('test@example.com', 'https://app.example.com/login'),
+    ).rejects.toBeInstanceOf(DeliveryError);
   });
 
   it('rejects SMS delivery to an unparseable phone number', async () => {

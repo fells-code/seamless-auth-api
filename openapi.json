@@ -886,6 +886,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -1562,6 +1571,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -2080,6 +2098,373 @@
         }
       }
     },
+    "/admin/enrollment": {
+      "get": {
+        "summary": "Passkey enrollment progress",
+        "description": "Every active user with their WebAuthn credential count and enrollment status (`none`, `one`, `two_or_more`), optionally scoped to one organization or to imported users. `summary` counts all users matching `organizationId`, `imported` and `search`, whatever `status`; `users` and `total` are the filtered page.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "number", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "number", "nullable": true, "minimum": 0, "default": 0 },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": false,
+            "name": "organizationId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["none", "one", "two_or_more"] },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [{ "type": "boolean" }, { "type": "string", "enum": ["true", "false"] }]
+            },
+            "required": false,
+            "name": "imported",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "summary": { "total": 0, "none": 0, "one": 0, "twoOrMore": 0 },
+                  "users": [null],
+                  "total": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer", "minimum": 0 },
+                        "none": { "type": "integer", "minimum": 0 },
+                        "one": { "type": "integer", "minimum": 0 },
+                        "twoOrMore": { "type": "integer", "minimum": 0 }
+                      },
+                      "required": ["total", "none", "one", "twoOrMore"]
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "email": { "type": "string" },
+                          "imported": { "type": "boolean" },
+                          "credentialCount": { "type": "integer", "minimum": 0 },
+                          "status": { "type": "string", "enum": ["none", "one", "two_or_more"] },
+                          "lastLogin": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "enrollmentInvitedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "imported",
+                          "credentialCount",
+                          "status",
+                          "lastLogin",
+                          "enrollmentInvitedAt"
+                        ]
+                      }
+                    },
+                    "total": { "type": "integer", "minimum": 0 }
+                  },
+                  "required": ["summary", "users", "total"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/enrollment/invites": {
+      "post": {
+        "summary": "Invite users to enroll a passkey",
+        "description": "Emails each target a notice to sign in and add a passkey. The link is the tenant's sign-in page (`signInUrl`, default `<frontend_url>/login`) and carries no credential. Targets are `userIds` (up to 200) or an `organizationId`, whose members at or below `status` are invited 200 at a time, skipping anyone invited in the last day; `remaining` says how many are left. Answers 409 when no sign-in method other than passkey is enabled. With `x-seamless-auth-delivery-mode: external` each result carries the delivery for the caller to send instead.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userIds": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uuid" },
+                    "minItems": 1,
+                    "maxItems": 200
+                  },
+                  "organizationId": { "type": "string", "format": "uuid" },
+                  "status": { "type": "string", "enum": ["none", "one"], "default": "none" },
+                  "signInUrl": { "type": "string", "format": "uri" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "sent": 0, "skipped": 0, "remaining": 0, "results": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": { "type": "integer", "minimum": 0 },
+                    "skipped": { "type": "integer", "minimum": 0 },
+                    "remaining": { "type": "integer", "minimum": 0 },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": { "type": "string" },
+                          "status": { "type": "string", "enum": ["sent", "skipped"] },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "not_found",
+                              "already_enrolled",
+                              "recently_invited",
+                              "delivery_failed"
+                            ]
+                          },
+                          "delivery": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["otp_email"] },
+                                  "to": { "type": "string" },
+                                  "token": { "type": "string" }
+                                },
+                                "required": ["kind", "to", "token"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["otp_sms"] },
+                                  "to": { "type": "string" },
+                                  "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                                },
+                                "required": ["kind", "to", "token"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["magic_link_email"] },
+                                  "to": { "type": "string" },
+                                  "token": { "type": "string" },
+                                  "magicLinkUrl": { "type": "string" }
+                                },
+                                "required": ["kind", "to", "magicLinkUrl"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                                  "to": { "type": "string" },
+                                  "signInUrl": { "type": "string" }
+                                },
+                                "required": ["kind", "to", "signInUrl"]
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["userId", "status"]
+                      }
+                    }
+                  },
+                  "required": ["sent", "skipped", "results"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/users": {
       "get": {
         "summary": "List users (internal)",
@@ -2408,6 +2793,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -2479,6 +2873,7 @@
                   "enum": [
                     "auth_action_incremented",
                     "admin_device_replacement_recovery",
+                    "admin_enrollment_invite_sent",
                     "admin_oauth_provider_restored",
                     "admin_oauth_provider_retired",
                     "admin_session_revoked",
@@ -2555,6 +2950,7 @@
                         "enum": [
                           "auth_action_incremented",
                           "admin_device_replacement_recovery",
+                          "admin_enrollment_invite_sent",
                           "admin_oauth_provider_restored",
                           "admin_oauth_provider_retired",
                           "admin_session_revoked",
@@ -3980,6 +4376,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -4119,6 +4524,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -4379,6 +4793,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -4460,6 +4883,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -4556,6 +4988,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -5843,6 +6284,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -5954,7 +6404,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -5967,7 +6418,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -6013,6 +6465,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -6124,6 +6585,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -8149,6 +8619,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -8286,6 +8765,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -8382,6 +8870,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -8478,6 +8975,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -8574,6 +9080,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -8656,7 +9171,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -8670,7 +9186,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -8804,7 +9321,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -8818,7 +9336,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -8952,7 +9471,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -8966,7 +9486,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -9087,7 +9608,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -9101,7 +9623,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -9257,6 +9780,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -9405,6 +9937,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -9541,7 +10082,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -9555,7 +10097,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -9767,6 +10310,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -9866,6 +10418,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -10426,6 +10987,7 @@
                   "available_roles": [null],
                   "login_methods": [null],
                   "passkey_login_fallback_enabled": true,
+                  "prompt_passkey_enrollment": null,
                   "oauth_providers": null,
                   "lockout_policy": null,
                   "authenticator_policy": null,
@@ -10470,6 +11032,7 @@
                       "minItems": 1
                     },
                     "passkey_login_fallback_enabled": { "type": "boolean" },
+                    "prompt_passkey_enrollment": { "type": "boolean", "default": false },
                     "oauth_providers": {
                       "type": "array",
                       "items": {
@@ -10800,6 +11363,7 @@
                     "minItems": 1
                   },
                   "passkey_login_fallback_enabled": { "type": "boolean" },
+                  "prompt_passkey_enrollment": { "type": "boolean" },
                   "oauth_providers": {
                     "type": "array",
                     "items": {
@@ -12100,6 +12664,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -12975,6 +13548,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }
@@ -13099,6 +13681,15 @@
                             "magicLinkUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
                         }
                       ]
                     }

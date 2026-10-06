@@ -308,6 +308,7 @@ describe('otp controller', () => {
       },
       req,
       res,
+      extraFields: {},
     });
     expect(verifiedUser.update).toHaveBeenCalledWith({
       lastLogin: expect.any(Date),
@@ -382,6 +383,7 @@ describe('otp controller', () => {
       },
       req,
       res,
+      extraFields: {},
     });
     expect(verifiedUser.update).toHaveBeenCalledWith({
       lastLogin: expect.any(Date),
@@ -498,10 +500,33 @@ describe('otp controller', () => {
       },
       req,
       res,
+      extraFields: {},
     });
     expect(verifiedUser.update).toHaveBeenCalledWith({ lastLogin: expect.any(Date) });
     expect(authEventLogMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: verifiedUser.id, type: 'verify_otp_success' }),
+    );
+  });
+
+  it('asks a user with no passkey to enroll one when the tenant prompts for it', async () => {
+    const { verifyLoginEmail } = await loadOtpController();
+    const { Credential } = await import('../../../src/models/credentials.js');
+    const verifiedUser = buildUser();
+    const req = buildReq(buildUser(), { body: { verificationToken: 'EMAILOTP' } });
+    const res = buildRes();
+
+    getSystemConfigMock.mockResolvedValue({
+      login_methods: ['passkey', 'email_otp'],
+      passkey_login_fallback_enabled: true,
+      prompt_passkey_enrollment: true,
+    });
+    vi.mocked(Credential.count).mockResolvedValue(0 as never);
+    verifyEmailOTPMock.mockResolvedValue({ user: verifiedUser, verified: true });
+
+    await verifyLoginEmail(req, res);
+
+    expect(issueSessionAndRespondMock).toHaveBeenCalledWith(
+      expect.objectContaining({ extraFields: { nextStep: 'enroll_passkey' } }),
     );
   });
 

@@ -10,6 +10,7 @@ import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { DeliveryError } from '../services/deliveryError.js';
+import { passkeyEnrollmentPrompt } from '../services/enrollmentService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import {
   getLoginPolicy,
@@ -385,6 +386,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         },
         req,
         res,
+        extraFields: await passkeyEnrollmentPrompt(user.id),
       });
 
       await user.update({
@@ -478,6 +480,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           },
           req,
           res,
+          extraFields: await passkeyEnrollmentPrompt(user.id),
         });
 
         await user.update({
@@ -584,6 +587,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         },
         req,
         res,
+        extraFields: await passkeyEnrollmentPrompt(user.id),
       });
 
       await user.update({
