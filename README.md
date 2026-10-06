@@ -438,9 +438,4 @@ Include reproduction steps, affected versions, and impact if known.
 
 ## License
 
-Licensed under **GNU Affero General Public License v3.0 (AGPL-3.0-only)**.
-
-If you want to embed Seamless Auth API into a proprietary product or offer it as a managed service
-without AGPL obligations, commercial licenses may be available.
-
-Contact: support@seamlessauth.com
+Licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE).

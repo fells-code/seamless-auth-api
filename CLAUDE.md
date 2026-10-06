@@ -27,14 +27,14 @@ when specifically exercising real DB behavior.
 
 ### Conventions enforced by tooling
 
-- **License header** — every `src/**/*.ts` file must begin with the AGPL header (eslint
+- **License header** — every `src/**/*.ts` file must begin with the Apache-2.0 header (eslint
   `license-header/header` errors otherwise). Copy it from any existing file, e.g.
   [src/utils/otp.ts](src/utils/otp.ts):
 
   ```ts
   /*
    * Copyright © 2026 Fells Code, LLC
-   * Licensed under the GNU Affero General Public License v3.0
+   * Licensed under the Apache License, Version 2.0
    * See LICENSE file in the project root for full license information
    */
   ```

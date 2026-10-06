@@ -169,7 +169,7 @@ This ensures changes remain aligned with real authentication flows and infrastru
   a test fails when they drift from the routes.
 - **A changeset** for user-facing changes (`npm run changeset`). Do not hand-edit `CHANGELOG.md`
   or the version in `package.json`.
-- **The AGPL license header** on every new `src/**/*.ts` file (eslint enforces this).
+- **The Apache-2.0 license header** on every new `src/**/*.ts` file (eslint enforces this).
 - **Conventional Commit** messages (see below); commitlint enforces this on commit.
 - **Green checks**: `npm run typecheck`, `npm run lint`, and the test suite. The pre-commit hook
   runs these for you.
