@@ -12,4 +12,4 @@ Track and invite passkey enrollment, for moving an organization onto passkeys af
   - Each invite is logged as `admin_enrollment_invite_sent`.
 - New `prompt_passkey_enrollment` setting (default `false`, env `PROMPT_PASSKEY_ENROLLMENT`). With it on, email and phone code sign-ins and magic link sign-ins carry `nextStep: 'enroll_passkey'` for a user with no passkey.
 
-Requires a database migration, `@seamless-auth/types` with the enrollment schemas, and `@seamless-auth/messaging` with `sendEnrollmentInviteEmail`.
+Requires a database migration, `@seamless-auth/types` 0.26.0 and `@seamless-auth/messaging` 0.2.0.
