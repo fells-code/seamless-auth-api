@@ -14,6 +14,7 @@ import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
 import { MagicLinkRequestQuerySchema } from '../schemas/magiclink.requests.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { passkeyEnrollmentPrompt } from '../services/enrollmentService.js';
 import { getLoginPolicy, isLoginMethodEnabled } from '../services/loginPolicyService.js';
 import {
   MagicLinkRedirectNotAllowedError,
@@ -301,6 +302,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       },
       req,
       res,
+      extraFields: await passkeyEnrollmentPrompt(user.id),
     });
 
     await user.update({

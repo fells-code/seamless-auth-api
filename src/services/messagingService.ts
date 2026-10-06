@@ -113,3 +113,21 @@ export const sendMagicLinkEmail = async (to: string, token: string, safeRedirect
     throw new DeliveryError('Failed to send magic link email', error);
   }
 };
+
+export const sendEnrollmentInviteEmail = async (to: string, signInUrl: string) => {
+  logger.debug('Sending enrollment invite');
+
+  if (shouldBypassDirectMessaging()) {
+    logger.debug('Skipping direct enrollment invite delivery in development');
+    return;
+  }
+
+  try {
+    const messaging = await getMessagingService();
+
+    await messaging.sendEnrollmentInviteEmail({ to, signInUrl });
+  } catch (error) {
+    logger.error(`Failed to send enrollment invite email ${error}`);
+    throw new DeliveryError('Failed to send enrollment invite email', error);
+  }
+};

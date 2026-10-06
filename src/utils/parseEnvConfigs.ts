@@ -48,6 +48,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     }
 
     case 'passkey_login_fallback_enabled':
+    case 'prompt_passkey_enrollment':
       return raw.trim().toLowerCase() === 'true';
 
     case 'access_token_ttl':
