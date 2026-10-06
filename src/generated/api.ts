@@ -2216,6 +2216,257 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/reports/authentication-coverage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Authentication coverage report
+     * @description How many active users hold a phishing-resistant credential (a passkey), overall, per organization and across the period, alongside the login and authenticator policy enforced now, the authenticator models in use and how sign-ins in the period were completed. `from` and `to` are UTC dates, both included, defaulting to the last 90 days. `bucket` sets the trend granularity. With `format=csv` the same report is returned as `text/csv` for pasting into an assessment or insurance response. Answers 404 when `organizationId` names no organization.
+     */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+          organizationId?: string;
+          bucket?: 'week' | 'month';
+          format?: 'json' | 'csv';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "period": {
+             *         "from": null,
+             *         "to": null
+             *       },
+             *       "generatedAt": null,
+             *       "organizationId": null,
+             *       "bucket": null,
+             *       "policy": {
+             *         "phishingResistantOnly": true,
+             *         "loginMethods": [
+             *           null
+             *         ],
+             *         "passkeyFallbackEnabled": true,
+             *         "authenticator": {
+             *           "attestation": "string",
+             *           "userVerification": "string",
+             *           "attachment": "string",
+             *           "syncedPasskeys": "string",
+             *           "requireKnownAuthenticator": true,
+             *           "aaguidAllowList": [
+             *             null
+             *           ],
+             *           "aaguidDenyList": [
+             *             null
+             *           ]
+             *         }
+             *       },
+             *       "coverage": {
+             *         "users": 0,
+             *         "passkeyUsers": 0,
+             *         "percent": 0
+             *       },
+             *       "byOrganization": [
+             *         null
+             *       ],
+             *       "trend": [
+             *         null
+             *       ],
+             *       "authenticatorMix": [
+             *         null
+             *       ],
+             *       "signInMix": {
+             *         "total": 0,
+             *         "phishingResistant": 0,
+             *         "percent": 0,
+             *         "methods": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              period: {
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+              };
+              /** Format: date-time */
+              generatedAt: string;
+              /** Format: uuid */
+              organizationId: string | null;
+              /** @enum {string} */
+              bucket: 'week' | 'month';
+              policy: {
+                phishingResistantOnly: boolean;
+                loginMethods: string[];
+                passkeyFallbackEnabled: boolean;
+                authenticator: {
+                  attestation: string;
+                  userVerification: string;
+                  attachment: string;
+                  syncedPasskeys: string;
+                  requireKnownAuthenticator: boolean;
+                  aaguidAllowList: string[];
+                  aaguidDenyList: string[];
+                };
+              };
+              coverage: {
+                users: number;
+                passkeyUsers: number;
+                percent: number;
+              };
+              byOrganization: {
+                users: number;
+                passkeyUsers: number;
+                percent: number;
+                organizationId: string | null;
+                name: string | null;
+              }[];
+              trend: {
+                users: number;
+                passkeyUsers: number;
+                percent: number;
+                /** Format: date */
+                start: string;
+                /** Format: date */
+                end: string;
+              }[];
+              authenticatorMix: {
+                aaguid: string | null;
+                name: string | null;
+                credentials: number;
+                users: number;
+                backupEligible: number;
+                backedUp: number;
+              }[];
+              signInMix: {
+                total: number;
+                phishingResistant: number;
+                percent: number;
+                methods: {
+                  /** @enum {string} */
+                  method:
+                    'passkey' | 'email_otp' | 'phone_otp' | 'otp' | 'magic_link' | 'totp' | 'oauth';
+                  phishingResistant: boolean;
+                  signIns: number;
+                  users: number;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/users': {
     parameters: {
       query?: never;

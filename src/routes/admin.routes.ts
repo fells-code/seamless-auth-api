@@ -21,6 +21,7 @@ import {
   revokeUserSessionById,
   updateUser,
 } from '../controllers/admin.js';
+import { getCoverageReport } from '../controllers/coverageReport.js';
 import { getEnrollment, sendEnrollmentInvites } from '../controllers/enrollment.js';
 import {
   addMember,
@@ -54,6 +55,10 @@ import {
   ImportUsersResponseSchema,
   UserResponseSchema,
 } from '../schemas/admin.responses.js';
+import {
+  CoverageReportQuerySchema,
+  CoverageReportResponseSchema,
+} from '../schemas/coverageReport.js';
 import {
   AdminEnrollmentQuerySchema,
   AdminEnrollmentResponseSchema,
@@ -336,6 +341,26 @@ adminRouter.post(
     },
   },
   sendEnrollmentInvites,
+);
+
+adminRouter.get(
+  '/reports/authentication-coverage',
+  {
+    auth: 'access',
+    summary: 'Authentication coverage report',
+    description:
+      'How many active users hold a phishing-resistant credential (a passkey), overall, per organization and across the period, alongside the login and authenticator policy enforced now, the authenticator models in use and how sign-ins in the period were completed. `from` and `to` are UTC dates, both included, defaulting to the last 90 days. `bucket` sets the trend granularity. With `format=csv` the same report is returned as `text/csv` for pasting into an assessment or insurance response. Answers 404 when `organizationId` names no organization.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('read')],
+    schemas: {
+      query: CoverageReportQuerySchema,
+      response: {
+        200: CoverageReportResponseSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  getCoverageReport,
 );
 
 adminRouter.get(

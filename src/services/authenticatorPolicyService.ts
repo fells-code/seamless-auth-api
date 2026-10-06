@@ -7,9 +7,7 @@
 import type { AuthenticatorPolicy } from '@seamless-auth/types';
 
 import type { AttestationType } from '../lib/attestationType.js';
-
-/** The all-zero AAGUID: an authenticator declining to say what it is. */
-const ANONYMOUS_AAGUID = '00000000-0000-0000-0000-000000000000';
+import { ANONYMOUS_AAGUID } from '../lib/knownAuthenticators.js';
 
 export type AuthenticatorRefusal = 'authenticator_not_allowed' | 'synced_passkey_not_allowed';
 

@@ -2465,6 +2465,320 @@
         }
       }
     },
+    "/admin/reports/authentication-coverage": {
+      "get": {
+        "summary": "Authentication coverage report",
+        "description": "How many active users hold a phishing-resistant credential (a passkey), overall, per organization and across the period, alongside the login and authenticator policy enforced now, the authenticator models in use and how sign-ins in the period were completed. `from` and `to` are UTC dates, both included, defaulting to the last 90 days. `bucket` sets the trend granularity. With `format=csv` the same report is returned as `text/csv` for pasting into an assessment or insurance response. Answers 404 when `organizationId` names no organization.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "date" },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date" },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": false,
+            "name": "organizationId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["week", "month"], "default": "month" },
+            "required": false,
+            "name": "bucket",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["json", "csv"], "default": "json" },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "period": { "from": null, "to": null },
+                  "generatedAt": null,
+                  "organizationId": null,
+                  "bucket": null,
+                  "policy": {
+                    "phishingResistantOnly": true,
+                    "loginMethods": [null],
+                    "passkeyFallbackEnabled": true,
+                    "authenticator": {
+                      "attestation": "string",
+                      "userVerification": "string",
+                      "attachment": "string",
+                      "syncedPasskeys": "string",
+                      "requireKnownAuthenticator": true,
+                      "aaguidAllowList": [null],
+                      "aaguidDenyList": [null]
+                    }
+                  },
+                  "coverage": { "users": 0, "passkeyUsers": 0, "percent": 0 },
+                  "byOrganization": [null],
+                  "trend": [null],
+                  "authenticatorMix": [null],
+                  "signInMix": {
+                    "total": 0,
+                    "phishingResistant": 0,
+                    "percent": 0,
+                    "methods": [null]
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "object",
+                      "properties": {
+                        "from": { "type": "string", "format": "date" },
+                        "to": { "type": "string", "format": "date" }
+                      },
+                      "required": ["from", "to"]
+                    },
+                    "generatedAt": { "type": "string", "format": "date-time" },
+                    "organizationId": { "type": "string", "nullable": true, "format": "uuid" },
+                    "bucket": { "type": "string", "enum": ["week", "month"] },
+                    "policy": {
+                      "type": "object",
+                      "properties": {
+                        "phishingResistantOnly": { "type": "boolean" },
+                        "loginMethods": { "type": "array", "items": { "type": "string" } },
+                        "passkeyFallbackEnabled": { "type": "boolean" },
+                        "authenticator": {
+                          "type": "object",
+                          "properties": {
+                            "attestation": { "type": "string" },
+                            "userVerification": { "type": "string" },
+                            "attachment": { "type": "string" },
+                            "syncedPasskeys": { "type": "string" },
+                            "requireKnownAuthenticator": { "type": "boolean" },
+                            "aaguidAllowList": { "type": "array", "items": { "type": "string" } },
+                            "aaguidDenyList": { "type": "array", "items": { "type": "string" } }
+                          },
+                          "required": [
+                            "attestation",
+                            "userVerification",
+                            "attachment",
+                            "syncedPasskeys",
+                            "requireKnownAuthenticator",
+                            "aaguidAllowList",
+                            "aaguidDenyList"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "phishingResistantOnly",
+                        "loginMethods",
+                        "passkeyFallbackEnabled",
+                        "authenticator"
+                      ]
+                    },
+                    "coverage": {
+                      "type": "object",
+                      "properties": {
+                        "users": { "type": "integer" },
+                        "passkeyUsers": { "type": "integer" },
+                        "percent": { "type": "number" }
+                      },
+                      "required": ["users", "passkeyUsers", "percent"]
+                    },
+                    "byOrganization": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "users": { "type": "integer" },
+                          "passkeyUsers": { "type": "integer" },
+                          "percent": { "type": "number" },
+                          "organizationId": { "type": "string", "nullable": true },
+                          "name": { "type": "string", "nullable": true }
+                        },
+                        "required": ["users", "passkeyUsers", "percent", "organizationId", "name"]
+                      }
+                    },
+                    "trend": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "users": { "type": "integer" },
+                          "passkeyUsers": { "type": "integer" },
+                          "percent": { "type": "number" },
+                          "start": { "type": "string", "format": "date" },
+                          "end": { "type": "string", "format": "date" }
+                        },
+                        "required": ["users", "passkeyUsers", "percent", "start", "end"]
+                      }
+                    },
+                    "authenticatorMix": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "aaguid": { "type": "string", "nullable": true },
+                          "name": { "type": "string", "nullable": true },
+                          "credentials": { "type": "integer" },
+                          "users": { "type": "integer" },
+                          "backupEligible": { "type": "integer" },
+                          "backedUp": { "type": "integer" }
+                        },
+                        "required": [
+                          "aaguid",
+                          "name",
+                          "credentials",
+                          "users",
+                          "backupEligible",
+                          "backedUp"
+                        ]
+                      }
+                    },
+                    "signInMix": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "phishingResistant": { "type": "integer" },
+                        "percent": { "type": "number" },
+                        "methods": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "method": {
+                                "type": "string",
+                                "enum": [
+                                  "passkey",
+                                  "email_otp",
+                                  "phone_otp",
+                                  "otp",
+                                  "magic_link",
+                                  "totp",
+                                  "oauth"
+                                ]
+                              },
+                              "phishingResistant": { "type": "boolean" },
+                              "signIns": { "type": "integer" },
+                              "users": { "type": "integer" }
+                            },
+                            "required": ["method", "phishingResistant", "signIns", "users"]
+                          }
+                        }
+                      },
+                      "required": ["total", "phishingResistant", "percent", "methods"]
+                    }
+                  },
+                  "required": [
+                    "period",
+                    "generatedAt",
+                    "organizationId",
+                    "bucket",
+                    "policy",
+                    "coverage",
+                    "byOrganization",
+                    "trend",
+                    "authenticatorMix",
+                    "signInMix"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/users": {
       "get": {
         "summary": "List users (internal)",

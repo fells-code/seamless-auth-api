@@ -399,7 +399,7 @@ export const verifyRegisteredPhone = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_success',
       req,
-      metadata: { reason: 'User verified their phone number.' },
+      metadata: { reason: 'User verified their phone number.', channel: 'sms' },
     });
 
     return res.status(200).json({ message: 'Success' });
