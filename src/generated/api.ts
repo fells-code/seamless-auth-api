@@ -82,6 +82,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               }[];
               total: number;
             };
@@ -213,7 +214,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -249,6 +253,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
             };
           };
@@ -383,7 +388,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -419,6 +427,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
             };
           };
@@ -712,7 +721,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -748,6 +760,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
             };
           };
@@ -1480,6 +1493,386 @@ export interface paths {
     };
     trace?: never;
   };
+  '/admin/organizations/{organizationId}/oauth-providers/{providerId}/retirement': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Retire an OAuth provider for an organization
+     * @description Members of the organization can no longer sign in through the provider. The callback answers 403 with `code: oauth_provider_retired`, before any account is linked. Idempotent. Used to cut an organization over from a legacy identity provider.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          organizationId: string;
+          providerId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "organization": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "slug": "string",
+             *         "createdByUserId": "string",
+             *         "metadata": null,
+             *         "createdAt": null,
+             *         "updatedAt": null,
+             *         "membership": {
+             *           "id": "string",
+             *           "organizationId": "string",
+             *           "userId": "string",
+             *           "roles": [
+             *             null
+             *           ],
+             *           "scopes": [
+             *             null
+             *           ],
+             *           "createdAt": null,
+             *           "updatedAt": null,
+             *           "user": {
+             *             "id": "string",
+             *             "email": "example@fellscode.com",
+             *             "phone": "string",
+             *             "roles": [
+             *               null
+             *             ]
+             *           }
+             *         },
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              organization: {
+                id: string;
+                name: string;
+                slug: string;
+                createdByUserId: string | null;
+                metadata: {
+                  [key: string]: unknown;
+                } | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+                membership?: {
+                  id: string;
+                  organizationId: string;
+                  userId: string;
+                  roles: string[];
+                  scopes: string[];
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
+                  user?: {
+                    id: string;
+                    /** Format: email */
+                    email: string;
+                    phone: string | null;
+                    roles: string[];
+                  };
+                };
+                memberCount?: number;
+                retiredOAuthProviders?: string[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    /**
+     * Restore a retired OAuth provider for an organization
+     * @description Undoes a retirement, for rolling a cutover back. Idempotent, and accepts the id of a provider that no longer exists so it can be cleared.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          organizationId: string;
+          providerId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "organization": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "slug": "string",
+             *         "createdByUserId": "string",
+             *         "metadata": null,
+             *         "createdAt": null,
+             *         "updatedAt": null,
+             *         "membership": {
+             *           "id": "string",
+             *           "organizationId": "string",
+             *           "userId": "string",
+             *           "roles": [
+             *             null
+             *           ],
+             *           "scopes": [
+             *             null
+             *           ],
+             *           "createdAt": null,
+             *           "updatedAt": null,
+             *           "user": {
+             *             "id": "string",
+             *             "email": "example@fellscode.com",
+             *             "phone": "string",
+             *             "roles": [
+             *               null
+             *             ]
+             *           }
+             *         },
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              organization: {
+                id: string;
+                name: string;
+                slug: string;
+                createdByUserId: string | null;
+                metadata: {
+                  [key: string]: unknown;
+                } | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+                membership?: {
+                  id: string;
+                  organizationId: string;
+                  userId: string;
+                  roles: string[];
+                  scopes: string[];
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string | null;
+                  user?: {
+                    id: string;
+                    /** Format: email */
+                    email: string;
+                    phone: string | null;
+                    roles: string[];
+                  };
+                };
+                memberCount?: number;
+                retiredOAuthProviders?: string[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/users': {
     parameters: {
       query?: never;
@@ -1862,6 +2255,8 @@ export interface paths {
             | (
                 | 'auth_action_incremented'
                 | 'admin_device_replacement_recovery'
+                | 'admin_oauth_provider_restored'
+                | 'admin_oauth_provider_retired'
                 | 'admin_session_revoked'
                 | 'admin_user_import_completed'
                 | 'admin_user_imported'
@@ -1930,6 +2325,8 @@ export interface paths {
                 | (
                     | 'auth_action_incremented'
                     | 'admin_device_replacement_recovery'
+                    | 'admin_oauth_provider_restored'
+                    | 'admin_oauth_provider_retired'
                     | 'admin_session_revoked'
                     | 'admin_user_import_completed'
                     | 'admin_user_imported'
@@ -6154,7 +6551,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Finish OAuth login */
+    /**
+     * Finish OAuth login
+     * @description Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider. A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.
+     */
     post: {
       parameters: {
         query?: never;
@@ -6193,7 +6593,8 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
-             *       "returnTo": null
+             *       "returnTo": null,
+             *       "nextStep": null
              *     }
              */
             'application/json': {
@@ -6209,6 +6610,8 @@ export interface paths {
               refreshTtl?: number;
               /** Format: uri */
               returnTo?: string;
+              /** @enum {string} */
+              nextStep?: 'enroll_passkey';
             };
           };
         };
@@ -6229,7 +6632,12 @@ export interface paths {
               message?: string;
               error: string;
               /** @enum {string} */
-              code?: 'oauth_missing_email' | 'oauth_email_not_verified' | 'oauth_missing_subject';
+              code?:
+                | 'oauth_missing_email'
+                | 'oauth_email_not_verified'
+                | 'oauth_missing_subject'
+                | 'oauth_invalid_id_token'
+                | 'oauth_provider_retired';
             };
           };
         };
@@ -6242,12 +6650,20 @@ export interface paths {
             /**
              * @example {
              *       "message": "string",
-             *       "error": "string"
+             *       "error": "string",
+             *       "code": null
              *     }
              */
             'application/json': {
               message?: string;
               error: string;
+              /** @enum {string} */
+              code?:
+                | 'oauth_missing_email'
+                | 'oauth_email_not_verified'
+                | 'oauth_missing_subject'
+                | 'oauth_invalid_id_token'
+                | 'oauth_provider_retired';
             };
           };
         };
@@ -6376,6 +6792,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               }[];
               activeOrganizationId: string | null;
             };
@@ -6477,7 +6894,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -6513,6 +6933,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
             };
           };
@@ -6647,7 +7068,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -6683,6 +7107,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
             };
           };
@@ -6837,7 +7262,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -6873,6 +7301,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
             };
           };
@@ -7028,7 +7457,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       },
              *       "ttl": 0
              *     }
@@ -7070,6 +7502,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               };
               ttl: number;
             };
@@ -10457,6 +10890,8 @@ export interface paths {
                 jwksUri?: string;
                 externalIdSource?: string;
                 externalIdJsonPath?: string;
+                /** @default false */
+                promptPasskeyEnrollment: boolean;
               }[];
               /**
                * @default {
@@ -10708,6 +11143,8 @@ export interface paths {
               jwksUri?: string;
               externalIdSource?: string;
               externalIdJsonPath?: string;
+              /** @default false */
+              promptPasskeyEnrollment?: boolean;
             }[];
             lockout_policy?: {
               /** @default true */
@@ -10969,6 +11406,8 @@ export interface paths {
                 jwksUri?: string;
                 externalIdSource?: string;
                 externalIdJsonPath?: string;
+                /** @default false */
+                promptPasskeyEnrollment: boolean;
               }[];
             };
           };
@@ -11082,6 +11521,8 @@ export interface paths {
             jwksUri?: string;
             externalIdSource?: string;
             externalIdJsonPath?: string;
+            /** @default false */
+            promptPasskeyEnrollment?: boolean;
           };
         };
       };
@@ -11117,7 +11558,8 @@ export interface paths {
              *         "issuer": null,
              *         "jwksUri": null,
              *         "externalIdSource": "string",
-             *         "externalIdJsonPath": "string"
+             *         "externalIdJsonPath": "string",
+             *         "promptPasskeyEnrollment": null
              *       }
              *     }
              */
@@ -11164,6 +11606,8 @@ export interface paths {
                 jwksUri?: string;
                 externalIdSource?: string;
                 externalIdJsonPath?: string;
+                /** @default false */
+                promptPasskeyEnrollment: boolean;
               };
             };
           };
@@ -11466,6 +11910,8 @@ export interface paths {
             jwksUri?: string;
             externalIdSource?: string;
             externalIdJsonPath?: string;
+            /** @default false */
+            promptPasskeyEnrollment?: boolean;
           };
         };
       };
@@ -11501,7 +11947,8 @@ export interface paths {
              *         "issuer": null,
              *         "jwksUri": null,
              *         "externalIdSource": "string",
-             *         "externalIdJsonPath": "string"
+             *         "externalIdJsonPath": "string",
+             *         "promptPasskeyEnrollment": null
              *       }
              *     }
              */
@@ -11548,6 +11995,8 @@ export interface paths {
                 jwksUri?: string;
                 externalIdSource?: string;
                 externalIdJsonPath?: string;
+                /** @default false */
+                promptPasskeyEnrollment: boolean;
               };
             };
           };
@@ -12515,7 +12964,10 @@ export interface paths {
              *             ]
              *           }
              *         },
-             *         "memberCount": 0
+             *         "memberCount": 0,
+             *         "retiredOAuthProviders": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -12582,6 +13034,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               }[];
               activeOrganization?: {
                 id: string;
@@ -12614,6 +13067,7 @@ export interface paths {
                   };
                 };
                 memberCount?: number;
+                retiredOAuthProviders?: string[];
               } | null;
             };
           };

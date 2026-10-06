@@ -18,6 +18,7 @@ import { buildSession } from '../../factories/sessionFactory';
 import { buildUser } from '../../factories/userFactory';
 import { signAccessToken } from '../../../src/lib/token.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 
 const otherUserId = 'a1863941-552c-428a-aecd-599814979e8d';
 
@@ -658,5 +659,94 @@ describe('admin organizations', () => {
 
     expect(res.status).toBe(404);
     expect(OrganizationMembership.destroy).not.toHaveBeenCalled();
+  });
+});
+
+describe('admin OAuth provider retirement', () => {
+  const retirementPath = `/admin/organizations/${testOrganizationId}/oauth-providers/legacy-idp/retirement`;
+
+  beforeEach(() => {
+    (getSystemConfig as any).mockResolvedValue({
+      oauth_providers: [{ id: 'legacy-idp' }],
+    });
+  });
+
+  it('retires a provider for the organization and records who did it', async () => {
+    const organization = buildOrganization({ retiredOAuthProviders: ['other-idp'] });
+    (Organization.findByPk as any).mockResolvedValue(organization);
+
+    const res = await request(app).put(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(res.body.organization.retiredOAuthProviders).toEqual(['other-idp', 'legacy-idp']);
+    // Read under a row lock, so a concurrent change to another provider is not lost.
+    expect(Organization.findByPk).toHaveBeenCalledWith(
+      testOrganizationId,
+      expect.objectContaining({ lock: 'UPDATE' }),
+    );
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'admin_oauth_provider_retired',
+        actorUserId: 'user-1',
+        metadata: { organizationId: testOrganizationId, providerId: 'legacy-idp' },
+      }),
+    );
+  });
+
+  it('does not list a provider twice when it is retired again', async () => {
+    (Organization.findByPk as any).mockResolvedValue(
+      buildOrganization({ retiredOAuthProviders: ['legacy-idp'] }),
+    );
+
+    const res = await request(app).put(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(res.body.organization.retiredOAuthProviders).toEqual(['legacy-idp']);
+  });
+
+  it('refuses to retire a provider that is not configured', async () => {
+    (getSystemConfig as any).mockResolvedValue({ oauth_providers: [] });
+
+    const res = await request(app).put(retirementPath);
+
+    expect(res.status).toBe(404);
+    expect(Organization.findByPk).not.toHaveBeenCalled();
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for an unknown organization', async () => {
+    (Organization.findByPk as any).mockResolvedValue(null);
+
+    const res = await request(app).put(retirementPath);
+
+    expect(res.status).toBe(404);
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+  });
+
+  it('restores a retired provider for a rollback', async () => {
+    (Organization.findByPk as any).mockResolvedValue(
+      buildOrganization({ retiredOAuthProviders: ['legacy-idp', 'other-idp'] }),
+    );
+
+    const res = await request(app).delete(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(res.body.organization.retiredOAuthProviders).toEqual(['other-idp']);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'admin_oauth_provider_restored' }),
+    );
+  });
+
+  // A provider deleted from config after it was retired must still be clearable.
+  it('restores a provider that is no longer configured', async () => {
+    (getSystemConfig as any).mockResolvedValue({ oauth_providers: [] });
+    (Organization.findByPk as any).mockResolvedValue(
+      buildOrganization({ retiredOAuthProviders: ['legacy-idp'] }),
+    );
+
+    const res = await request(app).delete(retirementPath);
+
+    expect(res.status).toBe(200);
+    expect(res.body.organization.retiredOAuthProviders).toEqual([]);
   });
 });

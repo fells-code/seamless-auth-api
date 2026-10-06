@@ -10,6 +10,8 @@ import { z } from 'zod';
 export const AUTH_EVENT_TYPES = [
   'auth_action_incremented',
   'admin_device_replacement_recovery',
+  'admin_oauth_provider_restored',
+  'admin_oauth_provider_retired',
   'admin_session_revoked',
   'admin_user_import_completed',
   'admin_user_imported',

@@ -90,7 +90,7 @@ vi.mock('../../src/models/oauthIdentities.js', () => ({
 vi.mock('../../src/models/organizations.js', () => ({
   Organization: {
     sequelize: {
-      transaction: vi.fn((fn: any) => fn({})),
+      transaction: vi.fn((fn: any) => fn({ LOCK: { UPDATE: 'UPDATE' } })),
     },
     create: vi.fn(),
     findAll: vi.fn(),

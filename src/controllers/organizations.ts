@@ -14,6 +14,7 @@ import { Organization } from '../models/organizations.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AdminOrganizationListQuerySchema } from '../schemas/organization.requests.js';
+import { AuthEventService } from '../services/authEventService.js';
 import {
   countOwners,
   createOrganizationForUser,
@@ -30,6 +31,7 @@ import {
   requireOrganizationManager,
   serializeMembership,
   serializeOrganization,
+  setOAuthProviderRetired,
 } from '../services/organizationService.js';
 import { AuthenticatedRequest, RouteRequest } from '../types/types.js';
 import { parseDurationToSeconds } from '../utils/utils.js';
@@ -305,4 +307,44 @@ export async function removeMember(req: RouteRequest, res: Response) {
   await membership.destroy();
 
   return res.json({ message: 'Success' });
+}
+
+async function changeOAuthProviderRetirement(req: RouteRequest, res: Response, retired: boolean) {
+  const { organizationId, providerId } = req.params;
+
+  if (retired) {
+    // Only a provider that exists can be retired, so a typo does not read back as a
+    // cutover that never happened. Restoring accepts any id, so one left behind by a
+    // deleted provider can still be cleared.
+    const { oauth_providers } = await getSystemConfig();
+
+    if (!(oauth_providers ?? []).some((provider) => provider.id === providerId)) {
+      return res.status(404).json({ error: 'OAuth provider not found' });
+    }
+  }
+
+  const organization = await setOAuthProviderRetired(organizationId, providerId, retired);
+
+  if (!organization) {
+    return res.status(404).json({ error: 'Organization not found' });
+  }
+
+  await AuthEventService.log({
+    actorUserId: authUser(req)?.id ?? null,
+    ...(retired
+      ? { type: 'admin_oauth_provider_retired' as const }
+      : { type: 'admin_oauth_provider_restored' as const }),
+    req,
+    metadata: { organizationId, providerId },
+  });
+
+  return res.json({ organization: serializeOrganization(organization) });
+}
+
+export async function retireOAuthProvider(req: RouteRequest, res: Response) {
+  return changeOAuthProviderRetirement(req, res, true);
+}
+
+export async function restoreOAuthProvider(req: RouteRequest, res: Response) {
+  return changeOAuthProviderRetirement(req, res, false);
 }

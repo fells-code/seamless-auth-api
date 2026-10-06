@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.15.1" },
+  "info": { "title": "Seamless Auth API", "version": "0.16.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -107,7 +107,11 @@
                               "updatedAt"
                             ]
                           },
-                          "memberCount": { "type": "integer", "minimum": 0 }
+                          "memberCount": { "type": "integer", "minimum": 0 },
+                          "retiredOAuthProviders": {
+                            "type": "array",
+                            "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                          }
                         },
                         "required": [
                           "id",
@@ -248,7 +252,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -307,7 +312,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -437,7 +446,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -496,7 +506,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -655,7 +669,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -714,7 +729,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -1635,6 +1654,432 @@
         }
       }
     },
+    "/admin/organizations/{organizationId}/oauth-providers/{providerId}/retirement": {
+      "put": {
+        "summary": "Retire an OAuth provider for an organization",
+        "description": "Members of the organization can no longer sign in through the provider. The callback answers 403 with `code: oauth_provider_retired`, before any account is linked. Idempotent. Used to cut an organization over from a legacy identity provider.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "organizationId",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" },
+            "required": true,
+            "name": "providerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "slug": { "type": "string" },
+                        "createdByUserId": { "type": "string", "nullable": true },
+                        "metadata": {
+                          "type": "object",
+                          "nullable": true,
+                          "additionalProperties": { "nullable": true }
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "membership": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "organizationId": { "type": "string" },
+                            "userId": { "type": "string" },
+                            "roles": { "type": "array", "items": { "type": "string" } },
+                            "scopes": { "type": "array", "items": { "type": "string" } },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "user": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string" },
+                                "email": { "type": "string", "format": "email" },
+                                "phone": { "type": "string", "nullable": true },
+                                "roles": { "type": "array", "items": { "type": "string" } }
+                              },
+                              "required": ["id", "email", "phone", "roles"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["organization"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Restore a retired OAuth provider for an organization",
+        "description": "Undoes a retirement, for rolling a cutover back. Idempotent, and accepts the id of a provider that no longer exists so it can be cleared.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "organizationId",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" },
+            "required": true,
+            "name": "providerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "organization": {
+                    "id": "string",
+                    "name": "string",
+                    "slug": "string",
+                    "createdByUserId": "string",
+                    "metadata": null,
+                    "createdAt": null,
+                    "updatedAt": null,
+                    "membership": {
+                      "id": "string",
+                      "organizationId": "string",
+                      "userId": "string",
+                      "roles": [null],
+                      "scopes": [null],
+                      "createdAt": null,
+                      "updatedAt": null,
+                      "user": {
+                        "id": "string",
+                        "email": "example@fellscode.com",
+                        "phone": "string",
+                        "roles": [null]
+                      }
+                    },
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "slug": { "type": "string" },
+                        "createdByUserId": { "type": "string", "nullable": true },
+                        "metadata": {
+                          "type": "object",
+                          "nullable": true,
+                          "additionalProperties": { "nullable": true }
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "membership": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "organizationId": { "type": "string" },
+                            "userId": { "type": "string" },
+                            "roles": { "type": "array", "items": { "type": "string" } },
+                            "scopes": { "type": "array", "items": { "type": "string" } },
+                            "createdAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "user": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string" },
+                                "email": { "type": "string", "format": "email" },
+                                "phone": { "type": "string", "nullable": true },
+                                "roles": { "type": "array", "items": { "type": "string" } }
+                              },
+                              "required": ["id", "email", "phone", "roles"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "organizationId",
+                            "userId",
+                            "roles",
+                            "scopes",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdByUserId",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["organization"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/users": {
       "get": {
         "summary": "List users (internal)",
@@ -2034,6 +2479,8 @@
                   "enum": [
                     "auth_action_incremented",
                     "admin_device_replacement_recovery",
+                    "admin_oauth_provider_restored",
+                    "admin_oauth_provider_retired",
                     "admin_session_revoked",
                     "admin_user_import_completed",
                     "admin_user_imported",
@@ -2108,6 +2555,8 @@
                         "enum": [
                           "auth_action_incremented",
                           "admin_device_replacement_recovery",
+                          "admin_oauth_provider_restored",
+                          "admin_oauth_provider_retired",
                           "admin_session_revoked",
                           "admin_user_import_completed",
                           "admin_user_imported",
@@ -5968,6 +6417,7 @@
     "/oauth/{providerId}/callback": {
       "post": {
         "summary": "Finish OAuth login",
+        "description": "Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider. A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.",
         "tags": ["OAuth"],
         "parameters": [
           {
@@ -6007,7 +6457,8 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
-                  "returnTo": null
+                  "returnTo": null,
+                  "nextStep": null
                 },
                 "schema": {
                   "type": "object",
@@ -6022,7 +6473,8 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
-                    "returnTo": { "type": "string", "format": "uri" }
+                    "returnTo": { "type": "string", "format": "uri" },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
                 }
@@ -6044,7 +6496,9 @@
                       "enum": [
                         "oauth_missing_email",
                         "oauth_email_not_verified",
-                        "oauth_missing_subject"
+                        "oauth_missing_subject",
+                        "oauth_invalid_id_token",
+                        "oauth_provider_retired"
                       ]
                     }
                   },
@@ -6057,10 +6511,23 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
-                "example": { "message": "string", "error": "string" },
+                "example": { "message": "string", "error": "string", "code": null },
                 "schema": {
                   "type": "object",
-                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "oauth_missing_email",
+                        "oauth_email_not_verified",
+                        "oauth_missing_subject",
+                        "oauth_invalid_id_token",
+                        "oauth_provider_retired"
+                      ]
+                    }
+                  },
                   "required": ["error"]
                 }
               }
@@ -6185,7 +6652,11 @@
                               "updatedAt"
                             ]
                           },
-                          "memberCount": { "type": "integer", "minimum": 0 }
+                          "memberCount": { "type": "integer", "minimum": 0 },
+                          "retiredOAuthProviders": {
+                            "type": "array",
+                            "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                          }
                         },
                         "required": [
                           "id",
@@ -6285,7 +6756,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -6344,7 +6816,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -6474,7 +6950,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -6533,7 +7010,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -6692,7 +7173,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -6751,7 +7233,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -6899,7 +7385,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   },
                   "ttl": 0
                 },
@@ -6964,7 +7451,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",
@@ -10025,7 +10516,8 @@
                             "type": "string",
                             "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
                           },
-                          "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                          "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                          "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                         },
                         "required": [
                           "id",
@@ -10354,7 +10846,8 @@
                           "type": "string",
                           "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
                         },
-                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                        "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                       },
                       "required": [
                         "id",
@@ -10651,7 +11144,8 @@
                             "type": "string",
                             "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
                           },
-                          "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                          "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                          "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                         },
                         "required": [
                           "id",
@@ -10759,7 +11253,8 @@
                   "issuer": { "type": "string", "format": "uri" },
                   "jwksUri": { "type": "string", "format": "uri" },
                   "externalIdSource": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-                  "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                  "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                  "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                 },
                 "required": [
                   "id",
@@ -10803,7 +11298,8 @@
                     "issuer": null,
                     "jwksUri": null,
                     "externalIdSource": "string",
-                    "externalIdJsonPath": "string"
+                    "externalIdJsonPath": "string",
+                    "promptPasskeyEnrollment": null
                   }
                 },
                 "schema": {
@@ -10853,7 +11349,8 @@
                           "type": "string",
                           "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
                         },
-                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                        "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                       },
                       "required": [
                         "id",
@@ -10995,7 +11492,8 @@
                   "issuer": { "type": "string", "format": "uri" },
                   "jwksUri": { "type": "string", "format": "uri" },
                   "externalIdSource": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-                  "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                  "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                  "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                 },
                 "additionalProperties": false
               }
@@ -11031,7 +11529,8 @@
                     "issuer": null,
                     "jwksUri": null,
                     "externalIdSource": "string",
-                    "externalIdJsonPath": "string"
+                    "externalIdJsonPath": "string",
+                    "promptPasskeyEnrollment": null
                   }
                 },
                 "schema": {
@@ -11081,7 +11580,8 @@
                           "type": "string",
                           "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
                         },
-                        "externalIdJsonPath": { "type": "string", "minLength": 1 }
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                        "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                       },
                       "required": [
                         "id",
@@ -12018,7 +12518,8 @@
                         "roles": [null]
                       }
                     },
-                    "memberCount": 0
+                    "memberCount": 0,
+                    "retiredOAuthProviders": [null]
                   }
                 },
                 "schema": {
@@ -12153,7 +12654,11 @@
                               "updatedAt"
                             ]
                           },
-                          "memberCount": { "type": "integer", "minimum": 0 }
+                          "memberCount": { "type": "integer", "minimum": 0 },
+                          "retiredOAuthProviders": {
+                            "type": "array",
+                            "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                          }
                         },
                         "required": [
                           "id",
@@ -12220,7 +12725,11 @@
                             "updatedAt"
                           ]
                         },
-                        "memberCount": { "type": "integer", "minimum": 0 }
+                        "memberCount": { "type": "integer", "minimum": 0 },
+                        "retiredOAuthProviders": {
+                          "type": "array",
+                          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" }
+                        }
                       },
                       "required": [
                         "id",

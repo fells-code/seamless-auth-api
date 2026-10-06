@@ -11,13 +11,20 @@ import {
 } from '../../../src/lib/token.js';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 
+import { Credential } from '../../../src/models/credentials.js';
 import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
+import { OrganizationMembership } from '../../../src/models/organizationMemberships.js';
+import { Organization } from '../../../src/models/organizations.js';
 import { UserExternalId } from '../../../src/models/userExternalIds.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { clearOAuthStateReplayCache } from '../../../src/services/oauthService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
+import {
+  buildOrganization,
+  buildOrganizationMembership,
+} from '../../factories/organizationFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
 
 let app: Application;
@@ -579,5 +586,134 @@ describe('OAuth routes', () => {
         metadata: { providerId: 'google', reason: 'oauth_missing_subject' },
       }),
     );
+  });
+
+  describe('migration cutover', () => {
+    async function finishGoogleSignIn() {
+      const start = await request(app).post('/oauth/google/start').send({
+        redirectUri: 'http://localhost:5174/oauth/callback',
+      });
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      fetchMock
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'provider-token' }) })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            sub: 'provider-user',
+            email: 'person@example.com',
+            email_verified: true,
+          }),
+        });
+
+      return request(app)
+        .post('/oauth/google/callback')
+        .send({ code: 'oauth-code', state: start.body.state });
+    }
+
+    beforeEach(() => {
+      (OAuthIdentity.findOne as any).mockResolvedValue(null);
+      (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+      (Session.create as any).mockResolvedValue({ id: 'session-1' });
+      (signAccessToken as any).mockResolvedValue('access-token');
+      (generateRefreshToken as any).mockReturnValue('refresh-token');
+      (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    });
+
+    function promptEnrollmentFor(promptPasskeyEnrollment: boolean) {
+      (getSystemConfig as any).mockResolvedValue(
+        buildSystemConfig({
+          login_methods: ['passkey', 'oauth'],
+          oauth_providers: [{ ...provider, promptPasskeyEnrollment }],
+        }),
+      );
+    }
+
+    it('sends a user without a passkey into passkey enrollment', async () => {
+      promptEnrollmentFor(true);
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (Credential.count as any).mockResolvedValue(0);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(200);
+      expect(res.body.nextStep).toBe('enroll_passkey');
+      expect(res.body.token).toBe('access-token');
+      expect(Credential.count).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    });
+
+    it('omits nextStep for a user who already has a passkey', async () => {
+      promptEnrollmentFor(true);
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (Credential.count as any).mockResolvedValue(1);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(200);
+      expect(res.body).not.toHaveProperty('nextStep');
+    });
+
+    // Only a provider being migrated off asks for it; a primary sign-in method does not.
+    it('omits nextStep when the provider does not prompt for enrollment', async () => {
+      promptEnrollmentFor(false);
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (Credential.count as any).mockResolvedValue(0);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(200);
+      expect(res.body).not.toHaveProperty('nextStep');
+      expect(Credential.count).not.toHaveBeenCalled();
+    });
+
+    it('refuses a member of an organization that retired the provider, before linking', async () => {
+      const user = buildUser({ id: 'user-1', phone: null, verified: false });
+      (User.findOne as any).mockResolvedValue(user);
+      (OrganizationMembership.findAll as any).mockResolvedValue([buildOrganizationMembership()]);
+      (Organization.findAll as any).mockResolvedValue([
+        buildOrganization({ retiredOAuthProviders: ['google'] }),
+      ]);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('oauth_provider_retired');
+      expect(OAuthIdentity.findOrCreate).not.toHaveBeenCalled();
+      expect(user.update).not.toHaveBeenCalled();
+      expect(Session.create).not.toHaveBeenCalled();
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'oauth_login_failed',
+          userId: 'user-1',
+          metadata: expect.objectContaining({ reason: 'provider_retired' }),
+        }),
+      );
+    });
+
+    it('refuses a returning user whose identity is already linked', async () => {
+      (OAuthIdentity.findOne as any).mockResolvedValue({ userId: 'user-1' });
+      (User.findByPk as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (OrganizationMembership.findAll as any).mockResolvedValue([buildOrganizationMembership()]);
+      (Organization.findAll as any).mockResolvedValue([
+        buildOrganization({ retiredOAuthProviders: ['google'] }),
+      ]);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(403);
+      expect(Session.create).not.toHaveBeenCalled();
+    });
+
+    it('signs in a member of an organization that retired a different provider', async () => {
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (OrganizationMembership.findAll as any).mockResolvedValue([buildOrganizationMembership()]);
+      (Organization.findAll as any).mockResolvedValue([
+        buildOrganization({ retiredOAuthProviders: ['legacy-idp'] }),
+      ]);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(200);
+    });
   });
 });

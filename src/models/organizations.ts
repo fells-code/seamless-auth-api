@@ -15,6 +15,7 @@ export interface OrganizationAttributes {
   slug: string;
   createdByUserId?: string | null;
   metadata?: Record<string, unknown> | null;
+  retiredOAuthProviders?: string[];
   createdAt?: Date;
   updatedAt?: Date;
   memberships?: OrganizationMembership[];
@@ -22,7 +23,13 @@ export interface OrganizationAttributes {
 
 type OrganizationCreationAttributes = Optional<
   OrganizationAttributes,
-  'id' | 'createdByUserId' | 'metadata' | 'createdAt' | 'updatedAt' | 'memberships'
+  | 'id'
+  | 'createdByUserId'
+  | 'metadata'
+  | 'retiredOAuthProviders'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'memberships'
 >;
 
 export class Organization
@@ -34,6 +41,7 @@ export class Organization
   declare slug: string;
   declare createdByUserId: string | null;
   declare metadata: Record<string, unknown> | null;
+  declare retiredOAuthProviders: string[];
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
   declare readonly memberships?: OrganizationMembership[];
@@ -83,6 +91,13 @@ const initializeOrganizationModel = (sequelize: Sequelize) => {
       metadata: {
         type: DataTypes.JSON,
         allowNull: true,
+      },
+      retiredOAuthProviders: {
+        type: DataTypes.JSON,
+        allowNull: false,
+        defaultValue: [],
+        // `underscored` would derive `retired_o_auth_providers`.
+        field: 'retired_oauth_providers',
       },
     },
     {
