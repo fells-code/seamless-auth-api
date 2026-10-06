@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { AuthenticatorTransportFuture, Uint8Array_ } from '@simplewebauthn/server';
+import type { Uint8Array_ } from '@simplewebauthn/server';
 
 export type ConformancePurpose = 'registration' | 'authentication';
 
@@ -12,7 +12,7 @@ export interface ConformanceCredential {
   id: string;
   publicKey: Uint8Array_;
   counter: number;
-  transports?: AuthenticatorTransportFuture[];
+  transports?: string[];
 }
 
 export interface ConformanceUser {

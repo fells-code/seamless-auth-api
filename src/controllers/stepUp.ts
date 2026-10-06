@@ -5,7 +5,6 @@
  */
 
 import {
-  AuthenticatorTransportFuture,
   generateAuthenticationOptions,
   PublicKeyCredentialRequestOptionsJSON,
   verifyAuthenticationResponse,
@@ -215,7 +214,7 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
         // @ts-expect-error SimpleWebAuthn expects a Uint8Array-compatible public key here.
         publicKey: base64url.toBuffer(credential.publicKey),
         counter: credential.counter,
-        transports: credential.transports as AuthenticatorTransportFuture[],
+        transports: credential.transports,
       },
     });
 

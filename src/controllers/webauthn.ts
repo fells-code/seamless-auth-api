@@ -5,7 +5,6 @@
  */
 
 import {
-  AuthenticatorTransportFuture,
   generateAuthenticationOptions,
   generateRegistrationOptions,
   PublicKeyCredentialRequestOptionsJSON,
@@ -567,7 +566,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
           // @ts-expect-error Needed to work.
           publicKey: base64url.toBuffer(cred.publicKey),
           counter: cred.counter,
-          transports: cred.transports as AuthenticatorTransportFuture[],
+          transports: cred.transports,
         },
       });
     } catch (error) {
