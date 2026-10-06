@@ -21,3 +21,20 @@ export const AdminValidationErrorSchema = z.object({
   message: z.string().optional(),
   details: z.record(z.string(), z.unknown()).optional(),
 });
+
+export const AuditIntegrityResponseSchema = z.object({
+  verified: z.boolean(),
+  checkedAt: z.string(),
+  rowsChecked: z.number().int(),
+  firstSeq: z.number().int().nullable(),
+  lastSeq: z.number().int().nullable(),
+  anchorHash: z.string().nullable(),
+  head: z.object({ seq: z.number().int(), hash: z.string().nullable() }).nullable(),
+  firstFailure: z
+    .object({
+      seq: z.number().int(),
+      id: z.string().nullable(),
+      reason: z.enum(['hash_mismatch', 'broken_link', 'sequence_gap', 'head_mismatch']),
+    })
+    .nullable(),
+});

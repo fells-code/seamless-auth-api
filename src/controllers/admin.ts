@@ -29,6 +29,7 @@ import {
   serializeCredential,
   serializeSession,
 } from '../services/apiResponseSerializers.js';
+import { verifyAuthEventChain } from '../services/auditIntegrity.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
@@ -696,6 +697,15 @@ function expandType(type?: string): string[] {
 
   return [type];
 }
+
+export const getAuthEventIntegrity = async (_req: Request, res: Response) => {
+  try {
+    return res.json(await verifyAuthEventChain());
+  } catch (error) {
+    logger.error(`Failed to verify the audit chain: ${error}`);
+    return res.status(500).json({ error: 'Failed to verify the audit chain' });
+  }
+};
 
 export const getAuthEvents = async (req: ServiceRequest, res: Response) => {
   const parsed = AuthEventQuerySchema.safeParse(req.query);

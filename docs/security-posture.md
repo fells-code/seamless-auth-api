@@ -496,6 +496,59 @@ option today.
 `auth_failures` rows are not pruned, which matches `auth_events`. Retention is
 [issue #173](https://github.com/fells-code/seamless-auth-api/issues/173).
 
+## Audit trail integrity
+
+`auth_events` is append-only and tamper-evident (NIST 800-53 AU-9).
+
+### What the database enforces
+
+- **Hash chain.** An insert trigger gives every row a `seq` and a
+  `hash = sha256(prev_hash || payload)`, where the payload is every column except
+  `updated_at` in a fixed canonical form (`auth_event_payload`). The chain head lives in a
+  one-row table, `auth_event_chain_head`, advanced with an UPDATE so that concurrent
+  inserts queue on its row lock rather than linking to the same predecessor.
+- **Append-only.** A trigger refuses every UPDATE and TRUNCATE on the table, and every
+  DELETE unless the transaction has set `seamless.audit_retention = 'on'`, which only
+  the retention job does.
+- **No user foreign key.** It used to null `user_id` when a user was deleted. A row now
+  keeps the id of the user it was about after that user is gone. The id is a UUID, and
+  removing old rows is a job for retention, not for user deletion.
+
+### Checking it
+
+`GET /admin/auth-events/integrity` (admin, read) recomputes every hash and reports the
+first failure:
+
+| `reason`        | Meaning                                                          |
+| --------------- | ---------------------------------------------------------------- |
+| `hash_mismatch` | the row's content no longer matches its hash: it was edited      |
+| `sequence_gap`  | rows are missing from the middle of the chain                    |
+| `broken_link`   | `prev_hash` does not match the previous row: rows were reordered |
+| `head_mismatch` | the newest rows are missing, or the head itself was changed      |
+
+It also returns `head` (the latest `seq` and hash) and `anchorHash`, which is the
+`prev_hash` of the oldest remaining row. Once retention has removed old rows, that is the
+hash of the last row archived, and it ties the remaining chain to the archive.
+
+### What it does not stop
+
+A role that owns the table can disable the triggers and rewrite the whole chain
+consistently. Nothing inside the database can detect that, so two things outside it close
+the gap:
+
+1. **Least privilege.** Run migrations as the table owner and the application as a role
+   without UPDATE, DELETE or TRUNCATE on `auth_events`:
+
+   ```sql
+   REVOKE UPDATE, DELETE, TRUNCATE ON public.auth_events FROM seamless_app;
+   ```
+
+   The retention job then needs DELETE, from a separate role.
+
+2. **External anchors.** Record `head` somewhere the database cannot reach: the evidence
+   package, a ticket, or a log store. A later check whose chain does not pass through a
+   recorded head shows the history was rewritten.
+
 ## Refusals at the auth gate
 
 **Posture: only a credential this server issued is worth a row.**

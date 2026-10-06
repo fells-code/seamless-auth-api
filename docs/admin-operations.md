@@ -106,6 +106,8 @@ Lockout is checked after a user has been identified. Keep route-level and destin
 
 Admin actions are recorded as auth events with redacted metadata. Do not store raw secrets, tokens, OTPs, magic-link URLs, PRF values, account keys, or provider tokens in admin metadata.
 
+Auth events cannot be edited or deleted through the application. Each one is hash-chained to the one before it. `GET /admin/auth-events/integrity` verifies the chain and returns its current head, which is worth recording outside the database as part of an evidence package. See [Audit trail integrity](./security-posture.md#audit-trail-integrity).
+
 ## Metrics
 
 The `/internal/auth-events/*` endpoints all accept the same query parameters: `from`, `to`,
