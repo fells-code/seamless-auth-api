@@ -59,6 +59,8 @@ oauthRouter.post(
   '/:providerId/callback',
   {
     summary: 'Finish OAuth login',
+    description:
+      'Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider. A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.',
     tags: ['OAuth'],
     middleware: [oauthIpLimiter, oauthProviderLimiter],
     schemas: {
@@ -67,7 +69,7 @@ oauthRouter.post(
       response: {
         200: OAuthLoginSuccessResponseSchema,
         400: OAuthLoginErrorResponseSchema,
-        403: InternalErrorSchema,
+        403: OAuthLoginErrorResponseSchema,
         404: InternalErrorSchema,
       },
     },

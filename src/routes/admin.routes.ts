@@ -28,6 +28,8 @@ import {
   listAdminOrganizations,
   listMembers,
   removeMember,
+  restoreOAuthProvider,
+  retireOAuthProvider,
   updateMember,
   updateOrganization,
 } from '../controllers/organizations.js';
@@ -62,6 +64,7 @@ import {
   CreateOrganizationRequestSchema,
   OrganizationIdParamSchema,
   OrganizationMemberParamSchema,
+  OrganizationOAuthProviderParamSchema,
   UpdateOrganizationMemberRequestSchema,
   UpdateOrganizationRequestSchema,
 } from '../schemas/organization.requests.js';
@@ -244,6 +247,46 @@ adminRouter.delete(
     },
   },
   removeMember,
+);
+
+adminRouter.put(
+  '/organizations/:organizationId/oauth-providers/:providerId/retirement',
+  {
+    auth: 'access',
+    summary: 'Retire an OAuth provider for an organization',
+    description:
+      'Members of the organization can no longer sign in through the provider. The callback answers 403 with `code: oauth_provider_retired`, before any account is linked. Idempotent. Used to cut an organization over from a legacy identity provider.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('write')],
+    schemas: {
+      params: OrganizationOAuthProviderParamSchema,
+      response: {
+        200: OrganizationEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  retireOAuthProvider,
+);
+
+adminRouter.delete(
+  '/organizations/:organizationId/oauth-providers/:providerId/retirement',
+  {
+    auth: 'access',
+    summary: 'Restore a retired OAuth provider for an organization',
+    description:
+      'Undoes a retirement, for rolling a cutover back. Idempotent, and accepts the id of a provider that no longer exists so it can be cleared.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('write')],
+    schemas: {
+      params: OrganizationOAuthProviderParamSchema,
+      response: {
+        200: OrganizationEnvelopeResponseSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  restoreOAuthProvider,
 );
 
 adminRouter.get(

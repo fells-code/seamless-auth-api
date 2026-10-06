@@ -35,6 +35,7 @@ export interface SerializedOrganization {
   slug: string;
   createdByUserId: string | null;
   metadata: Record<string, unknown> | null;
+  retiredOAuthProviders: string[];
   createdAt: Date;
   updatedAt: Date;
   membership?: SerializedOrganizationMembership;
@@ -140,6 +141,9 @@ export function serializeOrganization(
     slug: organization.slug,
     createdByUserId: organization.createdByUserId,
     metadata: organization.metadata ?? null,
+    retiredOAuthProviders: Array.isArray(organization.retiredOAuthProviders)
+      ? organization.retiredOAuthProviders
+      : [],
     createdAt: organization.createdAt,
     updatedAt: organization.updatedAt,
     ...(membership ? { membership: serializeMembership(membership) } : {}),
@@ -351,6 +355,58 @@ export async function getDefaultOrganizationIdForUser(userId: string) {
   });
 
   return membership?.organizationId ?? null;
+}
+
+/**
+ * Adds or removes a provider from the organization's retired list under a row lock, so
+ * two administrators changing different providers at once do not drop each other's
+ * change. Returns null when the organization does not exist.
+ */
+export async function setOAuthProviderRetired(
+  organizationId: string,
+  providerId: string,
+  retired: boolean,
+) {
+  return Organization.sequelize!.transaction(async (transaction) => {
+    const organization = await Organization.findByPk(organizationId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!organization) return null;
+
+    const current = Array.isArray(organization.retiredOAuthProviders)
+      ? organization.retiredOAuthProviders
+      : [];
+    const next = retired
+      ? Array.from(new Set([...current, providerId]))
+      : current.filter((id) => id !== providerId);
+
+    await organization.update({ retiredOAuthProviders: next }, { transaction });
+
+    return organization;
+  });
+}
+
+/**
+ * Organizations the user belongs to that have retired the provider. A member of any one
+ * of them is refused: an organization that has cut over expects its members off the
+ * legacy provider, whichever organization their session would default to.
+ */
+export async function findOrganizationsRetiringOAuthProvider(userId: string, providerId: string) {
+  const memberships = await OrganizationMembership.findAll({ where: { userId } });
+
+  if (memberships.length === 0) return [];
+
+  const organizations = await Organization.findAll({
+    where: { id: memberships.map((membership) => membership.organizationId) },
+  });
+
+  return organizations.filter(
+    (organization) =>
+      Array.isArray(organization.retiredOAuthProviders) &&
+      organization.retiredOAuthProviders.includes(providerId),
+  );
 }
 
 export async function listOrganizationMembers(organizationId: string) {

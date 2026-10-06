@@ -15,6 +15,7 @@ import { UserExternalId } from '../models/userExternalIds.js';
 import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
+import { findOrganizationsRetiringOAuthProvider } from './organizationService.js';
 
 const logger = getLogger('oauthService');
 
@@ -60,6 +61,30 @@ export class OAuthProfileError extends Error {
     super(message);
     this.name = 'OAuthProfileError';
     this.code = code;
+  }
+}
+
+export class OAuthProviderRetiredError extends Error {
+  readonly code = 'oauth_provider_retired';
+  readonly userId: string;
+  readonly organizationIds: string[];
+
+  constructor(userId: string, organizationIds: string[]) {
+    super('This sign-in method has been retired for your organization');
+    this.name = 'OAuthProviderRetiredError';
+    this.userId = userId;
+    this.organizationIds = organizationIds;
+  }
+}
+
+async function assertProviderNotRetired(provider: OAuthProviderConfig, user: User) {
+  const retiring = await findOrganizationsRetiringOAuthProvider(user.id, provider.id);
+
+  if (retiring.length > 0) {
+    throw new OAuthProviderRetiredError(
+      user.id,
+      retiring.map((organization) => organization.id),
+    );
   }
 }
 
@@ -666,7 +691,10 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
 
   if (existingIdentity) {
     const user = await User.findByPk(existingIdentity.userId);
-    if (user) return user;
+    if (user) {
+      await assertProviderNotRetired(provider, user);
+      return user;
+    }
   }
 
   // A user imported from this provider's own directory is matched on the id the
@@ -679,6 +707,8 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
     const imported = link ? await User.findByPk(link.userId) : null;
 
     if (imported) {
+      // Before claiming or linking, so a refused sign-in leaves the account as it was.
+      await assertProviderNotRetired(provider, imported);
       await claimUnverifiedAccount(imported, profile.emailVerified === true);
       await linkOAuthIdentity(provider, profile, imported);
       return imported;
@@ -707,6 +737,7 @@ export async function resolveOAuthUser(provider: OAuthProviderConfig, profile: O
   }
 
   if (user) {
+    await assertProviderNotRetired(provider, user);
     await claimUnverifiedAccount(user, true);
   } else {
     const config = await getSystemConfig();

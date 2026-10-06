@@ -135,6 +135,27 @@ describe('PATCH /system-config/oauth-providers/:id', () => {
     expect(invalidateSystemConfigCache).toHaveBeenCalled();
   });
 
+  // fells-code/seamless-auth-types#83: the parsed patch used to carry every default,
+  // so changing one field reset settings the caller never sent.
+  it('leaves fields the patch does not mention as they were', async () => {
+    const stored = buildProvider({
+      accountLinking: 'disabled',
+      allowSignup: false,
+      requireEmailVerified: true,
+      scopes: ['openid', 'email', 'profile'],
+      subjectJsonPath: 'oid',
+      promptPasskeyEnrollment: true,
+    });
+    mockConfigWithProviders([stored]);
+
+    const res = await request(app)
+      .patch('/system-config/oauth-providers/google')
+      .send({ enabled: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.provider).toEqual({ ...stored, enabled: false });
+  });
+
   it('returns 404 for an unknown provider', async () => {
     mockConfigWithProviders([buildProvider()]);
 

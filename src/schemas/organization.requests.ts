@@ -12,6 +12,7 @@ export {
   CreateOrganizationRequestSchema,
   OrganizationIdParamSchema,
   OrganizationMemberParamSchema,
+  OrganizationOAuthProviderParamSchema,
   UpdateOrganizationMemberRequestSchema,
   UpdateOrganizationRequestSchema,
 } from '@seamless-auth/types';

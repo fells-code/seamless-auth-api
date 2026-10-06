@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   buildOAuthAuthorizationUrl,
@@ -21,6 +22,7 @@ import {
   isOidcProvider,
   OAuthProfileError,
   oauthProfileFromIdToken,
+  OAuthProviderRetiredError,
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
@@ -152,6 +154,10 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
       metadata: { providerId: provider.id },
     });
 
+    const promptEnrollment =
+      provider.promptPasskeyEnrollment &&
+      (await Credential.count({ where: { userId: user.id } })) === 0;
+
     return issueSessionAndRespond({
       user: {
         id: user.id,
@@ -164,9 +170,27 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
       // Taken from the signed state rather than from this request, so it is the value
       // validated against the configured origins at /start and not one an attacker
       // introduced at the end of the round trip.
-      ...(statePayload.returnTo ? { extraFields: { returnTo: statePayload.returnTo } } : {}),
+      extraFields: {
+        ...(statePayload.returnTo ? { returnTo: statePayload.returnTo } : {}),
+        ...(promptEnrollment ? { nextStep: 'enroll_passkey' } : {}),
+      },
     });
   } catch (error) {
+    if (error instanceof OAuthProviderRetiredError) {
+      await AuthEventService.log({
+        userId: error.userId,
+        type: 'oauth_login_failed',
+        req,
+        metadata: {
+          providerId: provider.id,
+          reason: 'provider_retired',
+          organizationIds: error.organizationIds,
+        },
+      });
+
+      return res.status(403).json({ error: error.message, code: error.code });
+    }
+
     logger.error(`OAuth callback failed for provider ${provider.id}: ${error}`);
 
     if (error instanceof OAuthProfileError) {
