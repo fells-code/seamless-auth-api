@@ -189,6 +189,31 @@ export async function findRefreshSessionByToken(
   return session;
 }
 
+export type RefreshRefusalReason = 'absolute_lifetime_reached' | 'idle_timeout';
+
+/**
+ * Why a refresh token that `findRefreshSessionByToken` rejected no longer works, when the
+ * answer is that its session ran out of time. Only used to make the audit trail say so,
+ * never to accept the token.
+ */
+export async function classifyExpiredRefreshToken(
+  refreshToken: string,
+  now = new Date(),
+): Promise<{ reason: RefreshRefusalReason; session: Session } | null> {
+  const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
+
+  const session = await Session.findOne({
+    where: { revokedAt: null, replacedBySessionId: null, refreshTokenLookup },
+  });
+
+  if (!session || !safeEqual(refreshTokenLookup, session.refreshTokenLookup)) return null;
+
+  if (session.expiresAt <= now) return { reason: 'absolute_lifetime_reached', session };
+  if (session.idleExpiresAt <= now) return { reason: 'idle_timeout', session };
+
+  return null;
+}
+
 export async function validateSessionRecord(sessionId: string) {
   const session = await Session.findByPk(sessionId);
   if (!session) return null;

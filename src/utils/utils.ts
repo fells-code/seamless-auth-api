@@ -40,6 +40,22 @@ export function computeSessionTimes({ absoluteTtl, idleTtl }: SessionTtls, now =
   return { expiresAt, idleExpiresAt };
 }
 
+/**
+ * Times for the session a refresh rotates into. The absolute bound is measured from the
+ * start of the rotation chain, so refreshing cannot extend a session past it, while the
+ * idle bound slides from `now` and never reaches past the absolute one.
+ */
+export function computeRotatedSessionTimes(
+  { absoluteTtl, idleTtl }: SessionTtls,
+  chainStartedAt: Date,
+  now = new Date(),
+) {
+  const expiresAt = new Date(chainStartedAt.getTime() + parseDurationToSeconds(absoluteTtl) * 1000);
+  const slidingIdle = now.getTime() + parseDurationToSeconds(idleTtl) * 1000;
+  const idleExpiresAt = new Date(Math.min(slidingIdle, expiresAt.getTime()));
+  return { expiresAt, idleExpiresAt };
+}
+
 export function parseDurationToSeconds(input: string): number {
   if (!input || typeof input !== 'string') {
     throw new Error('Invalid duration string');

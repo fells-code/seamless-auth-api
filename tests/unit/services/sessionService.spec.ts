@@ -258,6 +258,70 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
+  describe('classifyExpiredRefreshToken', () => {
+    const now = new Date('2026-01-01T12:00:00Z');
+    const past = new Date('2026-01-01T11:00:00Z');
+    const future = new Date('2026-01-01T13:00:00Z');
+
+    async function classify(session: unknown) {
+      const { Session } = await import('../../../src/models/sessions');
+      const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+      (createRefreshTokenLookup as any).mockReturnValue('lookup');
+      (Session.findOne as any).mockResolvedValue(session);
+      const { classifyExpiredRefreshToken } = await import('../../../src/services/sessionService');
+      return classifyExpiredRefreshToken('refresh-token', now);
+    }
+
+    it('reports a session past its absolute bound', async () => {
+      const session = buildSession({
+        refreshTokenLookup: 'lookup',
+        expiresAt: past,
+        idleExpiresAt: past,
+      });
+
+      expect(await classify(session)).toEqual({ reason: 'absolute_lifetime_reached', session });
+    });
+
+    it('reports a session past only its idle bound', async () => {
+      const session = buildSession({
+        refreshTokenLookup: 'lookup',
+        expiresAt: future,
+        idleExpiresAt: past,
+      });
+
+      expect(await classify(session)).toEqual({ reason: 'idle_timeout', session });
+    });
+
+    it('says nothing about a session that has not expired', async () => {
+      const session = buildSession({
+        refreshTokenLookup: 'lookup',
+        expiresAt: future,
+        idleExpiresAt: future,
+      });
+
+      expect(await classify(session)).toBeNull();
+    });
+
+    it('only considers live, unrotated sessions', async () => {
+      const { Session } = await import('../../../src/models/sessions');
+      await classify(null);
+
+      expect(Session.findOne).toHaveBeenCalledWith({
+        where: { revokedAt: null, replacedBySessionId: null, refreshTokenLookup: 'lookup' },
+      });
+    });
+
+    it('says nothing when the fingerprint does not verify', async () => {
+      const session = buildSession({
+        refreshTokenLookup: 'other',
+        expiresAt: past,
+        idleExpiresAt: past,
+      });
+
+      expect(await classify(session)).toBeNull();
+    });
+  });
+
   it('refuses a replaced session without revoking the chain it was rotated into', async () => {
     const { Session } = await import('../../../src/models/sessions');
     const mod = await import('../../../src/services/sessionService');
