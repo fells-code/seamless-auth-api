@@ -30,6 +30,10 @@ export interface AuthEventAttributes {
   /** The sign-in or registration attempt the event belongs to: the ephemeral token's `jti`. */
   attempt_id?: string | null;
   metadata?: Record<string, any> | null;
+  /** Position in the audit hash chain, assigned by the database on insert. */
+  seq?: string | null;
+  prev_hash?: string | null;
+  hash?: string | null;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -65,12 +69,18 @@ export class AuthEvent
   declare owner?: boolean | null;
   declare attempt_id?: string | null;
   declare metadata: Record<string, any> | null;
+  declare seq?: string | null;
+  declare prev_hash?: string | null;
+  declare hash?: string | null;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
 
   static associate(models: any) {
+    // No database constraint: an audit row outlives the user it is about, and the
+    // append-only trigger refuses the ON DELETE SET NULL a constraint would run.
     AuthEvent.belongsTo(models.User, {
       foreignKey: 'user_id',
+      constraints: false,
     });
   }
 }
@@ -133,6 +143,19 @@ const initializeAuthEventModel = (sequelize: Sequelize) => {
       },
       metadata: {
         type: DataTypes.JSONB,
+        allowNull: true,
+      },
+      // Assigned by the auth_events_chain trigger, never by the application.
+      seq: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+      },
+      prev_hash: {
+        type: DataTypes.CHAR(64),
+        allowNull: true,
+      },
+      hash: {
+        type: DataTypes.CHAR(64),
         allowNull: true,
       },
       created_at: {

@@ -3152,6 +3152,101 @@
         }
       }
     },
+    "/admin/auth-events/integrity": {
+      "get": {
+        "summary": "Verify the audit event hash chain",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "verified": true,
+                  "checkedAt": "string",
+                  "rowsChecked": 0,
+                  "firstSeq": 0,
+                  "lastSeq": 0,
+                  "anchorHash": "string",
+                  "head": { "seq": 0, "hash": "string" },
+                  "firstFailure": { "seq": 0, "id": "string", "reason": null }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "verified": { "type": "boolean" },
+                    "checkedAt": { "type": "string" },
+                    "rowsChecked": { "type": "integer" },
+                    "firstSeq": { "type": "integer", "nullable": true },
+                    "lastSeq": { "type": "integer", "nullable": true },
+                    "anchorHash": { "type": "string", "nullable": true },
+                    "head": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "seq": { "type": "integer" },
+                        "hash": { "type": "string", "nullable": true }
+                      },
+                      "required": ["seq", "hash"]
+                    },
+                    "firstFailure": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "seq": { "type": "integer" },
+                        "id": { "type": "string", "nullable": true },
+                        "reason": {
+                          "type": "string",
+                          "enum": ["hash_mismatch", "broken_link", "sequence_gap", "head_mismatch"]
+                        }
+                      },
+                      "required": ["seq", "id", "reason"]
+                    }
+                  },
+                  "required": [
+                    "verified",
+                    "checkedAt",
+                    "rowsChecked",
+                    "firstSeq",
+                    "lastSeq",
+                    "anchorHash",
+                    "head",
+                    "firstFailure"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/credential-count": {
       "get": {
         "summary": "Get credential count",

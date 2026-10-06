@@ -7,6 +7,7 @@
 import {
   createUser,
   deleteUser,
+  getAuthEventIntegrity,
   getAuthEvents,
   getCredentialsCount,
   getUserAnomalies,
@@ -48,6 +49,7 @@ import {
   AdminUserAnomaliesResponseSchema,
   AdminUserDetailResponseSchema,
   AdminValidationErrorSchema,
+  AuditIntegrityResponseSchema,
   DeviceReplacementRecoveryResponseSchema,
   ImportUsersResponseSchema,
   UserResponseSchema,
@@ -371,6 +373,23 @@ adminRouter.get(
     },
   },
   getAuthEvents,
+);
+
+adminRouter.get(
+  '/auth-events/integrity',
+  {
+    auth: 'access',
+    summary: 'Verify the audit event hash chain',
+    middleware: [requireAdmin('read')],
+    tags: ['Admin'],
+    schemas: {
+      response: {
+        200: AuditIntegrityResponseSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  getAuthEventIntegrity,
 );
 
 adminRouter.get(

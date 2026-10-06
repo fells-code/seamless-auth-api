@@ -8,6 +8,7 @@ import { Credential } from '../../../src/models/credentials.js';
 import { User } from '../../../src/models/users.js';
 import { buildUser, testGuid } from '../../factories/userFactory';
 import { AuthEvent } from '../../../src/models/authEvents.js';
+import { verifyAuthEventChain } from '../../../src/services/auditIntegrity.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { Session } from '../../../src/models/sessions.js';
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
@@ -372,6 +373,39 @@ describe('admin actions are attributed', () => {
     expect(event.userId).toBe(testGuid);
     expect(event.actorUserId).toBeTruthy();
     expect(event.metadata).toMatchObject({ revokedSessions: 2, scope: 'all' });
+  });
+});
+
+vi.mock('../../../src/services/auditIntegrity.js', () => ({
+  verifyAuthEventChain: vi.fn(),
+}));
+
+describe('GET /admin/auth-events/integrity', () => {
+  it('returns the chain verification report', async () => {
+    const report = {
+      verified: false,
+      checkedAt: new Date().toISOString(),
+      rowsChecked: 10,
+      firstSeq: 1,
+      lastSeq: 10,
+      anchorHash: null,
+      head: { seq: 10, hash: 'a'.repeat(64) },
+      firstFailure: { seq: 4, id: 'event-4', reason: 'hash_mismatch' },
+    };
+    (verifyAuthEventChain as any).mockResolvedValue(report);
+
+    const res = await request(app).get('/admin/auth-events/integrity');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(report);
+  });
+
+  it('answers 500 when the check cannot run', async () => {
+    (verifyAuthEventChain as any).mockRejectedValue(new Error('no such function'));
+
+    const res = await request(app).get('/admin/auth-events/integrity');
+
+    expect(res.status).toBe(500);
   });
 });
 

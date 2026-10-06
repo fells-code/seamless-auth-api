@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { Sequelize } from 'sequelize';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -30,5 +31,33 @@ describe('AuthEvent metadata redaction hooks', () => {
 
     expect(first.metadata).toEqual({ token: '[REDACTED]' });
     expect(second.metadata).toEqual({ phone: '[REDACTED]' });
+  });
+});
+
+// A column the chain does not hash can be edited without the integrity check noticing.
+describe('AuthEvent audit chain coverage', () => {
+  const NOT_HASHED = new Set(['updated_at', 'prev_hash', 'hash']);
+
+  it('hashes every column the model defines', () => {
+    const sequelize = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false });
+    initializeAuthEventModel(sequelize);
+
+    const migration = readFileSync(
+      new URL('../../../src/migrations/20261008130000-protect-auth-events.cjs', import.meta.url),
+      'utf8',
+    );
+    const payload = migration.slice(
+      migration.indexOf('jsonb_build_array('),
+      migration.indexOf(')::text'),
+    );
+
+    const columns = Object.values(AuthEvent.getAttributes()).map(
+      (attribute) => attribute.field ?? '',
+    );
+    const unhashed = columns.filter(
+      (column) => !NOT_HASHED.has(column) && !payload.includes(`e.${column}`),
+    );
+
+    expect(unhashed).toEqual([]);
   });
 });

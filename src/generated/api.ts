@@ -2868,6 +2868,114 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/auth-events/integrity': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Verify the audit event hash chain */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "verified": true,
+             *       "checkedAt": "string",
+             *       "rowsChecked": 0,
+             *       "firstSeq": 0,
+             *       "lastSeq": 0,
+             *       "anchorHash": "string",
+             *       "head": {
+             *         "seq": 0,
+             *         "hash": "string"
+             *       },
+             *       "firstFailure": {
+             *         "seq": 0,
+             *         "id": "string",
+             *         "reason": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              verified: boolean;
+              checkedAt: string;
+              rowsChecked: number;
+              firstSeq: number | null;
+              lastSeq: number | null;
+              anchorHash: string | null;
+              head: {
+                seq: number;
+                hash: string | null;
+              } | null;
+              firstFailure: {
+                seq: number;
+                id: string | null;
+                /** @enum {string} */
+                reason: 'hash_mismatch' | 'broken_link' | 'sequence_gap' | 'head_mismatch';
+              } | null;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/credential-count': {
     parameters: {
       query?: never;
