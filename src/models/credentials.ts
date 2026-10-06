@@ -4,7 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthenticatorTransportFuture, CredentialDeviceType } from '@simplewebauthn/server';
+import type { Transport } from '@seamless-auth/types';
+import { CredentialDeviceType } from '@simplewebauthn/server';
 import { DataTypes, Model, Sequelize } from 'sequelize';
 
 import type { User } from './users.js';
@@ -14,7 +15,7 @@ export class Credential extends Model {
   declare userId: string;
   declare publicKey: Uint8Array;
   declare counter: number;
-  declare transports?: AuthenticatorTransportFuture[];
+  declare transports?: Transport[];
   declare deviceType: CredentialDeviceType;
   /** The authenticator's model identifier, as it reported at registration. */
   declare aaguid: string | null;
