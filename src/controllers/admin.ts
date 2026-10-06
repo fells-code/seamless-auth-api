@@ -29,6 +29,7 @@ import {
   serializeCredential,
   serializeSession,
 } from '../services/apiResponseSerializers.js';
+import { streamAuthEventExport } from '../services/auditExport.js';
 import { verifyAuthEventChain } from '../services/auditIntegrity.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -697,6 +698,45 @@ function expandType(type?: string): string[] {
 
   return [type];
 }
+
+export const exportAuthEvents = async (req: Request, res: Response) => {
+  const { from, to } = req.query as { from?: string; to?: string };
+  const authReq = req as AuthenticatedRequest;
+
+  // Recorded before the first byte is sent, so a bulk read of the trail is itself in it
+  // whether or not the download completes.
+  await AuthEventService.log({
+    userId: authReq.user.id,
+    actorUserId: authReq.user.id,
+    type: 'informational',
+    req,
+    metadata: { action: 'auth_events_exported', from: from ?? null, to: to ?? null },
+  });
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  res.status(200);
+  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="auth-events-${stamp}.ndjson"`);
+  res.setHeader('Cache-Control', 'no-store');
+
+  try {
+    await streamAuthEventExport({
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      write: (line) =>
+        new Promise<void>((resolve) => {
+          if (res.write(line)) resolve();
+          else res.once('drain', resolve);
+        }),
+    });
+    res.end();
+  } catch (error) {
+    logger.error(`Audit event export failed: ${error}`);
+    // Headers are gone by now, so the only way left to say the file is incomplete is to
+    // end it without the manifest line, which every complete export finishes with.
+    res.end();
+  }
+};
 
 export const getAuthEventIntegrity = async (_req: Request, res: Response) => {
   try {

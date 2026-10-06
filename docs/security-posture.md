@@ -493,8 +493,8 @@ design, and the tradeoff is stated here rather than made by default. A deploymen
 that needs authentication to fail closed on audit failure does not have that
 option today.
 
-`auth_failures` rows are not pruned, which matches `auth_events`. Retention is
-[issue #173](https://github.com/fells-code/seamless-auth-api/issues/173).
+`auth_failures` rows are not pruned. `auth_events` retention (`AUDIT_RETENTION_DAYS`) does
+not cover them, because lockout only ever reads a short window of them.
 
 ## Audit trail integrity
 
@@ -548,6 +548,52 @@ the gap:
 2. **External anchors.** Record `head` somewhere the database cannot reach: the evidence
    package, a ticket, or a log store. A later check whose chain does not pass through a
    recorded head shows the history was rewritten.
+
+### Retention and export
+
+`AUDIT_RETENTION_DAYS` (see [configuration](./configuration.md#audit-retention)) expires
+events by archiving them to `AUDIT_ARCHIVE_DIR` and only then deleting them. Retention only
+ever removes a contiguous run from the start of the chain, and never the newest event, so
+what remains still verifies. Its first `prev_hash` is the last hash in the newest archive
+file.
+
+`GET /admin/auth-events/export?from=&to=` (admin, read, fresh step-up) streams every event
+in a period as one download, in the same format as the archive files:
+
+- One JSON object per line, in `seq` order. Each carries every column, plus `prevHash`,
+  `hash`, and `payload`, the exact text the database hashed.
+- A final `manifest` line with `format`, `count`, `firstSeq`, `lastSeq`, `anchorHash` and
+  `lastHash`. A file without it is incomplete.
+- The period becomes a contiguous `seq` range, so the export verifies on its own. It may
+  therefore include a few events stamped just outside the period by replicas whose clocks
+  differ.
+- The export itself is recorded as an `informational` event with
+  `metadata.action = 'auth_events_exported'`.
+
+To verify a file without the database, check each line:
+`sha256(prevHash + payload) == hash`, and `prevHash` equals the previous line's `hash`, or
+the manifest's `anchorHash` for the first line. For example:
+
+```js
+const lines = readFileSync(file, 'utf8').trim().split('\n').map(JSON.parse);
+const manifest = lines.pop();
+let prev = manifest.anchorHash;
+for (const e of lines) {
+  const hash = createHash('sha256')
+    .update((e.prevHash ?? '') + e.payload, 'utf8')
+    .digest('hex');
+  if (hash !== e.hash || e.prevHash !== prev) throw new Error(`broken at seq ${e.seq}`);
+  prev = e.hash;
+}
+```
+
+### Records retention schedules
+
+The retention period is a records decision, not a product default. Authentication audit
+events are records for a public body, so `AUDIT_RETENTION_DAYS` should come from the
+schedule that applies to the jurisdiction, and the archive directory is where the
+"retain, then dispose" part of that schedule happens. Nothing here maps a specific state
+schedule yet. That mapping belongs here once a jurisdiction's schedule has been read.
 
 ## Refusals at the auth gate
 

@@ -10,6 +10,7 @@ import { createApp } from './app.js';
 import { bootstrapSystemConfig } from './config/bootstrapSystemConfig.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
+import { startAuditMaintenance } from './services/auditRetention.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import getLogger from './utils/logger.js';
 
@@ -35,6 +36,8 @@ async function startServer() {
     app.listen(PORT as number, HOST, () => {
       logger.info(`Server online.`);
     });
+
+    startAuditMaintenance();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

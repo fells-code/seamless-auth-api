@@ -91,6 +91,19 @@ there means a coordinated release across both SDKs for what is an operational tu
 rather than a policy changed at runtime. See
 [security-posture.md](./security-posture.md) for what it is defending.
 
+### Audit retention
+
+Audit events are kept forever unless retention is set. Retention archives before it deletes,
+so it does nothing at all without an archive directory. The job runs a minute after boot and
+then daily, and each run also logs the audit chain head as an external anchor. See
+[Audit trail integrity](./security-posture.md#audit-trail-integrity).
+
+| Variable                       | Required       | Default        | Notes                                                                                                                                                                                                                                                      |
+| ------------------------------ | -------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUDIT_RETENTION_DAYS`         | No             | -              | Whole days to keep audit events. Unset, or anything that is not a positive whole number, keeps everything. Set it from the records retention schedule that applies to the deployment, not from a product default: authentication audit events are records. |
+| `AUDIT_ARCHIVE_DIR`            | With retention | -              | Where expired events are written before they are deleted, as `auth-events-<firstSeq>-<lastSeq>.ndjson` with a `.sha256` file beside each. Use durable storage, such as a mounted volume, since a file here is the only copy once its rows are gone.        |
+| `AUDIT_RETENTION_DATABASE_URL` | No             | `DATABASE_URL` | A connection for the retention job alone, so it can run as a role that holds DELETE on `auth_events` while the application role does not.                                                                                                                  |
+
 ### Service tokens and secrets
 
 | Variable                      | Required | Default                           | Notes                                                                                                                                                                                                           |

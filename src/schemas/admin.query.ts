@@ -17,3 +17,14 @@ export { UserIdParamSchema } from '@seamless-auth/types';
 export const AdminUserListQuerySchema = PaginationQuerySchema.extend({
   search: z.string().trim().min(1).max(120).optional(),
 });
+
+// Bounds on created_at, half-open: `from` inclusive, `to` exclusive. Both optional, so
+// an export with neither is the whole trail.
+export const AuthEventExportQuerySchema = z
+  .object({
+    from: z.iso.datetime({ offset: true }).optional(),
+    to: z.iso.datetime({ offset: true }).optional(),
+  })
+  .refine((query) => !query.from || !query.to || query.from < query.to, {
+    message: '`from` must be before `to`',
+  });

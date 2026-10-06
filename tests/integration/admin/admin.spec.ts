@@ -8,6 +8,7 @@ import { Credential } from '../../../src/models/credentials.js';
 import { User } from '../../../src/models/users.js';
 import { buildUser, testGuid } from '../../factories/userFactory';
 import { AuthEvent } from '../../../src/models/authEvents.js';
+import { streamAuthEventExport } from '../../../src/services/auditExport.js';
 import { verifyAuthEventChain } from '../../../src/services/auditIntegrity.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { Session } from '../../../src/models/sessions.js';
@@ -379,6 +380,85 @@ describe('admin actions are attributed', () => {
 vi.mock('../../../src/services/auditIntegrity.js', () => ({
   verifyAuthEventChain: vi.fn(),
 }));
+
+vi.mock('../../../src/services/auditExport.js', () => ({
+  streamAuthEventExport: vi.fn(),
+}));
+
+describe('GET /admin/auth-events/export', () => {
+  beforeEach(() => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
+    );
+  });
+
+  it('streams the period as newline-delimited JSON ending with the manifest', async () => {
+    (streamAuthEventExport as any).mockImplementation(async ({ write }: any) => {
+      await write('{"seq":1}\n');
+      await write('{"type":"manifest","count":1}\n');
+    });
+
+    const res = await request(app)
+      .get('/admin/auth-events/export')
+      .query({ from: '2026-01-01T00:00:00Z', to: '2026-02-01T00:00:00Z' });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/x-ndjson');
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="auth-events-/);
+    expect(res.text).toBe('{"seq":1}\n{"type":"manifest","count":1}\n');
+    expect(streamAuthEventExport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: new Date('2026-01-01T00:00:00Z'),
+        to: new Date('2026-02-01T00:00:00Z'),
+      }),
+    );
+  });
+
+  it('records the export in the audit trail', async () => {
+    (streamAuthEventExport as any).mockResolvedValue(undefined);
+
+    await request(app).get('/admin/auth-events/export');
+
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'informational',
+        metadata: { action: 'auth_events_exported', from: null, to: null },
+      }),
+    );
+  });
+
+  it('ends without a manifest when the export fails partway', async () => {
+    (streamAuthEventExport as any).mockImplementation(async ({ write }: any) => {
+      await write('{"seq":1}\n');
+      throw new Error('connection lost');
+    });
+
+    const res = await request(app).get('/admin/auth-events/export');
+
+    expect(res.text).toBe('{"seq":1}\n');
+  });
+
+  it('rejects a period that ends before it starts', async () => {
+    const res = await request(app)
+      .get('/admin/auth-events/export')
+      .query({ from: '2026-02-01T00:00:00Z', to: '2026-01-01T00:00:00Z' });
+
+    expect(res.status).toBe(400);
+    expect(streamAuthEventExport).not.toHaveBeenCalled();
+  });
+
+  it('requires a fresh step-up verification', async () => {
+    (Session.findOne as any).mockResolvedValue(
+      buildSession({ stepUpVerifiedAt: null, stepUpMethod: null }),
+    );
+
+    const res = await request(app).get('/admin/auth-events/export');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('step_up_required');
+    expect(streamAuthEventExport).not.toHaveBeenCalled();
+  });
+});
 
 describe('GET /admin/auth-events/integrity', () => {
   it('returns the chain verification report', async () => {

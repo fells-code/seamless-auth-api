@@ -7,6 +7,7 @@
 import {
   createUser,
   deleteUser,
+  exportAuthEvents,
   getAuthEventIntegrity,
   getAuthEvents,
   getCredentialsCount,
@@ -38,7 +39,11 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
-import { AdminUserListQuerySchema, UserIdParamSchema } from '../schemas/admin.query.js';
+import {
+  AdminUserListQuerySchema,
+  AuthEventExportQuerySchema,
+  UserIdParamSchema,
+} from '../schemas/admin.query.js';
 import {
   CreateUserSchema,
   DeviceReplacementRecoverySchema,
@@ -60,7 +65,7 @@ import {
   EnrollmentInviteRequestSchema,
   EnrollmentInviteResponseSchema,
 } from '../schemas/enrollment.js';
-import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
+import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { AuthEventQuerySchema, PaginationQuerySchema } from '../schemas/internal.query.js';
 import {
   AuthEventsResponseSchema,
@@ -373,6 +378,26 @@ adminRouter.get(
     },
   },
   getAuthEvents,
+);
+
+adminRouter.get(
+  '/auth-events/export',
+  {
+    auth: 'access',
+    summary: 'Export every audit event in a period as newline-delimited JSON',
+    description:
+      'Streams `application/x-ndjson`: one event per line in chain order, each with the exact payload its hash covers, then a manifest line with the count, the first and last `seq`, the anchor hash and the last hash. A file that does not end with the manifest is incomplete.',
+    middleware: [requireAdmin('read'), requireStepUp()],
+    tags: ['Admin'],
+    schemas: {
+      query: AuthEventExportQuerySchema,
+      response: {
+        400: ErrorSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  exportAuthEvents,
 );
 
 adminRouter.get(
