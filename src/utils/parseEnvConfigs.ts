@@ -33,10 +33,14 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     case 'delay_after':
       return Number(raw);
 
-    // An empty value, or one of the words an operator is likely to reach for,
-    // means no limit. Without this the only way to express "uncapped" through the
-    // environment would be to unset the variable, which a deployment template
-    // cannot easily do.
+    // One of the words an operator is likely to reach for means no limit. Without
+    // this the only way to express "uncapped" through the environment would be to
+    // unset the variable, which a deployment template cannot easily do.
+    //
+    // A truly empty value never gets here: bootstrapSystemConfig skips empty env
+    // values, so they count as unset (an existing cap is kept, otherwise the
+    // default applies). The empty check below only catches a whitespace-only
+    // value, which is empty once trimmed.
     case 'max_concurrent_sessions': {
       const value = raw.trim().toLowerCase();
 
