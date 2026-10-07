@@ -75,6 +75,13 @@ describe('redaction utilities', () => {
     expect(redactMetadata(undefined)).toBeUndefined();
   });
 
+  // Review account usage is read back from this flag, so redaction must keep it.
+  it('keeps the review account flag on an email code event', () => {
+    const metadata = { channel: 'email', reviewAccount: true };
+
+    expect(redactMetadata(metadata)).toEqual(metadata);
+  });
+
   // #158 requires the recovery proofing record to be readable in the audit trail.
   // Redaction strips identifiers from metadata, so the field names and the shape of
   // an evidence reference have to survive it or the record is worthless.

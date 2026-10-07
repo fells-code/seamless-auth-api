@@ -2779,6 +2779,132 @@
         }
       }
     },
+    "/admin/review-accounts": {
+      "get": {
+        "summary": "Review account status and recent use",
+        "description": "Whether app store review accounts are on (`REVIEW_ACCOUNT_EMAILS` and a valid six-letter `REVIEW_ACCOUNT_CODE` are both set), the configured addresses, and how often the fixed code was used in the last `days` days (default 30). The code itself is never returned. Usage is read from email code events flagged with `metadata.reviewAccount`.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 366, "default": 30 },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "enabled": true,
+                  "emails": [null],
+                  "codeConfigured": true,
+                  "recentSignIns": {
+                    "days": 0,
+                    "count": 0,
+                    "failedVerifications": 0,
+                    "lastSignInAt": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "emails": { "type": "array", "items": { "type": "string" } },
+                    "codeConfigured": { "type": "boolean" },
+                    "recentSignIns": {
+                      "type": "object",
+                      "properties": {
+                        "days": { "type": "integer" },
+                        "count": { "type": "integer" },
+                        "failedVerifications": { "type": "integer" },
+                        "lastSignInAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["days", "count", "failedVerifications", "lastSignInAt"]
+                    }
+                  },
+                  "required": ["enabled", "emails", "codeConfigured", "recentSignIns"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/users": {
       "get": {
         "summary": "List users (internal)",

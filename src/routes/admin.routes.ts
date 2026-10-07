@@ -37,6 +37,7 @@ import {
   updateMember,
   updateOrganization,
 } from '../controllers/organizations.js';
+import { getReviewAccountStatus } from '../controllers/reviewAccounts.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
@@ -93,6 +94,10 @@ import {
   OrganizationMembershipEnvelopeResponseSchema,
   OrganizationMembersResponseSchema,
 } from '../schemas/organization.responses.js';
+import {
+  ReviewAccountsQuerySchema,
+  ReviewAccountsResponseSchema,
+} from '../schemas/reviewAccounts.js';
 import { SessionIdParamsSchema } from '../schemas/session.params.js';
 import { SessionListResponseSchema } from '../schemas/session.responses.js';
 
@@ -366,6 +371,26 @@ adminRouter.get(
     },
   },
   getCoverageReport,
+);
+
+adminRouter.get(
+  '/review-accounts',
+  {
+    auth: 'access',
+    summary: 'Review account status and recent use',
+    description:
+      'Whether app store review accounts are on (`REVIEW_ACCOUNT_EMAILS` and a valid six-letter `REVIEW_ACCOUNT_CODE` are both set), the configured addresses, and how often the fixed code was used in the last `days` days (default 30). The code itself is never returned. Usage is read from email code events flagged with `metadata.reviewAccount`.',
+    tags: ['Admin'],
+    middleware: [requireAdmin('read')],
+    schemas: {
+      query: ReviewAccountsQuerySchema,
+      response: {
+        200: ReviewAccountsResponseSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  getReviewAccountStatus,
 );
 
 adminRouter.get(

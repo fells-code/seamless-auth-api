@@ -2467,6 +2467,139 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/review-accounts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Review account status and recent use
+     * @description Whether app store review accounts are on (`REVIEW_ACCOUNT_EMAILS` and a valid six-letter `REVIEW_ACCOUNT_CODE` are both set), the configured addresses, and how often the fixed code was used in the last `days` days (default 30). The code itself is never returned. Usage is read from email code events flagged with `metadata.reviewAccount`.
+     */
+    get: {
+      parameters: {
+        query?: {
+          days?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "enabled": true,
+             *       "emails": [
+             *         null
+             *       ],
+             *       "codeConfigured": true,
+             *       "recentSignIns": {
+             *         "days": 0,
+             *         "count": 0,
+             *         "failedVerifications": 0,
+             *         "lastSignInAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              enabled: boolean;
+              emails: string[];
+              codeConfigured: boolean;
+              recentSignIns: {
+                days: number;
+                count: number;
+                failedVerifications: number;
+                /** Format: date-time */
+                lastSignInAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/users': {
     parameters: {
       query?: never;

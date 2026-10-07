@@ -307,6 +307,13 @@ The code does not rotate, so use an inbox you own, keep nothing of value in the 
 it before review (an unknown address gets the ordinary decoy answer), and clear both variables once
 review is over.
 
+Every email code event for a review address that is issued the fixed code (`otp_success` and
+`otp_failed` for the send, `verify_otp_success` and `verify_otp_failed` for the check) carries
+`metadata.reviewAccount: true`, so its use is visible in the audit trail. The code itself is never
+recorded. `GET /admin/review-accounts` reports whether review accounts are on, which addresses are
+listed, and how often the fixed code was used recently; see
+[Review Accounts](./admin-operations.md#review-accounts).
+
 ### Production signing and JWKS
 
 Required when `NODE_ENV=production`. In development, signing keys are generated locally.

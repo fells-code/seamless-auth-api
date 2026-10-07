@@ -371,6 +371,43 @@ describe('POST /registration/register', () => {
         expect.objectContaining({ type: 'otp_success' }),
       );
     });
+
+    it('flags the code sent to a review address', async () => {
+      vi.stubEnv('REVIEW_ACCOUNT_EMAILS', 'test@example.com');
+      vi.stubEnv('REVIEW_ACCOUNT_CODE', 'REVUEW');
+      (User.findOne as any).mockResolvedValue(null);
+      (User.create as any).mockResolvedValue(buildUser({ phone: null }));
+
+      await request(app).post('/registration/register').send(buildRegistrationRequest());
+
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'otp_success',
+          metadata: { channel: 'email', reviewAccount: true },
+        }),
+      );
+    });
+
+    it('flags a refused send to a review address', async () => {
+      const { DeliveryError } = await import('../../../src/services/deliveryError.js');
+
+      vi.stubEnv('REVIEW_ACCOUNT_EMAILS', 'test@example.com');
+      vi.stubEnv('REVIEW_ACCOUNT_CODE', 'REVUEW');
+      (User.findOne as any).mockResolvedValue(null);
+      (User.create as any).mockResolvedValue(buildUser({ phone: null }));
+      (generateEmailOTP as any).mockRejectedValueOnce(
+        new DeliveryError('Failed to send verification email', new Error('provider down')),
+      );
+
+      await request(app).post('/registration/register').send(buildRegistrationRequest());
+
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'otp_failed',
+          metadata: { reason: 'Delivery failed', channel: 'email', reviewAccount: true },
+        }),
+      );
+    });
   });
 });
 
