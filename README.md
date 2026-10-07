@@ -377,7 +377,10 @@ docker run --rm \
 
 On start the container validates required environment variables, generates or loads signing keys,
 **runs any pending migrations**, and then starts the server on port `5312`. Migrations are applied
-on every boot, so upgrades that include them need no separate step.
+on every boot, so upgrades that include them need no separate step. A deployment that would rather
+migrate once per deploy can run the image with the `migrate` argument as a one-off task and set
+`RUN_MIGRATIONS=false` on the service; the server refuses to start while any migration is pending
+either way. See [docs/configuration.md](./docs/configuration.md#migrations).
 
 Verify it is running:
 
