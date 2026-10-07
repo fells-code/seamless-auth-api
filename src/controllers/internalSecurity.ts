@@ -11,6 +11,7 @@ import { AuthEvent } from '../models/authEvents.js';
 import { FAILURE_EVENT_TYPES } from '../schemas/authEvent.types.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import getLogger from '../utils/logger.js';
+import { resolveMetricsWindow } from './internalDashboard.js';
 
 const logger = getLogger('internalSecurity');
 
@@ -23,9 +24,12 @@ const logger = getLogger('internalSecurity');
  */
 const ANOMALY_LIMIT = 200;
 
-export const getSecurityAnomalies = async (_req: Request, res: Response) => {
-  const now = new Date();
-  const windowStart = new Date(now.getTime() - 60 * 60 * 1000 * 24);
+export const getSecurityAnomalies = async (req: Request, res: Response) => {
+  const { limit = ANOMALY_LIMIT, offset = 0 } = req.query as unknown as {
+    limit?: number;
+    offset?: number;
+  };
+  const { start, end } = resolveMetricsWindow(req.query as { from?: string; to?: string });
 
   try {
     // Derived from AUTH_EVENT_TYPES. The hand-maintained list searched for five names
@@ -34,11 +38,9 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
     // verify_otp_failed, totp_failed, magic_link_failed, and logout_failed.
     const FAILURE_TYPES = FAILURE_EVENT_TYPES;
 
-    const events = await AuthEvent.findAll({
+    const { rows, count } = await AuthEvent.findAndCountAll({
       where: {
-        created_at: {
-          [Op.gte]: windowStart,
-        },
+        created_at: { [Op.gte]: start, [Op.lt]: end },
         [Op.or]: [
           {
             type: {
@@ -54,12 +56,17 @@ export const getSecurityAnomalies = async (_req: Request, res: Response) => {
       },
       attributes: ['user_id', 'type', 'ip_address', 'user_agent', 'metadata', 'created_at'],
       order: [['created_at', 'DESC']],
-      limit: ANOMALY_LIMIT,
+      limit,
+      offset,
     });
 
     return res.json({
-      suspiciousEvents: serializeAuthEvents(events),
-      total: events.length,
+      suspiciousEvents: serializeAuthEvents(rows),
+      // Every match in the window, not the page size, so a caller can tell there is more.
+      total: count,
+      window: { from: start.toISOString(), to: end.toISOString() },
+      limit,
+      offset,
     });
   } catch {
     logger.error(`Failed to get security events`);

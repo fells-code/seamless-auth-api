@@ -5974,10 +5974,18 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Detect suspicious activity */
+    /**
+     * Detect suspicious activity
+     * @description Failed and suspicious auth events in [from, to), newest first. Defaults to the last 24 hours. `total` counts every match in the window, not just this page.
+     */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          from?: string;
+          to?: string;
+          limit?: number;
+          offset?: number | null;
+        };
         header?: never;
         path?: never;
         cookie?: never;
@@ -5995,7 +6003,13 @@ export interface paths {
              *       "suspiciousEvents": [
              *         null
              *       ],
-             *       "total": 0
+             *       "total": 0,
+             *       "window": {
+             *         "from": "string",
+             *         "to": "string"
+             *       },
+             *       "limit": 0,
+             *       "offset": 0
              *     }
              */
             'application/json': {
@@ -6021,6 +6035,42 @@ export interface paths {
                 updated_at?: string | null;
               }[];
               total: number;
+              window?: {
+                from: string;
+                to: string;
+              };
+              limit?: number;
+              offset?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };
@@ -6077,10 +6127,16 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Dashboard metrics */
+    /**
+     * Dashboard metrics
+     * @description Headline figures. The `*24h` fields always cover the last 24 hours. `newUsers`, `loginSuccess`, `loginFailed`, `successRate`, `otpUsage` and `passkeyUsage` cover [from, to), which defaults to the last 24 hours, and `window` says which period that was.
+     */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          from?: string;
+          to?: string;
+        };
         header?: never;
         path?: never;
         cookie?: never;
@@ -6103,7 +6159,17 @@ export interface paths {
              *       "successRate24h": 0,
              *       "otpUsage24h": 0,
              *       "passkeyUsage24h": 0,
-             *       "databaseSize": 0
+             *       "databaseSize": 0,
+             *       "window": {
+             *         "from": "string",
+             *         "to": "string"
+             *       },
+             *       "newUsers": 0,
+             *       "loginSuccess": 0,
+             *       "loginFailed": 0,
+             *       "successRate": 0,
+             *       "otpUsage": 0,
+             *       "passkeyUsage": 0
              *     }
              */
             'application/json': {
@@ -6116,6 +6182,46 @@ export interface paths {
               otpUsage24h: number;
               passkeyUsage24h: number;
               databaseSize: number;
+              window?: {
+                from: string;
+                to: string;
+              };
+              newUsers?: number;
+              loginSuccess?: number;
+              loginFailed?: number;
+              successRate?: number;
+              otpUsage?: number;
+              passkeyUsage?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
             };
           };
         };

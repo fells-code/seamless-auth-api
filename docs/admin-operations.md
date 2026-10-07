@@ -149,6 +149,19 @@ endpoint, or the audit export, to find the individual events.
 The `/internal/auth-events/*` endpoints all accept the same query parameters: `from`, `to`,
 `userId`, and `interval` (`hour` or `day`, timeseries only).
 
+`/internal/metrics/dashboard` and `/internal/security/anomalies` take `from` and `to` as well,
+with the same validation, and default to the last 24 hours. Both answer with the `window` they
+covered.
+
+- **Dashboard metrics.** The `*24h` fields (`loginSuccess24h`, `successRate24h`, and so on)
+  always cover the last 24 hours, whatever window is asked for, so a caller never gets a
+  different period under the same name. The window-neutral fields beside them (`newUsers`,
+  `loginSuccess`, `loginFailed`, `successRate`, `otpUsage`, `passkeyUsage`) cover the
+  requested window. `totalUsers`, `activeSessions` and `databaseSize` are current totals.
+- **Security anomalies.** Failed and suspicious events in the window, newest first, paged with
+  `limit` (at most 200, the default) and `offset`. `total` counts every match in the window,
+  not just the page.
+
 ### Date windows
 
 `from` and `to` are parsed as dates and rejected with `400` when unparseable or inverted. The
