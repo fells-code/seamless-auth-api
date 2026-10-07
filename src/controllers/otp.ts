@@ -274,7 +274,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User verified their phone number' },
+        metadata: { reason: 'User verified their phone number', channel: 'sms' },
       });
 
       if (user.phoneVerified && user.emailVerified && user.verified) {
@@ -283,7 +283,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
           userId: user.id,
           type: 'verify_otp_success',
           req,
-          metadata: { reason: 'User completed verification of phone and email' },
+          metadata: { reason: 'User completed verification of phone and email', channel: 'sms' },
         });
 
         return res.status(200).json({ message: 'Success' });
@@ -378,7 +378,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_success',
       req,
-      metadata: { reason: 'User verified their email' },
+      metadata: { reason: 'User verified their email', channel: 'email' },
     });
 
     if (user.emailVerified && user.verified) {
@@ -388,7 +388,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User completed email verification' },
+        metadata: { reason: 'User completed email verification', channel: 'email' },
       });
 
       await issueSessionAndRespond({
@@ -475,6 +475,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'verify_otp_success',
         req,
+        metadata: { channel: 'sms' },
       });
 
       if (user.phoneVerified && user.emailVerified && user.verified) {
@@ -484,7 +485,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           userId: user.id,
           type: 'verify_otp_success',
           req,
-          metadata: { reason: 'User completed verification of phone and email' },
+          metadata: { reason: 'User completed verification of phone and email', channel: 'sms' },
         });
 
         await issueSessionAndRespond({
@@ -583,6 +584,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_success',
       req,
+      metadata: { channel: 'email' },
     });
 
     if (user.emailVerified && user.verified) {
@@ -592,7 +594,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User completed email verification' },
+        metadata: { reason: 'User completed email verification', channel: 'email' },
       });
 
       await issueSessionAndRespond({

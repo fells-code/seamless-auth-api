@@ -314,6 +314,9 @@ describe('otp controller', () => {
     expect(verifiedUser.update).toHaveBeenCalledWith({
       lastLogin: expect.any(Date),
     });
+    expect(authEventLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'verify_otp_success', metadata: { channel: 'sms' } }),
+    );
   });
 
   it('rejects disabled login phone OTP verification', async () => {
@@ -508,7 +511,11 @@ describe('otp controller', () => {
     });
     expect(verifiedUser.update).toHaveBeenCalledWith({ lastLogin: expect.any(Date) });
     expect(authEventLogMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: verifiedUser.id, type: 'verify_otp_success' }),
+      expect.objectContaining({
+        userId: verifiedUser.id,
+        type: 'verify_otp_success',
+        metadata: expect.objectContaining({ channel: 'email' }),
+      }),
     );
   });
 

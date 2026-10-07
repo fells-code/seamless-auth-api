@@ -231,3 +231,129 @@ dimension, so the same rows answer every question.
 nothing sent). Read `started - presented` as "gave up before proving anything", `delivered -
 presented` as "was sent a code or link and never came back", and `presented - completed` as
 "tried a factor and it did not work".
+
+## Authentication Coverage Report
+
+`GET /admin/reports/authentication-coverage` answers the question an assessment, an audit
+response or a cyber insurance questionnaire asks: how many staff are on phishing-resistant
+authentication, is that number going up, and what does the deployment enforce. It takes an
+`admin`, `admin:read` or `admin:write` role.
+
+| Query            | Meaning                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `from`, `to`     | UTC dates (`YYYY-MM-DD`), both included. Default: the 90 days ending today. At most 1827 days. |
+| `organizationId` | Scope every figure to the current members of one organization. `404` if it does not exist.     |
+| `bucket`         | `month` (default) or `week`, the granularity of `trend`.                                       |
+| `format`         | `json` (default) or `csv`.                                                                     |
+
+```json
+{
+  "period": { "from": "2026-07-09", "to": "2026-10-06" },
+  "generatedAt": "2026-10-06T14:02:11.000Z",
+  "organizationId": null,
+  "bucket": "month",
+  "policy": {
+    "phishingResistantOnly": false,
+    "loginMethods": ["passkey", "email_otp"],
+    "passkeyFallbackEnabled": false,
+    "authenticator": {
+      "attestation": "none",
+      "userVerification": "required",
+      "attachment": "any",
+      "syncedPasskeys": "allow",
+      "requireKnownAuthenticator": false,
+      "aaguidAllowList": [],
+      "aaguidDenyList": []
+    }
+  },
+  "coverage": { "users": 240, "passkeyUsers": 198, "percent": 82.5 },
+  "byOrganization": [
+    {
+      "organizationId": "8d0c...",
+      "name": "Public Works",
+      "users": 61,
+      "passkeyUsers": 58,
+      "percent": 95.1
+    },
+    { "organizationId": null, "name": null, "users": 12, "passkeyUsers": 4, "percent": 33.3 }
+  ],
+  "trend": [
+    {
+      "start": "2026-07-09",
+      "end": "2026-07-31",
+      "users": 231,
+      "passkeyUsers": 140,
+      "percent": 60.6
+    }
+  ],
+  "authenticatorMix": [
+    {
+      "aaguid": "fbfc3007-154e-4ecc-8c0b-6e020557d7bd",
+      "name": "iCloud Keychain",
+      "credentials": 120,
+      "users": 117,
+      "backupEligible": 120,
+      "backedUp": 118
+    },
+    {
+      "aaguid": null,
+      "name": null,
+      "credentials": 9,
+      "users": 9,
+      "backupEligible": 0,
+      "backedUp": 0
+    }
+  ],
+  "signInMix": {
+    "total": 4120,
+    "phishingResistant": 3610,
+    "percent": 87.6,
+    "methods": [{ "method": "passkey", "phishingResistant": true, "signIns": 3610, "users": 196 }]
+  }
+}
+```
+
+### What each figure means
+
+| Block              | What is measured                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `policy`           | What is enforced at `generatedAt`: the login methods `getLoginPolicy()` resolves (passkey only, with fallback off, when `phishing_resistant_only` is on), whether a passkey holder may fall back to another method, and the `authenticator_policy` registration rules. It is the policy now, not the policy across the period.                                                                                                                                                |
+| `coverage`         | As of the end of `to`: active users (not revoked) created by then, and how many of them hold at least one WebAuthn credential created by then. A WebAuthn credential is the phishing-resistant credential this server issues; TOTP, codes and magic links are not. `percent` is `passkeyUsers / users`, to one decimal place, and `0` when there are no users.                                                                                                                |
+| `byOrganization`   | The same figures per organization, by current membership, sorted by name, then a row with `organizationId: null` for active users in no organization. A user in two organizations is counted in both, so the rows can sum to more than `coverage.users`. With `organizationId` set there is one row and no null row.                                                                                                                                                          |
+| `trend`            | One row per calendar month or week (weeks start on Monday, UTC), the first and last clipped to the period. Each row is the coverage as of the end of its bucket, so the last row equals `coverage`.                                                                                                                                                                                                                                                                           |
+| `authenticatorMix` | Credentials held by active users at the end of the period, grouped by AAGUID. `aaguid: null` gathers credentials that reported no AAGUID or the all-zero one. `name` comes from a short table of well-known passkey providers, then from the FIDO Metadata Service when it is loaded (only under `attestation: 'direct'`), and is otherwise `null`. `backupEligible` counts credentials whose key can leave the device (synced passkeys); `backedUp` those already backed up. |
+| `signInMix`        | Completed sign-ins inside the period, by method. This is the actual side of coverage: a deployment can be at 100% enrollment and still see most sign-ins by email code if fallback is on. Sign-ins are folded by attempt, as on `/internal/metrics/sign-ins`, so an OTP sign-in that writes `verify_otp_success` twice counts once; `users` is distinct users per method. Only `passkey` is phishing resistant.                                                               |
+
+`signInMix.methods` always lists every method, in a fixed order, with zeros where there were
+none: `passkey`, `email_otp`, `phone_otp`, `otp`, `magic_link`, `totp`, `oauth`. Code sign-ins
+record their channel from this release on; `otp` holds code sign-ins written before that, whose
+channel is unknown. A code that completes a registration counts as a sign-in, as it does on the
+sign-in metrics.
+
+### Limits
+
+- The trend counts the credentials that exist now, by their creation date. A credential that was
+  deleted is gone from `credentials` and cannot be recovered, so a user who enrolled and later
+  removed every passkey does not count as covered in any past bucket. The trend can understate
+  past coverage; it never overstates it.
+- Revocation has no timestamp, so a revoked user is left out of every bucket, including those
+  before the revocation. A deleted user is likewise absent from the whole report.
+- Organization figures use current membership. Someone who left an organization is not in its
+  past buckets, and someone who joined is in all of them.
+- `policy` is the configuration when the report was generated. For the history of policy
+  changes, read the `system_config_updated` auth events for the period.
+- A WebAuthn credential is counted as phishing resistant whatever its attestation. A deployment
+  that needs to show only certified authenticators should run `attestation: 'direct'` with
+  `requireKnownAuthenticator` or an allow list, which the `policy` block states.
+
+### CSV
+
+`format=csv` returns the same report as `text/csv` with
+`Content-Disposition: attachment; filename="authentication-coverage-<from>-to-<to>.csv"`, for
+pasting into an assessment or insurance response. It has a header block (period, organization,
+generation time), then five sections each introduced by a title line, its own header row and a
+blank line before it: enforced policy (setting, value), coverage by organization (with an
+`All users` row first and `No organization` last), coverage trend, authenticator mix and
+sign-in mix. Lines end in CRLF. Rows are in the same deterministic order as the JSON. A cell
+that starts with `=`, `+`, `-` or `@` is prefixed with `'` so a spreadsheet does not evaluate an
+organization name as a formula.
