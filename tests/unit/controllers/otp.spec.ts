@@ -1108,4 +1108,128 @@ describe('otp controller', () => {
       );
     });
   });
+
+  describe('review accounts', () => {
+    const flagged = (metadata: Record<string, unknown>) =>
+      expect.objectContaining({ metadata: { ...metadata, reviewAccount: true } });
+
+    beforeEach(() => {
+      vi.stubEnv('REVIEW_ACCOUNT_EMAILS', 'test@example.com');
+      vi.stubEnv('REVIEW_ACCOUNT_CODE', 'REVUEW');
+    });
+
+    it('flags the code sent to a review address', async () => {
+      const { sendEmailOTP } = await loadOtpController();
+
+      await sendEmailOTP(buildReq(buildUser()), buildRes());
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'otp_success',
+          metadata: { channel: 'email', reviewAccount: true },
+        }),
+      );
+    });
+
+    it('flags a refused send to a review address', async () => {
+      const { sendEmailOTP } = await loadOtpController();
+      const { DeliveryError } = await import('../../../src/services/deliveryError.js');
+
+      generateEmailOTPMock.mockRejectedValueOnce(
+        new DeliveryError('Failed to send verification email', new Error('provider down')),
+      );
+
+      await sendEmailOTP(buildReq(buildUser()), buildRes());
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        flagged({ reason: 'Delivery failed', channel: 'email' }),
+      );
+    });
+
+    it('flags both success events of a review address login', async () => {
+      const { verifyLoginEmail } = await loadOtpController();
+      verifyEmailOTPMock.mockResolvedValue({ user: buildUser(), verified: true });
+
+      await verifyLoginEmail(
+        buildReq(buildUser(), { body: { verificationToken: 'REVUEW' } }),
+        buildRes(),
+      );
+
+      expect(authEventLogMock).toHaveBeenCalledWith(flagged({ channel: 'email' }));
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        flagged({ reason: 'User completed email verification', channel: 'email' }),
+      );
+    });
+
+    it('flags a failed login code for a review address', async () => {
+      const { verifyLoginEmail } = await loadOtpController();
+      verifyEmailOTPMock.mockResolvedValue({ user: buildUser(), verified: false });
+
+      await verifyLoginEmail(
+        buildReq(buildUser(), { body: { verificationToken: 'WRONGG' } }),
+        buildRes(),
+      );
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'verify_otp_failed',
+          metadata: { reason: 'User verification failed for email', reviewAccount: true },
+        }),
+      );
+    });
+
+    it('flags verification of a review address, success and failure', async () => {
+      const { verifyEmail } = await loadOtpController();
+      verifyEmailOTPMock.mockResolvedValueOnce({ user: buildUser(), verified: true });
+
+      await verifyEmail(
+        buildReq(buildUser({ verified: false }), { body: { verificationToken: 'REVUEW' } }),
+        buildRes(),
+      );
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        flagged({ reason: 'User verified their email', channel: 'email' }),
+      );
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        flagged({ reason: 'User completed email verification', channel: 'email' }),
+      );
+
+      verifyEmailOTPMock.mockResolvedValueOnce({ user: buildUser(), verified: false });
+
+      await verifyEmail(
+        buildReq(buildUser({ verified: false }), { body: { verificationToken: 'WRONGG' } }),
+        buildRes(),
+      );
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        flagged({ reason: 'User verification failed for email' }),
+      );
+    });
+
+    it('does not flag any other address', async () => {
+      const { sendEmailOTP, verifyLoginEmail } = await loadOtpController();
+      const other = buildUser({ email: 'someone@example.com' });
+      verifyEmailOTPMock.mockResolvedValue({ user: other, verified: true });
+
+      await sendEmailOTP(buildReq(other), buildRes());
+      await verifyLoginEmail(
+        buildReq(other, { body: { verificationToken: 'ABCDEF' } }),
+        buildRes(),
+      );
+
+      for (const [options] of authEventLogMock.mock.calls) {
+        expect(options.metadata).not.toHaveProperty('reviewAccount');
+      }
+    });
+
+    it('does not flag a phone code for a review account', async () => {
+      const { sendPhoneOTP } = await loadOtpController();
+
+      await sendPhoneOTP(buildReq(buildUser()), buildRes());
+
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'otp_success', metadata: { channel: 'sms' } }),
+      );
+    });
+  });
 });

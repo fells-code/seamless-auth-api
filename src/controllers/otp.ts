@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
+import { reviewAccountMetadata } from '../lib/reviewAccounts.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { DeliveryError } from '../services/deliveryError.js';
@@ -177,7 +178,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'otp_success',
       req,
-      metadata: { channel: 'email' },
+      metadata: { channel: 'email', ...reviewAccountMetadata(email) },
     });
 
     const token = await signEphemeralToken(user.id, authReq.attemptId);
@@ -201,7 +202,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'otp_failed',
         req,
-        metadata: { reason: 'Delivery failed', channel: 'email' },
+        metadata: { reason: 'Delivery failed', channel: 'email', ...reviewAccountMetadata(email) },
       });
     }
 
@@ -378,7 +379,11 @@ export const verifyEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_success',
       req,
-      metadata: { reason: 'User verified their email', channel: 'email' },
+      metadata: {
+        reason: 'User verified their email',
+        channel: 'email',
+        ...reviewAccountMetadata(email),
+      },
     });
 
     if (user.emailVerified && user.verified) {
@@ -388,7 +393,11 @@ export const verifyEmail = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User completed email verification', channel: 'email' },
+        metadata: {
+          reason: 'User completed email verification',
+          channel: 'email',
+          ...reviewAccountMetadata(email),
+        },
       });
 
       await issueSessionAndRespond({
@@ -418,7 +427,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_failed',
       req,
-      metadata: { reason: 'User verification failed for email' },
+      metadata: { reason: 'User verification failed for email', ...reviewAccountMetadata(email) },
     });
     return res.status(401).json({ error: 'Not allowed' });
   }
@@ -584,7 +593,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_success',
       req,
-      metadata: { channel: 'email' },
+      metadata: { channel: 'email', ...reviewAccountMetadata(email) },
     });
 
     if (user.emailVerified && user.verified) {
@@ -594,7 +603,11 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         userId: user.id,
         type: 'verify_otp_success',
         req,
-        metadata: { reason: 'User completed email verification', channel: 'email' },
+        metadata: {
+          reason: 'User completed email verification',
+          channel: 'email',
+          ...reviewAccountMetadata(email),
+        },
       });
 
       await issueSessionAndRespond({
@@ -623,7 +636,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'verify_otp_failed',
       req,
-      metadata: { reason: 'User verification failed for email' },
+      metadata: { reason: 'User verification failed for email', ...reviewAccountMetadata(email) },
     });
     return res.status(401).json({ error: 'Not allowed' });
   }

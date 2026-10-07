@@ -108,6 +108,42 @@ Admin actions are recorded as auth events with redacted metadata. Do not store r
 
 Auth events cannot be edited or deleted through the application. Each one is hash-chained to the one before it. `GET /admin/auth-events/integrity` verifies the chain and returns its current head, which is worth recording outside the database as part of an evidence package. See [Audit trail integrity](./security-posture.md#audit-trail-integrity).
 
+## Review Accounts
+
+`GET /admin/review-accounts` shows whether store review accounts
+([configured by environment variable](./configuration.md#store-review-accounts-optional)) are on,
+so a fixed code is not left live after review ends. It takes an `admin`, `admin:read` or
+`admin:write` role.
+
+```json
+{
+  "enabled": true,
+  "emails": ["review@example.com"],
+  "codeConfigured": true,
+  "recentSignIns": {
+    "days": 30,
+    "count": 4,
+    "failedVerifications": 1,
+    "lastSignInAt": "2026-10-01T08:00:00.000Z"
+  }
+}
+```
+
+- `enabled` is true when at least one address is listed and `REVIEW_ACCOUNT_CODE` is six letters,
+  the same rule that decides whether the fixed code is issued.
+- `emails` are the listed addresses, lowercased, each once.
+- `codeConfigured` says whether a usable code is set. The code is never returned.
+- `recentSignIns` covers the last `days` days (query `days`, 1 to 366, default 30). `count` is
+  completed email code sign-ins and verifications by a review address, one per attempt.
+  `failedVerifications` is every wrong code entered for one, which matters because the code does
+  not rotate. Both are read from auth events flagged with `metadata.reviewAccount: true`, so they
+  still report past use after the variables are cleared.
+
+The flag is set on `otp_success`, `otp_failed`, `verify_otp_success` and `verify_otp_failed` for
+an address that is issued the fixed code. A listed address with an unusable code gets a random
+code and is not flagged. `GET /admin/auth-events` does not filter by metadata, so use this
+endpoint, or the audit export, to find the individual events.
+
 ## Metrics
 
 The `/internal/auth-events/*` endpoints all accept the same query parameters: `from`, `to`,

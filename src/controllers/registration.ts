@@ -11,6 +11,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
+import { reviewAccountMetadata } from '../lib/reviewAccounts.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -46,7 +47,11 @@ async function sendRegistrationEmailOtp(
         subjectEmail: user.email,
         type: 'otp_failed',
         req,
-        metadata: { reason: 'Delivery failed', channel: 'email' },
+        metadata: {
+          reason: 'Delivery failed',
+          channel: 'email',
+          ...reviewAccountMetadata(user.email),
+        },
       });
     }
 
@@ -59,7 +64,7 @@ async function sendRegistrationEmailOtp(
     subjectEmail: user.email,
     type: 'otp_success',
     req,
-    metadata: { channel: 'email' },
+    metadata: { channel: 'email', ...reviewAccountMetadata(user.email) },
   });
 
   return otp;

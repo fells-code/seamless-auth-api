@@ -18,6 +18,9 @@
 
 const REVIEW_CODE_PATTERN = /^[A-Z]{6}$/;
 
+/** Audit metadata key marking an event as being about a review address. */
+export const REVIEW_ACCOUNT_METADATA_KEY = 'reviewAccount';
+
 function reviewEmails(): Set<string> {
   return new Set(
     (process.env.REVIEW_ACCOUNT_EMAILS ?? '')
@@ -25,6 +28,11 @@ function reviewEmails(): Set<string> {
       .map((entry) => entry.trim().toLowerCase())
       .filter(Boolean),
   );
+}
+
+function configuredCode(): string | null {
+  const code = (process.env.REVIEW_ACCOUNT_CODE ?? '').trim().toUpperCase();
+  return REVIEW_CODE_PATTERN.test(code) ? code : null;
 }
 
 /**
@@ -35,6 +43,23 @@ export function reviewCodeFor(email: string | null | undefined): string | null {
   if (!email || !reviewEmails().has(email.trim().toLowerCase())) {
     return null;
   }
-  const code = (process.env.REVIEW_ACCOUNT_CODE ?? '').trim().toUpperCase();
-  return REVIEW_CODE_PATTERN.test(code) ? code : null;
+  return configuredCode();
+}
+
+/**
+ * Spread into the metadata of an email OTP event. Only an address that is issued
+ * the fixed code is flagged, so a listed address with an unusable code, which gets
+ * a random code like anyone else, is not.
+ */
+export function reviewAccountMetadata(email: string | null | undefined): {
+  [REVIEW_ACCOUNT_METADATA_KEY]?: true;
+} {
+  return reviewCodeFor(email) ? { [REVIEW_ACCOUNT_METADATA_KEY]: true } : {};
+}
+
+export function reviewAccountSettings() {
+  const emails = [...reviewEmails()];
+  const codeConfigured = configuredCode() !== null;
+
+  return { enabled: emails.length > 0 && codeConfigured, emails, codeConfigured };
 }
