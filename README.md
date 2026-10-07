@@ -124,10 +124,12 @@ plane.
 - Auth server (this repository)
 - Postgres for persistence
 - Your application integrates via:
-  - A SeamlessAuth adapter, which bridges browser cookies to this API's bearer contract:
-    [`@seamless-auth/express`](https://www.npmjs.com/package/@seamless-auth/express) for the server
-    side and [`@seamless-auth/react`](https://www.npmjs.com/package/@seamless-auth/react) for the
-    browser (recommended)
+  - A SeamlessAuth server adapter, which bridges browser cookies to this API's bearer contract:
+    [`@seamless-auth/express`](https://www.npmjs.com/package/@seamless-auth/express),
+    [`@seamless-auth/fastify`](https://www.npmjs.com/package/@seamless-auth/fastify), or
+    [`@seamless-auth/nextjs`](https://www.npmjs.com/package/@seamless-auth/nextjs) (App Router) for
+    the server side, and [`@seamless-auth/react`](https://www.npmjs.com/package/@seamless-auth/react)
+    for the browser (recommended)
   - Direct HTTP APIs (advanced), see
     [docs/direct-http-quickstart.md](./docs/direct-http-quickstart.md) for an end-to-end `curl`
     login, token, and refresh walkthrough
