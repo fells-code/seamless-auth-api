@@ -19,16 +19,15 @@ RUN npm prune --omit=dev
 # (`build:console` sets VITE_BASE_PATH=/console/ and VITE_SAME_ORIGIN=true, so assets, the
 # React Router basename, and the origin-derived API base all agree). This API then serves the
 # result at /console. The dashboard repo is public, but its npm package is not published
-# (package.json is marked private), so it is fetched from git. The pinned ref is a commit that
-# includes the dashboard's same-origin build; bump SEAMLESS_ADMIN_DASHBOARD_REF (to a release
-# tag once one is cut) to ship a new dashboard on the next auth-image release. Never point a
-# release build at a floating branch.
+# (package.json is marked private), so it is fetched from git. Bump
+# SEAMLESS_ADMIN_DASHBOARD_REF to a dashboard release tag to ship a new dashboard on the next
+# auth-image release. Never point a release build at a floating branch.
 FROM node:24-slim AS admin-dashboard
 WORKDIR /dashboard
 
 ARG SEAMLESS_ADMIN_DASHBOARD_REPO=https://github.com/fells-code/seamless-auth-admin-dashboard.git
 # Pinned dashboard release tag. The same-origin /console build has shipped since v0.2.0.
-ARG SEAMLESS_ADMIN_DASHBOARD_REF=v0.7.0
+ARG SEAMLESS_ADMIN_DASHBOARD_REF=v0.9.1
 
 RUN apt-get update && \
   apt-get install -y git python3 make g++ && \
