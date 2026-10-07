@@ -26,8 +26,8 @@ services:
     # Dockerfile.dev has no build step, so the compiled entrypoint cannot run from a
     # fresh clone. Install any dependencies added since this container last booted,
     # migrate (creating the database on first boot), then run the watcher against the
-    # TypeScript sources. Dev signing keys are generated lazily by signingKeyStore on
-    # first use, so nothing has to create them up front.
+    # TypeScript sources. The server creates the dev signing keys at startup, under
+    # ./keys/dev in the bind mount, so they survive a container recreate.
     entrypoint: ['/bin/sh', '-c']
     command:
       - >

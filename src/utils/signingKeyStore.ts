@@ -33,13 +33,56 @@ let publicKeyCache: Record<string, PublicKeyCacheItem> = {};
 
 let cache: SigningKeyCache | null = null;
 const ACTIVE_KID_TTL_MS = 1000 * 60 * 5;
-const devKeyDir = path.resolve('./keys/dev');
-const devPrivateKeyPath = path.join(devKeyDir, 'private.pem');
-const devKid = 'dev-main';
+const DEFAULT_DEV_KEYS_DIR = './keys/dev';
+
+export function getDevKeyDir() {
+  return path.resolve(process.env.SEAMLESS_DEV_KEYS_DIR || DEFAULT_DEV_KEYS_DIR);
+}
+
+function devPrivateKeyPath() {
+  return path.join(getDevKeyDir(), 'private.pem');
+}
+
+export type DevSigningKey = {
+  kid: string;
+  privateKeyPem: string;
+  publicKeyPem: string;
+};
+
+let devKeyCache: DevSigningKey | null = null;
+
+/**
+ * RFC 7638 thumbprint of the public half, so a regenerated key gets a new kid. Adapters
+ * only refetch JWKS on an unknown kid, so a constant kid left them holding the old key.
+ */
+export function deriveDevKid(publicKeyPem: string) {
+  const { e, n } = crypto.createPublicKey(publicKeyPem).export({ format: 'jwk' });
+  const thumbprint = crypto
+    .createHash('sha256')
+    .update(JSON.stringify({ e, kty: 'RSA', n }))
+    .digest('base64url');
+  return `dev-${thumbprint.slice(0, 16)}`;
+}
+
+// The public half is always derived from private.pem, so a key directory where only the
+// private key survived still publishes and verifies.
+function toDevSigningKey(privateKeyPem: string): DevSigningKey {
+  if (devKeyCache?.privateKeyPem === privateKeyPem) {
+    return devKeyCache;
+  }
+
+  const publicKeyPem = crypto
+    .createPublicKey(privateKeyPem)
+    .export({ type: 'spki', format: 'pem' })
+    .toString();
+
+  devKeyCache = { kid: deriveDevKid(publicKeyPem), privateKeyPem, publicKeyPem };
+  return devKeyCache;
+}
 
 function readDevPrivateKey() {
   try {
-    return fs.readFileSync(devPrivateKeyPath, 'utf8');
+    return fs.readFileSync(devPrivateKeyPath(), 'utf8');
   } catch (error) {
     if ((error as { code?: string }).code === 'ENOENT') {
       return null;
@@ -49,7 +92,9 @@ function readDevPrivateKey() {
 }
 
 function ensureDevKeys() {
-  fs.mkdirSync(devKeyDir, { recursive: true });
+  const keyDir = getDevKeyDir();
+  const privateKeyPath = devPrivateKeyPath();
+  fs.mkdirSync(keyDir, { recursive: true });
 
   const existing = readDevPrivateKey();
   if (existing) {
@@ -68,18 +113,39 @@ function ensureDevKeys() {
     // generate and both write, leaving one of them signing with a key that is not
     // the one on disk and not the one JWKS publishes. Losing the race means
     // adopting the winner's key, not overwriting it.
-    fs.writeFileSync(devPrivateKeyPath, privateKey, { encoding: 'utf8', flag: 'wx' });
+    fs.writeFileSync(privateKeyPath, privateKey, { encoding: 'utf8', flag: 'wx' });
   } catch (error) {
     if ((error as { code?: string }).code === 'EEXIST') {
-      return fs.readFileSync(devPrivateKeyPath, 'utf8');
+      return fs.readFileSync(privateKeyPath, 'utf8');
     }
     throw error;
   }
 
-  fs.writeFileSync(path.join(devKeyDir, 'public.pem'), publicKey, 'utf8');
+  fs.writeFileSync(path.join(keyDir, 'public.pem'), publicKey, 'utf8');
 
-  logger.info('Generated dev RSA keypair at ./keys/dev/');
+  logger.info(`Generated dev RSA keypair at ${keyDir}`);
   return privateKey;
+}
+
+/**
+ * Creates the dev key pair if it does not exist yet. Called at startup, before the server
+ * listens, so JWKS publishes a key from the first request instead of after the first
+ * sign-in. A no-op outside development.
+ */
+export function initDevSigningKey(): DevSigningKey | null {
+  if (!isDev) {
+    return null;
+  }
+
+  const key = toDevSigningKey(ensureDevKeys());
+  logger.info(`Dev signing key ready (kid=${key.kid})`);
+  return key;
+}
+
+/** The current dev key, or null when none has been generated. Never creates one. */
+export function getDevSigningKey(): DevSigningKey | null {
+  const privateKeyPem = readDevPrivateKey();
+  return privateKeyPem ? toDevSigningKey(privateKeyPem) : null;
 }
 
 async function loadProdSigningKey(): Promise<SigningKeyCache> {
@@ -133,12 +199,16 @@ export async function getPublicKeyByKid(kid: string): Promise<string | null> {
 
   // DEV MODE
   if (isDev) {
-    const devKeyPath = path.join(devKeyDir, 'public.pem');
-    if (!fs.existsSync(devKeyPath)) {
-      logger.warn(`Dev public.pem missing for kid=${kid}`);
+    const devKey = getDevSigningKey();
+    if (!devKey) {
+      logger.warn(`Dev signing key missing for kid=${kid}`);
       return null;
     }
-    return fs.readFileSync(devKeyPath, 'utf8');
+    if (devKey.kid !== kid) {
+      logger.warn(`Unknown dev kid=${kid}, current dev kid is ${devKey.kid}`);
+      return null;
+    }
+    return devKey.publicKeyPem;
   }
 
   // PROD
@@ -157,15 +227,15 @@ export async function getSigningKey() {
   const now = Date.now();
 
   if (isDev) {
-    const privateKeyPem = ensureDevKeys();
+    const { kid, privateKeyPem } = toDevSigningKey(ensureDevKeys());
 
     cache = {
-      kid: devKid,
+      kid,
       privateKeyPem,
       loadedAt: now,
     };
 
-    return { kid: devKid, privateKeyPem };
+    return { kid, privateKeyPem };
   }
 
   if (!cache) {

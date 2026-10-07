@@ -23,8 +23,8 @@ services:
         condition: service_healthy
     environment:
       # The published image ships NODE_ENV=production, which requires externally
-      # managed JWKS signing keys. Development mode generates a local keypair on
-      # first boot instead.
+      # managed JWKS signing keys. Development mode generates a local keypair at
+      # startup instead (see the dev-keys volume below).
       NODE_ENV: development
 
       APP_NAME: Seamless Auth Local
@@ -75,6 +75,11 @@ services:
       # Uncomment to turn every auth limiter off while scripting against the stack.
       # Ignored when NODE_ENV=production.
       # DISABLE_AUTH_RATE_LIMITS: 'true'
+    volumes:
+      # The development signing keys live under /app/keys/dev. Keeping them on a volume
+      # means a recreated container signs with the same key, so adapters that cached
+      # the JWKS keep verifying.
+      - dev-keys:/app/keys
     healthcheck:
       test: ['CMD', 'node', './dist/healthCheck.js']
       interval: 30s
@@ -102,3 +107,4 @@ services:
 
 volumes:
   pgdata:
+  dev-keys:

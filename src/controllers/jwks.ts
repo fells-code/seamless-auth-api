@@ -5,11 +5,11 @@
  */
 
 import { Request, Response } from 'express';
-import fs from 'fs';
 import { exportJWK, importSPKI, JWK } from 'jose';
 
 import getLogger from '../utils/logger.js';
 import { getSecret } from '../utils/secretsStore.js';
+import { getDevSigningKey } from '../utils/signingKeyStore.js';
 
 const logger = getLogger('jwks');
 
@@ -66,26 +66,30 @@ async function getJwks(): Promise<JWK[]> {
   return keys;
 }
 
+// An empty set rather than a 500 when there is no dev key yet: a client polling JWKS
+// before startup created one should see "no keys", not a broken server.
+async function loadDevJwks(): Promise<JWK[]> {
+  try {
+    const devKey = getDevSigningKey();
+    if (!devKey) {
+      logger.warn('No dev signing key found, serving an empty JWKS');
+      return [];
+    }
+
+    const jwk = await exportJWK(await importSPKI(devKey.publicKeyPem, 'RS256'));
+    return [{ ...jwk, kty: 'RSA', kid: devKey.kid, alg: 'RS256', use: 'sig' }];
+  } catch (err) {
+    logger.error('Failed to load dev signing key, serving an empty JWKS', err);
+    return [];
+  }
+}
+
 export async function jwksHandler(req: Request, res: Response) {
   // Matches the gate in signingKeyStore, which is what decides whether the dev key is
   // the one signing. Testing for 'development' meant any other non-production value
   // signed with the dev key while JWKS refused to publish it.
   if (process.env.NODE_ENV !== 'production') {
-    const publicPem = fs.readFileSync('./keys/dev/public.pem', 'utf8');
-    const publicKey = await importSPKI(publicPem, 'RS256');
-    const jwk = await exportJWK(publicKey);
-
-    return res.json({
-      keys: [
-        {
-          ...jwk,
-          kty: 'RSA',
-          kid: 'dev-main',
-          alg: 'RS256',
-          use: 'sig',
-        },
-      ],
-    });
+    return res.json({ keys: await loadDevJwks() });
   }
 
   try {
