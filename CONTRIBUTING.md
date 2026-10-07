@@ -196,6 +196,33 @@ feat: add configurable token expiration override
 - Update docs
 - Pass CI
 
+## Releases (maintainers)
+
+Releases are cut by Changesets. When changes with a changeset land on `main`, the release
+workflow opens or updates a `changeset-release/main` pull request, and merging it publishes.
+
+**Approve the release PR's checks before merging it.** The release PR is opened by
+`github-actions[bot]`, and the repository's approval policy for contributor workflows holds
+its CI, CodeQL and conformance runs at "Approval required" instead of starting them. If the
+PR is merged anyway, GitHub marks those runs failed with "This run likely failed because of a
+workflow file issue". The workflow files are fine; the checks simply never ran.
+
+1. Open the release PR's **Checks** tab and choose **Approve and run workflows**.
+2. Wait for green, then merge.
+
+Here, `release.yml` runs lint, format, tests, typecheck and build on `main` before it versions
+or tags anything, so a release cannot ship untested code even if this step is missed. The PR
+checks are still the only conformance run against the versioned tree.
+
+Release PRs in seamless-auth-types, seamless-auth-server, seamless-auth-react, seamless-cli,
+seamless-templates and seamless-auth-admin-dashboard are held the same way, so the same step
+applies there. In seamless-templates it matters most, because the per-template matrix in
+`validate.yml` only runs on the release PR.
+
+This is a deliberate choice over giving the release workflow its own identity (a GitHub App or
+a token) or relaxing the approval policy; see
+[#314](https://github.com/fells-code/seamless-auth-api/issues/314).
+
 ## Licensing
 
 By contributing, you agree your contributions fall under the project license.
