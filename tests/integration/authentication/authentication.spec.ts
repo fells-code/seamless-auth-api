@@ -440,17 +440,13 @@ describe('POST /login', () => {
 });
 
 describe('GET /logout', () => {
-  it('logs out all user sessions for backward compatibility', async () => {
-    const sessions = [{ id: 'session-1' }, { id: 'session-2' }];
-    (Session.findAll as any).mockResolvedValue(sessions);
-
+  // Removed after its deprecation. A logout that a link or a prefetch could trigger was
+  // never a good shape, and every first-party client already used DELETE.
+  it('is no longer served', async () => {
     const res = await request(app).get('/logout');
 
-    expect(res.status).toBe(200);
-    expect(res.body.message).toBe('Success');
-    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
-    expect(hardRevokeSession).toHaveBeenNthCalledWith(1, sessions[0], 'user_logout_all');
-    expect(hardRevokeSession).toHaveBeenNthCalledWith(2, sessions[1], 'user_logout_all');
+    expect(res.status).toBe(404);
+    expect(hardRevokeSession).not.toHaveBeenCalled();
   });
 });
 

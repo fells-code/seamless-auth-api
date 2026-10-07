@@ -6,7 +6,6 @@
 
 import {
   login,
-  logout,
   logoutAllSessions,
   logoutCurrentSession,
   refreshSession,
@@ -42,23 +41,6 @@ authRouter.post(
     },
   },
   login,
-);
-
-authRouter.get(
-  '/logout',
-  {
-    auth: 'access',
-    summary: 'Logout all sessions for the current user (deprecated; use DELETE /logout/all)',
-    tags: ['Authentication'],
-    deprecated: true,
-
-    schemas: {
-      response: {
-        200: MessageSchema,
-      },
-    },
-  },
-  logout,
 );
 
 authRouter.delete(

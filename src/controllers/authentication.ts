@@ -450,8 +450,6 @@ export const logoutAllSessions = async (req: Request, res: Response) => {
   return res.json({ message: 'Success' });
 };
 
-export const logout = logoutAllSessions;
-
 export const refreshSession = async (req: Request, res: Response) => {
   logger.info(`Refreshing user token`);
 
