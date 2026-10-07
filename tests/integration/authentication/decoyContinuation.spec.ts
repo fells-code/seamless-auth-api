@@ -294,3 +294,71 @@ describe('decoy continuation: TOTP', () => {
     expect(res.body).toEqual({ error: 'totp_verification_failed' });
   });
 });
+
+// The real continuation endpoints refuse a passkey holder's fallback when fallback is
+// off, and everything but a passkey in phishing-resistant-only mode. A decoy has to
+// answer the same way for the shape `/login` gave it, or the refusal is the oracle.
+describe('decoy continuation: passkey required', () => {
+  const PASSKEY_ONLY_PATHS: [string, 'get' | 'post'][] = [
+    ['/otp/generate-login-email-otp', 'get'],
+    ['/otp/verify-login-email-otp', 'post'],
+    ['/otp/verify-email-otp', 'post'],
+    ['/magic-link', 'get'],
+    ['/totp/verify-login', 'post'],
+  ];
+
+  function call(path: string, method: 'get' | 'post') {
+    return method === 'get'
+      ? request(app).get(path)
+      : request(app).post(path).send({ verificationToken: '123456', code: '123456' });
+  }
+
+  it.each(PASSKEY_ONLY_PATHS)(
+    'refuses %s for a decoy holding a passkey when fallback is off',
+    async (path, method) => {
+      (getSystemConfig as any).mockResolvedValue({
+        origins: ['http://localhost:5137'],
+        login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp'],
+        passkey_login_fallback_enabled: false,
+      });
+
+      const res = await call(path, method);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'login_method_disabled' });
+    },
+  );
+
+  it.each(PASSKEY_ONLY_PATHS)(
+    'answers %s as usual for a passkeyless decoy when fallback is off',
+    async (path, method) => {
+      principal = PASSKEYLESS_DECOY;
+      (getSystemConfig as any).mockResolvedValue({
+        origins: ['http://localhost:5137'],
+        login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp'],
+        passkey_login_fallback_enabled: false,
+      });
+
+      const res = await call(path, method);
+
+      expect(res.status).not.toBe(403);
+    },
+  );
+
+  it.each(PASSKEY_ONLY_PATHS)(
+    'refuses %s for every decoy in phishing-resistant-only mode',
+    async (path, method) => {
+      principal = PASSKEYLESS_DECOY;
+      (getSystemConfig as any).mockResolvedValue({
+        origins: ['http://localhost:5137'],
+        login_methods: ['passkey', 'magic_link', 'email_otp', 'phone_otp'],
+        phishing_resistant_only: true,
+      });
+
+      const res = await call(path, method);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'login_method_disabled' });
+    },
+  );
+});

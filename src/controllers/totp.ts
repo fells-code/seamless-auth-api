@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
+import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { recordStepUpVerification, serializeStepUpStatus } from '../services/stepUpService.js';
 import {
@@ -166,6 +167,16 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
     return;
   }
 
+  if (await isPasskeyRequiredForUser(user.id)) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'login_failed',
+      req,
+      metadata: { reason: 'Passkey required', method: 'totp' },
+    });
+    return res.status(403).json({ error: 'login_method_disabled' });
+  }
+
   const result = await verifyEnabledTotp(user.id, code);
 
   if (!result.verified) {
@@ -186,6 +197,7 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
   });
 
   await issueSessionAndRespond({
+    method: 'totp',
     user: {
       id: user.id,
       email: user.email,

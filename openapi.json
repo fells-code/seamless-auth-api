@@ -11174,6 +11174,7 @@
                   "login_methods": [null],
                   "passkey_login_fallback_enabled": true,
                   "prompt_passkey_enrollment": null,
+                  "phishing_resistant_only": null,
                   "oauth_providers": null,
                   "lockout_policy": null,
                   "authenticator_policy": null,
@@ -11219,6 +11220,7 @@
                     },
                     "passkey_login_fallback_enabled": { "type": "boolean" },
                     "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                    "phishing_resistant_only": { "type": "boolean", "default": false },
                     "oauth_providers": {
                       "type": "array",
                       "items": {
@@ -11550,6 +11552,7 @@
                   },
                   "passkey_login_fallback_enabled": { "type": "boolean" },
                   "prompt_passkey_enrollment": { "type": "boolean" },
+                  "phishing_resistant_only": { "type": "boolean" },
                   "oauth_providers": {
                     "type": "array",
                     "items": {
@@ -13046,6 +13049,19 @@
           },
           "401": {
             "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

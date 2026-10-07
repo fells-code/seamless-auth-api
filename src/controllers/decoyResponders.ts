@@ -15,6 +15,7 @@ import { decoyCredentialIdFor, decoyPrincipalForSubject } from '../services/deco
 import {
   getLoginPolicy,
   isLoginMethodEnabled,
+  isPasskeyRequired,
   LoginMethod,
 } from '../services/loginPolicyService.js';
 import {
@@ -79,13 +80,17 @@ async function logDecoy(req: Request, endpoint: string) {
 
 /**
  * Mirrors `rejectDisabledLoginMethod` in the OTP controller and `rejectDisabledMagicLink`
- * in the magic link controller. Both answer 403 before looking at the account at all, so
- * a decoy has to reach the same answer from the same policy read.
+ * in the magic link controller. Both answer 403 from the policy plus whether the account
+ * holds a passkey, so a decoy reaches the same answer from the same policy read and the
+ * passkey its shape was given, which is the one `/login` advertised for it.
  */
 async function rejectDisabledMethod(method: LoginMethod, req: Request, res: Response) {
   const policy = await getLoginPolicy();
 
-  if (isLoginMethodEnabled(policy, method)) {
+  if (
+    isLoginMethodEnabled(policy, method) &&
+    !isPasskeyRequired(policy, decoyPrincipal(req).hasPasskey)
+  ) {
     return false;
   }
 
@@ -151,7 +156,35 @@ async function respondOtpVerifyFailed(req: Request, res: Response) {
   return res.status(401).json({ error: 'Not allowed' });
 }
 
-export const decoyVerifyEmailOtp = respondOtpVerifyFailed;
+/**
+ * Mirrors the passkey rule on the paths a real verified account cannot use once a passkey
+ * is required: email verification, which signs such an account in, and TOTP login.
+ */
+async function rejectPasskeyRequired(method: string, req: Request, res: Response) {
+  const policy = await getLoginPolicy();
+
+  if (!isPasskeyRequired(policy, decoyPrincipal(req).hasPasskey)) {
+    return false;
+  }
+
+  await AuthEventService.log({
+    userId: null,
+    type: 'login_failed',
+    req,
+    metadata: { reason: 'Passkey required', method },
+  });
+
+  res.status(403).json({ error: 'login_method_disabled' });
+  return true;
+}
+
+export const decoyVerifyEmailOtp = async (req: Request, res: Response) => {
+  if (await rejectPasskeyRequired('email_otp', req, res)) {
+    return;
+  }
+
+  return respondOtpVerifyFailed(req, res);
+};
 export const decoyVerifyPhoneOtp = respondOtpVerifyFailed;
 
 export const decoyVerifyLoginEmailOtp = async (req: Request, res: Response) => {
@@ -273,6 +306,10 @@ export const decoyFinishWebAuthnLogin = async (req: Request, res: Response) => {
 };
 
 export const decoyVerifyTotpLogin = async (req: Request, res: Response) => {
+  if (await rejectPasskeyRequired('totp', req, res)) {
+    return;
+  }
+
   await logDecoy(req, 'totp:verify_login');
 
   return res.status(401).json({ error: 'totp_verification_failed' });

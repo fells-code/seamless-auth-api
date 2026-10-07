@@ -11502,6 +11502,7 @@ export interface paths {
              *       ],
              *       "passkey_login_fallback_enabled": true,
              *       "prompt_passkey_enrollment": null,
+             *       "phishing_resistant_only": null,
              *       "oauth_providers": null,
              *       "lockout_policy": null,
              *       "authenticator_policy": null,
@@ -11528,6 +11529,8 @@ export interface paths {
               passkey_login_fallback_enabled: boolean;
               /** @default false */
               prompt_passkey_enrollment: boolean;
+              /** @default false */
+              phishing_resistant_only: boolean;
               /** @default [] */
               oauth_providers: {
                 id: string;
@@ -11783,6 +11786,7 @@ export interface paths {
             login_methods?: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
             passkey_login_fallback_enabled?: boolean;
             prompt_passkey_enrollment?: boolean;
+            phishing_resistant_only?: boolean;
             oauth_providers?: {
               id: string;
               name: string;
@@ -13366,6 +13370,24 @@ export interface paths {
         };
         /** @description HTTP 401 */
         401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
           headers: {
             [name: string]: unknown;
           };

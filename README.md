@@ -217,6 +217,8 @@ session. `LOGIN_METHODS` accepts any of `passkey`, `magic_link`, `email_otp`, `p
 `oauth`, and defaults to `passkey,magic_link`. Set `PASSKEY_LOGIN_FALLBACK_ENABLED=false` when
 passkey-capable sessions should continue with passkeys only. When fallback is enabled, `/login`
 returns `loginMethods` so clients can offer only the allowed continuations for that user and device.
+Set `PHISHING_RESISTANT_ONLY=true` to accept passkeys only, for every account, whatever
+`LOGIN_METHODS` says.
 
 See [docs/configuration.md](./docs/configuration.md).
 

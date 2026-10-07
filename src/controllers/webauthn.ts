@@ -595,6 +595,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       });
 
       await issueSessionAndRespond({
+        method: 'passkey',
         user: {
           id: user.id,
           email: user.email,
