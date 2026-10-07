@@ -12,6 +12,7 @@ import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
+import { assertSchemaCurrent } from './services/schemaGuard.js';
 import getLogger from './utils/logger.js';
 
 const logger = getLogger('server');
@@ -24,6 +25,7 @@ async function startServer() {
     const models = await initializeModels();
 
     await connectToDb(models);
+    await assertSchemaCurrent(models.sequelize);
     await bootstrapSystemConfig();
 
     // After config is bootstrapped, since it decides whether attestation is

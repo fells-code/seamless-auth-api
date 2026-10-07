@@ -15,6 +15,18 @@ warn() {
   echo "Warning: $1"
 }
 
+# `migrate` runs migrations and exits, for a one-off task per deploy. Anything else,
+# including no argument, validates and starts the server.
+mode="${1:-serve}"
+
+case "$mode" in
+  serve | migrate) ;;
+  *)
+    echo "Unknown command: $mode (expected no argument, or migrate)"
+    exit 1
+    ;;
+esac
+
 run_migrations() {
   if [ "${DB_LOGGING:-false}" = "true" ]; then
     npx sequelize-cli db:migrate --debug
@@ -104,18 +116,36 @@ if [ -n "${REVIEW_ACCOUNT_EMAILS:-}" ]; then
   warn "Review accounts are enabled. Clear REVIEW_ACCOUNT_EMAILS once store review is over."
 fi
 
-echo "Running migrations..."
+migrate() {
+  echo "Running migrations..."
 
-if ! run_migrations; then
-  echo "Initial migration failed. Attempting database creation..."
+  if ! run_migrations; then
+    echo "Initial migration failed. Attempting database creation..."
 
-  if npm run db:create; then
-    echo "Database created. Retrying migrations..."
-    run_migrations
-  else
-    echo "Database creation failed"
-    exit 1
+    if npm run db:create; then
+      echo "Database created. Retrying migrations..."
+      run_migrations
+    else
+      echo "Database creation failed"
+      exit 1
+    fi
   fi
+}
+
+if [ "$mode" = "migrate" ]; then
+  migrate
+  echo "Migrations complete"
+  exit 0
+fi
+
+# Migrating here costs a second cold Node process on every start, and every task in a
+# scaled service races to apply the same change. A deployment that runs `migrate` once
+# per deploy instead sets RUN_MIGRATIONS=false. The server still refuses to start
+# while any migration is pending, so skipping here cannot run new code on an old schema.
+if [ "${RUN_MIGRATIONS:-true}" = "false" ]; then
+  echo "Skipping migrations (RUN_MIGRATIONS=false)"
+else
+  migrate
 fi
 
 echo "Starting application"

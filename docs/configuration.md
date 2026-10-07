@@ -125,16 +125,37 @@ discrete `DB_*` variables. A connection string wins when set and is preferred in
 hosted environments. The same resolution is shared by the running app and by the startup
 migrations, so both connect the same way.
 
-| Variable       | Required    | Default         | Notes                                                                         |
-| -------------- | ----------- | --------------- | ----------------------------------------------------------------------------- |
-| `DATABASE_URL` | Conditional | -               | Full Postgres connection string. If set, the `DB_*` host set is not required. |
-| `DB_URI`       | Conditional | -               | Alias for `DATABASE_URL`, used when `DATABASE_URL` is unset.                  |
-| `DB_HOST`      | Conditional | `localhost`     | Required when no connection string is set.                                    |
-| `DB_PORT`      | Conditional | `5432`          | Required when no connection string is set.                                    |
-| `DB_NAME`      | Conditional | `seamless_auth` | Required when no connection string is set.                                    |
-| `DB_USER`      | Conditional | -               | Required when no connection string is set.                                    |
-| `DB_PASSWORD`  | No          | -               | Password for `DB_USER`.                                                       |
-| `DB_LOGGING`   | Yes         | `false`         | Logs SQL from the app and startup migrations.                                 |
+| Variable         | Required    | Default         | Notes                                                                                   |
+| ---------------- | ----------- | --------------- | --------------------------------------------------------------------------------------- |
+| `DATABASE_URL`   | Conditional | -               | Full Postgres connection string. If set, the `DB_*` host set is not required.           |
+| `DB_URI`         | Conditional | -               | Alias for `DATABASE_URL`, used when `DATABASE_URL` is unset.                            |
+| `DB_HOST`        | Conditional | `localhost`     | Required when no connection string is set.                                              |
+| `DB_PORT`        | Conditional | `5432`          | Required when no connection string is set.                                              |
+| `DB_NAME`        | Conditional | `seamless_auth` | Required when no connection string is set.                                              |
+| `DB_USER`        | Conditional | -               | Required when no connection string is set.                                              |
+| `DB_PASSWORD`    | No          | -               | Password for `DB_USER`.                                                                 |
+| `DB_LOGGING`     | Yes         | `false`         | Logs SQL from the app and startup migrations.                                           |
+| `RUN_MIGRATIONS` | No          | `true`          | `false` skips the container entrypoint's migration step. See [Migrations](#migrations). |
+
+#### Migrations
+
+By default the container entrypoint applies pending migrations on every start, then starts
+the server. That costs a second cold Node process on each boot, and in a service running
+several tasks every task races to apply the same change.
+
+A deployment can apply migrations once per deploy instead:
+
+1. Run the image with the `migrate` argument as a one-off task before the service rolls
+   (for example an ECS `RunTask` with the command override `["migrate"]`). It validates the
+   environment, applies pending migrations, creating the database if it does not exist, and
+   exits.
+2. Set `RUN_MIGRATIONS=false` on the service so its tasks skip the step.
+
+Either way the server checks at startup that every migration it ships with has been
+applied, and refuses to start if one is pending. Skipping the entrypoint step therefore
+cannot run new code against an old schema; a deploy that forgot step 1 fails to start
+instead. An older build starting against a newer schema, as a rollback does, is allowed and
+logged.
 
 #### TLS to Postgres
 
