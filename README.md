@@ -13,8 +13,27 @@ It provides the backend services for passkeys (WebAuthn) and other passwordless 
 
 > Looking for the managed experience (hosting, upgrades, metrics, backups, SLAs)? See **https://seamlessauth.com** for managed services.
 
+## Start here
+
+New to Seamless Auth? The [self-hosted quickstart](https://docs.seamlessauth.com/start/quickstart/) runs the full stack locally with Docker. If Seamless hosts your auth instance, follow the [managed quickstart](https://docs.seamlessauth.com/start/managed-quickstart/) instead.
+
+This repo is the auth API: it owns sessions and issues the tokens your backend verifies.
+
+```mermaid
+flowchart LR
+  browser["Browser<br/>@seamless-auth/react"] -- "signed httpOnly cookies" --> backend
+  native["Native app<br/>@seamless-auth/react-native"] -- "bearer tokens" --> backend
+  backend["Your backend<br/>@seamless-auth/express, fastify, or nextjs<br/>mounted at /auth"] -- "bearer token + service token" --> api
+  api["seamless-auth-api<br/>owns the session"] --> db[("Postgres")]
+  backend -. "verifies tokens with JWKS" .-> api
+  style api stroke-width:3px
+```
+
+[How the pieces connect](https://docs.seamlessauth.com/start/overview/#how-the-pieces-connect) explains each hop. [Compatibility matrix](https://docs.seamlessauth.com/build/ecosystem/#compatibility-matrix) lists which package versions work together.
+
 ## Contents
 
+- [Start here](#start-here)
 - [Scope and non-goals](#scope-and-non-goals)
 - [Why Seamless Auth API](#why-seamless-auth-api)
 - [High-level architecture](#high-level-architecture)
