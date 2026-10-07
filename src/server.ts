@@ -14,6 +14,7 @@ import { startAuditMaintenance } from './services/auditRetention.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { assertSchemaCurrent } from './services/schemaGuard.js';
 import getLogger from './utils/logger.js';
+import { initDevSigningKey } from './utils/signingKeyStore.js';
 
 const logger = getLogger('server');
 
@@ -32,6 +33,10 @@ async function startServer() {
     // requested at all. Never throws: a metadata blob that cannot be fetched is
     // a degraded state, not a reason to refuse to start.
     await initializeMetadataService();
+
+    // Before listening, so JWKS publishes the dev key from the first request rather
+    // than after the first sign-in generates it.
+    initDevSigningKey();
 
     const app: Application = await createApp();
 

@@ -318,7 +318,8 @@ docker compose up
 ```
 
 That starts the API on `http://localhost:5312`, runs migrations on first boot, generates a
-development signing keypair, and serves the admin console at `http://localhost:5312/console`.
+development signing keypair (kept on the `dev-keys` volume, so it survives a recreate), and serves
+the admin console at `http://localhost:5312/console`.
 
 Verify it:
 

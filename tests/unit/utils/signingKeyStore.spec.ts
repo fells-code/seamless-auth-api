@@ -38,6 +38,19 @@ vi.mock('../../../src/utils/logger.js', () => ({
   })),
 }));
 
+const actualCrypto = await vi.importActual<typeof import('crypto')>('crypto');
+
+function keypair() {
+  return actualCrypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+}
+
+const realKeys = keypair();
+const otherKeys = keypair();
+
 describe('signingKeyStore', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -51,16 +64,10 @@ describe('signingKeyStore', () => {
       const fs = await import('fs');
       const crypto = await import('crypto');
 
-      (fs.existsSync as any).mockReturnValue(false);
-      (fs.default.existsSync as any).mockReturnValue(false);
-      (crypto.generateKeyPairSync as any).mockReturnValue({
-        privateKey: 'PRIVATE_KEY',
-        publicKey: 'PUBLIC_KEY',
+      (fs.default.readFileSync as any).mockImplementation(() => {
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
       });
-      (crypto.default.generateKeyPairSync as any).mockReturnValue({
-        privateKey: 'PRIVATE_KEY',
-        publicKey: 'PUBLIC_KEY',
-      });
+      (crypto.default.generateKeyPairSync as any).mockReturnValue(realKeys);
 
       const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
@@ -68,7 +75,8 @@ describe('signingKeyStore', () => {
 
       expect(fs.default.mkdirSync).toHaveBeenCalled();
       expect(fs.default.writeFileSync).toHaveBeenCalledTimes(2);
-      expect(result.privateKeyPem).toBe('PRIVATE_KEY');
+      expect(result.privateKeyPem).toBe(realKeys.privateKey);
+      expect(result.kid).toMatch(/^dev-[A-Za-z0-9_-]{16}$/);
     });
 
     it('returns existing dev key', async () => {
@@ -76,38 +84,14 @@ describe('signingKeyStore', () => {
 
       const fs = await import('fs');
 
-      (fs.existsSync as any).mockReturnValueOnce(true).mockReturnValueOnce(true);
-      (fs.default.existsSync as any).mockReturnValueOnce(true).mockReturnValueOnce(true);
-      (fs.readFileSync as any).mockReturnValue('EXISTING_KEY');
-      (fs.default.readFileSync as any).mockReturnValue('EXISTING_KEY');
+      (fs.default.readFileSync as any).mockReturnValue(realKeys.privateKey);
 
       const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
 
       const result = await getSigningKey();
 
-      expect(result.privateKeyPem).toBe('EXISTING_KEY');
-    });
-
-    it('generates when the dev key file is absent', async () => {
-      process.env.NODE_ENV = 'development';
-
-      const fs = await import('fs');
-      const crypto = await import('crypto');
-
-      const enoent = Object.assign(new Error('missing'), { code: 'ENOENT' });
-      (fs.default.readFileSync as any).mockImplementation(() => {
-        throw enoent;
-      });
-      (crypto.default.generateKeyPairSync as any).mockReturnValue({
-        privateKey: 'PRIVATE_KEY',
-        publicKey: 'PUBLIC_KEY',
-      });
-
-      const { getSigningKey } = await import('../../../src/utils/signingKeyStore.js');
-
-      const result = await getSigningKey();
-
-      expect(result.privateKeyPem).toBe('PRIVATE_KEY');
+      expect(result.privateKeyPem).toBe(realKeys.privateKey);
+      expect(fs.default.writeFileSync).not.toHaveBeenCalled();
     });
 
     it('does not treat an unreadable dev key file as a missing one', async () => {
@@ -134,11 +118,8 @@ describe('signingKeyStore', () => {
         .mockImplementationOnce(() => {
           throw Object.assign(new Error('missing'), { code: 'ENOENT' });
         })
-        .mockReturnValue('WINNER_KEY');
-      (crypto.default.generateKeyPairSync as any).mockReturnValue({
-        privateKey: 'LOSER_KEY',
-        publicKey: 'LOSER_PUBLIC',
-      });
+        .mockReturnValue(realKeys.privateKey);
+      (crypto.default.generateKeyPairSync as any).mockReturnValue(otherKeys);
       (fs.default.writeFileSync as any).mockImplementation(() => {
         throw Object.assign(new Error('exists'), { code: 'EEXIST' });
       });
@@ -147,7 +128,7 @@ describe('signingKeyStore', () => {
 
       const result = await getSigningKey();
 
-      expect(result.privateKeyPem).toBe('WINNER_KEY');
+      expect(result.privateKeyPem).toBe(realKeys.privateKey);
     });
 
     it('propagates a write failure that is not a lost race', async () => {
@@ -159,10 +140,7 @@ describe('signingKeyStore', () => {
       (fs.default.readFileSync as any).mockImplementation(() => {
         throw Object.assign(new Error('missing'), { code: 'ENOENT' });
       });
-      (crypto.default.generateKeyPairSync as any).mockReturnValue({
-        privateKey: 'PRIVATE_KEY',
-        publicKey: 'PUBLIC_KEY',
-      });
+      (crypto.default.generateKeyPairSync as any).mockReturnValue(realKeys);
       (fs.default.writeFileSync as any).mockImplementation(() => {
         throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
       });
@@ -172,32 +150,41 @@ describe('signingKeyStore', () => {
       await expect(getSigningKey()).rejects.toThrow('disk full');
     });
 
-    it('returns dev public key', async () => {
+    it('returns the dev public key for the dev kid', async () => {
       process.env.NODE_ENV = 'development';
 
       const fs = await import('fs');
+      (fs.default.readFileSync as any).mockReturnValue(realKeys.privateKey);
 
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.default.existsSync as any).mockReturnValue(true);
-      (fs.readFileSync as any).mockReturnValue('PUBLIC_KEY');
-      (fs.default.readFileSync as any).mockReturnValue('PUBLIC_KEY');
+      const { getPublicKeyByKid, deriveDevKid } =
+        await import('../../../src/utils/signingKeyStore.js');
 
-      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
+      const result = await getPublicKeyByKid(deriveDevKid(realKeys.publicKey));
 
-      const result = await getPublicKeyByKid('dev-main');
-
-      expect(result).toBe('PUBLIC_KEY');
+      expect(result).toBe(realKeys.publicKey);
     });
 
-    it('returns null if dev public key missing', async () => {
+    it('returns null for a kid that is not the current dev key', async () => {
       process.env.NODE_ENV = 'development';
 
       const fs = await import('fs');
-      (fs.existsSync as any).mockReturnValue(false);
-      (fs.default.existsSync as any).mockReturnValue(false);
+      (fs.default.readFileSync as any).mockReturnValue(realKeys.privateKey);
 
       const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
-      const result = await getPublicKeyByKid('dev-main');
+
+      expect(await getPublicKeyByKid('dev-main')).toBeNull();
+    });
+
+    it('returns null if the dev key is missing', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const fs = await import('fs');
+      (fs.default.readFileSync as any).mockImplementation(() => {
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+      });
+
+      const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore.js');
+      const result = await getPublicKeyByKid('dev-anything');
 
       expect(result).toBeNull();
     });

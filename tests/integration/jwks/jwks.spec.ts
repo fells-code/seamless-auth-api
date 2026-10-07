@@ -6,6 +6,7 @@ import { createApp } from '../../../src/app';
 import { getSecret } from '../../../src/utils/secretsStore.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
 import { __resetJwksCache } from '../../../src/controllers/jwks.js';
+import { getDevSigningKey } from '../../../src/utils/signingKeyStore.js';
 
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
@@ -28,6 +29,13 @@ vi.mock('jose', () => ({
 vi.mock('../../../src/utils/secretsStore.js', () => ({
   getSecret: vi.fn(),
 }));
+
+vi.mock('../../../src/utils/signingKeyStore.js', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/utils/signingKeyStore.js')>(
+    '../../../src/utils/signingKeyStore.js',
+  );
+  return { ...actual, getDevSigningKey: vi.fn() };
+});
 
 let app: Application;
 
@@ -82,12 +90,15 @@ describe('JWKS - Production Mode', () => {
   });
 });
 
-describe.skip('JWKS - Development Mode', () => {
-  it('serves the dev signing key from disk', async () => {
+describe('JWKS - Development Mode', () => {
+  it('serves the dev signing key under its derived kid', async () => {
     vi.stubEnv('NODE_ENV', 'development');
 
-    const fs = await import('fs');
-    (fs.readFileSync as any).mockReturnValue('dev-pem');
+    (getDevSigningKey as any).mockReturnValue({
+      kid: 'dev-AbCdEfGhIjKlMnOp',
+      privateKeyPem: 'dev-private-pem',
+      publicKeyPem: 'dev-public-pem',
+    });
 
     const { importSPKI, exportJWK } = await import('jose');
     (importSPKI as any).mockResolvedValue('key');
@@ -96,10 +107,35 @@ describe.skip('JWKS - Development Mode', () => {
     const res = await request(app).get('/.well-known/jwks.json');
 
     expect(res.status).toBe(200);
-    expect(res.body.keys[0].kid).toBe('dev-main');
+    expect(importSPKI).toHaveBeenCalledWith('dev-public-pem', 'RS256');
+    expect(res.body.keys[0].kid).toBe('dev-AbCdEfGhIjKlMnOp');
     expect(res.body.keys[0].alg).toBe('RS256');
     expect(res.body.keys[0].use).toBe('sig');
     expect(getSecret).not.toHaveBeenCalled();
+  });
+
+  it('answers an empty key set, not a 500, when no dev key exists yet', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+
+    (getDevSigningKey as any).mockReturnValue(null);
+
+    const res = await request(app).get('/.well-known/jwks.json');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ keys: [] });
+  });
+
+  it('answers an empty key set when the dev key cannot be read', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+
+    (getDevSigningKey as any).mockImplementation(() => {
+      throw Object.assign(new Error('denied'), { code: 'EACCES' });
+    });
+
+    const res = await request(app).get('/.well-known/jwks.json');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ keys: [] });
   });
 });
 

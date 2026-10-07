@@ -326,6 +326,23 @@ Required when `NODE_ENV=production`. In development, signing keys are generated 
 
 See [docs/production-operations.md](./production-operations.md) for key rotation.
 
+### Development signing keys
+
+Outside production the server creates an RSA key pair at startup, before it starts listening, so
+`/.well-known/jwks.json` publishes a key from the first request. If no key can be read, the
+endpoint answers `{ "keys": [] }` and logs why, rather than a 500.
+
+| Variable                | Required | Default      | Notes                                                                                                                                                       |
+| ----------------------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SEAMLESS_DEV_KEYS_DIR` | No       | `./keys/dev` | Directory holding `private.pem` (and `public.pem`). Relative to the working directory, so `/app/keys/dev` in the image. Ignored when `NODE_ENV=production`. |
+
+The `kid` is `dev-` followed by the first 16 characters of the key's RFC 7638 JWK thumbprint
+(base64url). A regenerated key therefore gets a new `kid`, and adapters that cache the JWKS refetch
+it on their own instead of failing verification against a stale key. Keep the directory on
+persistent storage (the bundled `docker-compose.yml` mounts a `dev-keys` volume at `/app/keys`) so a
+recreated container keeps signing with the same key. Only `private.pem` has to survive; the public
+key is derived from it.
+
 ### Testing and conformance (never production)
 
 These loosen the server deliberately, so each one is refused under `NODE_ENV=production` and logs
