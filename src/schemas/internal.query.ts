@@ -121,3 +121,5 @@ export const FunnelMetricsQuerySchema = z
       });
     }
   });
+
+export { DashboardMetricsQuerySchema, SecurityAnomaliesQuerySchema } from '@seamless-auth/types';

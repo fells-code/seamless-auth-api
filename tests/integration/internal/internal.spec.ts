@@ -278,7 +278,7 @@ describe('GET /internal/metrics/sign-ins', () => {
 
 describe('GET /internal/security/anomalies', () => {
   it('returns anomalies', async () => {
-    (AuthEvent.findAll as any).mockResolvedValue([
+    const rows = [
       {
         user_id: 'user_1',
         type: 'login_failed',
@@ -335,12 +335,139 @@ describe('GET /internal/security/anomalies', () => {
         metadata: { challenge_failed: true },
         created_at: new Date('2026-03-29T10:30:00Z'),
       },
-    ]);
+    ];
+    (AuthEvent.findAndCountAll as any).mockResolvedValue({ rows, count: rows.length });
 
     const res = await request(app).get('/internal/security/anomalies');
 
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(7);
+    expect(res.body.suspiciousEvents).toHaveLength(7);
+  });
+
+  it('defaults to the last 24 hours, 200 at a time', async () => {
+    (AuthEvent.findAndCountAll as any).mockResolvedValue({ rows: [], count: 0 });
+
+    const res = await request(app).get('/internal/security/anomalies');
+
+    const { where, limit, offset } = (AuthEvent.findAndCountAll as any).mock.calls[0][0];
+    const range = where.created_at;
+    const start = range[Object.getOwnPropertySymbols(range)[0]];
+    const end = range[Object.getOwnPropertySymbols(range)[1]];
+    expect(end.getTime() - start.getTime()).toBe(24 * 60 * 60 * 1000);
+    expect({ limit, offset }).toEqual({ limit: 200, offset: 0 });
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        limit: 200,
+        offset: 0,
+        window: { from: start.toISOString(), to: end.toISOString() },
+      }),
+    );
+  });
+
+  it('pages through a requested window and reports every match in total', async () => {
+    (AuthEvent.findAndCountAll as any).mockResolvedValue({ rows: [], count: 950 });
+
+    const res = await request(app).get('/internal/security/anomalies').query({
+      from: '2026-03-01T00:00:00.000Z',
+      to: '2026-03-08T00:00:00.000Z',
+      limit: '50',
+      offset: '100',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        total: 950,
+        limit: 50,
+        offset: 100,
+        window: { from: '2026-03-01T00:00:00.000Z', to: '2026-03-08T00:00:00.000Z' },
+      }),
+    );
+    expect(AuthEvent.findAndCountAll).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 50, offset: 100 }),
+    );
+  });
+
+  it('rejects a reversed range or an oversized page', async () => {
+    const reversed = await request(app).get('/internal/security/anomalies').query({
+      from: '2026-03-08T00:00:00.000Z',
+      to: '2026-03-01T00:00:00.000Z',
+    });
+    const oversized = await request(app)
+      .get('/internal/security/anomalies')
+      .query({ limit: '1000' });
+
+    expect(reversed.status).toBe(400);
+    expect(oversized.status).toBe(400);
+    expect(AuthEvent.findAndCountAll).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /internal/metrics/dashboard with a range', () => {
+  it('reports the requested window beside the unchanged 24 hour figures', async () => {
+    (User.count as any)
+      .mockResolvedValueOnce(100) // totalUsers
+      .mockResolvedValueOnce(5) // newUsers, last 24h
+      .mockResolvedValueOnce(40); // newUsers, requested window
+    (Session.count as any).mockResolvedValue(20);
+    (AuthEvent.count as any)
+      .mockResolvedValueOnce(50) // last 24h: success
+      .mockResolvedValueOnce(25) // last 24h: failed
+      .mockResolvedValueOnce(10) // last 24h: otp
+      .mockResolvedValueOnce(15) // last 24h: passkey
+      .mockResolvedValueOnce(600) // window: success
+      .mockResolvedValueOnce(200) // window: failed
+      .mockResolvedValueOnce(90) // window: otp
+      .mockResolvedValueOnce(400); // window: passkey
+    const controller = await import('../../../src/controllers/admin.js');
+    vi.spyOn(controller, 'getDatabaseSize').mockResolvedValue(1);
+
+    const res = await request(app).get('/internal/metrics/dashboard').query({
+      from: '2026-03-01T00:00:00.000Z',
+      to: '2026-03-08T00:00:00.000Z',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      newUsers24h: 5,
+      loginSuccess24h: 50,
+      loginFailed24h: 25,
+      successRate24h: 50 / 75,
+      window: { from: '2026-03-01T00:00:00.000Z', to: '2026-03-08T00:00:00.000Z' },
+      newUsers: 40,
+      loginSuccess: 600,
+      loginFailed: 200,
+      successRate: 600 / 800,
+      otpUsage: 90,
+      passkeyUsage: 400,
+    });
+  });
+
+  it('answers the ranged fields from the last 24 hours when no range is given', async () => {
+    (User.count as any).mockResolvedValueOnce(100).mockResolvedValueOnce(5);
+    (Session.count as any).mockResolvedValue(20);
+    (AuthEvent.count as any)
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(25)
+      .mockResolvedValueOnce(10)
+      .mockResolvedValueOnce(15);
+    const controller = await import('../../../src/controllers/admin.js');
+    vi.spyOn(controller, 'getDatabaseSize').mockResolvedValue(1);
+
+    const res = await request(app).get('/internal/metrics/dashboard');
+
+    expect(res.body).toMatchObject({ newUsers: 5, loginSuccess: 50, passkeyUsage: 15 });
+    expect(AuthEvent.count).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects a range wider than the maximum window', async () => {
+    const res = await request(app).get('/internal/metrics/dashboard').query({
+      from: '2024-01-01T00:00:00.000Z',
+      to: '2026-01-01T00:00:00.000Z',
+    });
+
+    expect(res.status).toBe(400);
   });
 });
 

@@ -6100,14 +6100,37 @@
     "/internal/security/anomalies": {
       "get": {
         "summary": "Detect suspicious activity",
+        "description": "Failed and suspicious auth events in [from, to), newest first. Defaults to the last 24 hours. `total` counts every match in the window, not just this page.",
         "tags": ["Internal"],
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": false, "name": "from", "in": "query" },
+          { "schema": { "type": "string" }, "required": false, "name": "to", "in": "query" },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 200 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "nullable": true, "minimum": 0, "default": 0 },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "example": { "suspiciousEvents": [null], "total": 0 },
+                "example": {
+                  "suspiciousEvents": [null],
+                  "total": 0,
+                  "window": { "from": "string", "to": "string" },
+                  "limit": 0,
+                  "offset": 0
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -6146,9 +6169,57 @@
                         }
                       }
                     },
-                    "total": { "type": "integer", "minimum": 0 }
+                    "total": { "type": "integer", "minimum": 0 },
+                    "window": {
+                      "type": "object",
+                      "properties": { "from": { "type": "string" }, "to": { "type": "string" } },
+                      "required": ["from", "to"]
+                    },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" }
                   },
                   "required": ["suspiciousEvents", "total"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -6185,8 +6256,13 @@
     "/internal/metrics/dashboard": {
       "get": {
         "summary": "Dashboard metrics",
+        "description": "Headline figures. The `*24h` fields always cover the last 24 hours. `newUsers`, `loginSuccess`, `loginFailed`, `successRate`, `otpUsage` and `passkeyUsage` cover [from, to), which defaults to the last 24 hours, and `window` says which period that was.",
         "tags": ["Internal"],
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": false, "name": "from", "in": "query" },
+          { "schema": { "type": "string" }, "required": false, "name": "to", "in": "query" }
+        ],
         "responses": {
           "200": {
             "description": "HTTP 200",
@@ -6201,7 +6277,14 @@
                   "successRate24h": 0,
                   "otpUsage24h": 0,
                   "passkeyUsage24h": 0,
-                  "databaseSize": 0
+                  "databaseSize": 0,
+                  "window": { "from": "string", "to": "string" },
+                  "newUsers": 0,
+                  "loginSuccess": 0,
+                  "loginFailed": 0,
+                  "successRate": 0,
+                  "otpUsage": 0,
+                  "passkeyUsage": 0
                 },
                 "schema": {
                   "type": "object",
@@ -6214,7 +6297,18 @@
                     "successRate24h": { "type": "number" },
                     "otpUsage24h": { "type": "number" },
                     "passkeyUsage24h": { "type": "number" },
-                    "databaseSize": { "type": "number" }
+                    "databaseSize": { "type": "number" },
+                    "window": {
+                      "type": "object",
+                      "properties": { "from": { "type": "string" }, "to": { "type": "string" } },
+                      "required": ["from", "to"]
+                    },
+                    "newUsers": { "type": "number" },
+                    "loginSuccess": { "type": "number" },
+                    "loginFailed": { "type": "number" },
+                    "successRate": { "type": "number" },
+                    "otpUsage": { "type": "number" },
+                    "passkeyUsage": { "type": "number" }
                   },
                   "required": [
                     "totalUsers",
@@ -6227,6 +6321,47 @@
                     "passkeyUsage24h",
                     "databaseSize"
                   ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }

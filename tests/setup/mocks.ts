@@ -20,6 +20,7 @@ vi.mock('../../src/models/authEvents.js', () => ({
   AuthEvent: {
     create: vi.fn(),
     findAll: vi.fn(),
+    findAndCountAll: vi.fn(),
     count: vi.fn(),
   },
 }));

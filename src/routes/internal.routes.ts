@@ -17,7 +17,12 @@ import { getSecurityAnomalies } from '../controllers/internalSecurity.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { ErrorSchema } from '../schemas/generic.responses.js';
-import { FunnelMetricsQuerySchema, MetricsQuerySchema } from '../schemas/internal.query.js';
+import {
+  DashboardMetricsQuerySchema,
+  FunnelMetricsQuerySchema,
+  MetricsQuerySchema,
+  SecurityAnomaliesQuerySchema,
+} from '../schemas/internal.query.js';
 import {
   AuthEventSummaryResponseSchema,
   AuthEventTimeseriesResponseSchema,
@@ -91,10 +96,14 @@ internalRouter.get(
     auth: 'access',
     middleware: [requireAdmin('read')],
     summary: 'Detect suspicious activity',
+    description:
+      'Failed and suspicious auth events in [from, to), newest first. Defaults to the last 24 hours. `total` counts every match in the window, not just this page.',
     tags: ['Internal'],
     schemas: {
+      query: SecurityAnomaliesQuerySchema,
       response: {
         200: SecurityAnomaliesResponseSchema,
+        400: ErrorSchema,
         500: ErrorSchema,
       },
     },
@@ -108,10 +117,14 @@ internalRouter.get(
     auth: 'access',
     middleware: [requireAdmin('read')],
     summary: 'Dashboard metrics',
+    description:
+      'Headline figures. The `*24h` fields always cover the last 24 hours. `newUsers`, `loginSuccess`, `loginFailed`, `successRate`, `otpUsage` and `passkeyUsage` cover [from, to), which defaults to the last 24 hours, and `window` says which period that was.',
     tags: ['Internal'],
     schemas: {
+      query: DashboardMetricsQuerySchema,
       response: {
         200: DashboardMetricsResponseSchema,
+        400: ErrorSchema,
         500: ErrorSchema,
       },
     },
