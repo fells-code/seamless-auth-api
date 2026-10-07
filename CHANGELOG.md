@@ -1,5 +1,93 @@
 # seamless-auth-api
 
+## 0.17.0
+
+### Minor Changes
+
+- 4b04cec: Make `auth_events` append-only and tamper-evident. A new migration adds a hash chain (`seq`, `prev_hash`, `hash`, assigned by an insert trigger and serialized through a one-row `auth_event_chain_head` table), and triggers that refuse UPDATE, TRUNCATE, and any DELETE outside the retention job. `GET /admin/auth-events/integrity` recomputes the chain and reports the first edited, missing or reordered row, along with the current head to record outside the database.
+
+  The migration drops the `auth_events.user_id` foreign key. Its `ON DELETE SET NULL` rewrote audit rows whenever a user was deleted. Audit rows now keep the id of the user they were about after that user is deleted. Existing rows are chained in the order they were written when the migration runs, which takes a pass over the whole table.
+
+- be0c1c6: Add audit event retention and a bulk export.
+
+  - `AUDIT_RETENTION_DAYS` expires audit events older than the period. Expired events are first written to `AUDIT_ARCHIVE_DIR` as NDJSON files, each with a `.sha256` file beside it, and only then deleted. Without an archive directory nothing is deleted. Retention removes only a contiguous run from the start of the hash chain, and never the newest event, so what remains still verifies. `AUDIT_RETENTION_DATABASE_URL` lets the job run as a separate role that holds DELETE. The job runs daily, and each run logs the chain head as an external anchor.
+  - `GET /admin/auth-events/export?from=&to=` (admin, fresh step-up) streams every event in a period as one `application/x-ndjson` download. Each line carries the exact hashed payload, and a trailing manifest gives the count, the `seq` range, the anchor hash and the last hash, so the file can be verified without the database. Exports are themselves recorded in the audit trail.
+
+- bb7de70: Add an authentication coverage report for assessment and insurance responses (#178).
+
+  - `GET /admin/reports/authentication-coverage` (admin read) reports, for a period (`from`, `to`, default the last 90 days), how many active users hold a passkey overall, per organization and per `month` or `week` bucket, alongside the login and authenticator policy enforced now, the authenticator mix by AAGUID (with backup eligibility) and completed sign-ins by method.
+  - `organizationId` scopes every figure to one organization's current members.
+  - `format=csv` returns the same report as a `text/csv` attachment for pasting into a document.
+  - Code sign-ins now record `metadata.channel` (`email` or `sms`) on `verify_otp_success`, so the report can tell email codes from phone codes. Older rows are reported as `otp`.
+
+- 6dd2ced: Migrations can now run once per deploy instead of on every container start.
+
+  - The server checks at startup that every migration it ships with has been applied, and refuses to start while one is pending. This uses one query on the connection startup already opens. An older build starting against a newer schema, as a rollback does, is allowed and logged.
+  - `RUN_MIGRATIONS=false` skips the entrypoint's migration step, which on a 0.5 vCPU task was about 3 of the 6.8 seconds of boot. The default is unchanged.
+  - Running the image with the `migrate` argument validates the environment, applies pending migrations (creating the database if needed) and exits, for a one-off task per deploy. That also ends the race where every task in a scaled service applied the same migration.
+
+  A process started directly with `node dist/server.js` against an unmigrated database now exits with a message naming the first pending migration, instead of failing later on a missing column.
+
+- bc7f8ca: Track and invite passkey enrollment, for moving an organization onto passkeys after importing its users (#338).
+
+  - `GET /admin/enrollment` lists active users with their WebAuthn credential count and status (`none`, `one`, `two_or_more`), filterable by organization, status, imported users and email, with a per-status summary.
+  - `POST /admin/enrollment/invites` emails users a notice to sign in and add a passkey. The link is the tenant's sign-in page (`signInUrl`, default `<frontend_url>/login`) and carries no credential.
+    - Targets are `userIds` (up to 200) or an `organizationId`, whose unenrolled members are invited 200 at a time. Anyone invited in the last day is skipped, and the response reports what `remaining` is left.
+    - With `x-seamless-auth-delivery-mode: external`, each result carries the delivery for the caller to send.
+    - Answers 409 when no sign-in method other than passkey is enabled.
+    - Each invite is logged as `admin_enrollment_invite_sent`.
+  - New `prompt_passkey_enrollment` setting (default `false`, env `PROMPT_PASSKEY_ENROLLMENT`). With it on, email and phone code sign-ins and magic link sign-ins carry `nextStep: 'enroll_passkey'` for a user with no passkey.
+
+  Requires a database migration, `@seamless-auth/types` 0.26.0 and `@seamless-auth/messaging` 0.2.0.
+
+- a132e8c: OAuth sign-in now supports cutting an organization over from a legacy identity provider.
+
+  - OAuth providers gain `promptPasskeyEnrollment` (default `false`). With it set, a successful `POST /oauth/:providerId/callback` carries `nextStep: 'enroll_passkey'` when the user has no passkey yet. The session in the response is a full access session, so the client can send the user straight into passkey enrollment. Absent means there is nothing further to do.
+  - `PUT /admin/organizations/:organizationId/oauth-providers/:providerId/retirement` retires a provider for one organization, and `DELETE` on the same path restores it for a rollback. Each change is recorded as an `admin_oauth_provider_retired` or `admin_oauth_provider_restored` auth event. A member of any organization that retired the provider is refused at the callback with `403` and code `oauth_provider_retired`, before any account is claimed or linked. Retiring a provider also revokes every live session of every member of the organization, whichever method started it, so the cutover takes effect immediately; the count is recorded on the auth event. Retiring a provider that is already retired revokes nothing.
+  - Organizations gain `retiredOAuthProviders` in every organization response.
+
+  Contract change: clients that switch exhaustively over OAuth error codes need the new `oauth_provider_retired` code. Requires a database migration and `@seamless-auth/types` 0.25.0.
+
+- c68a315: Add a phishing-resistant-only login mode and enforce the passkey fallback rule on every continuation endpoint.
+
+  - New `phishing_resistant_only` system config key (env `PHISHING_RESISTANT_ONLY`, default `false`). When on, a session starts only from a passkey: email and phone codes, magic links, TOTP and OAuth are refused with `403 login_method_disabled` (OAuth providers are hidden), whatever `login_methods` says, and the public config reports `loginMethods: ["passkey"]`. The email code that verifies a new account's address still starts one session so the first passkey can be enrolled. Session issuance refuses a non-passkey factor in this mode as a backstop. Requires `@seamless-auth/types` 0.27.0.
+  - `passkey_login_fallback_enabled: false` now binds on the continuation endpoints themselves, not only on the method list `/login` returns. A user who holds a passkey gets `403 login_method_disabled` from the email and phone code, magic link, TOTP login and email verification endpoints. Previously those endpoints checked only whether the method was enabled for the deployment.
+  - `POST /totp/verify-login` can now answer `403 login_method_disabled`.
+  - Decoy responses for unknown identifiers mirror both rules, so the refusals do not reveal whether an account exists.
+
+- c2edfbc: `GET /internal/metrics/dashboard` and `GET /internal/security/anomalies` accept `from` and `to` (#132), with the same validation as the `/internal/auth-events/*` endpoints and a default of the last 24 hours. Both responses carry the `window` they covered.
+
+  - Dashboard metrics adds `newUsers`, `loginSuccess`, `loginFailed`, `successRate`, `otpUsage` and `passkeyUsage` for the requested window. The `*24h` fields keep meaning the last 24 hours.
+  - Security anomalies takes `limit` (1 to 200, default 200) and `offset`. `total` now counts every match in the window. It used to report the number returned, which was capped at 200, so a caller could not tell there were more.
+
+  Requires `@seamless-auth/types` 0.28.0.
+
+- aecf347: Relicense from AGPL-3.0-only to the Apache License, Version 2.0 (#335). The `LICENSE` file, the `license` field and the license header in every source file now say Apache-2.0. The commercial license offer in the README is removed, since Apache-2.0 already allows embedding the API in a proprietary product or running it as a managed service.
+- d3f78d0: Remove the deprecated `GET /logout`, which signed out every session of the current user. Use `DELETE /logout/all` for that, or `DELETE /logout` for the current session only. `GET /logout` now answers 404. Every first-party client (`@seamless-auth/server`, `@seamless-auth/react`, `seamless-cli`) already uses `DELETE`. This is a breaking change for any other caller that still sends `GET`.
+- 7b868d2: Record store review account use and report whether review accounts are on (#331).
+
+  - Email code events for an address that is issued the fixed `REVIEW_ACCOUNT_CODE` (`otp_success`, `otp_failed`, `verify_otp_success`, `verify_otp_failed`) now carry `metadata.reviewAccount: true`. The code is never recorded.
+  - `GET /admin/review-accounts` (admin read) returns `enabled`, the listed `emails`, `codeConfigured` and `recentSignIns` (sign-ins, failed verifications and the last sign-in by a review address in the last `days` days, default 30). The code is never returned.
+  - Review accounts stay configured by `REVIEW_ACCOUNT_EMAILS` and `REVIEW_ACCOUNT_CODE`.
+
+- cc1d3c6: Refresh rotation no longer resets the absolute session lifetime. Each session now records when its rotation chain began (`chainStartedAt`, new migration), and a rotated session expires at that start plus `refresh_token_ttl` instead of a full lifetime from the refresh. A session that refreshes continuously therefore ends at the absolute bound and the user signs in again. The idle bound still slides on each refresh, capped at the absolute one.
+
+  `refreshTtl` in the `/refresh` response is now the time left in the chain rather than the full `refresh_token_ttl`. A refresh refused because the chain ran out, or because the session went idle, is recorded as `refresh_token_failed` with `metadata.refusal` set to `absolute_lifetime_reached` or `idle_timeout`, so it can be told apart from an unknown or revoked token. Sessions that exist when the migration runs are capped from their most recent refresh.
+
+### Patch Changes
+
+- 0d0f422: Ship admin dashboard `v0.9.1` at `/console` (was `v0.7.0`). It adds the passkey enrollment view, the authentication coverage report, the audit trail panel, the phishing-resistant-only setting, ranged headline metrics and anomalies, and the store review accounts notice, which use routes this API now serves.
+- bdb8fbd: Development signing keys are now created at startup, before the server listens, so `GET /.well-known/jwks.json` publishes a key from the first request. If no dev key can be read, the endpoint answers `{ "keys": [] }` and logs why, instead of a 500.
+
+  The dev key directory defaults to `./keys/dev` (`/app/keys/dev` in the image) and can be moved with `SEAMLESS_DEV_KEYS_DIR`. The bundled `docker-compose.yml` keeps `/app/keys` on a `dev-keys` volume, so a recreated container keeps its key. The public key is derived from `private.pem`, so only the private key has to survive.
+
+  The dev `kid` is no longer the constant `dev-main`. It is `dev-` followed by the first 16 characters of the key's RFC 7638 JWK thumbprint, so a regenerated key gets a new `kid` and adapters that cache the JWKS refetch it on their own. Anything that looks the dev key up by the literal `dev-main` should read the `kid` from the JWKS instead. The `kid` on adapter service tokens is not checked by the API and is unaffected.
+
+- 2601963: Support Node 22 and newer. The `engines` field now requires `>=22` instead of `>=24 <25`, and CI runs the test suite on Node 22, 24, and the latest release (fells-code/seamless-auth-api#339).
+- a132e8c: Fix `PATCH /system-config/oauth-providers/:id` resetting settings the request did not mention. The parsed patch carried every default from `@seamless-auth/types`, so `{ "enabled": false }` also set `allowSignup: true`, `accountLinking: 'email'` and `requireEmailVerified: false`, emptied `scopes` and `redirectUris`, and reverted the claim paths. Fixed by `@seamless-auth/types` 0.25.0 (fells-code/seamless-auth-types#83).
+- 7a003fa: Update `proxy-addr` to 2.0.8 for GHSA-jqcg-44mw-7w3h (critical), where a client could spoof its IP through an IPv4-mapped IPv6 address when a trusted proxy subnet is configured. It affects deployments that set `TRUST_PROXY`, where the client IP feeds rate limiting, lockout and the audit log.
+- a956ba0: Update `@simplewebauthn/server` to 14.0.3 for GHSA-2g3p-m8c9-hhwh and GHSA-j3h4-m3m2-7p7j. During registration, an attestation certificate chain could make the server fetch a CRL from an attacker-chosen URL and cache it unverified in the process-wide revocation cache, influencing revocation checks for later registrations. 13.x carries the same code and has no patched release. The advertised public key algorithms are unchanged, since the API sets them explicitly, so the new ML-DSA (post-quantum) default does not apply.
+
 ## 0.16.0
 
 ### Minor Changes
