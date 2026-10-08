@@ -25,6 +25,7 @@ const oauthRouter = createRouter('/oauth');
 oauthRouter.get(
   '/providers',
   {
+    adapter: {},
     summary: 'List enabled OAuth providers',
     tags: ['OAuth'],
     schemas: {
@@ -39,6 +40,7 @@ oauthRouter.get(
 oauthRouter.post(
   '/:providerId/start',
   {
+    adapter: {},
     summary: 'Start OAuth login',
     tags: ['OAuth'],
     middleware: [oauthIpLimiter, oauthProviderLimiter],
@@ -58,6 +60,7 @@ oauthRouter.post(
 oauthRouter.post(
   '/:providerId/callback',
   {
+    adapter: { issues: 'session' },
     summary: 'Finish OAuth login',
     description:
       'Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider. A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.',

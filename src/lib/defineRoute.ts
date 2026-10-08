@@ -17,6 +17,7 @@ import { ErrorSchema, ValidationErrorSchema } from '../schemas/generic.responses
 import { AuthTokenType } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
+import { AdapterRouteDeclaration, registerAdapterRoute } from './adapterManifest.js';
 import { expressToOpenAPI } from './convertPath.js';
 import { InferRequest, RouteSchemas } from './routeTypes.js';
 import { generateExample } from './zodExample.js';
@@ -35,6 +36,12 @@ interface DefineRouteOptions<S extends RouteSchemas> {
   deprecated?: boolean;
 
   auth?: AuthTokenType | undefined;
+
+  /**
+   * What a server adapter does with this route. Required on public and ephemeral
+   * routes; access routes default to an exposed passthrough. See `adapterManifest.ts`.
+   */
+  adapter?: AdapterRouteDeclaration;
 
   schemas?: S;
 
@@ -260,6 +267,14 @@ export function defineRoute<S extends RouteSchemas>(
   const validatesRequest = Boolean(params || query || body);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const basePath = (router as any).__basePath ?? '';
+
+  registerAdapterRoute({
+    method,
+    path: `${basePath}${path}`,
+    auth: authType,
+    adapter: options.adapter,
+    response,
+  });
 
   registry.registerPath({
     method,

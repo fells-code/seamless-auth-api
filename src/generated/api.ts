@@ -12,6 +12,128 @@
  */
 
 export interface paths {
+  '/.well-known/seamless-adapter.json': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Routes a server adapter exposes and what it does with each
+     * @description Server adapters load this at startup instead of hard-coding routes. It describes which token each route takes and which tokens a response issues or clears.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "schemaVersion": null,
+             *       "apiVersion": "string",
+             *       "session": {
+             *         "subject": null,
+             *         "token": null,
+             *         "refreshToken": null,
+             *         "ttl": null,
+             *         "refreshTtl": null
+             *       },
+             *       "routes": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              /** @enum {number} */
+              schemaVersion: 1;
+              apiVersion: string;
+              session: {
+                /** @enum {string} */
+                subject: 'sub';
+                /** @enum {string} */
+                token: 'token';
+                /** @enum {string} */
+                refreshToken: 'refreshToken';
+                /** @enum {string} */
+                ttl: 'ttl';
+                /** @enum {string} */
+                refreshTtl: 'refreshTtl';
+              };
+              routes: {
+                /** @enum {string} */
+                method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+                path: string;
+                /** @enum {string} */
+                credential: 'none' | 'preAuth' | 'registration' | 'access' | 'refresh';
+                /** @enum {string} */
+                issues?: 'preAuth' | 'registration' | 'session' | 'access';
+                clears?: ('preAuth' | 'registration' | 'access' | 'refresh')[];
+                body?: {
+                  pick: string[];
+                };
+                /** @enum {boolean} */
+                delivery?: true;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/organizations': {
     parameters: {
       query?: never;
@@ -6818,7 +6940,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Request a magic login link */
+    /**
+     * Request a magic login link
+     * @deprecated
+     * @description Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.
+     */
     get: {
       parameters: {
         query?: {
@@ -6962,7 +7088,149 @@ export interface paths {
       };
     };
     put?: never;
-    post?: never;
+    /** Request a magic login link */
+    post: {
+      parameters: {
+        query?: {
+          redirectUri?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
@@ -9257,7 +9525,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Generate email OTP */
+    /**
+     * Generate email OTP
+     * @deprecated
+     * @description Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.
+     */
     get: {
       parameters: {
         query?: never;
@@ -9369,7 +9641,117 @@ export interface paths {
       };
     };
     put?: never;
-    post?: never;
+    /** Generate email OTP */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
@@ -9383,7 +9765,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Generate phone OTP */
+    /**
+     * Generate phone OTP
+     * @deprecated
+     * @description Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.
+     */
     get: {
       parameters: {
         query?: never;
@@ -9495,7 +9881,117 @@ export interface paths {
       };
     };
     put?: never;
-    post?: never;
+    /** Generate phone OTP */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
@@ -9509,7 +10005,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Generate login email OTP */
+    /**
+     * Generate login email OTP
+     * @deprecated
+     * @description Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.
+     */
     get: {
       parameters: {
         query?: never;
@@ -9621,7 +10121,117 @@ export interface paths {
       };
     };
     put?: never;
-    post?: never;
+    /** Generate login email OTP */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
@@ -9635,7 +10245,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Generate login phone OTP */
+    /**
+     * Generate login phone OTP
+     * @deprecated
+     * @description Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.
+     */
     get: {
       parameters: {
         query?: never;
@@ -9747,7 +10361,117 @@ export interface paths {
       };
     };
     put?: never;
-    post?: never;
+    /** Generate login phone OTP */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;

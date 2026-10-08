@@ -14,6 +14,7 @@ const jwksRouter = createRouter('');
 jwksRouter.get(
   '/.well-known/jwks.json',
   {
+    adapter: false,
     summary: 'Public JSON Web Key Set',
     tags: ['JWKS'],
 

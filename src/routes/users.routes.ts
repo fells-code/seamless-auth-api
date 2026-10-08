@@ -17,6 +17,7 @@ const usersRouter = createRouter('/users');
 usersRouter.get(
   '/me',
   {
+    adapter: { clears: ['preAuth'] },
     auth: 'access',
     tags: ['Users'],
     summary: 'Get authenticated user',
@@ -47,6 +48,7 @@ usersRouter.post(
 usersRouter.delete(
   '/delete',
   {
+    adapter: { clears: ['access', 'registration', 'refresh'] },
     auth: 'access',
     tags: ['Users'],
     summary: 'Delete authenticated user',

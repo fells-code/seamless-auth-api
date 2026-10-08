@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.16.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.17.0" },
   "components": {
     "schemas": {},
     "parameters": {},
@@ -9,6 +9,116 @@
     }
   },
   "paths": {
+    "/.well-known/seamless-adapter.json": {
+      "get": {
+        "summary": "Routes a server adapter exposes and what it does with each",
+        "description": "Server adapters load this at startup instead of hard-coding routes. It describes which token each route takes and which tokens a response issues or clears.",
+        "tags": ["Adapters"],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "schemaVersion": null,
+                  "apiVersion": "string",
+                  "session": {
+                    "subject": null,
+                    "token": null,
+                    "refreshToken": null,
+                    "ttl": null,
+                    "refreshTtl": null
+                  },
+                  "routes": [null]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schemaVersion": { "type": "number", "enum": [1] },
+                    "apiVersion": { "type": "string" },
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "subject": { "type": "string", "enum": ["sub"] },
+                        "token": { "type": "string", "enum": ["token"] },
+                        "refreshToken": { "type": "string", "enum": ["refreshToken"] },
+                        "ttl": { "type": "string", "enum": ["ttl"] },
+                        "refreshTtl": { "type": "string", "enum": ["refreshTtl"] }
+                      },
+                      "required": ["subject", "token", "refreshToken", "ttl", "refreshTtl"]
+                    },
+                    "routes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "method": {
+                            "type": "string",
+                            "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+                          },
+                          "path": { "type": "string" },
+                          "credential": {
+                            "type": "string",
+                            "enum": ["none", "preAuth", "registration", "access", "refresh"]
+                          },
+                          "issues": {
+                            "type": "string",
+                            "enum": ["preAuth", "registration", "session", "access"]
+                          },
+                          "clears": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": ["preAuth", "registration", "access", "refresh"]
+                            }
+                          },
+                          "body": {
+                            "type": "object",
+                            "properties": {
+                              "pick": { "type": "array", "items": { "type": "string" } }
+                            },
+                            "required": ["pick"]
+                          },
+                          "delivery": { "type": "boolean", "enum": [true] }
+                        },
+                        "required": ["method", "path", "credential"]
+                      }
+                    }
+                  },
+                  "required": ["schemaVersion", "apiVersion", "session", "routes"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/organizations": {
       "get": {
         "summary": "List organizations",
@@ -6902,9 +7012,163 @@
       }
     },
     "/magic-link": {
-      "get": {
+      "post": {
         "summary": "Request a magic login link",
         "tags": ["MagicLinks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uri" },
+            "required": false,
+            "name": "redirectUri",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Request a magic login link",
+        "description": "Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.",
+        "tags": ["MagicLinks"],
+        "deprecated": true,
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -9391,9 +9655,114 @@
       }
     },
     "/otp/generate-email-otp": {
-      "get": {
+      "post": {
         "summary": "Generate email OTP",
         "tags": ["OTP"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Generate email OTP",
+        "description": "Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.",
+        "tags": ["OTP"],
+        "deprecated": true,
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
@@ -9496,9 +9865,114 @@
       }
     },
     "/otp/generate-phone-otp": {
-      "get": {
+      "post": {
         "summary": "Generate phone OTP",
         "tags": ["OTP"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Generate phone OTP",
+        "description": "Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.",
+        "tags": ["OTP"],
+        "deprecated": true,
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
@@ -9601,9 +10075,114 @@
       }
     },
     "/otp/generate-login-email-otp": {
-      "get": {
+      "post": {
         "summary": "Generate login email OTP",
         "tags": ["OTP"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Generate login email OTP",
+        "description": "Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.",
+        "tags": ["OTP"],
+        "deprecated": true,
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
@@ -9706,9 +10285,114 @@
       }
     },
     "/otp/generate-login-phone-otp": {
-      "get": {
+      "post": {
         "summary": "Generate login phone OTP",
         "tags": ["OTP"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Generate login phone OTP",
+        "description": "Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.",
+        "tags": ["OTP"],
+        "deprecated": true,
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {

@@ -105,6 +105,7 @@ totpRouter.post(
 totpRouter.post(
   '/verify-login',
   {
+    adapter: { credential: 'preAuth', issues: 'session' },
     middleware: [otpIpLimiter, otpIdentityLimiter],
     auth: 'ephemeral',
     summary: 'Verify TOTP during login',

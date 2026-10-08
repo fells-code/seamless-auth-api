@@ -126,6 +126,7 @@ Direct provider wiring currently lives in [src/config/directMessaging.ts](/Users
 
 - Prefer changing controllers/services over adding logic directly in routes.
 - When adding or updating routes, use `schemas`, not `schema`, so request parsing and OpenAPI generation both work.
+- Public, ephemeral, and token-issuing routes must declare `adapter` in `defineRoute` (see [src/lib/adapterManifest.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/adapterManifest.ts)). It feeds `/.well-known/seamless-adapter.json`, which server adapters follow instead of a hard-coded route list. Run `npm run generate:api` after route changes so `openapi.json` and `adapter-manifest.json` stay committed in step.
 - If a route requires auth, prefer the `auth` option in `createRouter` definitions. That keeps middleware wiring and OpenAPI security metadata aligned.
 - If a route also needs admin checks or rate limiting, combine `auth` with extra `middleware`.
 - Be careful around token response shapes and bearer auth. Browser-cookie auth mode has been removed.

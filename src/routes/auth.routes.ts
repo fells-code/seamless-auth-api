@@ -23,6 +23,10 @@ const authRouter = createRouter('');
 authRouter.post(
   '/login',
   {
+    adapter: {
+      issues: 'preAuth',
+      body: { pick: ['message', 'identifierType', 'loginMethods'] },
+    },
     summary: 'Login using identifier (email or phone)',
     tags: ['Authentication'],
 
@@ -46,6 +50,7 @@ authRouter.post(
 authRouter.delete(
   '/logout',
   {
+    adapter: { clears: ['access', 'registration', 'refresh'] },
     auth: 'access',
     summary: 'Logout current session',
     tags: ['Authentication'],
@@ -63,6 +68,7 @@ authRouter.delete(
 authRouter.delete(
   '/logout/all',
   {
+    adapter: { clears: ['access', 'registration', 'refresh'] },
     auth: 'access',
     summary: 'Logout all sessions for the current user',
     tags: ['Authentication'],
@@ -79,6 +85,7 @@ authRouter.delete(
 authRouter.post(
   '/refresh',
   {
+    adapter: { credential: 'refresh', issues: 'session' },
     summary: 'Refresh access token',
     tags: ['Authentication'],
 

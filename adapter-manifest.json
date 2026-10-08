@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": "0.17.0",
+  "session": {
+    "subject": "sub",
+    "token": "token",
+    "refreshToken": "refreshToken",
+    "ttl": "ttl",
+    "refreshTtl": "refreshTtl"
+  },
+  "routes": [
+    { "method": "GET", "path": "/admin/auth-events", "credential": "access" },
+    { "method": "GET", "path": "/admin/auth-events/export", "credential": "access" },
+    { "method": "GET", "path": "/admin/auth-events/integrity", "credential": "access" },
+    { "method": "GET", "path": "/admin/credential-count", "credential": "access" },
+    { "method": "GET", "path": "/admin/enrollment", "credential": "access" },
+    { "method": "POST", "path": "/admin/enrollment/invites", "credential": "access" },
+    { "method": "GET", "path": "/admin/organizations", "credential": "access" },
+    { "method": "POST", "path": "/admin/organizations", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/organizations/{organizationId}", "credential": "access" },
+    { "method": "GET", "path": "/admin/organizations/{organizationId}", "credential": "access" },
+    { "method": "PATCH", "path": "/admin/organizations/{organizationId}", "credential": "access" },
+    {
+      "method": "GET",
+      "path": "/admin/organizations/{organizationId}/members",
+      "credential": "access"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/organizations/{organizationId}/members",
+      "credential": "access"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/organizations/{organizationId}/members/{userId}",
+      "credential": "access"
+    },
+    {
+      "method": "PATCH",
+      "path": "/admin/organizations/{organizationId}/members/{userId}",
+      "credential": "access"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/organizations/{organizationId}/oauth-providers/{providerId}/retirement",
+      "credential": "access"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/organizations/{organizationId}/oauth-providers/{providerId}/retirement",
+      "credential": "access"
+    },
+    { "method": "GET", "path": "/admin/reports/authentication-coverage", "credential": "access" },
+    { "method": "GET", "path": "/admin/review-accounts", "credential": "access" },
+    { "method": "GET", "path": "/admin/sessions", "credential": "access" },
+    { "method": "GET", "path": "/admin/sessions/{userId}", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/sessions/{userId}/revoke-all", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/sessions/by-id/{id}", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/users", "credential": "access" },
+    { "method": "GET", "path": "/admin/users", "credential": "access" },
+    { "method": "POST", "path": "/admin/users", "credential": "access" },
+    { "method": "GET", "path": "/admin/users/{userId}", "credential": "access" },
+    { "method": "PATCH", "path": "/admin/users/{userId}", "credential": "access" },
+    { "method": "GET", "path": "/admin/users/{userId}/anomalies", "credential": "access" },
+    {
+      "method": "POST",
+      "path": "/admin/users/{userId}/recovery/device-replacement",
+      "credential": "access"
+    },
+    { "method": "POST", "path": "/admin/users/import", "credential": "access" },
+    { "method": "GET", "path": "/internal/auth-events/grouped", "credential": "access" },
+    { "method": "GET", "path": "/internal/auth-events/login-stats", "credential": "access" },
+    { "method": "GET", "path": "/internal/auth-events/summary", "credential": "access" },
+    { "method": "GET", "path": "/internal/auth-events/timeseries", "credential": "access" },
+    { "method": "GET", "path": "/internal/metrics/dashboard", "credential": "access" },
+    { "method": "GET", "path": "/internal/metrics/funnel", "credential": "access" },
+    { "method": "GET", "path": "/internal/metrics/sign-ins", "credential": "access" },
+    { "method": "GET", "path": "/internal/security/anomalies", "credential": "access" },
+    {
+      "method": "POST",
+      "path": "/login",
+      "credential": "none",
+      "issues": "preAuth",
+      "body": { "pick": ["message", "identifierType", "loginMethods"] }
+    },
+    {
+      "method": "DELETE",
+      "path": "/logout",
+      "credential": "access",
+      "clears": ["access", "registration", "refresh"]
+    },
+    {
+      "method": "DELETE",
+      "path": "/logout/all",
+      "credential": "access",
+      "clears": ["access", "registration", "refresh"]
+    },
+    { "method": "POST", "path": "/magic-link", "credential": "preAuth", "delivery": true },
+    { "method": "GET", "path": "/magic-link/check", "credential": "preAuth", "issues": "session" },
+    { "method": "GET", "path": "/magic-link/verify/{token}", "credential": "none" },
+    {
+      "method": "POST",
+      "path": "/oauth/{providerId}/callback",
+      "credential": "none",
+      "issues": "session"
+    },
+    { "method": "POST", "path": "/oauth/{providerId}/start", "credential": "none" },
+    { "method": "GET", "path": "/oauth/providers", "credential": "none" },
+    { "method": "GET", "path": "/organizations", "credential": "access" },
+    { "method": "POST", "path": "/organizations", "credential": "access" },
+    { "method": "GET", "path": "/organizations/{organizationId}", "credential": "access" },
+    { "method": "PATCH", "path": "/organizations/{organizationId}", "credential": "access" },
+    { "method": "GET", "path": "/organizations/{organizationId}/members", "credential": "access" },
+    { "method": "POST", "path": "/organizations/{organizationId}/members", "credential": "access" },
+    {
+      "method": "DELETE",
+      "path": "/organizations/{organizationId}/members/{userId}",
+      "credential": "access"
+    },
+    {
+      "method": "PATCH",
+      "path": "/organizations/{organizationId}/members/{userId}",
+      "credential": "access"
+    },
+    {
+      "method": "POST",
+      "path": "/organizations/{organizationId}/switch",
+      "credential": "access",
+      "issues": "access"
+    },
+    {
+      "method": "POST",
+      "path": "/otp/generate-email-otp",
+      "credential": "registration",
+      "delivery": true
+    },
+    {
+      "method": "POST",
+      "path": "/otp/generate-login-email-otp",
+      "credential": "preAuth",
+      "delivery": true
+    },
+    {
+      "method": "POST",
+      "path": "/otp/generate-login-phone-otp",
+      "credential": "preAuth",
+      "delivery": true
+    },
+    {
+      "method": "POST",
+      "path": "/otp/generate-phone-otp",
+      "credential": "registration",
+      "delivery": true
+    },
+    {
+      "method": "POST",
+      "path": "/otp/verify-email-otp",
+      "credential": "registration",
+      "issues": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/otp/verify-login-email-otp",
+      "credential": "preAuth",
+      "issues": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/otp/verify-login-phone-otp",
+      "credential": "preAuth",
+      "issues": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/otp/verify-phone-otp",
+      "credential": "registration",
+      "issues": "session"
+    },
+    { "method": "POST", "path": "/refresh", "credential": "refresh", "issues": "session" },
+    { "method": "POST", "path": "/registration/phone", "credential": "access" },
+    { "method": "POST", "path": "/registration/phone/verify", "credential": "access" },
+    {
+      "method": "POST",
+      "path": "/registration/register",
+      "credential": "none",
+      "issues": "registration"
+    },
+    { "method": "DELETE", "path": "/sessions", "credential": "access" },
+    { "method": "GET", "path": "/sessions", "credential": "access" },
+    { "method": "DELETE", "path": "/sessions/{id}", "credential": "access" },
+    { "method": "GET", "path": "/step-up/status", "credential": "access" },
+    { "method": "POST", "path": "/step-up/webauthn/finish", "credential": "access" },
+    { "method": "POST", "path": "/step-up/webauthn/start", "credential": "access" },
+    { "method": "GET", "path": "/system-config/admin", "credential": "access" },
+    { "method": "PATCH", "path": "/system-config/admin", "credential": "access" },
+    { "method": "GET", "path": "/system-config/oauth-providers", "credential": "access" },
+    { "method": "POST", "path": "/system-config/oauth-providers", "credential": "access" },
+    { "method": "DELETE", "path": "/system-config/oauth-providers/{id}", "credential": "access" },
+    { "method": "PATCH", "path": "/system-config/oauth-providers/{id}", "credential": "access" },
+    { "method": "GET", "path": "/system-config/public", "credential": "none" },
+    { "method": "GET", "path": "/system-config/roles", "credential": "access" },
+    { "method": "POST", "path": "/totp/disable", "credential": "access" },
+    { "method": "POST", "path": "/totp/enroll/start", "credential": "access" },
+    { "method": "POST", "path": "/totp/enroll/verify", "credential": "access" },
+    { "method": "GET", "path": "/totp/status", "credential": "access" },
+    {
+      "method": "POST",
+      "path": "/totp/verify-login",
+      "credential": "preAuth",
+      "issues": "session"
+    },
+    { "method": "POST", "path": "/totp/verify-mfa", "credential": "access" },
+    { "method": "DELETE", "path": "/users/credentials", "credential": "access" },
+    { "method": "POST", "path": "/users/credentials", "credential": "access" },
+    {
+      "method": "DELETE",
+      "path": "/users/delete",
+      "credential": "access",
+      "clears": ["access", "registration", "refresh"]
+    },
+    { "method": "GET", "path": "/users/me", "credential": "access", "clears": ["preAuth"] },
+    {
+      "method": "POST",
+      "path": "/webauthn/login/finish",
+      "credential": "preAuth",
+      "issues": "session"
+    },
+    { "method": "POST", "path": "/webauthn/login/start", "credential": "preAuth" },
+    { "method": "POST", "path": "/webauthn/register/finish", "credential": "access" },
+    { "method": "GET", "path": "/webauthn/register/start", "credential": "access" }
+  ]
+}
