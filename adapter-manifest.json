@@ -177,13 +177,14 @@
       "issues": "session"
     },
     { "method": "POST", "path": "/refresh", "credential": "refresh", "issues": "session" },
-    { "method": "POST", "path": "/registration/phone", "credential": "access" },
+    { "method": "POST", "path": "/registration/phone", "credential": "access", "delivery": true },
     { "method": "POST", "path": "/registration/phone/verify", "credential": "access" },
     {
       "method": "POST",
       "path": "/registration/register",
       "credential": "none",
-      "issues": "registration"
+      "issues": "registration",
+      "delivery": true
     },
     { "method": "DELETE", "path": "/sessions", "credential": "access" },
     { "method": "GET", "path": "/sessions", "credential": "access" },

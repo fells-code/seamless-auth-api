@@ -50,7 +50,7 @@ describe('adapter manifest for the live routes', () => {
 
   // A GET is sent cross-site without a CORS preflight, so a route that sends a message
   // must only reach adapters as POST.
-  it('only exposes message-sending routes as POST', () => {
+  it('marks every message-sending route and exposes each as POST', () => {
     const delivery = manifest.routes.filter((entry) => entry.delivery);
 
     expect(delivery.map((entry) => `${entry.method} ${entry.path}`).sort()).toEqual([
@@ -59,6 +59,8 @@ describe('adapter manifest for the live routes', () => {
       'POST /otp/generate-login-email-otp',
       'POST /otp/generate-login-phone-otp',
       'POST /otp/generate-phone-otp',
+      'POST /registration/phone',
+      'POST /registration/register',
     ]);
   });
 
