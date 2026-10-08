@@ -24,7 +24,7 @@ const registrationRouter = createRouter('/registration');
 registrationRouter.post(
   '/register',
   {
-    adapter: { issues: 'registration' },
+    adapter: { issues: 'registration', delivery: true },
     summary: 'Register a new user',
     tags: ['Registration'],
     middleware: [otpIpLimiter, otpIdentityLimiter],
@@ -46,6 +46,7 @@ registrationRouter.post(
 registrationRouter.post(
   '/phone',
   {
+    adapter: { delivery: true },
     auth: 'access',
     summary: 'Register a phone number for the authenticated user',
     tags: ['Registration'],
