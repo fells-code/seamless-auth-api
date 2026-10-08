@@ -90,6 +90,23 @@ function successSchemas(response: ZodTypeAny | Record<number, ZodTypeAny> | unde
     .map(([, schema]) => schema);
 }
 
+function successFields(
+  response: ZodTypeAny | Record<number, ZodTypeAny> | undefined,
+  name: string,
+): ZodTypeAny[] {
+  return successSchemas(response)
+    .flatMap(unwrap)
+    .map((schema) => (schema as z.ZodObject).shape[name] as ZodTypeAny | undefined)
+    .filter((field): field is ZodTypeAny => field !== undefined);
+}
+
+/** Whether a success response can carry an external-delivery payload. */
+export function deliveryInResponse(
+  response: ZodTypeAny | Record<number, ZodTypeAny> | undefined,
+): boolean {
+  return successFields(response, 'delivery').length > 0;
+}
+
 /**
  * Whether a success response carries a token, and whether it always does.
  *
@@ -100,10 +117,7 @@ function successSchemas(response: ZodTypeAny | Record<number, ZodTypeAny> | unde
 export function tokenInResponse(
   response: ZodTypeAny | Record<number, ZodTypeAny> | undefined,
 ): 'required' | 'optional' | 'none' {
-  const fields = successSchemas(response)
-    .flatMap(unwrap)
-    .map((schema) => (schema as z.ZodObject).shape.token as ZodTypeAny | undefined)
-    .filter((field): field is ZodTypeAny => field !== undefined);
+  const fields = successFields(response, 'token');
 
   if (fields.some((field) => !(field instanceof z.ZodOptional))) {
     return 'required';
@@ -186,6 +200,14 @@ export function registerAdapterRoute({
   if (options.issues && token === 'none') {
     throw new Error(
       `${label} declares adapter \`issues\` but no success response schema has a token.`,
+    );
+  }
+
+  // Only this direction is checked: the shared `MessageSchema` allows a delivery payload
+  // on routes that never send one, so its presence cannot mean a route delivers.
+  if (options.delivery && !deliveryInResponse(response)) {
+    throw new Error(
+      `${label} declares adapter \`delivery\` but no success response has a delivery payload.`,
     );
   }
 

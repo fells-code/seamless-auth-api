@@ -10,7 +10,11 @@ import {
 
 const Message = z.object({ message: z.string() });
 const Session = z.object({ sub: z.string(), token: z.string(), ttl: z.number() });
-const MaybeToken = z.object({ message: z.string(), token: z.string().optional() });
+const MaybeToken = z.object({
+  message: z.string(),
+  token: z.string().optional(),
+  delivery: z.object({ kind: z.string() }).optional(),
+});
 
 function register(overrides: Partial<Parameters<typeof registerAdapterRoute>[0]>) {
   registerAdapterRoute({
@@ -115,6 +119,12 @@ describe('registerAdapterRoute', () => {
     );
   });
 
+  it('refuses delivery on a route whose response cannot carry a delivery payload', () => {
+    expect(() => register({ auth: 'access', adapter: { delivery: true } })).toThrow(
+      /no success response has a delivery payload/,
+    );
+  });
+
   it('refuses a body pick on a route that issues nothing', () => {
     expect(() => register({ adapter: { body: { pick: ['message'] } } })).toThrow(/issues nothing/);
   });
@@ -135,6 +145,7 @@ describe('registerAdapterRoute', () => {
       path: '/send',
       auth: 'ephemeral',
       adapter: { credential: 'registration', delivery: true },
+      response: { 200: MaybeToken },
     });
 
     expect(getAdapterManifest().routes).toEqual([
