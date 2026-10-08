@@ -47,6 +47,7 @@ const systemConfigRouter = createRouter('/system-config');
 systemConfigRouter.get(
   '/public',
   {
+    adapter: {},
     summary: 'Read the publicly visible system configuration',
     tags: ['SystemConfig'],
 

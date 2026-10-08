@@ -13,6 +13,7 @@ const healthRouter = createRouter('/health');
 healthRouter.get(
   '/status',
   {
+    adapter: false,
     summary: 'Health check endpoint',
     tags: ['Health'],
 
@@ -28,6 +29,7 @@ healthRouter.get(
 healthRouter.get(
   '/version',
   {
+    adapter: false,
     summary: 'API version information',
     tags: ['Health'],
 

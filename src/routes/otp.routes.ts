@@ -32,9 +32,10 @@ import { OTPVerifyTokenSuccessSchema } from '../schemas/otp.responses.js';
 
 const otpRouter = createRouter('/otp');
 
-otpRouter.get(
+otpRouter.post(
   '/generate-email-otp',
   {
+    adapter: { credential: 'registration', delivery: true },
     auth: 'ephemeral',
     summary: 'Generate email OTP',
     decoy: decoySendEmailOtp,
@@ -53,8 +54,33 @@ otpRouter.get(
 );
 
 otpRouter.get(
+  '/generate-email-otp',
+  {
+    adapter: false,
+    deprecated: true,
+    description:
+      'Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.',
+    auth: 'ephemeral',
+    summary: 'Generate email OTP',
+    decoy: decoySendEmailOtp,
+    tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
+
+    schemas: {
+      response: {
+        200: MessageSchema,
+        400: ErrorSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  sendEmailOTP,
+);
+
+otpRouter.post(
   '/generate-phone-otp',
   {
+    adapter: { credential: 'registration', delivery: true },
     auth: 'ephemeral',
     summary: 'Generate phone OTP',
     decoy: decoySendPhoneOtp,
@@ -73,8 +99,33 @@ otpRouter.get(
 );
 
 otpRouter.get(
+  '/generate-phone-otp',
+  {
+    adapter: false,
+    deprecated: true,
+    description:
+      'Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.',
+    auth: 'ephemeral',
+    summary: 'Generate phone OTP',
+    decoy: decoySendPhoneOtp,
+    tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
+
+    schemas: {
+      response: {
+        200: MessageSchema,
+        400: ErrorSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  sendPhoneOTP,
+);
+
+otpRouter.post(
   '/generate-login-email-otp',
   {
+    adapter: { credential: 'preAuth', delivery: true },
     auth: 'ephemeral',
     summary: 'Generate login email OTP',
     decoy: decoySendLoginEmailOtp,
@@ -92,8 +143,55 @@ otpRouter.get(
 );
 
 otpRouter.get(
+  '/generate-login-email-otp',
+  {
+    adapter: false,
+    deprecated: true,
+    description:
+      'Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.',
+    auth: 'ephemeral',
+    summary: 'Generate login email OTP',
+    decoy: decoySendLoginEmailOtp,
+    tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
+
+    schemas: {
+      response: {
+        200: MessageSchema,
+        403: ErrorSchema,
+      },
+    },
+  },
+  sendLoginEmailOTP,
+);
+
+otpRouter.post(
   '/generate-login-phone-otp',
   {
+    adapter: { credential: 'preAuth', delivery: true },
+    auth: 'ephemeral',
+    summary: 'Generate login phone OTP',
+    decoy: decoySendLoginPhoneOtp,
+    tags: ['OTP'],
+    middleware: [otpIpLimiter, otpIdentityLimiter],
+
+    schemas: {
+      response: {
+        200: MessageSchema,
+        403: ErrorSchema,
+      },
+    },
+  },
+  sendLoginPhoneOTP,
+);
+
+otpRouter.get(
+  '/generate-login-phone-otp',
+  {
+    adapter: false,
+    deprecated: true,
+    description:
+      'Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.',
     auth: 'ephemeral',
     summary: 'Generate login phone OTP',
     decoy: decoySendLoginPhoneOtp,
@@ -113,6 +211,7 @@ otpRouter.get(
 otpRouter.post(
   '/verify-email-otp',
   {
+    adapter: { credential: 'registration', issues: 'session' },
     auth: 'ephemeral',
     summary: 'Verify email OTP',
     decoy: decoyVerifyEmailOtp,
@@ -136,6 +235,7 @@ otpRouter.post(
 otpRouter.post(
   '/verify-phone-otp',
   {
+    adapter: { credential: 'registration', issues: 'session' },
     auth: 'ephemeral',
     summary: 'Verify phone OTP',
     decoy: decoyVerifyPhoneOtp,
@@ -159,6 +259,7 @@ otpRouter.post(
 otpRouter.post(
   '/verify-login-email-otp',
   {
+    adapter: { credential: 'preAuth', issues: 'session' },
     auth: 'ephemeral',
     summary: 'Verify login email OTP',
     decoy: decoyVerifyLoginEmailOtp,
@@ -181,6 +282,7 @@ otpRouter.post(
 otpRouter.post(
   '/verify-login-phone-otp',
   {
+    adapter: { credential: 'preAuth', issues: 'session' },
     auth: 'ephemeral',
     summary: 'Verify login phone OTP',
     decoy: decoyVerifyLoginPhoneOtp,

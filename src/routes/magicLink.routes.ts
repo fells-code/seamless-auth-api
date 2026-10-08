@@ -21,9 +21,36 @@ import { MagicLinkPollSuccessSchema } from '../schemas/magiclink.responses.js';
 
 const magicLinkRouter = createRouter('/magic-link');
 
+magicLinkRouter.post(
+  '',
+  {
+    adapter: { credential: 'preAuth', delivery: true },
+    auth: 'ephemeral',
+    summary: 'Request a magic login link',
+    decoy: decoyRequestMagicLink,
+    tags: ['MagicLinks'],
+    middleware: [magicLinkIpLimiter, magicLinkEmailLimiter],
+
+    schemas: {
+      query: MagicLinkRequestQuerySchema,
+      response: {
+        200: MessageSchema,
+        400: ErrorSchema,
+        403: ErrorSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  requestMagicLink,
+);
+
 magicLinkRouter.get(
   '',
   {
+    adapter: false,
+    deprecated: true,
+    description:
+      'Use POST. A GET that sends a message can be triggered cross-site without a CORS preflight.',
     auth: 'ephemeral',
     summary: 'Request a magic login link',
     decoy: decoyRequestMagicLink,
@@ -46,6 +73,7 @@ magicLinkRouter.get(
 magicLinkRouter.get(
   '/check',
   {
+    adapter: { credential: 'preAuth', issues: 'session' },
     auth: 'ephemeral',
     summary: 'Poll for magic link confirmation',
     decoy: decoyPollMagicLink,
@@ -67,6 +95,7 @@ magicLinkRouter.get(
 magicLinkRouter.get(
   '/verify/:token',
   {
+    adapter: {},
     summary: 'Verify magic link token',
     tags: ['MagicLinks'],
 

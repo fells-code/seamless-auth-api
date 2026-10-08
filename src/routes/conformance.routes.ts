@@ -33,25 +33,25 @@ if (conformanceModeEnabled()) {
   // the shape of a refusal both belong in the controller.
   conformanceRouter.post(
     '/attestation/options',
-    { summary: 'FIDO2 conformance: registration options', tags: ['Conformance'] },
+    { adapter: false, summary: 'FIDO2 conformance: registration options', tags: ['Conformance'] },
     attestationOptions,
   );
 
   conformanceRouter.post(
     '/attestation/result',
-    { summary: 'FIDO2 conformance: registration result', tags: ['Conformance'] },
+    { adapter: false, summary: 'FIDO2 conformance: registration result', tags: ['Conformance'] },
     attestationResult,
   );
 
   conformanceRouter.post(
     '/assertion/options',
-    { summary: 'FIDO2 conformance: authentication options', tags: ['Conformance'] },
+    { adapter: false, summary: 'FIDO2 conformance: authentication options', tags: ['Conformance'] },
     assertionOptions,
   );
 
   conformanceRouter.post(
     '/assertion/result',
-    { summary: 'FIDO2 conformance: authentication result', tags: ['Conformance'] },
+    { adapter: false, summary: 'FIDO2 conformance: authentication result', tags: ['Conformance'] },
     assertionResult,
   );
 }

@@ -15,6 +15,11 @@ vi.mock('../../../src/openapi/registry', () => ({
   },
 }));
 
+// Adapter declarations have their own spec; these routes are fixtures for other behaviour.
+vi.mock('../../../src/lib/adapterManifest', () => ({
+  registerAdapterRoute: vi.fn(),
+}));
+
 describe('defineRoute', () => {
   beforeEach(() => {
     vi.resetModules();

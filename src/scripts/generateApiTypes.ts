@@ -5,7 +5,8 @@
  */
 
 /**
- * Emits the OpenAPI document and the typed client from the live route definitions.
+ * Emits the OpenAPI document, the typed client and the adapter manifest from the live
+ * route definitions.
  *
  * The registry is populated as a side effect of importing the route modules, which is
  * why this loads routes into a throwaway Express app rather than reading a checked-in
@@ -22,6 +23,7 @@ import openapiTS, { astToString } from 'openapi-typescript';
 import path from 'path';
 import { format, resolveConfig } from 'prettier';
 
+import { getAdapterManifest } from '../lib/adapterManifest.js';
 import { loadRoutes } from '../lib/loadRoutes.js';
 import { generateOpenApiDocument } from '../openapi/document.js';
 
@@ -43,6 +45,7 @@ const GENERATED_NOTICE = `
 
 const SPEC_PATH = path.resolve(process.cwd(), 'openapi.json');
 const TYPES_PATH = path.resolve(process.cwd(), 'src/generated/api.ts');
+const MANIFEST_PATH = path.resolve(process.cwd(), 'adapter-manifest.json');
 
 // Formatted here rather than left to the commit hook, so regenerating never leaves the
 // tree failing `format:check`.
@@ -70,13 +73,19 @@ export async function generateApiTypes() {
   await mkdir(path.dirname(TYPES_PATH), { recursive: true });
   await writeFile(SPEC_PATH, await formatAs(JSON.stringify(document), SPEC_PATH));
   await writeFile(TYPES_PATH, await formatAs(types, TYPES_PATH));
+  await writeFile(
+    MANIFEST_PATH,
+    await formatAs(JSON.stringify(getAdapterManifest()), MANIFEST_PATH),
+  );
 
-  return { pathCount, specPath: SPEC_PATH, typesPath: TYPES_PATH };
+  return { pathCount, specPath: SPEC_PATH, typesPath: TYPES_PATH, manifestPath: MANIFEST_PATH };
 }
 
 const invokedDirectly = process.argv[1] && import.meta.url.endsWith(path.basename(process.argv[1]));
 
 if (invokedDirectly) {
   const { pathCount } = await generateApiTypes();
-  console.log(`Generated openapi.json and src/generated/api.ts from ${pathCount} paths.`);
+  console.log(
+    `Generated openapi.json, src/generated/api.ts and adapter-manifest.json from ${pathCount} paths.`,
+  );
 }

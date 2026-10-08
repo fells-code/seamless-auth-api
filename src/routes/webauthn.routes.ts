@@ -82,6 +82,7 @@ webauthnRouter.post(
 webauthnRouter.post(
   '/login/start',
   {
+    adapter: { credential: 'preAuth' },
     auth: 'ephemeral',
     summary: 'Start WebAuthn login',
     decoy: decoyStartWebAuthnLogin,
@@ -104,6 +105,7 @@ webauthnRouter.post(
 webauthnRouter.post(
   '/login/finish',
   {
+    adapter: { credential: 'preAuth', issues: 'session' },
     auth: 'ephemeral',
     summary: 'Finish WebAuthn login',
     decoy: decoyFinishWebAuthnLogin,

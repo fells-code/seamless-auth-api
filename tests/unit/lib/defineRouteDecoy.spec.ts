@@ -6,6 +6,11 @@ vi.mock('../../../src/openapi/registry', () => ({
   registry: { registerPath: vi.fn() },
 }));
 
+// Adapter declarations have their own spec; these routes are fixtures for other behaviour.
+vi.mock('../../../src/lib/adapterManifest', () => ({
+  registerAdapterRoute: vi.fn(),
+}));
+
 const schemas = {
   response: {
     200: z.object({ message: z.string() }),

@@ -104,6 +104,7 @@ organizationRouter.patch(
 organizationRouter.post(
   '/:organizationId/switch',
   {
+    adapter: { issues: 'access' },
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Switch active organization for the current session',
