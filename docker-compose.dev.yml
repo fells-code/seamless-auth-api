@@ -65,7 +65,7 @@ services:
       DB_PASSWORD: seamless
       DB_LOGGING: ${DB_LOGGING:-false}
 
-      API_SERVICE_TOKEN: ${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}
+      SEAMLESS_SERVICE_TOKEN: ${SEAMLESS_SERVICE_TOKEN:-${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}}
       ALLOW_UNCREDENTIALED_DELIVERY_SECRETS: 'true'
       OWNER_EMAIL: ${OWNER_EMAIL:-owner@example.com}
       SERVE_ADMIN_DASHBOARD: 'false'

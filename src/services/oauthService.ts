@@ -8,6 +8,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from 'jose';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { getServiceToken } from '../config/serviceToken.js';
 import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { allowedRedirect } from '../lib/redirectAllowlist.js';
 import { OAuthIdentity } from '../models/oauthIdentities.js';
@@ -93,14 +94,14 @@ function stateSecret() {
   const explicit = process.env.OAUTH_STATE_SECRET?.trim();
   if (explicit) return explicit;
 
-  const serviceSecret = process.env.API_SERVICE_TOKEN?.trim();
+  const serviceSecret = getServiceToken();
   if (serviceSecret) return serviceSecret;
 
   if (process.env.NODE_ENV !== 'production') {
     return `dev-oauth-state:${process.env.APP_ID ?? 'local'}`;
   }
 
-  throw new Error('OAUTH_STATE_SECRET or API_SERVICE_TOKEN is required in production.');
+  throw new Error('OAUTH_STATE_SECRET or SEAMLESS_SERVICE_TOKEN is required in production.');
 }
 
 function base64UrlEncode(value: string) {

@@ -9,7 +9,7 @@ Provider access tokens are used only during callback handling to fetch profile d
 1. Add `oauth` to `LOGIN_METHODS`.
 2. Configure one or more providers in `oauth_providers` system config or the `OAUTH_PROVIDERS` environment variable.
 3. Store provider client secrets in environment variables referenced by `clientSecretEnv`.
-4. Set `OAUTH_STATE_SECRET` in production, or ensure `API_SERVICE_TOKEN` is stable and secret so it
+4. Set `OAUTH_STATE_SECRET` in production, or ensure `SEAMLESS_SERVICE_TOKEN` is stable and secret so it
    can be used as the OAuth state-signing fallback.
 
 Example provider:

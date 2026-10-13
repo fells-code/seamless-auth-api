@@ -20,23 +20,23 @@ There are two configuration layers:
 For local development, these are the only values you must set (all are present in
 [`.env.example`](../.env.example) with working defaults):
 
-| Variable              | Example                 | Purpose                                           |
-| --------------------- | ----------------------- | ------------------------------------------------- |
-| `APP_NAME`            | `Seamless Auth Example` | Human-readable app name (min 3 chars)             |
-| `APP_ID`              | `local-dev`             | Stable application identifier                     |
-| `APP_ORIGINS`         | `http://localhost:3000` | Callers allowed by CORS                           |
-| `ISSUER`              | `http://localhost:5312` | JWT `iss` claim and issuer URL                    |
-| `DEFAULT_ROLES`       | `user`                  | Roles assigned to every new user                  |
-| `AVAILABLE_ROLES`     | `user,admin`            | Roles allowed in the system                       |
-| `ACCESS_TOKEN_TTL`    | `30m`                   | Access token lifetime (`\d+[smhd]`)               |
-| `REFRESH_TOKEN_TTL`   | `1d`                    | Refresh token lifetime (`\d+[smhd]`)              |
-| `RATE_LIMIT`          | `100`                   | Global request rate limit                         |
-| `DELAY_AFTER`         | `50`                    | Requests before slow-down kicks in                |
-| `RPID`                | `localhost`             | WebAuthn relying party ID                         |
-| `ORIGINS`             | `http://localhost:5173` | WebAuthn allowed origins (comma-separated)        |
-| `FRONTEND_URL`        | `http://localhost:5173` | Base URL for emailed magic links                  |
-| `API_SERVICE_TOKEN`   | `<32-byte hex>`         | Trusted server-adapter and internal bearer secret |
-| Database connectivity | see below               | `DATABASE_URL`/`DB_URI` **or** the `DB_*` set     |
+| Variable                 | Example                 | Purpose                                                                                |
+| ------------------------ | ----------------------- | -------------------------------------------------------------------------------------- |
+| `APP_NAME`               | `Seamless Auth Example` | Human-readable app name (min 3 chars)                                                  |
+| `APP_ID`                 | `local-dev`             | Stable application identifier                                                          |
+| `APP_ORIGINS`            | `http://localhost:3000` | Callers allowed by CORS                                                                |
+| `ISSUER`                 | `http://localhost:5312` | JWT `iss` claim and issuer URL                                                         |
+| `DEFAULT_ROLES`          | `user`                  | Roles assigned to every new user                                                       |
+| `AVAILABLE_ROLES`        | `user,admin`            | Roles allowed in the system                                                            |
+| `ACCESS_TOKEN_TTL`       | `30m`                   | Access token lifetime (`\d+[smhd]`)                                                    |
+| `REFRESH_TOKEN_TTL`      | `1d`                    | Refresh token lifetime (`\d+[smhd]`)                                                   |
+| `RATE_LIMIT`             | `100`                   | Global request rate limit                                                              |
+| `DELAY_AFTER`            | `50`                    | Requests before slow-down kicks in                                                     |
+| `RPID`                   | `localhost`             | WebAuthn relying party ID                                                              |
+| `ORIGINS`                | `http://localhost:5173` | WebAuthn allowed origins (comma-separated)                                             |
+| `FRONTEND_URL`           | `http://localhost:5173` | Base URL for emailed magic links                                                       |
+| `SEAMLESS_SERVICE_TOKEN` | `<32-byte hex>`         | Trusted server-adapter and internal bearer secret (`API_SERVICE_TOKEN` still accepted) |
+| Database connectivity    | see below               | `DATABASE_URL`/`DB_URI` **or** the `DB_*` set                                          |
 
 Everything else is optional or environment-specific.
 
@@ -107,15 +107,16 @@ then daily, and each run also logs the audit chain head as an external anchor. S
 
 ### Service tokens and secrets
 
-| Variable                      | Required | Default                           | Notes                                                                                                                                                                                                           |
-| ----------------------------- | -------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_SERVICE_TOKEN`           | Yes      | -                                 | Trusted server-adapter and internal bearer secret. Also the fallback for the two secrets below.                                                                                                                 |
-| `REFRESH_TOKEN_LOOKUP_SECRET` | No       | falls back to `API_SERVICE_TOKEN` | HMAC key for indexed refresh-token lookup fingerprints. In development only, an unset value derives a local secret.                                                                                             |
-| `TOTP_SECRET_ENCRYPTION_KEY`  | No       | falls back to `API_SERVICE_TOKEN` | 32-byte base64url/base64/hex key for encrypted TOTP secrets. Production requires this or `API_SERVICE_TOKEN`.                                                                                                   |
-| `OAUTH_STATE_SECRET`          | No       | falls back to `API_SERVICE_TOKEN` | Dedicated signing secret for OAuth state.                                                                                                                                                                       |
-| `DECOY_SUBJECT_SECRET`        | No       | falls back to `API_SERVICE_TOKEN` | HMAC key the decoy pre-auth subjects on `POST /login` derive from. Rotating it re-maps which subject an unknown identifier gets, which is harmless: decoys are stateless and pre-auth tokens live five minutes. |
+| Variable                      | Required | Default                         | Notes                                                                                                                                                                                                           |
+| ----------------------------- | -------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SEAMLESS_SERVICE_TOKEN`      | Yes      | -                               | Trusted server-adapter and internal bearer secret. Also the fallback for the secrets below.                                                                                                                     |
+| `API_SERVICE_TOKEN`           | No       | -                               | Supported fallback name for `SEAMLESS_SERVICE_TOKEN`. Used only when `SEAMLESS_SERVICE_TOKEN` is unset, with an info notice at boot. Setting both to different values stops the server at boot.                 |
+| `REFRESH_TOKEN_LOOKUP_SECRET` | No       | falls back to the service token | HMAC key for indexed refresh-token lookup fingerprints. In development only, an unset value derives a local secret.                                                                                             |
+| `TOTP_SECRET_ENCRYPTION_KEY`  | No       | falls back to the service token | 32-byte base64url/base64/hex key for encrypted TOTP secrets. Production requires this or the service token.                                                                                                     |
+| `OAUTH_STATE_SECRET`          | No       | falls back to the service token | Dedicated signing secret for OAuth state.                                                                                                                                                                       |
+| `DECOY_SUBJECT_SECRET`        | No       | falls back to the service token | HMAC key the decoy pre-auth subjects on `POST /login` derive from. Rotating it re-maps which subject an unknown identifier gets, which is harmless: decoys are stateless and pre-auth tokens live five minutes. |
 
-> Prefer setting dedicated secrets in production rather than relying on the `API_SERVICE_TOKEN`
+> Prefer setting dedicated secrets in production rather than relying on the service token
 > fallbacks. See [docs/production-operations.md](./production-operations.md).
 
 ### Database

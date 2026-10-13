@@ -74,6 +74,7 @@ describe('token utils', () => {
     process.env.ISSUER = 'issuer';
     delete process.env.REFRESH_TOKEN_LOOKUP_SECRET;
     delete process.env.API_SERVICE_TOKEN;
+    delete process.env.SEAMLESS_SERVICE_TOKEN;
     delete process.env.APP_ID;
     process.env.NODE_ENV = 'test';
   });
@@ -200,6 +201,15 @@ describe('token utils', () => {
     expect(result).toBe('lookup-hash');
   });
 
+  it('keys refresh token lookups from SEAMLESS_SERVICE_TOKEN', async () => {
+    process.env.SEAMLESS_SERVICE_TOKEN = 'service-secret';
+    const crypto = await import('crypto');
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+
+    expect(createRefreshTokenLookup('token')).toBe('lookup-hash');
+    expect(crypto.createHmac).toHaveBeenCalledWith('sha256', 'service-secret');
+  });
+
   it('prefers an explicit refresh token lookup secret when configured', async () => {
     process.env.REFRESH_TOKEN_LOOKUP_SECRET = 'lookup-secret';
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
@@ -230,7 +240,7 @@ describe('token utils', () => {
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
 
     expect(() => createRefreshTokenLookup('token')).toThrow(
-      'REFRESH_TOKEN_LOOKUP_SECRET (or API_SERVICE_TOKEN) must be set',
+      'REFRESH_TOKEN_LOOKUP_SECRET (or SEAMLESS_SERVICE_TOKEN) must be set',
     );
   });
 });

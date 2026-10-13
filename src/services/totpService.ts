@@ -6,6 +6,7 @@
 
 import { createCipheriv, createDecipheriv, createHash } from 'crypto';
 
+import { getServiceToken } from '../config/serviceToken.js';
 import { TotpCredential } from '../models/totpCredentials.js';
 import {
   buildTotpUri,
@@ -25,15 +26,16 @@ type TotpCredentialLike = Pick<
 >;
 
 function getTotpEncryptionKey() {
-  const explicitSecret =
-    process.env.TOTP_SECRET_ENCRYPTION_KEY?.trim() || process.env.API_SERVICE_TOKEN?.trim();
+  const explicitSecret = process.env.TOTP_SECRET_ENCRYPTION_KEY?.trim() || getServiceToken();
 
   if (explicitSecret) {
     return createHash('sha256').update(explicitSecret).digest();
   }
 
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('TOTP_SECRET_ENCRYPTION_KEY or API_SERVICE_TOKEN must be set in production.');
+    throw new Error(
+      'TOTP_SECRET_ENCRYPTION_KEY or SEAMLESS_SERVICE_TOKEN must be set in production.',
+    );
   }
 
   return createHash('sha256')

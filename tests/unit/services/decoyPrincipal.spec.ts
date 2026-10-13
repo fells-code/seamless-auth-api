@@ -57,11 +57,12 @@ describe('decoySubjectFor', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('DECOY_SUBJECT_SECRET', '');
     vi.stubEnv('API_SERVICE_TOKEN', '');
+    vi.stubEnv('SEAMLESS_SERVICE_TOKEN', '');
 
     // A decoy subject derived from a guessable key is not a decoy, so booting without
     // one has to fail loudly rather than quietly producing forgeable subjects.
     expect(() => decoySubjectFor('nobody@example.com', 'email')).toThrow(
-      /DECOY_SUBJECT_SECRET or API_SERVICE_TOKEN/,
+      /DECOY_SUBJECT_SECRET or SEAMLESS_SERVICE_TOKEN/,
     );
   });
 });

@@ -8,23 +8,23 @@ vi.mock('jsonwebtoken', () => ({
   },
 }));
 
-vi.mock('../../../src/utils/secretsStore', () => ({
-  getSecret: vi.fn().mockResolvedValue('secret'),
+vi.mock('../../../src/config/serviceToken', () => ({
+  getServiceToken: vi.fn(() => 'secret'),
 }));
 
 // clearAllMocks() drops the default implementations, so each load reinstates the
 // happy-path secret and HS256 header that most cases start from.
 async function load() {
-  const { getSecret } = await import('../../../src/utils/secretsStore');
+  const { getServiceToken } = await import('../../../src/config/serviceToken');
   const jwt = await import('jsonwebtoken');
 
-  (getSecret as any).mockResolvedValue('secret');
+  (getServiceToken as any).mockReturnValue('secret');
   (jwt.default.decode as any).mockReturnValue({ header: { alg: 'HS256' } });
 
   const { validateInternalServiceToken } =
     await import('../../../src/middleware/authenticateServiceToken');
 
-  return { getSecret: getSecret as any, jwt, validateInternalServiceToken };
+  return { getServiceToken: getServiceToken as any, jwt, validateInternalServiceToken };
 }
 
 describe('validateInternalServiceToken', () => {
@@ -42,11 +42,25 @@ describe('validateInternalServiceToken', () => {
   });
 
   it('returns null when the internal secret is unavailable', async () => {
-    const { getSecret, jwt, validateInternalServiceToken } = await load();
+    const { getServiceToken, jwt, validateInternalServiceToken } = await load();
 
-    getSecret.mockResolvedValue(null);
+    getServiceToken.mockReturnValue(undefined);
 
     await expect(validateInternalServiceToken('token')).resolves.toBeNull();
+
+    expect(jwt.default.verify).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the service token env vars conflict', async () => {
+    const { getServiceToken, jwt, validateInternalServiceToken } = await load();
+
+    getServiceToken.mockImplementation(() => {
+      throw new Error(
+        'SEAMLESS_SERVICE_TOKEN and API_SERVICE_TOKEN are both set to different values.',
+      );
+    });
+
+    await expect(validateInternalServiceToken('token', { logInvalid: true })).resolves.toBeNull();
 
     expect(jwt.default.verify).not.toHaveBeenCalled();
   });
@@ -134,13 +148,13 @@ describe('validateInternalServiceToken', () => {
   });
 
   it('reuses the cached internal secret across calls', async () => {
-    const { getSecret, jwt, validateInternalServiceToken } = await load();
+    const { getServiceToken, jwt, validateInternalServiceToken } = await load();
 
     (jwt.default.verify as any).mockReturnValue({ sub: 'client' });
 
     await validateInternalServiceToken('token');
     await validateInternalServiceToken('token');
 
-    expect(getSecret).toHaveBeenCalledTimes(1);
+    expect(getServiceToken).toHaveBeenCalledTimes(1);
   });
 });
