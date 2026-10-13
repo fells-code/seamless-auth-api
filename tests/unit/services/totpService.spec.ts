@@ -250,6 +250,21 @@ describe('totpService', () => {
     }
   });
 
+  it('falls back to SEAMLESS_SERVICE_TOKEN as the encryption secret', () => {
+    vi.stubEnv('TOTP_SECRET_ENCRYPTION_KEY', '');
+    vi.stubEnv('API_SERVICE_TOKEN', '');
+    vi.stubEnv('SEAMLESS_SERVICE_TOKEN', 'service-token');
+
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const encrypted = encryptTotpSecret(secret);
+
+    vi.stubEnv('SEAMLESS_SERVICE_TOKEN', '');
+    vi.stubEnv('API_SERVICE_TOKEN', 'service-token');
+
+    // Same key from either name, so secrets encrypted before a rename still decrypt.
+    expect(decryptTotpSecret(buildTotpCredential({ ...encrypted }))).toBe(secret);
+  });
+
   it('falls back to API_SERVICE_TOKEN as the encryption secret', () => {
     const previous = process.env.TOTP_SECRET_ENCRYPTION_KEY;
     const previousService = process.env.API_SERVICE_TOKEN;
@@ -281,7 +296,7 @@ describe('totpService', () => {
 
     try {
       expect(() => encryptTotpSecret('JBSWY3DPEHPK3PXP')).toThrow(
-        'TOTP_SECRET_ENCRYPTION_KEY or API_SERVICE_TOKEN must be set in production.',
+        'TOTP_SECRET_ENCRYPTION_KEY or SEAMLESS_SERVICE_TOKEN must be set in production.',
       );
     } finally {
       process.env.TOTP_SECRET_ENCRYPTION_KEY = previous.key;

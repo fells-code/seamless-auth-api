@@ -51,7 +51,7 @@ separated from every account that has one. It offers one fabricated credential i
 ### How a decoy is built
 
 Everything derives from one HMAC over the normalised identifier, keyed with
-`DECOY_SUBJECT_SECRET` (falling back to `API_SERVICE_TOKEN`). That gives three
+`DECOY_SUBJECT_SECRET` (falling back to `SEAMLESS_SERVICE_TOKEN`). That gives three
 properties:
 
 - **Stable.** The same unknown identifier yields the same subject every time. A real

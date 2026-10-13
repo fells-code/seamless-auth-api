@@ -58,7 +58,7 @@ services:
       # Local-only shared secret. Outside development the API derives the refresh-token
       # lookup, TOTP encryption, and OAuth state secrets from this when they are unset,
       # so a deployed instance must set real, separate values.
-      API_SERVICE_TOKEN: ${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}
+      SEAMLESS_SERVICE_TOKEN: ${SEAMLESS_SERVICE_TOKEN:-${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}}
 
       # Returns OTP codes and magic-link URLs in the response instead of sending them,
       # so the stack is usable without an email or SMS transport. Ignored when

@@ -8,6 +8,7 @@ import { Application } from 'express';
 
 import { createApp } from './app.js';
 import { bootstrapSystemConfig } from './config/bootstrapSystemConfig.js';
+import { assertServiceTokenConfig } from './config/serviceToken.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
@@ -23,6 +24,9 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 async function startServer() {
   try {
+    // First, so conflicting service token env vars stop boot before anything connects.
+    assertServiceTokenConfig();
+
     const models = await initializeModels();
 
     await connectToDb(models);

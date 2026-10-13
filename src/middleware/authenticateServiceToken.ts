@@ -6,12 +6,12 @@
 
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
+import { getServiceToken } from '../config/serviceToken.js';
 import getLogger from '../utils/logger.js';
-import { getSecret } from '../utils/secretsStore.js';
 
 const logger = getLogger('authenticateServiceToken');
 
-let cachedSecret: string | null = null;
+let cachedSecret: string | undefined;
 const INTERNAL_SERVICE_TOKEN_ALGORITHMS = ['HS256', 'HS384', 'HS512'] as const;
 
 interface InternalServiceTokenValidationOptions {
@@ -40,9 +40,9 @@ function usesSupportedInternalServiceAlgorithm(token: string) {
   return (INTERNAL_SERVICE_TOKEN_ALGORITHMS as readonly string[]).includes(alg);
 }
 
-async function getInternalSecret() {
+function getInternalSecret() {
   if (cachedSecret) return cachedSecret;
-  cachedSecret = await getSecret('API_SERVICE_TOKEN');
+  cachedSecret = getServiceToken();
   return cachedSecret;
 }
 
@@ -51,9 +51,9 @@ export async function validateInternalServiceToken(
   options: InternalServiceTokenValidationOptions = {},
 ): Promise<JwtPayload | null> {
   try {
-    // Inside the try: getSecret throws when the secret is unset, and an unconfigured
-    // instance must answer "not a valid service token" rather than fault the request.
-    const internalSecret = await getInternalSecret();
+    // Inside the try: resolution throws on conflicting service token env vars, and a
+    // misconfigured instance must answer "not a valid service token" rather than fault the request.
+    const internalSecret = getInternalSecret();
 
     if (!token || !internalSecret) {
       return null;

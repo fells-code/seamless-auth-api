@@ -6,6 +6,7 @@
 
 import { createHmac } from 'crypto';
 
+import { getServiceToken } from '../config/serviceToken.js';
 import { User } from '../models/users.js';
 
 /**
@@ -45,14 +46,14 @@ function decoySecret() {
   const explicit = process.env.DECOY_SUBJECT_SECRET?.trim();
   if (explicit) return explicit;
 
-  const serviceSecret = process.env.API_SERVICE_TOKEN?.trim();
+  const serviceSecret = getServiceToken();
   if (serviceSecret) return serviceSecret;
 
   if (process.env.NODE_ENV !== 'production') {
     return `dev-decoy-subject:${process.env.APP_ID ?? 'local'}`;
   }
 
-  throw new Error('DECOY_SUBJECT_SECRET or API_SERVICE_TOKEN is required in production.');
+  throw new Error('DECOY_SUBJECT_SECRET or SEAMLESS_SERVICE_TOKEN is required in production.');
 }
 
 function derive(info: string, value: string) {

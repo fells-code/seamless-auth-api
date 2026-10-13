@@ -18,7 +18,7 @@ Authentication infrastructure is security-sensitive. This guide covers public de
 
 Production deployments should define:
 
-- `API_SERVICE_TOKEN`
+- `SEAMLESS_SERVICE_TOKEN` (the older `API_SERVICE_TOKEN` name is still accepted as a fallback)
 - `REFRESH_TOKEN_LOOKUP_SECRET`
 - `TOTP_SECRET_ENCRYPTION_KEY`
 - `OAUTH_STATE_SECRET`

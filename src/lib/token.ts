@@ -8,6 +8,7 @@ import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { getServiceToken } from '../config/serviceToken.js';
 import getLogger from '../utils/logger.js';
 import { getSigningKey } from '../utils/signingKeyStore.js';
 
@@ -26,7 +27,7 @@ function getRefreshTokenLookupSecret() {
     return explicitSecret;
   }
 
-  const apiServiceSecret = process.env.API_SERVICE_TOKEN?.trim();
+  const apiServiceSecret = getServiceToken();
   if (apiServiceSecret) {
     return apiServiceSecret;
   }
@@ -43,7 +44,7 @@ function getRefreshTokenLookupSecret() {
   }
 
   throw new Error(
-    'REFRESH_TOKEN_LOOKUP_SECRET (or API_SERVICE_TOKEN) must be set to derive refresh token lookup fingerprints in production.',
+    'REFRESH_TOKEN_LOOKUP_SECRET (or SEAMLESS_SERVICE_TOKEN) must be set to derive refresh token lookup fingerprints in production.',
   );
 }
 

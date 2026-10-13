@@ -60,7 +60,12 @@ else
   require_var DB_NAME
 fi
 
-require_var API_SERVICE_TOKEN
+# SEAMLESS_SERVICE_TOKEN is the preferred name; API_SERVICE_TOKEN is still accepted.
+# The server itself rejects the two being set to different values.
+if [ -z "${SEAMLESS_SERVICE_TOKEN:-}" ] && [ -z "${API_SERVICE_TOKEN:-}" ]; then
+  echo "Environment variable SEAMLESS_SERVICE_TOKEN is not set (API_SERVICE_TOKEN is also accepted)"
+  exit 1
+fi
 
 if [ "${NODE_ENV:-development}" = "production" ]; then
   require_var SEAMLESS_JWKS_ACTIVE_KID

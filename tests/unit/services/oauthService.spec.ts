@@ -478,37 +478,74 @@ describe('oauthService', () => {
   });
 
   it('uses the state secret from OAUTH_STATE_SECRET when configured', () => {
-    withEnv({ OAUTH_STATE_SECRET: 'explicit-secret', API_SERVICE_TOKEN: undefined }, () => {
-      const { state } = createOAuthState({
-        providerId: 'google',
-        redirectUri: 'https://app.example.com/oauth/callback',
-      });
+    withEnv(
+      {
+        OAUTH_STATE_SECRET: 'explicit-secret',
+        API_SERVICE_TOKEN: undefined,
+        SEAMLESS_SERVICE_TOKEN: undefined,
+      },
+      () => {
+        const { state } = createOAuthState({
+          providerId: 'google',
+          redirectUri: 'https://app.example.com/oauth/callback',
+        });
 
-      expect(verifyOAuthState(state, 'google')).not.toBeNull();
-    });
+        expect(verifyOAuthState(state, 'google')).not.toBeNull();
+      },
+    );
+  });
+
+  it('falls back to SEAMLESS_SERVICE_TOKEN for the state secret', () => {
+    withEnv(
+      {
+        OAUTH_STATE_SECRET: undefined,
+        API_SERVICE_TOKEN: undefined,
+        SEAMLESS_SERVICE_TOKEN: 'service-token',
+      },
+      () => {
+        const { state } = createOAuthState({
+          providerId: 'google',
+          redirectUri: 'https://app.example.com/oauth/callback',
+        });
+
+        expect(verifyOAuthState(state, 'google')).not.toBeNull();
+      },
+    );
   });
 
   it('falls back to API_SERVICE_TOKEN for the state secret', () => {
-    withEnv({ OAUTH_STATE_SECRET: undefined, API_SERVICE_TOKEN: 'service-token' }, () => {
-      const { state } = createOAuthState({
-        providerId: 'google',
-        redirectUri: 'https://app.example.com/oauth/callback',
-      });
+    withEnv(
+      {
+        OAUTH_STATE_SECRET: undefined,
+        API_SERVICE_TOKEN: 'service-token',
+        SEAMLESS_SERVICE_TOKEN: undefined,
+      },
+      () => {
+        const { state } = createOAuthState({
+          providerId: 'google',
+          redirectUri: 'https://app.example.com/oauth/callback',
+        });
 
-      expect(verifyOAuthState(state, 'google')).not.toBeNull();
-    });
+        expect(verifyOAuthState(state, 'google')).not.toBeNull();
+      },
+    );
   });
 
   it('requires a state secret in production', () => {
     withEnv(
-      { NODE_ENV: 'production', OAUTH_STATE_SECRET: undefined, API_SERVICE_TOKEN: undefined },
+      {
+        NODE_ENV: 'production',
+        OAUTH_STATE_SECRET: undefined,
+        API_SERVICE_TOKEN: undefined,
+        SEAMLESS_SERVICE_TOKEN: undefined,
+      },
       () => {
         expect(() =>
           createOAuthState({
             providerId: 'google',
             redirectUri: 'https://app.example.com/oauth/callback',
           }),
-        ).toThrow('OAUTH_STATE_SECRET or API_SERVICE_TOKEN is required in production.');
+        ).toThrow('OAUTH_STATE_SECRET or SEAMLESS_SERVICE_TOKEN is required in production.');
       },
     );
   });
