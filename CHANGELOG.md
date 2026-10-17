@@ -1,5 +1,51 @@
 # seamless-auth-api
 
+## 0.19.0
+
+### Minor Changes
+
+- 14ebadf: Account lockout no longer takes away a user's passkeys, and `lockoutSeconds` is enforced (GHSA-66gq-4pwg-33jq).
+
+  - Passkey sign-in is not subject to lockout, and failed passkey assertions no longer count towards it. An assertion cannot be guessed, and because `/login` issues an ephemeral token from an email address alone, anyone could previously submit wrong OTP codes until an account locked and so shut its owner out of every method, passkeys included.
+  - `POST /login` for a locked account now continues with `loginMethods: ["passkey"]` when the account has a passkey, and answers `423 account_locked` only when it has none.
+  - The lock starts at the failure that brings `maxFailures` inside one `windowSeconds` window and lasts `lockoutSeconds` from there. Previously the lock lasted only as long as the failures stayed inside the trailing window, whatever `lockoutSeconds` said, and `retryAfterSeconds` reported `lockoutSeconds` rather than the time actually left. It is now the time left.
+  - The lockout counter only counts the failure types that lock, so passkey failures recorded before this release stop counting.
+
+  An account with no passkey can still be locked by repeated wrong codes, which is what lockout is for. Enrolling a passkey keeps a user able to sign in through a lock someone else triggered.
+
+- 266658c: The server refuses to start in development mode on a deployment reachable from outside.
+
+  Anything other than `NODE_ENV=production` turns on per-instance signing keys, the `/docs` explorer, fallback development secrets and the rate limit and conformance escape hatches. When `ISSUER` or any `APP_ORIGINS` entry is not local (`localhost`, `*.localhost`, `*.test`, a single-label name, or a loopback or private address), boot now stops with an error naming each one. The published image sets `NODE_ENV=production` and is unaffected; the bundled compose file and the CLI's local stacks are local and keep working.
+
+  Set `SEAMLESS_ALLOW_INSECURE_DEV=true` to run development mode on such a host on purpose. It logs a warning, and `/health/status` reports `degraded.insecureDevelopmentMode: true`. `degraded.audit` is now optional in that response, since an instance can be degraded for either reason.
+
+- 28ce894: The API refuses to leave a deployment with nobody who can administer it.
+
+  `DELETE /admin/users`, a role change through `PATCH /admin/users/{userId}`, and `DELETE /users/delete` now answer `409 { "error": "last_admin" }` when they would remove the last active user holding `admin:write` (granted by `admin`, `admin:write` or `admin:*`). The refusal is audited as `admin_last_admin_change_refused`. Previously the only way back was a direct database edit, since `OWNER_EMAIL` grants admin only when the account is created.
+
+- e279e81: A response that does not match its declared schema is no longer sent. The API answers `500 { "error": "Internal server error" }` instead, the same body as its error handler, and logs the route and the failing paths. Response schemas are what keep responses minimal, so a payload that breaks one is exactly the one that might carry more than it should.
+
+  A route that declares a single response schema now holds only its `200` to it, as the OpenAPI document already said. Error bodies on those routes, such as the `404` from `GET /users/me`, were being checked against the success schema.
+
+- 22adadc: Read the service token from `SEAMLESS_SERVICE_TOKEN`, the name used across the Seamless ecosystem.
+
+  - `SEAMLESS_SERVICE_TOKEN` is now the preferred env var for the trusted server-adapter and internal bearer secret, and for the secrets that fall back to it (`REFRESH_TOKEN_LOOKUP_SECRET`, `TOTP_SECRET_ENCRYPTION_KEY`, `OAUTH_STATE_SECRET`, `DECOY_SUBJECT_SECRET`).
+  - `API_SERVICE_TOKEN` keeps working as a fallback, so existing deployments need no change. When only the old name is set, the server logs one info notice at boot naming the preferred variable.
+  - Setting both names to different values stops the server at boot with an error naming both. Setting both to the same value is fine.
+  - `validateEnvs.sh` accepts either name, and the bundled compose files now pass `SEAMLESS_SERVICE_TOKEN` (falling back to `API_SERVICE_TOKEN` from the host environment).
+
+- 7c674ef: Tokens are checked more strictly.
+
+  - Access and ephemeral tokens must carry `aud` equal to the issuer, as every token this server signs already does, and a `typ` of `access` or `ephemeral`. Previously the audience was not checked, so the posture doc's claim that it was held only for the adapters.
+  - Internal service tokens must carry an `exp` no more than an hour (plus a minute of clock skew) away. A service token minted without `exp` used to be accepted forever. The Seamless adapters mint them for 60 seconds and are unaffected; a caller that mints its own must set `exp`.
+
+### Patch Changes
+
+- b6e8d7c: `openapi.json` and `adapter-manifest.json` now carry the package version. The release version step regenerates both, and the contract test fails when either file drifts from the route definitions or from `package.json`. Both said 0.17.0 through the 0.18.0 release.
+- 6344f51: The server logs a warning at boot naming each of `REFRESH_TOKEN_LOOKUP_SECRET`, `TOTP_SECRET_ENCRYPTION_KEY`, `OAUTH_STATE_SECRET` and `DECOY_SUBJECT_SECRET` that is unset and so falls back to the service token, with what rotating the service token would then break. `docs/production-operations.md` describes how to separate them safely: set each to the current service token value first, then rotate the service token.
+
+  The fallback to the service token is deprecated and is removed in v0.20, which requires each secret whose feature is in use. Set them now, to the current service token value, so the upgrade is a no-op.
+
 ## 0.18.0
 
 ### Minor Changes
