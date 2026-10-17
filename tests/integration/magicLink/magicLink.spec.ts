@@ -52,10 +52,16 @@ function directRes() {
   return res;
 }
 
-function directVerifyReq(opts: { ip: string; userAgent: string; bearer?: string }) {
+function directVerifyReq(opts: {
+  ip: string;
+  userAgent: string;
+  bearer?: string;
+  trusted?: boolean;
+}) {
   return {
     params: { token: 'token' },
     ip: opts.ip,
+    ...(opts.trusted === false ? {} : { trustedClientIp: opts.ip }),
     headers: {
       'user-agent': opts.userAgent,
       ...(opts.bearer ? { authorization: `Bearer ${opts.bearer}` } : {}),
@@ -399,6 +405,21 @@ describe('GET /magic-link/verify/:token', () => {
 
     await verifyMagicLink(
       directVerifyReq({ ip: '203.0.113.7', userAgent: 'other-browser', bearer: 'forged' }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(MagicLinkToken.update).not.toHaveBeenCalled();
+  });
+
+  // Behind an adapter that does not forward the client context, every request carries
+  // the adapter's own address and user agent, so a matching fingerprint proves nothing.
+  it('asks for confirmation on a matching fingerprint no adapter vouched for', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink());
+    const res = directRes();
+
+    await verifyMagicLink(
+      directVerifyReq({ ip: '10.0.0.5', userAgent: 'node', trusted: false }),
       res,
     );
 

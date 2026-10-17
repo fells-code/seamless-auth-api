@@ -266,7 +266,9 @@ async function consumeLink(
  * complete silently: anyone can request a link for someone else's address from their
  * own machine. The pre-auth token, when the adapter forwards it, proves the attempt.
  * Without it the IP and user agent are the only signal, which people behind one
- * address with the same browser can share.
+ * address with the same browser can share. They count only when a trusted adapter
+ * vouched for them: otherwise every request carries the adapter's own address, and
+ * every device would look like the one that asked.
  */
 async function openedOnRequestingDevice(req: RouteRequest, record: MagicLinkToken) {
   const auth = req.headers.authorization;
@@ -277,6 +279,10 @@ async function openedOnRequestingDevice(req: RouteRequest, record: MagicLinkToke
     if (payload) {
       return payload.jti === record.attempt_id;
     }
+  }
+
+  if (!(req as RouteRequest & { trustedClientIp?: string }).trustedClientIp) {
+    return false;
   }
 
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);

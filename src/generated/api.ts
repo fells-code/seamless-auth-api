@@ -7460,7 +7460,7 @@ export interface paths {
     };
     /**
      * Verify magic link token
-     * @description Consumes the link when it is opened on the device that requested it, proven by the requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by IP address and user agent. Opened anywhere else, answers 409 without consuming it; confirm with POST /magic-link/verify/{token}/confirm.
+     * @description Consumes the link when it is opened on the device that requested it, proven by the requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers 409 without consuming it; confirm with POST /magic-link/verify/{token}/confirm.
      */
     get: {
       parameters: {
