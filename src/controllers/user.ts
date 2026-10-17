@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
+import { refuseLastAdminChange, wouldLeaveNoAdmin } from '../services/adminContinuity.js';
 import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { listOrganizationsForUser } from '../services/organizationService.js';
@@ -92,6 +93,16 @@ export const deleteUser = async (req: Request, res: Response) => {
         phone: authUser.phone,
       },
     });
+
+    if (user && (await wouldLeaveNoAdmin(user, null))) {
+      return refuseLastAdminChange({
+        req,
+        res,
+        targetUserId: user.id,
+        actorUserId: user.id,
+        action: 'self_delete',
+      });
+    }
 
     if (user) {
       logger.info('Deleting all user credentials');

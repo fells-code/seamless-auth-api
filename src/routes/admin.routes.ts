@@ -533,6 +533,7 @@ adminRouter.delete(
     schemas: {
       response: {
         200: MessageSchema,
+        409: ErrorSchema,
         500: InternalErrorSchema,
       },
     },
@@ -555,6 +556,7 @@ adminRouter.patch(
         200: UserResponseSchema,
         400: AdminValidationErrorSchema,
         404: InternalErrorSchema,
+        409: ErrorSchema,
       },
     },
   },

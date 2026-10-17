@@ -9,7 +9,7 @@ import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@s
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
 import { CredentialUpdateResponseSchema } from '../schemas/credential.responses.js';
-import { MessageSchema } from '../schemas/generic.responses.js';
+import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { MeResponseSchema } from '../schemas/me.response.js';
 
 const usersRouter = createRouter('/users');
@@ -54,7 +54,12 @@ usersRouter.delete(
     summary: 'Delete authenticated user',
 
     schemas: {
-      response: MessageSchema,
+      response: {
+        200: MessageSchema,
+        404: ErrorSchema,
+        409: ErrorSchema,
+        500: ErrorSchema,
+      },
     },
   },
   deleteUser,

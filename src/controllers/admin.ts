@@ -24,6 +24,7 @@ import {
 } from '../schemas/admin.requests.js';
 import { authEventTypesFor, SUSPICIOUS_EVENT_TYPES } from '../schemas/authEvent.types.js';
 import { AuthEventQuerySchema } from '../schemas/internal.query.js';
+import { refuseLastAdminChange, wouldLeaveNoAdmin } from '../services/adminContinuity.js';
 import {
   serializeApiUser,
   serializeCredential,
@@ -234,6 +235,16 @@ export const deleteUser = async (req: ServiceRequest, res: Response) => {
       },
     });
 
+    if (user && (await wouldLeaveNoAdmin(user, null))) {
+      return refuseLastAdminChange({
+        req,
+        res,
+        targetUserId: user.id,
+        actorUserId: actingAdminId(req),
+        action: 'delete',
+      });
+    }
+
     if (user) {
       // Awaited so the audit event below records a deletion that actually happened,
       // and so a failure surfaces as a 500 rather than a success with the row intact.
@@ -285,6 +296,16 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (parsed.data.roles && (await wouldLeaveNoAdmin(user, parsed.data.roles))) {
+      return refuseLastAdminChange({
+        req,
+        res,
+        targetUserId: user.id,
+        actorUserId: actingAdminId(req),
+        action: 'role_change',
+      });
     }
 
     const before = user.toJSON();
