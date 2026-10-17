@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthFailure } from '../../../src/models/authFailures.js';
 import { getAuditHealth, resetAuditHealthForTests } from '../../../src/services/auditHealth.js';
 import {
-  countRecentFailures,
+  recentFailureTimes,
   isLockoutFailureType,
   recordAuthFailure,
 } from '../../../src/services/authFailureCounter.js';
@@ -58,25 +58,27 @@ describe('recordAuthFailure', () => {
   });
 });
 
-describe('countRecentFailures', () => {
-  it('counts a user inside the window', async () => {
-    (AuthFailure.count as any).mockResolvedValue(4);
-    const since = new Date('2026-08-31T00:00:00.000Z');
+describe('recentFailureTimes', () => {
+  it('returns the newest lockout failures for a user, filtered by type', async () => {
+    const at = new Date('2026-10-16T12:00:00.000Z');
+    (AuthFailure.findAll as any).mockResolvedValue([{ occurredAt: at }]);
 
-    await expect(countRecentFailures('user-1', since)).resolves.toBe(4);
-    expect(AuthFailure.count).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: 'user-1' }) }),
+    await expect(recentFailureTimes('user-1', 10)).resolves.toEqual([at]);
+    expect(AuthFailure.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'user-1', type: expect.anything() }),
+        order: [['occurredAt', 'DESC']],
+        limit: 10,
+      }),
     );
   });
 
-  // The caller decides what an unknown count means. Returning a number here would
+  // The caller decides what an unknown history means. Returning a list here would
   // be inventing one, which is exactly how the old `|| 0` removed the control.
-  it('propagates a failed query instead of coalescing it to zero', async () => {
-    (AuthFailure.count as any).mockRejectedValue(new Error('connection pool exhausted'));
+  it('propagates a failed query instead of inventing an empty history', async () => {
+    (AuthFailure.findAll as any).mockRejectedValue(new Error('connection pool exhausted'));
 
-    await expect(countRecentFailures('user-1', new Date())).rejects.toThrow(
-      'connection pool exhausted',
-    );
+    await expect(recentFailureTimes('user-1', 10)).rejects.toThrow('connection pool exhausted');
   });
 });
 
@@ -88,5 +90,7 @@ describe('isLockoutFailureType', () => {
     // step-up was the one code-checking endpoint whose guesses reached no counter.
     expect(isLockoutFailureType('mfa_otp_failed')).toBe(true);
     expect(isLockoutFailureType('login_success')).toBe(false);
+    // An assertion cannot be guessed, so a failed one does not count towards a lock.
+    expect(isLockoutFailureType('webauthn_login_failed')).toBe(false);
   });
 });

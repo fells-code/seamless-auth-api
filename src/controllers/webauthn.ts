@@ -29,7 +29,6 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import {
   ensureMetadataServiceReady,
   hasMetadataStatement,
@@ -500,10 +499,9 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
     const phone = verifiedUser.phone;
     let user = verifiedUser;
 
-    if (await rejectIfUserLocked({ userId: user.id, req, res })) {
-      return;
-    }
-
+    // No lockout check. Lockout exists to stop guessing, and an assertion cannot be
+    // guessed. Applying it here let failures of a code factor, which anyone holding an
+    // ephemeral token can produce, take a user's passkeys away too.
     if (!phone && !email) {
       logger.error('No pre authenticated Identifier found');
       await AuthEventService.log({

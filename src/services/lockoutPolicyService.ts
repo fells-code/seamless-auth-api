@@ -10,7 +10,7 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import type { LockoutPolicy } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
 import { AuthEventService } from './authEventService.js';
-import { countRecentFailures } from './authFailureCounter.js';
+import { recentFailureTimes } from './authFailureCounter.js';
 
 const logger = getLogger('lockoutPolicy');
 
@@ -37,6 +37,14 @@ async function getLockoutPolicy(): Promise<LockoutPolicy> {
   };
 }
 
+/**
+ * Whether a user is locked out, and for how long.
+ *
+ * The lock starts at the failure that brought `maxFailures` inside one `windowSeconds`
+ * window and lasts `lockoutSeconds` from there. It used to be "at least `maxFailures`
+ * inside the trailing window", which ignored `lockoutSeconds` entirely and reported it
+ * as the retry time whatever was actually left.
+ */
 export async function getUserLockoutStatus(userId: string, now = new Date()) {
   const policy = await getLockoutPolicy();
 
@@ -50,12 +58,10 @@ export async function getUserLockoutStatus(userId: string, now = new Date()) {
     };
   }
 
-  const windowStart = new Date(now.getTime() - policy.windowSeconds * 1000);
-
-  let failureCount: number;
+  let failures: Date[];
 
   try {
-    failureCount = await countRecentFailures(userId, windowStart);
+    failures = await recentFailureTimes(userId, policy.maxFailures);
   } catch (error) {
     // Fail closed. This used to coalesce a failed query to zero, which read as
     // not locked, so the brute force protection came off exactly when the
@@ -72,10 +78,23 @@ export async function getUserLockoutStatus(userId: string, now = new Date()) {
     };
   }
 
+  const windowStart = now.getTime() - policy.windowSeconds * 1000;
+  const failureCount = failures.filter((at) => at.getTime() >= windowStart).length;
+
+  if (failures.length < policy.maxFailures) {
+    return { locked: false, failureCount, retryAfterSeconds: 0, policy, countUnavailable: false };
+  }
+
+  const newest = failures[0].getTime();
+  const oldest = failures[failures.length - 1].getTime();
+  const crossedThreshold = newest - oldest <= policy.windowSeconds * 1000;
+  const lockedUntil = newest + policy.lockoutSeconds * 1000;
+  const locked = crossedThreshold && now.getTime() < lockedUntil;
+
   return {
-    locked: failureCount >= policy.maxFailures,
+    locked,
     failureCount,
-    retryAfterSeconds: policy.lockoutSeconds,
+    retryAfterSeconds: locked ? Math.ceil((lockedUntil - now.getTime()) / 1000) : 0,
     policy,
     countUnavailable: false,
   };

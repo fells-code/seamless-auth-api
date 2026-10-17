@@ -91,7 +91,9 @@ describe('TOTP routes', () => {
   // Step-up elevates a session for operations such as device replacement recovery, so
   // an account the lockout policy has stopped must not be able to elevate through it.
   it('refuses TOTP step-up while the account is locked', async () => {
-    (AuthFailure.count as any).mockResolvedValue(10);
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 10 }, () => ({ occurredAt: new Date() })),
+    );
     (getSystemConfig as any).mockResolvedValue({
       lockout_policy: {
         enabled: true,

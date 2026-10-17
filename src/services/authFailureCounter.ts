@@ -20,7 +20,9 @@ const logger = getLogger('authFailureCounter');
  */
 export const LOCKOUT_FAILURE_TYPES = [
   'login_failed',
-  'webauthn_login_failed',
+  // Not 'webauthn_login_failed'. An assertion cannot be guessed, so counting failed
+  // ones protects nothing, and it let anyone holding an ephemeral token lock a user
+  // out of passkeys by posting garbage.
   'verify_otp_failed',
   'totp_failed',
   // A failed second factor is a failed authentication attempt like any other. Left
@@ -73,20 +75,26 @@ export async function recordAuthFailure(params: {
 }
 
 /**
- * How many failures a user has accumulated inside the window.
+ * When a user's most recent lockout failures happened, newest first, at most `limit`.
  *
- * Throws rather than returning a number it does not have. The caller decides
- * what an unknown count means, and for lockout that has to be "assume locked":
- * the previous implementation coalesced a failed query to zero, which read as
- * not locked and removed the control exactly when the database was unhealthy.
+ * Filtered by type as well as user, so rows recorded under a type that no longer
+ * counts (passkey failures, before they were dropped) do not keep an account locked.
+ *
+ * Throws rather than returning a list it does not have. The caller decides what an
+ * unknown history means, and for lockout that has to be "assume locked": the previous
+ * implementation coalesced a failed query to zero, which read as not locked and
+ * removed the control exactly when the database was unhealthy.
  */
-export async function countRecentFailures(userId: string, since: Date): Promise<number> {
-  const count = await AuthFailure.count({
+export async function recentFailureTimes(userId: string, limit: number): Promise<Date[]> {
+  const rows = await AuthFailure.findAll({
+    attributes: ['occurredAt'],
     where: {
       userId,
-      occurredAt: { [Op.gte]: since },
+      type: { [Op.in]: LOCKOUT_FAILURE_TYPES },
     },
+    order: [['occurredAt', 'DESC']],
+    limit,
   });
 
-  return Number(count);
+  return rows.map((row) => new Date(row.occurredAt));
 }
