@@ -79,7 +79,28 @@ selecting the signer, and the three steps above are three applies. See ADR 0011,
 `Terraform owns the JWKS document, and rotation overlaps`, and the procedure in that repo's
 `portal-auth/README.md`.
 
-## Refresh Tokens
+## Secrets That Fall Back To The Service Token
+
+`REFRESH_TOKEN_LOOKUP_SECRET`, `TOTP_SECRET_ENCRYPTION_KEY`, `OAUTH_STATE_SECRET` and
+`DECOY_SUBJECT_SECRET` each fall back to the service token (`SEAMLESS_SERVICE_TOKEN`, or
+`API_SERVICE_TOKEN`) when unset, and the server logs a warning at boot naming each one that does.
+The server adapter holds the service token as well, so it is the secret most likely to need
+rotating, and while the others share it, rotating it signs everyone out and makes every stored TOTP
+secret unreadable.
+
+To separate them without breaking anything, in this order:
+
+1. Set each of the four variables to the **current** service token value and redeploy. Nothing
+   changes yet, because each one already resolves to that value.
+2. Rotate the service token: set the new value on the API and on every server adapter.
+
+The fallback is deprecated. From v0.20 each secret is required whenever the feature that uses it
+is in use (TOTP for the encryption key, OAuth sign-in for the state secret, and always for the
+refresh lookup and decoy secrets), so do this before upgrading to v0.20.
+
+From then on the service token can be rotated freely. Do not set the four to new values in step 1:
+stored refresh token fingerprints and TOTP secrets were made with the old key and would stop
+matching.
 
 Refresh tokens are opaque values. The API stores hashes and lookup fingerprints, not raw refresh tokens.
 
