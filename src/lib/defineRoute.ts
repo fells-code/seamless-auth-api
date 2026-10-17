@@ -338,7 +338,8 @@ export function defineRoute<S extends RouteSchemas>(
             let schema: ZodTypeAny | undefined;
 
             if (isZodSchema(response)) {
-              schema = response;
+              // A bare schema documents the 200, so it says nothing about an error body.
+              schema = status === 200 ? response : undefined;
             } else {
               schema = (response as Record<number, ZodTypeAny>)[status];
             }
@@ -350,17 +351,17 @@ export function defineRoute<S extends RouteSchemas>(
 
             return originalJson(data);
           } catch (err) {
-            // A response that violates its own schema is a server-side drift bug. Log it
-            // for observability, but do not overwrite the controller's response or leak
-            // internal schema issues to the client: the handler's payload is the source of
-            // truth for the client contract.
+            // The schema is what keeps a response minimal, so a payload that breaks it is
+            // exactly the one that might carry more than it should. Fail closed with the
+            // same generic body as the error handler, and keep the detail in the log.
             logger.error('Response schema validation failed', {
               path,
               status: res.statusCode,
               issues: err instanceof ZodError ? err.issues : err,
             });
 
-            return originalJson(data);
+            res.status(500);
+            return originalJson({ error: 'Internal server error' });
           }
         }) as typeof res.json;
       }

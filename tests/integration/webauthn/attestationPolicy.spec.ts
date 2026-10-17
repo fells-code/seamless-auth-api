@@ -125,7 +125,7 @@ beforeEach(() => {
   (AuthEvent.count as any).mockResolvedValue(0);
   (User.findOne as any).mockResolvedValue(buildUser());
   (Credential.findAll as any).mockResolvedValue([]);
-  (Credential.create as any).mockResolvedValue({});
+  (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
   (signAccessToken as any).mockResolvedValue('access-token');
   (generateRefreshToken as any).mockReturnValue('refresh-token');

@@ -611,7 +611,7 @@ describe('authenticator policy at registration', () => {
   async function registerWith(registrationInfo: Record<string, unknown>) {
     (User.findOne as any).mockResolvedValue(buildUser());
     (Credential.findAll as any).mockResolvedValue([]);
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
@@ -707,7 +707,7 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
     const res = await request(app)
@@ -746,7 +746,7 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
     await request(app)
@@ -777,7 +777,7 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
     await request(app)
@@ -808,7 +808,7 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
     await request(app)
@@ -837,7 +837,7 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
     await request(app)
@@ -867,7 +867,7 @@ describe('POST /webauthn/register/finish', () => {
       },
     });
 
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
     const res = await request(app)
@@ -1019,7 +1019,7 @@ describe('POST /webauthn/register/finish', () => {
   it('completes registration and issues a session', async () => {
     const user = buildUser({ roles: undefined });
     (User.findOne as any).mockResolvedValue(user);
-    (Credential.create as any).mockResolvedValue({});
+    (Credential.create as any).mockResolvedValue({ createdAt: new Date() });
     (Session.create as any).mockResolvedValue({ id: 'session-1' });
     (signAccessToken as any).mockResolvedValue('access-token');
     (generateRefreshToken as any).mockReturnValue('refresh-token');
