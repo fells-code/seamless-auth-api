@@ -359,6 +359,18 @@ customer deployment.
 | `FIDO_CONFORMANCE_MDS_ROOT_CERT_FILE`   | No       | -       | Path to the PEM the run signs its metadata blobs with. Read only in conformance mode. Without it the server trusts only the production FIDO root and every metadata test fails on a certificate error.                                                      |
 | `FIDO_CONFORMANCE_METADATA_DIR`         | No       | -       | Directory of metadata statement JSON files, read recursively. Read only in conformance mode. Statements are accepted bare or wrapped in an MDS entry, so the tools' metadata archive can be unzipped in unedited.                                           |
 
+### Development mode outside localhost
+
+Anything other than `NODE_ENV=production` is development mode: per-instance signing keys on disk,
+the `/docs` explorer, fallback development secrets, and the variables above. The server refuses to
+start in development mode when `ISSUER` or any `APP_ORIGINS` entry is reachable from outside, and
+names each one. Local means `localhost`, `*.localhost`, `*.test`, a single-label name such as a
+compose service, a loopback or private address.
+
+| Variable                      | Required | Default | Notes                                                                                                                                                           |
+| ----------------------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SEAMLESS_ALLOW_INSECURE_DEV` | No       | `false` | Start in development mode on a non-local deployment anyway, for a shared staging box. Logs a warning and reports `insecureDevelopmentMode` on `/health/status`. |
+
 See [docs/fido-conformance.md](./fido-conformance.md) for the full run procedure, including the
 `AUTHENTICATOR_POLICY` posture a conformance run expects.
 

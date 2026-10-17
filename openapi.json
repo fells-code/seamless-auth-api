@@ -5803,7 +5803,10 @@
               "application/json": {
                 "example": {
                   "message": "string",
-                  "degraded": { "audit": { "failureCount": 0, "lastFailureAt": "string" } }
+                  "degraded": {
+                    "audit": { "failureCount": 0, "lastFailureAt": "string" },
+                    "insecureDevelopmentMode": null
+                  }
                 },
                 "schema": {
                   "type": "object",
@@ -5819,9 +5822,9 @@
                             "lastFailureAt": { "type": "string", "nullable": true }
                           },
                           "required": ["failureCount", "lastFailureAt"]
-                        }
-                      },
-                      "required": ["audit"]
+                        },
+                        "insecureDevelopmentMode": { "type": "boolean", "enum": [true] }
+                      }
                     }
                   },
                   "required": ["message"]

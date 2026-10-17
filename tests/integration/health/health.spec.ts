@@ -8,6 +8,7 @@ import {
   resetAuditHealthForTests,
 } from '../../../src/services/auditHealth.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
+import { assertDevModeIsLocal } from '../../../src/config/devModeGuard.js';
 
 let app: Application;
 
@@ -18,6 +19,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   resetAuditHealthForTests();
+  assertDevModeIsLocal({ NODE_ENV: 'production' });
 });
 
 describe('Health Routes', () => {
@@ -27,6 +29,22 @@ describe('Health Routes', () => {
     expect(res.status).toBe(200);
     // The healthy body is unchanged, so anything already parsing it is unaffected.
     expect(res.body).toEqual({ message: 'System up' });
+  });
+
+  it('reports insecure development mode when it was allowed on a public deployment', async () => {
+    assertDevModeIsLocal({
+      NODE_ENV: 'development',
+      ISSUER: 'https://auth.example.com',
+      SEAMLESS_ALLOW_INSECURE_DEV: 'true',
+    });
+
+    const res = await request(app).get('/health/status');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      message: 'System up, insecure configuration',
+      degraded: { insecureDevelopmentMode: true },
+    });
   });
 
   // NIST 800-53 AU-5 wants a defined action when audit logging fails. Reporting
