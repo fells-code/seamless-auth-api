@@ -378,7 +378,7 @@ describe('defineRoute', () => {
     expect(json).toHaveBeenCalledWith({ error: 'not found' });
   });
 
-  it('returns the original response body unchanged when it fails its schema', async () => {
+  it('sends a generic 500 instead of a response that fails its schema', async () => {
     const { defineRoute } = await import('../../../src/lib/defineRoute');
     const router = Router();
 
@@ -396,10 +396,53 @@ describe('defineRoute', () => {
     const { res, json } = makeRes();
     await runRoute(router, '/bad-response', res);
 
-    expect(json).toHaveBeenCalledWith({ message: 123 });
-    expect(json).not.toHaveBeenCalledWith(
-      expect.objectContaining({ error: 'Response validation failed' }),
-    );
+    expect(res.statusCode).toBe(500);
+    expect(json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    expect(json).not.toHaveBeenCalledWith({ message: 123 });
+  });
+
+  it('does not hold an error body to a bare schema that documents the 200', async () => {
+    const { defineRoute } = await import('../../../src/lib/defineRoute');
+    const router = Router();
+
+    defineRoute(router, {
+      method: 'get',
+      path: '/bare-schema-404',
+      schemas: {
+        response: z.object({ id: z.string() }),
+      },
+      handler: (_req, res) => {
+        res.status(404).json({ error: 'Not found' });
+      },
+    });
+
+    const { res, json } = makeRes();
+    await runRoute(router, '/bare-schema-404', res);
+
+    expect(res.statusCode).toBe(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Not found' });
+  });
+
+  it('does not leak fields a failing response carried beyond its schema', async () => {
+    const { defineRoute } = await import('../../../src/lib/defineRoute');
+    const router = Router();
+
+    defineRoute(router, {
+      method: 'get',
+      path: '/leaky-response',
+      schemas: {
+        response: { 200: z.object({ id: z.string() }) },
+      },
+      handler: (_req, res) => {
+        res.status(200).json({ id: 42, secret: 'should-not-leave' });
+      },
+    });
+
+    const { res, json } = makeRes();
+    await runRoute(router, '/leaky-response', res);
+
+    expect(json).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(json.mock.calls[0][0])).not.toContain('should-not-leave');
   });
 
   it('forwards handler errors to next', async () => {
@@ -481,7 +524,7 @@ describe('defineRoute', () => {
     expect(json).toHaveBeenCalledWith({ message: 'ok' });
   });
 
-  it('returns the original body when response validation throws a non-Zod error', async () => {
+  it('fails closed when response validation throws a non-Zod error', async () => {
     const { defineRoute } = await import('../../../src/lib/defineRoute');
     const router = Router();
     const failure = new Error('non-zod failure');
@@ -506,7 +549,8 @@ describe('defineRoute', () => {
     const { res, json } = makeRes();
     await runRoute(router, '/non-zod-response', res);
 
-    expect(json).toHaveBeenCalledWith({ message: 'ok' });
+    expect(res.statusCode).toBe(500);
+    expect(json).toHaveBeenCalledWith({ error: 'Internal server error' });
   });
 
   it('parses and replaces params and query when their schemas are provided', async () => {
