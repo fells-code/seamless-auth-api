@@ -8,6 +8,7 @@ import { Application } from 'express';
 
 import { createApp } from './app.js';
 import { bootstrapSystemConfig } from './config/bootstrapSystemConfig.js';
+import { assertDevModeIsLocal } from './config/devModeGuard.js';
 import { assertServiceTokenConfig } from './config/serviceToken.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
@@ -26,6 +27,7 @@ async function startServer() {
   try {
     // First, so conflicting service token env vars stop boot before anything connects.
     assertServiceTokenConfig();
+    assertDevModeIsLocal();
 
     const models = await initializeModels();
 

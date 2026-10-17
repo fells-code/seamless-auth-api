@@ -5591,17 +5591,20 @@ export interface paths {
              *         "audit": {
              *           "failureCount": 0,
              *           "lastFailureAt": "string"
-             *         }
+             *         },
+             *         "insecureDevelopmentMode": null
              *       }
              *     }
              */
             'application/json': {
               message: string;
               degraded?: {
-                audit: {
+                audit?: {
                   failureCount: number;
                   lastFailureAt: string | null;
                 };
+                /** @enum {boolean} */
+                insecureDevelopmentMode?: true;
               };
             };
           };

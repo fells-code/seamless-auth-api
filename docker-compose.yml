@@ -24,7 +24,8 @@ services:
     environment:
       # The published image ships NODE_ENV=production, which requires externally
       # managed JWKS signing keys. Development mode generates a local keypair at
-      # startup instead (see the dev-keys volume below).
+      # startup instead (see the dev-keys volume below). It refuses to start if
+      # ISSUER or APP_ORIGINS point anywhere but this machine or a private network.
       NODE_ENV: development
 
       APP_NAME: Seamless Auth Local

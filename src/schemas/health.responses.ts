@@ -14,10 +14,14 @@ export const HealthStatusResponseSchema = z.object({
    */
   degraded: z
     .object({
-      audit: z.object({
-        failureCount: z.number(),
-        lastFailureAt: z.string().nullable(),
-      }),
+      audit: z
+        .object({
+          failureCount: z.number(),
+          lastFailureAt: z.string().nullable(),
+        })
+        .optional(),
+      /** Development mode allowed on a non-local deployment with SEAMLESS_ALLOW_INSECURE_DEV. */
+      insecureDevelopmentMode: z.literal(true).optional(),
     })
     .optional(),
 });
