@@ -23,7 +23,7 @@ import {
   decoyPrincipalForSubject,
   decoySubjectFor,
 } from '../services/decoyPrincipal.js';
-import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
+import { getUserLockoutStatus } from '../services/lockoutPolicyService.js';
 import {
   getLoginPolicy,
   LoginMethod,
@@ -306,9 +306,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    if (await rejectIfUserLocked({ userId: user.id, req, res })) {
-      return;
-    }
+    const lockout = await getUserLockoutStatus(user.id);
 
     if (!user.verified) {
       logger.warn('Login attempt for unverified account');
@@ -328,12 +326,38 @@ export const login = async (req: Request, res: Response) => {
       Credential.findOne({ where: { userId: user.id } }),
       getLoginPolicy(),
     ]);
-    const loginMethods = resolveAvailableLoginMethods({
+    const availableMethods = resolveAvailableLoginMethods({
       policy: loginPolicy,
       user,
       hasPasskeyCredential: Boolean(credential),
       passkeyAvailable,
     });
+
+    // A lock stops the code factors, which can be guessed. A passkey cannot, so a locked
+    // account can still continue with one, which keeps a lock someone else triggered
+    // from shutting the owner out.
+    const loginMethods = lockout.locked
+      ? availableMethods.filter((method) => method === 'passkey')
+      : availableMethods;
+
+    if (lockout.locked && loginMethods.length === 0) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'login_suspicious',
+        req,
+        metadata: {
+          reason: 'Account lockout policy active',
+          failureCount: lockout.failureCount,
+          retryAfterSeconds: lockout.retryAfterSeconds,
+        },
+      });
+
+      return res.status(423).json({
+        error: 'account_locked',
+        message: 'Too many failed authentication attempts. Try again later.',
+        retryAfterSeconds: lockout.retryAfterSeconds,
+      });
+    }
 
     if (loginMethods.length === 0) {
       logger.error('Login attempt had no allowed continuation methods');

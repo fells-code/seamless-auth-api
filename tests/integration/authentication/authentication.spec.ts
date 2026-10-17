@@ -362,9 +362,12 @@ describe('POST /login', () => {
     );
   });
 
-  it('rejects login for a locked account', async () => {
+  it('rejects login for a locked account with no passkey', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
-    (AuthFailure.count as any).mockResolvedValue(10);
+    (Credential.findOne as any).mockResolvedValue(null);
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 10 }, () => ({ occurredAt: new Date() })),
+    );
     (getSystemConfig as any).mockResolvedValue({
       lockout_policy: { enabled: true, maxFailures: 10, windowSeconds: 900, lockoutSeconds: 900 },
     });
@@ -373,6 +376,27 @@ describe('POST /login', () => {
 
     expect(res.status).toBe(423);
     expect(res.body.error).toBe('account_locked');
+    expect(res.body.retryAfterSeconds).toBeGreaterThan(0);
+    expect(res.body.retryAfterSeconds).toBeLessThanOrEqual(900);
+  });
+
+  it('lets a locked account continue with its passkey only', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue({ id: 'cred-1' });
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 10 }, () => ({ occurredAt: new Date() })),
+    );
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey', 'email_otp', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+      lockout_policy: { enabled: true, maxFailures: 10, windowSeconds: 900, lockoutSeconds: 900 },
+    });
+
+    const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.loginMethods).toEqual(['passkey']);
   });
 
   it('logs in with default TTL when no access token TTL is configured', async () => {

@@ -1228,8 +1228,12 @@ describe('POST /webauthn/login/finish', () => {
     expect(res.body).toEqual({ error: 'prf_output_not_allowed' });
   });
 
-  it('returns 423 when the account is locked', async () => {
-    (AuthFailure.count as any).mockResolvedValue(10);
+  it('does not apply lockout to passkey sign-in', async () => {
+    // An assertion cannot be guessed, and failures of a code factor, which anyone with
+    // an ephemeral token can produce, must not take the owner's passkeys away.
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 10 }, () => ({ occurredAt: new Date() })),
+    );
     (getSystemConfig as any).mockResolvedValue({
       lockout_policy: {
         enabled: true,
@@ -1243,8 +1247,8 @@ describe('POST /webauthn/login/finish', () => {
       .post('/webauthn/login/finish')
       .send({ assertionResponse: { id: 'cred-1' } });
 
-    expect(res.status).toBe(423);
-    expect(res.body.error).toBe('account_locked');
+    expect(res.status).not.toBe(423);
+    expect(AuthFailure.findAll).not.toHaveBeenCalled();
   });
 
   it('returns 500 when the assertion verification throws', async () => {
