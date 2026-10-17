@@ -59,7 +59,7 @@ export async function findMisusedBearer(
     return null;
   }
 
-  const payload = await verifyJwtWithKid(token);
+  const payload = await verifyJwtWithKid(token, 'either');
 
   if (!payload || typeof payload.typ !== 'string' || payload.typ === expectedType) {
     return null;

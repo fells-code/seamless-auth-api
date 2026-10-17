@@ -27,6 +27,8 @@ async function load() {
   return { getServiceToken: getServiceToken as any, jwt, validateInternalServiceToken };
 }
 
+const inOneMinute = () => Math.floor(Date.now() / 1000) + 60;
+
 describe('validateInternalServiceToken', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -68,17 +70,50 @@ describe('validateInternalServiceToken', () => {
   it('returns the decoded payload for a valid HS256 token', async () => {
     const { jwt, validateInternalServiceToken } = await load();
 
+    const exp = inOneMinute();
     (jwt.default.verify as any).mockReturnValue({
       iss: 'seamless-portal-api',
       aud: 'seamless-auth',
       sub: 'client-1',
+      exp,
     });
 
     await expect(validateInternalServiceToken('token')).resolves.toEqual({
       iss: 'seamless-portal-api',
       aud: 'seamless-auth',
       sub: 'client-1',
+      exp,
     });
+  });
+
+  // jsonwebtoken only checks exp when it is present, so a token minted without one
+  // would never expire.
+  it('rejects a token with no expiry', async () => {
+    const { jwt, validateInternalServiceToken } = await load();
+
+    (jwt.default.verify as any).mockReturnValue({ sub: 'client-1' });
+
+    await expect(validateInternalServiceToken('token', { logInvalid: true })).resolves.toBeNull();
+  });
+
+  it('rejects a token that is good for more than an hour', async () => {
+    const { jwt, validateInternalServiceToken } = await load();
+
+    (jwt.default.verify as any).mockReturnValue({
+      sub: 'client-1',
+      exp: Math.floor(Date.now() / 1000) + 2 * 60 * 60,
+    });
+
+    await expect(validateInternalServiceToken('token')).resolves.toBeNull();
+  });
+
+  it('accepts a token good for an hour, as the conformance harness mints', async () => {
+    const { jwt, validateInternalServiceToken } = await load();
+    const exp = Math.floor(Date.now() / 1000) + 60 * 60;
+
+    (jwt.default.verify as any).mockReturnValue({ sub: 'client-1', exp });
+
+    await expect(validateInternalServiceToken('token')).resolves.toEqual({ sub: 'client-1', exp });
   });
 
   it('rejects and logs unsupported-algorithm tokens when logging is enabled', async () => {
@@ -105,11 +140,11 @@ describe('validateInternalServiceToken', () => {
     const { jwt, validateInternalServiceToken } = await load();
 
     (jwt.default.decode as any).mockReturnValue(null);
-    (jwt.default.verify as any).mockReturnValue({ sub: 'client-2' });
+    (jwt.default.verify as any).mockReturnValue({ sub: 'client-2', exp: inOneMinute() });
 
-    await expect(validateInternalServiceToken('token')).resolves.toEqual({
-      sub: 'client-2',
-    });
+    await expect(validateInternalServiceToken('token')).resolves.toEqual(
+      expect.objectContaining({ sub: 'client-2' }),
+    );
 
     expect(jwt.default.verify).toHaveBeenCalled();
   });
@@ -118,11 +153,11 @@ describe('validateInternalServiceToken', () => {
     const { jwt, validateInternalServiceToken } = await load();
 
     (jwt.default.decode as any).mockReturnValue({ header: { alg: 123 } });
-    (jwt.default.verify as any).mockReturnValue({ sub: 'client-3' });
+    (jwt.default.verify as any).mockReturnValue({ sub: 'client-3', exp: inOneMinute() });
 
-    await expect(validateInternalServiceToken('token')).resolves.toEqual({
-      sub: 'client-3',
-    });
+    await expect(validateInternalServiceToken('token')).resolves.toEqual(
+      expect.objectContaining({ sub: 'client-3' }),
+    );
 
     expect(jwt.default.verify).toHaveBeenCalled();
   });
