@@ -7301,35 +7301,25 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "token": "string",
-             *       "refreshToken": "string",
-             *       "sub": "string",
-             *       "roles": [
-             *         null
-             *       ],
-             *       "email": "string",
-             *       "phone": "string",
-             *       "ttl": 0,
-             *       "refreshTtl": 0,
-             *       "nextStep": null
-             *     }
-             */
-            'application/json': {
-              message: string;
-              token?: string;
-              refreshToken?: string;
-              sub?: string;
-              roles?: string[];
-              email?: string;
-              phone?: string | null;
-              ttl?: number;
-              refreshTtl?: number;
-              /** @enum {string} */
-              nextStep?: 'enroll_passkey';
-            };
+            /** @example null */
+            'application/json':
+              | {
+                  message: string;
+                  token?: string;
+                  refreshToken?: string;
+                  sub?: string;
+                  roles?: string[];
+                  email?: string;
+                  phone?: string | null;
+                  ttl?: number;
+                  refreshTtl?: number;
+                  /** @enum {string} */
+                  nextStep?: 'enroll_passkey';
+                }
+              | {
+                  /** @enum {string} */
+                  message: 'Success';
+                };
           };
         };
         /** @description HTTP 204 */

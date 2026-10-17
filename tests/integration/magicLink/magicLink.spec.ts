@@ -10,7 +10,11 @@ import { Session } from '../../../src/models/sessions.js';
 
 import { createApp } from '../../../src/app.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { verifyMagicLink } from '../../../src/controllers/magicLinks.js';
+import {
+  pollMagicLinkConfirmation,
+  requestMagicLink,
+  verifyMagicLink,
+} from '../../../src/controllers/magicLinks.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -472,6 +476,7 @@ it('creates session when magic link completed', async () => {
     }),
   );
 
+  (MagicLinkToken.update as any).mockResolvedValue([1]);
   (Session.create as any).mockResolvedValue({ id: 'session-1' });
 
   (generateRefreshToken as any).mockReturnValue('refresh-token');
@@ -492,6 +497,115 @@ it('creates session when magic link completed', async () => {
       refreshTtl: 3600,
     }),
   );
+});
+
+describe('magic link attempt binding and redemption', () => {
+  const completedUser = () => ({
+    id: 'user-1',
+    email: 'test@example.com',
+    roles: ['user'],
+    save: vi.fn(),
+    update: vi.fn(),
+  });
+
+  it('stores the requesting attempt on the link', async () => {
+    (sendMagicLinkEmail as any).mockResolvedValue(undefined);
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });
+
+    const res = await request(app).get('/magic-link');
+
+    expect(res.status).toBe(200);
+    expect(MagicLinkToken.create).toHaveBeenCalledWith(
+      expect.objectContaining({ attempt_id: 'attempt-1' }),
+    );
+  });
+
+  it('looks the link up by the polling attempt, not only by user', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(null);
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(204);
+    expect(MagicLinkToken.findOne).toHaveBeenCalledWith({
+      where: expect.objectContaining({ user_id: 'user-1', attempt_id: 'attempt-1' }),
+    });
+  });
+
+  it('issues the session once and answers later checks without one', async () => {
+    (User.findOne as any).mockResolvedValue(completedUser());
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: new Date() }));
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (signAccessToken as any).mockResolvedValue('access-token');
+
+    (MagicLinkToken.update as any).mockResolvedValueOnce([1]);
+    const first = await request(app).get('/magic-link/check');
+
+    (MagicLinkToken.update as any).mockResolvedValueOnce([0]);
+    const second = await request(app).get('/magic-link/check');
+
+    expect(first.status).toBe(200);
+    expect(first.body.token).toBe('access-token');
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual({ message: 'Success' });
+    expect(Session.create).toHaveBeenCalledTimes(1);
+    expect(MagicLinkToken.update).toHaveBeenCalledWith(
+      { redeemed_at: expect.any(Date) },
+      { where: { id: 'link-1', redeemed_at: null } },
+    );
+  });
+});
+
+describe('magic link without an attempt id', () => {
+  const directReq = () =>
+    ({
+      user: { id: 'user-1', email: 'test@example.com' },
+      ip: '127.0.0.1',
+      headers: { 'user-agent': 'test-agent' },
+      query: {},
+      get: () => undefined,
+    }) as any;
+
+  const directRes = () => {
+    const res: any = {};
+    res.status = vi.fn().mockReturnValue(res);
+    res.json = vi.fn().mockReturnValue(res);
+    res.end = vi.fn().mockReturnValue(res);
+    return res;
+  };
+
+  it('refuses to create a link that no poll could collect', async () => {
+    const res = directRes();
+
+    await requestMagicLink(directReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_failed',
+        metadata: { reason: 'Ephemeral token has no attempt id' },
+      }),
+    );
+    expect(MagicLinkToken.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses to poll without an attempt to match', async () => {
+    const res = directRes();
+
+    await pollMagicLinkConfirmation(directReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_failed',
+        metadata: { reason: 'Ephemeral token has no attempt id' },
+      }),
+    );
+    expect(MagicLinkToken.findOne).not.toHaveBeenCalled();
+    expect(Session.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('magic link full sign-in sequence (regression)', () => {

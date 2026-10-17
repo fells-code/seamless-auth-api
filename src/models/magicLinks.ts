@@ -25,6 +25,8 @@ export class MagicLinkToken extends Model<
   declare user_agent_hash: string | null;
   declare expires_at: Date;
   declare used_at: Date | null;
+  declare attempt_id: string | null;
+  declare redeemed_at: CreationOptional<Date | null>;
   declare created_at: CreationOptional<Date>;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,6 +71,14 @@ const initializeMagicTokenModel = (sequelize: Sequelize) => {
         allowNull: false,
       },
       used_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      attempt_id: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      redeemed_at: {
         type: DataTypes.DATE,
         allowNull: true,
       },

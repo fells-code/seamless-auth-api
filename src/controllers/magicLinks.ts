@@ -113,6 +113,13 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     logger.error('Could not identify devive metadata to send a magic link');
     return res.status(400).json({ error: 'Invalid device data' });
   }
+
+  // The poll collects the session by attempt, so a link without one could never be
+  // collected. Every ephemeral token minted by a current server carries it.
+  if (!authReq.attemptId) {
+    await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
+    return res.status(400).json({ error: 'Invalid request' });
+  }
   // Expire all previous links
   await MagicLinkToken.update(
     { expires_at: new Date() },
@@ -129,6 +136,7 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     redirect_url,
     ip_hash,
     user_agent_hash,
+    attempt_id: authReq.attemptId,
     expires_at: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
   });
 
@@ -256,8 +264,17 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     });
   }
 
+  if (!authReq.attemptId) {
+    await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
   const record = await MagicLinkToken.findOne({
-    where: { user_id: user.id, expires_at: { [Op.gt]: new Date() } },
+    where: {
+      user_id: user.id,
+      attempt_id: authReq.attemptId,
+      expires_at: { [Op.gt]: new Date() },
+    },
   });
 
   if (!record) {
@@ -279,6 +296,18 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   }
 
   if (record.used_at && record.expires_at > new Date()) {
+    // One session per confirmed link. A second check for the same attempt, such as the
+    // tab the link opened in when the requesting tab already collected the session, is
+    // told the link is done without being handed another session.
+    const [redeemed] = await MagicLinkToken.update(
+      { redeemed_at: new Date() },
+      { where: { id: record.id, redeemed_at: null } },
+    );
+
+    if (!redeemed) {
+      return res.status(200).json({ message: 'Success' });
+    }
+
     await AuthEventService.log({
       userId: record.user_id,
       type: 'magic_link_poll_completed_successfully',

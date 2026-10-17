@@ -7360,33 +7360,31 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0,
-                  "nextStep": null
-                },
+                "example": null,
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": { "type": "string" },
-                    "token": { "type": "string" },
-                    "refreshToken": { "type": "string" },
-                    "sub": { "type": "string" },
-                    "roles": { "type": "array", "items": { "type": "string" } },
-                    "email": { "type": "string" },
-                    "phone": { "type": "string", "nullable": true },
-                    "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" },
-                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
-                  },
-                  "required": ["message"]
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string" },
+                        "token": { "type": "string" },
+                        "refreshToken": { "type": "string" },
+                        "sub": { "type": "string" },
+                        "roles": { "type": "array", "items": { "type": "string" } },
+                        "email": { "type": "string" },
+                        "phone": { "type": "string", "nullable": true },
+                        "ttl": { "type": "number" },
+                        "refreshTtl": { "type": "number" },
+                        "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
+                      },
+                      "required": ["message"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": { "message": { "type": "string", "enum": ["Success"] } },
+                      "required": ["message"]
+                    }
+                  ]
                 }
               }
             }

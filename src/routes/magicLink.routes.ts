@@ -17,7 +17,7 @@ import {
   MagicLinkRequestQuerySchema,
   MagicLinkVerifyParamsSchema,
 } from '../schemas/magiclink.requests.js';
-import { MagicLinkPollSuccessSchema } from '../schemas/magiclink.responses.js';
+import { MagicLinkPollResponseSchema } from '../schemas/magiclink.responses.js';
 
 const magicLinkRouter = createRouter('/magic-link');
 
@@ -81,7 +81,7 @@ magicLinkRouter.get(
 
     schemas: {
       response: {
-        200: MagicLinkPollSuccessSchema,
+        200: MagicLinkPollResponseSchema,
         204: MessageSchema,
         403: ErrorSchema,
         404: ErrorSchema,
