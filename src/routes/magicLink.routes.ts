@@ -6,6 +6,7 @@
 
 import { decoyPollMagicLink, decoyRequestMagicLink } from '../controllers/decoyResponders.js';
 import {
+  confirmMagicLink,
   pollMagicLinkConfirmation,
   requestMagicLink,
   verifyMagicLink,
@@ -17,7 +18,10 @@ import {
   MagicLinkRequestQuerySchema,
   MagicLinkVerifyParamsSchema,
 } from '../schemas/magiclink.requests.js';
-import { MagicLinkPollSuccessSchema } from '../schemas/magiclink.responses.js';
+import {
+  MagicLinkConfirmationRequiredSchema,
+  MagicLinkPollResponseSchema,
+} from '../schemas/magiclink.responses.js';
 
 const magicLinkRouter = createRouter('/magic-link');
 
@@ -81,7 +85,7 @@ magicLinkRouter.get(
 
     schemas: {
       response: {
-        200: MagicLinkPollSuccessSchema,
+        200: MagicLinkPollResponseSchema,
         204: MessageSchema,
         403: ErrorSchema,
         404: ErrorSchema,
@@ -97,6 +101,37 @@ magicLinkRouter.get(
   {
     adapter: {},
     summary: 'Verify magic link token',
+    description:
+      'Consumes the link when it is opened on the device that requested it, proven by the ' +
+      "requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by " +
+      'the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers ' +
+      '409 without consuming it; ' +
+      'confirm with POST /magic-link/verify/{token}/confirm.',
+    tags: ['MagicLinks'],
+
+    schemas: {
+      params: MagicLinkVerifyParamsSchema,
+
+      response: {
+        200: MessageSchema,
+        403: ErrorSchema,
+        400: ErrorSchema,
+        409: MagicLinkConfirmationRequiredSchema,
+        500: InternalErrorSchema,
+      },
+    },
+  },
+  verifyMagicLink,
+);
+
+magicLinkRouter.post(
+  '/verify/:token/confirm',
+  {
+    adapter: {},
+    summary: 'Confirm a magic link opened on another device',
+    description:
+      'Consumes the link after the person who opened it has approved signing in the device ' +
+      'that requested it.',
     tags: ['MagicLinks'],
 
     schemas: {
@@ -110,7 +145,7 @@ magicLinkRouter.get(
       },
     },
   },
-  verifyMagicLink,
+  confirmMagicLink,
 );
 
 export default magicLinkRouter.router;

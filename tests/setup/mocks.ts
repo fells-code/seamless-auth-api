@@ -194,6 +194,7 @@ vi.mock('../../src/middleware/attachAuthMiddleware.js', async (importOriginal) =
       };
 
       req.sessionId = 'session-1';
+      req.attemptId = 'attempt-1';
       next();
     },
   };

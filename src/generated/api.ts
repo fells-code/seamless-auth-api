@@ -3146,6 +3146,7 @@ export interface paths {
                 | 'logout_failed'
                 | 'logout_success'
                 | 'logout_suspicious'
+                | 'magic_link_confirmation_required'
                 | 'magic_link_poll_completed_successfully'
                 | 'magic_link_failed'
                 | 'magic_link_requested'
@@ -3218,6 +3219,7 @@ export interface paths {
                     | 'logout_failed'
                     | 'logout_success'
                     | 'logout_suspicious'
+                    | 'magic_link_confirmation_required'
                     | 'magic_link_poll_completed_successfully'
                     | 'magic_link_failed'
                     | 'magic_link_requested'
@@ -7301,35 +7303,25 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "token": "string",
-             *       "refreshToken": "string",
-             *       "sub": "string",
-             *       "roles": [
-             *         null
-             *       ],
-             *       "email": "string",
-             *       "phone": "string",
-             *       "ttl": 0,
-             *       "refreshTtl": 0,
-             *       "nextStep": null
-             *     }
-             */
-            'application/json': {
-              message: string;
-              token?: string;
-              refreshToken?: string;
-              sub?: string;
-              roles?: string[];
-              email?: string;
-              phone?: string | null;
-              ttl?: number;
-              refreshTtl?: number;
-              /** @enum {string} */
-              nextStep?: 'enroll_passkey';
-            };
+            /** @example null */
+            'application/json':
+              | {
+                  message: string;
+                  token?: string;
+                  refreshToken?: string;
+                  sub?: string;
+                  roles?: string[];
+                  email?: string;
+                  phone?: string | null;
+                  ttl?: number;
+                  refreshTtl?: number;
+                  /** @enum {string} */
+                  nextStep?: 'enroll_passkey';
+                }
+              | {
+                  /** @enum {string} */
+                  message: 'Success';
+                };
           };
         };
         /** @description HTTP 204 */
@@ -7466,8 +7458,210 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Verify magic link token */
+    /**
+     * Verify magic link token
+     * @description Consumes the link when it is opened on the device that requested it, proven by the requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers 409 without consuming it; confirm with POST /magic-link/verify/{token}/confirm.
+     */
     get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          token: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "message": "string",
+             *       "requestedFrom": {
+             *         "deviceClass": null,
+             *         "requestedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error: 'confirmation_required';
+              message: string;
+              requestedFrom: {
+                /** @enum {string} */
+                deviceClass:
+                  | 'ios'
+                  | 'android'
+                  | 'macos'
+                  | 'windows'
+                  | 'linux'
+                  | 'chromeos'
+                  | 'bot'
+                  | 'unknown';
+                requestedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/magic-link/verify/{token}/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Confirm a magic link opened on another device
+     * @description Consumes the link after the person who opened it has approved signing in the device that requested it.
+     */
+    post: {
       parameters: {
         query?: never;
         header?: never;
@@ -7609,8 +7803,6 @@ export interface paths {
         };
       };
     };
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;
