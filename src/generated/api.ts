@@ -3048,6 +3048,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
         /** @description HTTP 429 */
         429: {
           headers: {
@@ -3111,6 +3129,7 @@ export interface paths {
                 | 'auth_action_incremented'
                 | 'admin_device_replacement_recovery'
                 | 'admin_enrollment_invite_sent'
+                | 'admin_last_admin_change_refused'
                 | 'admin_oauth_provider_restored'
                 | 'admin_oauth_provider_retired'
                 | 'admin_session_revoked'
@@ -3182,6 +3201,7 @@ export interface paths {
                     | 'auth_action_incremented'
                     | 'admin_device_replacement_recovery'
                     | 'admin_enrollment_invite_sent'
+                    | 'admin_last_admin_change_refused'
                     | 'admin_oauth_provider_restored'
                     | 'admin_oauth_provider_retired'
                     | 'admin_session_revoked'
@@ -4136,6 +4156,24 @@ export interface paths {
         };
         /** @description HTTP 404 */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
           headers: {
             [name: string]: unknown;
           };
@@ -15239,7 +15277,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Success */
+        /** @description HTTP 200 */
         200: {
           headers: {
             [name: string]: unknown;
@@ -15281,6 +15319,42 @@ export interface paths {
                     to: string;
                     signInUrl: string;
                   };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
             };
           };
         };

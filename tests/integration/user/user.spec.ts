@@ -112,6 +112,25 @@ describe('DELETE /users/delete', () => {
     expect(res.status).toBe(200);
   });
 
+  it('refuses to let the last admin delete their own account', async () => {
+    const destroy = vi.fn();
+    (User.findOne as any).mockResolvedValue({
+      id: 'user-1',
+      email: 'test@example.com',
+      phone: '+14155552671',
+      roles: ['admin'],
+      destroy,
+    });
+    (User.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app).delete('/users/delete');
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('last_admin');
+    expect(destroy).not.toHaveBeenCalled();
+    expect(Credential.findAll).not.toHaveBeenCalled();
+  });
+
   it('handles missing user gracefully', async () => {
     (User.findOne as any).mockResolvedValue(null);
 

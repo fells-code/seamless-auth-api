@@ -58,6 +58,35 @@ describe('DELETE /admin/users', () => {
     expect(res.status).toBe(200);
   });
 
+  it('refuses to delete the last admin', async () => {
+    const target = buildUser({ roles: ['admin:write'] });
+    (User.findOne as any).mockResolvedValue(target);
+    (User.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app).delete('/admin/users').send({ userId: 'user-1' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('last_admin');
+    expect(target.destroy).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'admin_last_admin_change_refused',
+        metadata: { action: 'delete' },
+      }),
+    );
+  });
+
+  it('deletes an admin when another admin remains', async () => {
+    const target = buildUser({ roles: ['admin'] });
+    (User.findOne as any).mockResolvedValue(target);
+    (User.findAll as any).mockResolvedValue([{ id: 'other', roles: ['admin:write'] }]);
+
+    const res = await request(app).delete('/admin/users').send({ userId: 'user-1' });
+
+    expect(res.status).toBe(200);
+    expect(target.destroy).toHaveBeenCalled();
+  });
+
   it('returns 404 if no userId', async () => {
     const res = await request(app).delete('/admin/users').send({});
 
@@ -837,6 +866,20 @@ describe('PATCH /admin/users/:userId', () => {
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalled();
     expect(res.body.user).not.toHaveProperty('emailVerificationToken');
+  });
+
+  it('refuses to take admin write from the last admin', async () => {
+    const user = buildUser({ roles: ['admin'] });
+    (User.findByPk as any).mockResolvedValue(user);
+    (User.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ roles: ['user'] });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('last_admin');
+    expect(user.update).not.toHaveBeenCalled();
   });
 
   it('updates scoped roles successfully', async () => {
