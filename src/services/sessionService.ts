@@ -28,7 +28,14 @@ export interface ValidatedAccessToken {
   organizationId: string | null;
 }
 
-export async function verifyJwtWithKid(token: string, expectedType?: 'access' | 'ephemeral') {
+/**
+ * Verifies a token this server signed, and that it is the kind the caller expects.
+ *
+ * `either` exists for one caller, misuse detection, which needs to learn which kind a
+ * token presented on the wrong route was. Everything that authorizes on a token names
+ * the kind it accepts.
+ */
+export async function verifyJwtWithKid(token: string, expectedType: AuthTokenType | 'either') {
   try {
     const { payload } = await jwtVerify(
       token,
@@ -43,11 +50,17 @@ export async function verifyJwtWithKid(token: string, expectedType?: 'access' | 
       },
       {
         issuer: ISSUER,
+        audience: ISSUER,
         algorithms: ['RS256'],
       },
     );
 
-    if (expectedType && payload.typ !== expectedType) {
+    if (payload.typ !== 'access' && payload.typ !== 'ephemeral') {
+      logger.warn(`JWT has no recognised typ: '${payload.typ}'`);
+      return null;
+    }
+
+    if (expectedType !== 'either' && payload.typ !== expectedType) {
       logger.warn(`JWT typ mismatch: expected '${expectedType}', got '${payload.typ}'`);
       return null;
     }

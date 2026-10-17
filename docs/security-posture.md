@@ -334,10 +334,13 @@ statement and one a credential signed for itself are both `packed`.
 
 **Posture: `aud` is the deployment's own issuer URL.**
 
-Access, refresh, and ephemeral tokens are all signed with `aud` equal to `ISSUER`
-([`src/lib/token.ts`](../src/lib/token.ts)). Verifiers enforce it: the Seamless adapter checks
-`aud === audience`, and the deployment contract requires the adopter's `audience` to equal its
-`authServerUrl`, which is byte-identical to `ISSUER`.
+Access and ephemeral tokens are signed with `aud` equal to `ISSUER`
+([`src/lib/token.ts`](../src/lib/token.ts)); refresh tokens are opaque random values, not JWTs.
+Verifiers enforce the audience: this API checks issuer, audience and `typ` on every token it
+accepts ([`src/services/sessionService.ts`](../src/services/sessionService.ts)), so an access token
+is never accepted where an ephemeral one is expected or the other way round, and a token of any
+other kind is refused. The Seamless adapter checks `aud === audience`, and the deployment contract
+requires the adopter's `audience` to equal its `authServerUrl`, which is byte-identical to `ISSUER`.
 
 A per-deployment audience is deliberate. A single global literal such as `seamless-auth` would make
 every tenant share one audience string, so a token minted by one instance would satisfy an audience
@@ -347,7 +350,9 @@ The internal service-token path
 ([`src/middleware/authenticateServiceToken.ts`](../src/middleware/authenticateServiceToken.ts))
 does use `aud: seamless-auth` with `iss: seamless-portal-api`. That is a different token family:
 machine-to-machine credentials minted by the portal API, not user tokens minted here. The two
-schemes are intentionally separate, and neither verifier accepts the other's tokens.
+schemes are intentionally separate, and neither verifier accepts the other's tokens. A service token
+must carry an `exp` no more than an hour (plus a minute of clock skew) away; adapters mint them for
+60 seconds.
 
 ## Requests from an origin that is not allowlisted
 

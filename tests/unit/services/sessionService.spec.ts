@@ -93,9 +93,59 @@ describe('sessionService', () => {
 
     const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
 
-    const result = await verifyJwtWithKid('token');
+    const result = await verifyJwtWithKid('token', 'either');
 
     expect(result).toBeNull();
+  });
+
+  it('checks the audience as well as the issuer', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockResolvedValue({ payload: { typ: 'access', sub: 'u', sid: 's' } });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    await verifyJwtWithKid('token', 'access');
+
+    expect(jose.jwtVerify).toHaveBeenCalledWith(
+      'token',
+      expect.any(Function),
+      expect.objectContaining({ issuer: process.env.ISSUER, audience: process.env.ISSUER }),
+    );
+  });
+
+  it('rejects a token of the other kind', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockResolvedValue({ payload: { typ: 'ephemeral', sub: 'u' } });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    await expect(verifyJwtWithKid('token', 'access')).resolves.toBeNull();
+  });
+
+  // Misuse detection asks for either kind, but a token whose typ is neither, such as
+  // one a future OpenID Provider signs, is still not one of ours.
+  it('rejects an unrecognised typ even when either kind is accepted', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockResolvedValue({ payload: { typ: 'id_token', sub: 'u' } });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    await expect(verifyJwtWithKid('token', 'either')).resolves.toBeNull();
+  });
+
+  it('accepts either kind for misuse detection', async () => {
+    const jose = await import('jose');
+
+    (jose.jwtVerify as any).mockResolvedValue({ payload: { typ: 'ephemeral', sub: 'u' } });
+
+    const { verifyJwtWithKid } = await import('../../../src/services/sessionService');
+
+    await expect(verifyJwtWithKid('token', 'either')).resolves.toEqual(
+      expect.objectContaining({ typ: 'ephemeral' }),
+    );
   });
 
   it('returns parsed access token', async () => {

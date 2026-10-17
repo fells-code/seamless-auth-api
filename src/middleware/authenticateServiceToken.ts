@@ -13,6 +13,8 @@ const logger = getLogger('authenticateServiceToken');
 
 let cachedSecret: string | undefined;
 const INTERNAL_SERVICE_TOKEN_ALGORITHMS = ['HS256', 'HS384', 'HS512'] as const;
+// An hour, plus a minute of clock skew.
+const MAX_SERVICE_TOKEN_LIFETIME_SECONDS = 60 * 60 + 60;
 
 interface InternalServiceTokenValidationOptions {
   logInvalid?: boolean;
@@ -67,9 +69,24 @@ export async function validateInternalServiceToken(
       return null;
     }
 
-    return jwt.verify(token, internalSecret, {
+    const payload = jwt.verify(token, internalSecret, {
       algorithms: [...INTERNAL_SERVICE_TOKEN_ALGORITHMS],
     }) as JwtPayload;
+
+    // jsonwebtoken accepts a token with no exp at all, which would make a leaked one
+    // good forever. Adapters mint them for 60 seconds; the cap leaves room for slower
+    // callers such as the conformance harness without allowing a standing credential.
+    const secondsLeft = typeof payload.exp === 'number' ? payload.exp - Date.now() / 1000 : null;
+
+    if (secondsLeft === null || secondsLeft > MAX_SERVICE_TOKEN_LIFETIME_SECONDS) {
+      if (options.logInvalid) {
+        logger.warn('Rejected internal service token with no expiry or too long a lifetime');
+      }
+
+      return null;
+    }
+
+    return payload;
   } catch (error: unknown) {
     if (options.logInvalid) {
       logger.error(`An error occured validating api to api service. ${error}`);
