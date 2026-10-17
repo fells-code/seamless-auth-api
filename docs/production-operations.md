@@ -94,6 +94,10 @@ To separate them without breaking anything, in this order:
    changes yet, because each one already resolves to that value.
 2. Rotate the service token: set the new value on the API and on every server adapter.
 
+The fallback is deprecated. From v0.20 each secret is required whenever the feature that uses it
+is in use (TOTP for the encryption key, OAuth sign-in for the state secret, and always for the
+refresh lookup and decoy secrets), so do this before upgrading to v0.20.
+
 From then on the service token can be rotated freely. Do not set the four to new values in step 1:
 stored refresh token fingerprints and TOTP secrets were made with the old key and would stop
 matching.

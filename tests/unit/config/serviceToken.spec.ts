@@ -102,6 +102,7 @@ describe('assertServiceTokenConfig', () => {
     expect(message).toContain('DECOY_SUBJECT_SECRET');
     expect(message).not.toContain('REFRESH_TOKEN_LOOKUP_SECRET');
     expect(message).toContain('set each one to the current service token value first');
+    expect(message).toContain('deprecated and is removed in v0.20');
   });
 
   it('does not warn when every secret is set separately', () => {

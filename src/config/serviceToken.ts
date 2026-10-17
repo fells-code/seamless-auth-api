@@ -93,8 +93,9 @@ export function assertServiceTokenConfig(env: EnvSource = process.env) {
     logger.warn(
       `These secrets are unset and fall back to the service token: ` +
         shared.map(({ env: name, onRotate }) => `${name} (rotating it: ${onRotate})`).join('; ') +
-        `. To separate them safely, set each one to the current service token value first, ` +
-        `then rotate the service token. See docs/production-operations.md.`,
+        `. This fallback is deprecated and is removed in v0.20, which requires each secret ` +
+        `whose feature is in use. To separate them safely, set each one to the current service ` +
+        `token value first, then rotate the service token. See docs/production-operations.md.`,
     );
   }
 
