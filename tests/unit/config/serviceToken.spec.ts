@@ -4,6 +4,7 @@ import {
   assertServiceTokenConfig,
   getServiceToken,
   resolveServiceToken,
+  secretsSharingServiceToken,
   ServiceTokenConflictError,
 } from '../../../src/config/serviceToken.js';
 import getLogger from '../../../src/utils/logger.js';
@@ -68,6 +69,7 @@ describe('assertServiceTokenConfig', () => {
 
   beforeEach(() => {
     vi.spyOn(logger, 'info');
+    vi.spyOn(logger, 'warn');
   });
 
   it('logs a single info notice when only API_SERVICE_TOKEN is set', () => {
@@ -85,6 +87,42 @@ describe('assertServiceTokenConfig', () => {
     assertServiceTokenConfig({ SEAMLESS_SERVICE_TOKEN: 'same', API_SERVICE_TOKEN: 'same' });
 
     expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it('warns about every secret that falls back to the service token', () => {
+    assertServiceTokenConfig({
+      SEAMLESS_SERVICE_TOKEN: 'token',
+      REFRESH_TOKEN_LOOKUP_SECRET: 'separate',
+    });
+
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    const message = (logger.warn as any).mock.calls[0][0] as string;
+    expect(message).toContain('TOTP_SECRET_ENCRYPTION_KEY');
+    expect(message).toContain('OAUTH_STATE_SECRET');
+    expect(message).toContain('DECOY_SUBJECT_SECRET');
+    expect(message).not.toContain('REFRESH_TOKEN_LOOKUP_SECRET');
+    expect(message).toContain('set each one to the current service token value first');
+  });
+
+  it('does not warn when every secret is set separately', () => {
+    assertServiceTokenConfig({
+      SEAMLESS_SERVICE_TOKEN: 'token',
+      REFRESH_TOKEN_LOOKUP_SECRET: 'a',
+      TOTP_SECRET_ENCRYPTION_KEY: 'b',
+      OAUTH_STATE_SECRET: 'c',
+      DECOY_SUBJECT_SECRET: 'd',
+    });
+
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  // Without a service token there is nothing to share; development has its own
+  // fallbacks for that case.
+  it('does not warn when no service token is set', () => {
+    expect(secretsSharingServiceToken({})).toEqual([]);
+    assertServiceTokenConfig({});
+
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('stays quiet when neither name is set', () => {
