@@ -7,8 +7,9 @@
 'use strict';
 
 /**
- * Ties each magic link to the sign-in attempt that requested it, and records when its
- * session was issued so a confirmed link is redeemed once.
+ * Ties each magic link to the sign-in attempt that requested it, records the platform it
+ * was requested from so a link opened elsewhere can say which device is asking, and
+ * records when its session was issued so a confirmed link is redeemed once.
  *
  * Links created before this migration have no attempt and can no longer be collected.
  * They live for fifteen minutes, so only links in flight during the upgrade are lost.
@@ -20,6 +21,7 @@ module.exports = {
     await queryInterface.sequelize.query(`
       ALTER TABLE public.magic_link_tokens
       ADD COLUMN IF NOT EXISTS attempt_id TEXT,
+      ADD COLUMN IF NOT EXISTS requested_device_class TEXT,
       ADD COLUMN IF NOT EXISTS redeemed_at TIMESTAMPTZ;
 
       CREATE INDEX IF NOT EXISTS idx_magic_link_attempt_id
@@ -33,6 +35,7 @@ module.exports = {
 
       ALTER TABLE public.magic_link_tokens
       DROP COLUMN IF EXISTS redeemed_at,
+      DROP COLUMN IF EXISTS requested_device_class,
       DROP COLUMN IF EXISTS attempt_id;
     `);
   },

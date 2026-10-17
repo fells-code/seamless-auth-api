@@ -28,6 +28,7 @@ export const AUTH_EVENT_TYPES = [
   'logout_failed',
   'logout_success',
   'logout_suspicious',
+  'magic_link_confirmation_required',
   'magic_link_poll_completed_successfully',
   'magic_link_failed',
   'magic_link_requested',

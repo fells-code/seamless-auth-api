@@ -26,6 +26,7 @@ export class MagicLinkToken extends Model<
   declare expires_at: Date;
   declare used_at: Date | null;
   declare attempt_id: string | null;
+  declare requested_device_class: string | null;
   declare redeemed_at: CreationOptional<Date | null>;
   declare created_at: CreationOptional<Date>;
 
@@ -75,6 +76,10 @@ const initializeMagicTokenModel = (sequelize: Sequelize) => {
         allowNull: true,
       },
       attempt_id: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      requested_device_class: {
         type: DataTypes.TEXT,
         allowNull: true,
       },

@@ -13,6 +13,7 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import {
   pollMagicLinkConfirmation,
   requestMagicLink,
+  confirmMagicLink,
   verifyMagicLink,
 } from '../../../src/controllers/magicLinks.js';
 import {
@@ -21,6 +22,7 @@ import {
   signAccessToken,
 } from '../../../src/lib/token.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
+import { verifyJwtWithKid } from '../../../src/services/sessionService.js';
 import { sendMagicLinkEmail } from '../../../src/services/messagingService.js';
 import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
 
@@ -35,8 +37,31 @@ function buildMagicLink(overrides: any = {}) {
     expires_at: new Date(Date.now() + 100000),
     ip_hash: 'ip',
     user_agent_hash: 'ua',
+    attempt_id: 'attempt-1',
+    requested_device_class: 'macos',
+    created_at: new Date('2026-10-16T12:00:00.000Z'),
     ...overrides,
   };
+}
+
+function directRes() {
+  const res: any = {};
+  res.status = vi.fn().mockReturnValue(res);
+  res.json = vi.fn().mockReturnValue(res);
+  res.end = vi.fn().mockReturnValue(res);
+  return res;
+}
+
+function directVerifyReq(opts: { ip: string; userAgent: string; bearer?: string }) {
+  return {
+    params: { token: 'token' },
+    ip: opts.ip,
+    headers: {
+      'user-agent': opts.userAgent,
+      ...(opts.bearer ? { authorization: `Bearer ${opts.bearer}` } : {}),
+    },
+    get: () => undefined,
+  } as any;
 }
 
 beforeAll(async () => {
@@ -45,6 +70,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (verifyJwtWithKid as any).mockReset();
 
   (User.findOne as any).mockResolvedValue({
     id: 'user-1',
@@ -290,29 +316,103 @@ describe('GET /magic-link/verify/:token', () => {
     expect(res.status).toBe(400);
   });
 
-  it('accepts valid token', async () => {
+  it('accepts a valid token opened by the requesting attempt', async () => {
     (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink());
-
     (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (verifyJwtWithKid as any).mockResolvedValue({ jti: 'attempt-1' });
 
-    const res = await request(app).get('/magic-link/verify/token');
+    const res = await request(app)
+      .get('/magic-link/verify/token')
+      .set('Authorization', 'Bearer pre-auth');
 
     expect(res.status).toBe(200);
+    expect(verifyJwtWithKid).toHaveBeenCalledWith('pre-auth', 'ephemeral');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_success',
+        metadata: { reason: 'Magic link token consumed', confirmation: 'same_device' },
+      }),
+    );
   });
 
-  it('accepts a valid token even when opened on a different device', async () => {
-    // The email link may legitimately be opened on a different device than the one
-    // that requested it. Device binding is enforced at the poll step, not here — so
-    // verify must remain device-agnostic. Guards against re-adding a device gate here.
+  it('asks for confirmation when opened on another device, without consuming the link', async () => {
+    // Anyone can request a link for someone else's address from their own machine, and
+    // the session goes to the requesting device. So a link opened anywhere else must
+    // not complete without the person who opened it approving.
     (MagicLinkToken.findOne as any).mockResolvedValue(
       buildMagicLink({ ip_hash: 'a-different-device', user_agent_hash: 'another-ua' }),
     );
-    (MagicLinkToken.update as any).mockResolvedValue([1]);
 
     const res = await request(app).get('/magic-link/verify/token');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      error: 'confirmation_required',
+      message: expect.any(String),
+      requestedFrom: { deviceClass: 'macos', requestedAt: '2026-10-16T12:00:00.000Z' },
+    });
+    expect(MagicLinkToken.update).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', type: 'magic_link_confirmation_required' }),
+    );
+  });
+
+  it('asks for confirmation when the bearer belongs to another attempt, even on a matching fingerprint', async () => {
+    // hashDeviceFingerprint is mocked to the hashes buildMagicLink uses, so this link
+    // matches the request's fingerprint.
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink());
+    (verifyJwtWithKid as any).mockResolvedValue({ jti: 'attempt-2' });
+    const res = directRes();
+
+    await verifyMagicLink(
+      directVerifyReq({ ip: '203.0.113.7', userAgent: 'same-browser', bearer: 'other' }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(MagicLinkToken.update).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the IP and user agent when no valid bearer is forwarded', async () => {
+    // hashDeviceFingerprint is mocked to the hashes buildMagicLink uses, so this link
+    // matches the request's fingerprint.
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink());
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (verifyJwtWithKid as any).mockResolvedValue(null);
+    const res = directRes();
+
+    await verifyMagicLink(
+      directVerifyReq({ ip: '203.0.113.7', userAgent: 'same-browser', bearer: 'expired' }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(MagicLinkToken.update).toHaveBeenCalled();
+  });
+
+  it('treats a bearer that fails to verify like no bearer at all', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ ip_hash: 'a-different-device', user_agent_hash: 'another-ua' }),
+    );
+    (verifyJwtWithKid as any).mockRejectedValue(new Error('bad signature'));
+    const res = directRes();
+
+    await verifyMagicLink(
+      directVerifyReq({ ip: '203.0.113.7', userAgent: 'other-browser', bearer: 'forged' }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(MagicLinkToken.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a link created before attempt binding', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ attempt_id: null }));
+
+    const res = await request(app).get('/magic-link/verify/token');
+
+    expect(res.status).toBe(400);
+    expect(MagicLinkToken.update).not.toHaveBeenCalled();
   });
 
   it('rejects verification when the token param is empty (direct invocation)', async () => {
@@ -342,8 +442,11 @@ describe('GET /magic-link/verify/:token', () => {
   it('returns 500 when the token cannot be atomically consumed', async () => {
     (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink());
     (MagicLinkToken.update as any).mockResolvedValue([0]);
+    (verifyJwtWithKid as any).mockResolvedValue({ jti: 'attempt-1' });
 
-    const res = await request(app).get('/magic-link/verify/token');
+    const res = await request(app)
+      .get('/magic-link/verify/token')
+      .set('Authorization', 'Bearer pre-auth');
 
     expect(res.status).toBe(500);
     expect(res.body.error).toBe('Failed to use token');
@@ -353,6 +456,57 @@ describe('GET /magic-link/verify/:token', () => {
         metadata: { reason: 'Failed to consume token' },
       }),
     );
+  });
+});
+
+describe('POST /magic-link/verify/:token/confirm', () => {
+  it('consumes a link opened on another device once the person approves', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ ip_hash: 'a-different-device', user_agent_hash: 'another-ua' }),
+    );
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+
+    const res = await request(app).post('/magic-link/verify/token/confirm');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: 'Success' });
+    expect(MagicLinkToken.update).toHaveBeenCalledWith(
+      { used_at: expect.any(Date) },
+      { where: { id: 'link-1', used_at: null } },
+    );
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'magic_link_success',
+        metadata: { reason: 'Magic link token consumed', confirmation: 'confirmed' },
+      }),
+    );
+  });
+
+  it('refuses a link that is already used', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: new Date() }));
+
+    const res = await request(app).post('/magic-link/verify/token/confirm');
+
+    expect(res.status).toBe(400);
+    expect(MagicLinkToken.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses an expired link', async () => {
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({ expires_at: new Date(Date.now() - 1000) }),
+    );
+
+    const res = await request(app).post('/magic-link/verify/token/confirm');
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a missing token (direct invocation)', async () => {
+    const res = directRes();
+
+    await confirmMagicLink({ params: {} } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });
 
@@ -568,14 +722,6 @@ describe('magic link without an attempt id', () => {
       get: () => undefined,
     }) as any;
 
-  const directRes = () => {
-    const res: any = {};
-    res.status = vi.fn().mockReturnValue(res);
-    res.json = vi.fn().mockReturnValue(res);
-    res.end = vi.fn().mockReturnValue(res);
-    return res;
-  };
-
   it('refuses to create a link that no poll could collect', async () => {
     const res = directRes();
 
@@ -636,7 +782,10 @@ describe('magic link full sign-in sequence (regression)', () => {
     // 3) Verify the token (marks it used)
     (MagicLinkToken.findOne as any).mockResolvedValue(buildMagicLink({ used_at: null }));
     (MagicLinkToken.update as any).mockResolvedValue([1]);
-    const verifyRes = await request(app).get('/magic-link/verify/token');
+    (verifyJwtWithKid as any).mockResolvedValue({ jti: 'attempt-1' });
+    const verifyRes = await request(app)
+      .get('/magic-link/verify/token')
+      .set('Authorization', 'Bearer pre-auth');
     expect(verifyRes.status).toBe(200);
 
     // 4) Poll after verification -> session issued
