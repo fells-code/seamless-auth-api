@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Seamless Auth API", "version": "0.18.0" },
+  "info": { "title": "Seamless Auth API", "version": "0.19.0" },
   "components": {
     "schemas": {},
     "parameters": {},
