@@ -12,4 +12,6 @@ Magic link sign-in issues one session per confirmed link, to the attempt that re
 - A request or poll with an ephemeral token that has no `jti` is refused with `400`.
 - Migration: `magic_link_tokens` gains `attempt_id`, `requested_device_class` and `redeemed_at`. Links requested before the upgrade can no longer be used; they expire within fifteen minutes.
 
-Breaking for clients: a link opened on a different device now needs a confirmation screen. SDK versions without one show the 409 as an error, and the link stays usable for the requesting device's own browser.
+Breaking for clients: a link opened on a different device now needs a confirmation screen. SDK versions without one show the 409 as an error.
+
+Upgrade the server adapter together with the API. Current adapters (`@seamless-auth/express`, `@seamless-auth/fastify`, `@seamless-auth/nextjs`, and the Go, Python and Rust adapters) forward the browser's pre-auth token on verify, which proves a link opened in the requesting browser. On an older adapter that proof is missing: Express still forwards the browser's address, so same-browser links keep working there, but `@seamless-auth/nextjs` forwards no address unless `resolveClientIp` is configured, so a link opened in the requesting browser is answered with the confirmation step.
