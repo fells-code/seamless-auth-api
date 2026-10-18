@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
 
+import { classifyDeviceClass } from '../lib/deviceClass.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
@@ -26,6 +27,7 @@ import {
 } from '../services/magicLinkRedirect.js';
 import { sendMagicLinkEmail } from '../services/messagingService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { verifyJwtWithKid } from '../services/sessionService.js';
 import { invalidateChallengesForUser } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest, RouteRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -113,6 +115,13 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     logger.error('Could not identify devive metadata to send a magic link');
     return res.status(400).json({ error: 'Invalid device data' });
   }
+
+  // The poll collects the session by attempt, so a link without one could never be
+  // collected. Every ephemeral token minted by a current server carries it.
+  if (!authReq.attemptId) {
+    await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
+    return res.status(400).json({ error: 'Invalid request' });
+  }
   // Expire all previous links
   await MagicLinkToken.update(
     { expires_at: new Date() },
@@ -129,6 +138,8 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     redirect_url,
     ip_hash,
     user_agent_hash,
+    attempt_id: authReq.attemptId,
+    requested_device_class: classifyDeviceClass(req.headers['user-agent']),
     expires_at: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
   });
 
@@ -173,42 +184,53 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
   });
 }
 
-export async function verifyMagicLink(req: RouteRequest, res: Response) {
-  logger.debug('Verifying magic link');
+async function findUsableLink(req: RouteRequest, res: Response) {
   const { token } = req.params;
 
   if (await rejectDisabledMagicLink(req, res)) {
-    return;
+    return null;
   }
 
   if (!token) {
-    return res.status(400).json({ error: 'Missing verification token' });
+    res.status(400).json({ error: 'Missing verification token' });
+    return null;
   }
-  const tokenHash = hashSha256(token);
 
   const record = await MagicLinkToken.findOne({
-    where: { token_hash: tokenHash },
+    where: { token_hash: hashSha256(token) },
   });
 
   if (!record) {
     logger.warn('No magic link found for supplied token');
     await logMagicLinkFailure(req, 'Invalid verification token');
-    return res.status(400).json({ error: 'Invalid verification token' });
+    res.status(400).json({ error: 'Invalid verification token' });
+    return null;
   }
 
   if (record.used_at) {
     logger.warn('Magic link token is already used');
     await logMagicLinkFailure(req, 'Token already used', record.user_id);
-    return res.status(400).json({ error: 'Invalid verification token' });
+    res.status(400).json({ error: 'Invalid verification token' });
+    return null;
   }
 
-  if (record.expires_at < new Date()) {
+  // A link from before attempt binding has no poll that could collect it.
+  if (record.expires_at < new Date() || !record.attempt_id) {
     logger.warn('Magic link token expired');
     await logMagicLinkFailure(req, 'Token expired', record.user_id);
-    return res.status(400).json({ error: 'Invalid verification token' });
+    res.status(400).json({ error: 'Invalid verification token' });
+    return null;
   }
 
-  // Atomic consume
+  return record;
+}
+
+async function consumeLink(
+  req: RouteRequest,
+  res: Response,
+  record: MagicLinkToken,
+  confirmation: 'same_device' | 'confirmed',
+) {
   logger.info('Magic link being consumed');
 
   const [updated] = await MagicLinkToken.update(
@@ -231,13 +253,84 @@ export async function verifyMagicLink(req: RouteRequest, res: Response) {
     userId: record.user_id,
     type: 'magic_link_success',
     req,
-    metadata: { reason: 'Magic link token consumed' },
+    metadata: { reason: 'Magic link token consumed', confirmation },
   });
 
-  // Device binding is enforced at the poll step (pollMagicLinkConfirmation), where the
-  // session is actually issued. A magic link may legitimately be opened on a different
-  // device than the one that requested it, so verification must not gate on the device.
   return res.status(200).json({ message: 'Success' });
+}
+
+/**
+ * Whether the request that opened the link comes from the device that asked for it.
+ *
+ * The session goes to the requesting device, so a link opened anywhere else must not
+ * complete silently: anyone can request a link for someone else's address from their
+ * own machine. The pre-auth token, when the adapter forwards it, proves the attempt.
+ * Without it the IP and user agent are the only signal, which people behind one
+ * address with the same browser can share. They count only when a trusted adapter
+ * vouched for them: otherwise every request carries the adapter's own address, and
+ * every device would look like the one that asked.
+ */
+async function openedOnRequestingDevice(req: RouteRequest, record: MagicLinkToken) {
+  const auth = req.headers.authorization;
+
+  if (auth?.startsWith('Bearer ')) {
+    const payload = await verifyJwtWithKid(auth.slice(7), 'ephemeral').catch(() => null);
+
+    if (payload) {
+      return payload.jti === record.attempt_id;
+    }
+  }
+
+  if (!(req as RouteRequest & { trustedClientIp?: string }).trustedClientIp) {
+    return false;
+  }
+
+  const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
+
+  return (
+    Boolean(record.ip_hash && record.user_agent_hash) &&
+    record.ip_hash === ip_hash &&
+    record.user_agent_hash === user_agent_hash
+  );
+}
+
+export async function verifyMagicLink(req: RouteRequest, res: Response) {
+  logger.debug('Verifying magic link');
+
+  const record = await findUsableLink(req, res);
+
+  if (!record) {
+    return;
+  }
+
+  if (!(await openedOnRequestingDevice(req, record))) {
+    await AuthEventService.log({
+      userId: record.user_id,
+      type: 'magic_link_confirmation_required',
+      req,
+    });
+
+    return res.status(409).json({
+      error: 'confirmation_required',
+      message: 'This link was requested from another device. Confirm to sign that device in.',
+      requestedFrom: {
+        deviceClass: record.requested_device_class ?? 'unknown',
+        requestedAt: new Date(record.created_at).toISOString(),
+      },
+    });
+  }
+
+  return consumeLink(req, res, record, 'same_device');
+}
+
+export async function confirmMagicLink(req: RouteRequest, res: Response) {
+  const record = await findUsableLink(req, res);
+
+  if (!record) {
+    return;
+  }
+
+  return consumeLink(req, res, record, 'confirmed');
 }
 
 export async function pollMagicLinkConfirmation(req: Request, res: Response) {
@@ -256,8 +349,17 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     });
   }
 
+  if (!authReq.attemptId) {
+    await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
   const record = await MagicLinkToken.findOne({
-    where: { user_id: user.id, expires_at: { [Op.gt]: new Date() } },
+    where: {
+      user_id: user.id,
+      attempt_id: authReq.attemptId,
+      expires_at: { [Op.gt]: new Date() },
+    },
   });
 
   if (!record) {
@@ -279,6 +381,18 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   }
 
   if (record.used_at && record.expires_at > new Date()) {
+    // One session per confirmed link. A second check for the same attempt, such as the
+    // tab the link opened in when the requesting tab already collected the session, is
+    // told the link is done without being handed another session.
+    const [redeemed] = await MagicLinkToken.update(
+      { redeemed_at: new Date() },
+      { where: { id: record.id, redeemed_at: null } },
+    );
+
+    if (!redeemed) {
+      return res.status(200).json({ message: 'Success' });
+    }
+
     await AuthEventService.log({
       userId: record.user_id,
       type: 'magic_link_poll_completed_successfully',

@@ -3454,6 +3454,7 @@
                     "logout_failed",
                     "logout_success",
                     "logout_suspicious",
+                    "magic_link_confirmation_required",
                     "magic_link_poll_completed_successfully",
                     "magic_link_failed",
                     "magic_link_requested",
@@ -3532,6 +3533,7 @@
                           "logout_failed",
                           "logout_success",
                           "logout_suspicious",
+                          "magic_link_confirmation_required",
                           "magic_link_poll_completed_successfully",
                           "magic_link_failed",
                           "magic_link_requested",
@@ -7360,33 +7362,31 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "example": {
-                  "message": "string",
-                  "token": "string",
-                  "refreshToken": "string",
-                  "sub": "string",
-                  "roles": [null],
-                  "email": "string",
-                  "phone": "string",
-                  "ttl": 0,
-                  "refreshTtl": 0,
-                  "nextStep": null
-                },
+                "example": null,
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": { "type": "string" },
-                    "token": { "type": "string" },
-                    "refreshToken": { "type": "string" },
-                    "sub": { "type": "string" },
-                    "roles": { "type": "array", "items": { "type": "string" } },
-                    "email": { "type": "string" },
-                    "phone": { "type": "string", "nullable": true },
-                    "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" },
-                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
-                  },
-                  "required": ["message"]
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string" },
+                        "token": { "type": "string" },
+                        "refreshToken": { "type": "string" },
+                        "sub": { "type": "string" },
+                        "roles": { "type": "array", "items": { "type": "string" } },
+                        "email": { "type": "string" },
+                        "phone": { "type": "string", "nullable": true },
+                        "ttl": { "type": "number" },
+                        "refreshTtl": { "type": "number" },
+                        "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
+                      },
+                      "required": ["message"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": { "message": { "type": "string", "enum": ["Success"] } },
+                      "required": ["message"]
+                    }
+                  ]
                 }
               }
             }
@@ -7506,6 +7506,196 @@
     "/magic-link/verify/{token}": {
       "get": {
         "summary": "Verify magic link token",
+        "description": "Consumes the link when it is opened on the device that requested it, proven by the requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers 409 without consuming it; confirm with POST /magic-link/verify/{token}/confirm.",
+        "tags": ["MagicLinks"],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "token", "in": "path" }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": null,
+                  "message": "string",
+                  "requestedFrom": { "deviceClass": null, "requestedAt": "string" }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["confirmation_required"] },
+                    "message": { "type": "string" },
+                    "requestedFrom": {
+                      "type": "object",
+                      "properties": {
+                        "deviceClass": {
+                          "type": "string",
+                          "enum": [
+                            "ios",
+                            "android",
+                            "macos",
+                            "windows",
+                            "linux",
+                            "chromeos",
+                            "bot",
+                            "unknown"
+                          ]
+                        },
+                        "requestedAt": { "type": "string" }
+                      },
+                      "required": ["deviceClass", "requestedAt"]
+                    }
+                  },
+                  "required": ["error", "message", "requestedFrom"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/magic-link/verify/{token}/confirm": {
+      "post": {
+        "summary": "Confirm a magic link opened on another device",
+        "description": "Consumes the link after the person who opened it has approved signing in the device that requested it.",
         "tags": ["MagicLinks"],
         "parameters": [
           { "schema": { "type": "string" }, "required": true, "name": "token", "in": "path" }
