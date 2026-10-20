@@ -12,6 +12,7 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
 
 const signPayloads = vi.hoisted(() => [] as unknown[]);
 const signAudiences = vi.hoisted(() => [] as unknown[]);
+const signExpirations = vi.hoisted(() => [] as unknown[]);
 const signJtis = vi.hoisted(() => [] as unknown[]);
 
 vi.mock('jose', () => {
@@ -36,7 +37,8 @@ vi.mock('jose', () => {
       signAudiences.push(audience);
       return this;
     }
-    setExpirationTime() {
+    setExpirationTime(expiration: unknown) {
+      signExpirations.push(expiration);
       return this;
     }
     sign() {
@@ -170,6 +172,24 @@ describe('token utils', () => {
     await signEphemeralToken('user', 'attempt-1');
 
     expect(signJtis.at(-1)).toBe('attempt-1');
+  });
+
+  it('signs the ephemeral token for the lifetime the pre-auth responses advertise', async () => {
+    const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+
+    (getSigningKey as any).mockResolvedValue({
+      kid: 'kid',
+      privateKeyPem: 'pem',
+    });
+
+    signExpirations.length = 0;
+
+    const { signEphemeralToken } = await import('../../../src/lib/token');
+    const { EPHEMERAL_TOKEN_TTL_SECONDS } = await import('../../../src/lib/ephemeralTokenTtl');
+
+    await signEphemeralToken('user');
+
+    expect(signExpirations.at(-1)).toBe(`${EPHEMERAL_TOKEN_TTL_SECONDS}s`);
   });
 
   it('throws if signing fails', async () => {
