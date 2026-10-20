@@ -2,7 +2,7 @@
 
 This repository is an Express + TypeScript authentication service for passwordless auth flows. It supports WebAuthn/passkeys, OTP, magic links, JWKS publication, session management, admin endpoints, and a small system configuration layer persisted in Postgres.
 
-Use this file as the fast path. For the deeper architecture walkthrough, see [docs/architecture.md](/Users/brandoncorbett/git/seamless-auth-api/docs/architecture.md).
+Use this file as the fast path. For the deeper architecture walkthrough, see [docs/architecture.md](docs/architecture.md).
 
 ## Working Standards (fells-code baseline)
 
@@ -58,27 +58,27 @@ guidance may extend them but must not contradict them.
 - Run tests once: `npm run test:run`
 - Coverage: `npm run coverage`
 
-The service starts from [src/server.ts](/Users/brandoncorbett/git/seamless-auth-api/src/server.ts), which initializes models, connects to the database, bootstraps `system_config`, builds the Express app, and begins listening.
+The service starts from [src/server.ts](src/server.ts), which initializes models, connects to the database, bootstraps `system_config`, builds the Express app, and begins listening.
 
 ## Core Runtime Shape
 
-- [src/app.ts](/Users/brandoncorbett/git/seamless-auth-api/src/app.ts): global middleware, CORS, OpenAPI docs in dev, rate limiting, and top-level error handlers.
-- [src/lib/loadRoutes.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/loadRoutes.ts): dynamically imports every `*.routes.ts` file under `src/routes`.
-- [src/lib/createRouter.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/createRouter.ts): thin wrapper used by route modules.
-- [src/lib/defineRoute.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/defineRoute.ts): registers Express handlers and OpenAPI metadata, validates request payloads, and optionally validates JSON responses.
+- [src/app.ts](src/app.ts): global middleware, CORS, OpenAPI docs in dev, rate limiting, and top-level error handlers.
+- [src/lib/loadRoutes.ts](src/lib/loadRoutes.ts): dynamically imports every `*.routes.ts` file under `src/routes`.
+- [src/lib/createRouter.ts](src/lib/createRouter.ts): thin wrapper used by route modules.
+- [src/lib/defineRoute.ts](src/lib/defineRoute.ts): registers Express handlers and OpenAPI metadata, validates request payloads, and optionally validates JSON responses.
 
 When tracing behavior, start at the route file, then the controller, then the service/model/helper layers.
 
 ## Important Folders
 
-- [src/routes](/Users/brandoncorbett/git/seamless-auth-api/src/routes): endpoint registration
-- [src/controllers](/Users/brandoncorbett/git/seamless-auth-api/src/controllers): request handling
-- [src/services](/Users/brandoncorbett/git/seamless-auth-api/src/services): session issuance, messaging, bootstrap promotion, auth event logging
-- [src/models](/Users/brandoncorbett/git/seamless-auth-api/src/models): Sequelize models
-- [src/config](/Users/brandoncorbett/git/seamless-auth-api/src/config): bootstrapped system config, required config metadata
-- [src/lib](/Users/brandoncorbett/git/seamless-auth-api/src/lib): routing, cookies, tokens, OpenAPI helpers
-- [src/middleware](/Users/brandoncorbett/git/seamless-auth-api/src/middleware): auth, rate limits, logging
-- [tests](/Users/brandoncorbett/git/seamless-auth-api/tests): unit, integration, e2e, and shared factories/setup
+- [src/routes](src/routes): endpoint registration
+- [src/controllers](src/controllers): request handling
+- [src/services](src/services): session issuance, messaging, bootstrap promotion, auth event logging
+- [src/models](src/models): Sequelize models
+- [src/config](src/config): bootstrapped system config, required config metadata
+- [src/lib](src/lib): routing, cookies, tokens, OpenAPI helpers
+- [src/middleware](src/middleware): auth, rate limits, logging
+- [tests](tests): unit, integration, e2e, and shared factories/setup
 
 ## Auth Model
 
@@ -102,7 +102,7 @@ The API exposes a single bearer/JSON auth contract:
 - Protected routes expect bearer credentials from a trusted server adapter or backend.
 - The API does not set or read browser auth cookies.
 
-Auth middleware is chosen centrally by [src/middleware/attachAuthMiddleware.ts](/Users/brandoncorbett/git/seamless-auth-api/src/middleware/attachAuthMiddleware.ts).
+Auth middleware is chosen centrally by [src/middleware/attachAuthMiddleware.ts](src/middleware/attachAuthMiddleware.ts).
 
 ## Config Model
 
@@ -111,22 +111,22 @@ There are two config layers:
 - Environment variables: needed to boot the process and connect external systems.
 - `system_config` table: runtime configuration such as token TTLs, origins, roles, and WebAuthn RP settings.
 
-[src/config/bootstrapSystemConfig.ts](/Users/brandoncorbett/git/seamless-auth-api/src/config/bootstrapSystemConfig.ts) seeds missing `system_config` rows from env vars at startup. [src/config/getSystemConfig.ts](/Users/brandoncorbett/git/seamless-auth-api/src/config/getSystemConfig.ts) caches reads in-process, so remember to invalidate the cache after writes.
+[src/config/bootstrapSystemConfig.ts](src/config/bootstrapSystemConfig.ts) seeds missing `system_config` rows from env vars at startup. [src/config/getSystemConfig.ts](src/config/getSystemConfig.ts) caches reads in-process, so remember to invalidate the cache after writes.
 
 ## Messaging And Delivery
 
 OTP and magic link flows can operate in two modes:
 
-- Direct delivery: the API sends email/SMS itself via [src/services/messagingService.ts](/Users/brandoncorbett/git/seamless-auth-api/src/services/messagingService.ts).
+- Direct delivery: the API sends email/SMS itself via [src/services/messagingService.ts](src/services/messagingService.ts).
 - External delivery: callers send header `x-seamless-auth-delivery-mode: external` and the API returns delivery payloads instead of sending them directly.
 
-Direct provider wiring currently lives in [src/config/directMessaging.ts](/Users/brandoncorbett/git/seamless-auth-api/src/config/directMessaging.ts).
+Direct provider wiring currently lives in [src/config/directMessaging.ts](src/config/directMessaging.ts).
 
 ## Working Safely In This Repo
 
 - Prefer changing controllers/services over adding logic directly in routes.
 - When adding or updating routes, use `schemas`, not `schema`, so request parsing and OpenAPI generation both work.
-- Public, ephemeral, and token-issuing routes must declare `adapter` in `defineRoute` (see [src/lib/adapterManifest.ts](/Users/brandoncorbett/git/seamless-auth-api/src/lib/adapterManifest.ts)). It feeds `/.well-known/seamless-adapter.json`, which server adapters follow instead of a hard-coded route list. Run `npm run generate:api` after route changes so `openapi.json` and `adapter-manifest.json` stay committed in step.
+- Public, ephemeral, and token-issuing routes must declare `adapter` in `defineRoute` (see [src/lib/adapterManifest.ts](src/lib/adapterManifest.ts)). It feeds `/.well-known/seamless-adapter.json`, which server adapters follow instead of a hard-coded route list. Run `npm run generate:api` after route changes so `openapi.json` and `adapter-manifest.json` stay committed in step.
 - If a route requires auth, prefer the `auth` option in `createRouter` definitions. That keeps middleware wiring and OpenAPI security metadata aligned.
 - If a route also needs admin checks or rate limiting, combine `auth` with extra `middleware`.
 - Be careful around token response shapes and bearer auth. Browser-cookie auth mode has been removed.
