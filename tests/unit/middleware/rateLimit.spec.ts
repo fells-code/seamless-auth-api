@@ -5,8 +5,10 @@ vi.mock('../../../src/config/getSystemConfig', () => ({
   getSystemConfig: vi.fn(),
 }));
 
-vi.mock('express-rate-limit', () => {
+vi.mock('express-rate-limit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('express-rate-limit')>();
   return {
+    ipKeyGenerator: actual.ipKeyGenerator,
     default: vi.fn((options = {}) =>
       vi.fn(async (req, res, next) => {
         if (typeof (options as any).limit === 'function') {
@@ -355,6 +357,17 @@ describe('rate limiter key generators', () => {
     expect(otp({ body: { phone: '+14155550000' } })).toBe('phone:+14155550000');
     expect(otp({ socket: { remoteAddress: '1.2.3.4' } })).toBe('ip:1.2.3.4');
     expect(otp({ socket: {} })).toBe('ip:unknown');
+  });
+
+  it('keys an IPv6 client on its /56 so rotating addresses shares one bucket', async () => {
+    const { magicLink, otp, oauth } = await keyGenerators();
+    const first = { params: { providerId: 'google' }, ip: '2001:db8:1:2:3:4:5:6' };
+    const rotated = { params: { providerId: 'google' }, ip: '2001:db8:1:2:ffff::9' };
+
+    expect(magicLink(first)).toBe('ip:2001:db8:1::/56');
+    expect(otp(rotated)).toBe('ip:2001:db8:1::/56');
+    expect(oauth(first)).toBe(oauth(rotated));
+    expect(oauth({ params: {}, ip: '::ffff:203.0.113.7' })).toBe('unknown-provider:203.0.113.7');
   });
 
   it('falls back to the unknown provider and unknown IP for OAuth flows', async () => {
