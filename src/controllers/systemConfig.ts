@@ -146,10 +146,9 @@ export const getAvailableRoles = async (_req: Request, res: Response) => {
 /**
  * The configuration a signed-out client is allowed to read.
  *
- * Served through getLoginPolicy rather than off the raw config so a tainted or
- * partially written config still answers with the defaults. The sign-in screens
- * call this before anyone has a session, so failing here would leave a client
- * with no methods to offer at all.
+ * Served through getLoginPolicy, which fills defaults for login method values it
+ * does not recognise. It does not survive a config that fails schema validation:
+ * getSystemConfig throws, and this answers 500 like every other route.
  *
  * Only add a key to this response when a signed-out client genuinely cannot work
  * without it. Everything else belongs on the admin routes.

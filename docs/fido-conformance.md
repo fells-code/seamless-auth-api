@@ -25,7 +25,9 @@ the options payload merged in alongside on the two options endpoints.
 The interface is mounted only when `FIDO_CONFORMANCE_MODE=true`, and the flag is
 refused outright under `NODE_ENV=production`. With the flag unset the routes are
 never registered: they do not reach Express, they do not reach the OpenAPI document,
-and the paths answer the ordinary 404. That is enforced by
+and the paths answer the ordinary 404. The committed `openapi.json` and `adapter-manifest.json`
+are built with the flag unset, so `/conformance/*` is deliberately absent from both; with the
+flag set, the live `/openapi.json` of that process does list them. That is enforced by
 [the mounting tests](../tests/integration/conformance/conformance.spec.ts) rather
 than left to this page.
 

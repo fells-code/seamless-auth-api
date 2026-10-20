@@ -16,7 +16,7 @@ The legacy `admin` role remains broad for backwards compatibility.
 ### Making scoped roles assignable
 
 Enforcement understands scoped roles, but a role can only be handed out if it appears in
-`available_roles`, which is what `GET /roles` returns and what the console's role picker offers.
+`available_roles`, which is what `GET /system-config/roles` returns and what the console's role picker offers.
 Ship `admin:read` and `admin:write` there so read-only admin can be granted without typing a raw
 role string:
 

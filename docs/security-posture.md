@@ -159,10 +159,12 @@ key there means a coordinated release across both SDKs for an operational tuning
 
 ### What is still observable
 
-- **Account lockout** answers `423` with `retryAfterSeconds`. Only a real account can be
-  locked, so this still discloses existence. It requires prior failed attempts against
-  that specific account, and suppressing it would leave a locked-out user with no way to
-  understand what happened. Accepted, unchanged.
+- **Account lockout.** A locked account with a passkey continues from `/login` with
+  `loginMethods: ["passkey"]`; one without a passkey is answered `423` with
+  `retryAfterSeconds`. Only a real account can be locked, so either answer discloses
+  existence. It requires prior failed attempts against that specific account, and
+  suppressing it would leave a locked-out user with no way to understand what happened.
+  Accepted. See [Account lockout](#account-lockout).
 - **A malformed identifier** answers `400`. This does not depend on whether any account
   exists, so it is not an enumeration signal.
 - **External delivery mode** answers a real OTP or magic link request with a `delivery`
@@ -416,8 +418,18 @@ of one token signs its user out, which is the direction this has to fail: the al
 is that whoever wins the race keeps a session, and the winner is not always the client that
 should have it.
 
-The absolute lifetime that a rotation resets is separate, and is
-[issue #185](https://github.com/fells-code/seamless-auth-api/issues/185).
+### Absolute and idle lifetime
+
+Rotation does not extend a session. Every session in a chain carries `chainStartedAt`, the time of
+the sign-in that began it, and a rotated session's `expiresAt` is `chainStartedAt` plus
+`refresh_token_ttl` (`REFRESH_TOKEN_TTL`, default `1d`), whatever happened in between
+([`src/controllers/authentication.ts`](../src/controllers/authentication.ts)). A client that
+refreshes constantly is still signed out at the absolute limit. Shortening `refresh_token_ttl`
+applies to chains already running: the next refresh past the new limit revokes the session.
+
+Separately, `session_idle_ttl` (`SESSION_IDLE_TTL`, default `8h`) ends a session nobody has used
+for that long. A refusal for either reason is recorded with `absolute_lifetime_reached` or
+`idle_timeout`, so the trail says which limit ended the session.
 
 ## Concurrent sessions per user
 
@@ -447,6 +459,35 @@ continues, because failing an authentication over a housekeeping step is worse
 than briefly exceeding the cap.
 
 This is NIST 800-53 AC-10.
+
+## Account lockout
+
+**Posture: repeated wrong codes lock the code factors, never the passkeys.**
+
+The policy is `lockout_policy` (`LOCKOUT_POLICY`), default
+`{ "enabled": true, "maxFailures": 10, "windowSeconds": 900, "lockoutSeconds": 900 }`
+([`src/services/lockoutPolicyService.ts`](../src/services/lockoutPolicyService.ts)).
+
+- **When it locks.** When `maxFailures` failed attempts fall inside one `windowSeconds` window. It
+  is not a rolling count that unlocks as old failures age out.
+- **How long.** `lockoutSeconds`, measured from the failure that crossed the threshold.
+  `retryAfterSeconds` in the `423` answer is the time actually left.
+- **What counts.** Failed logins, OTP codes, TOTP codes (sign-in and step-up) and magic links
+  against the account, recorded in `auth_failures` (`LOCKOUT_FAILURE_TYPES` in
+  [`src/services/authFailureCounter.ts`](../src/services/authFailureCounter.ts)). Failed passkey
+  assertions do not count, because an assertion cannot be guessed.
+- **What it blocks.** The code factors. Passkey sign-in is not subject to lockout, so `/login` for a
+  locked account with a passkey continues with `loginMethods: ["passkey"]`, and answers
+  `423 account_locked` only for an account with no passkey.
+
+The reason passkeys are spared is that `/login` mints an ephemeral token from an identifier alone.
+Anyone who knows an address can submit wrong codes until the account locks, and before 0.19.0 that
+locked the owner out of every method, passkeys included (GHSA-66gq-4pwg-33jq). An account with no
+passkey can still be locked out this way, which is the cost of lockout protecting a guessable
+factor. Enrolling a passkey keeps a user able to sign in through a lock someone else triggered.
+
+The counter lives in Postgres, so every instance of a deployment sees the same count. When it cannot
+be read, the account is treated as locked (see [An unknown count means locked](#an-unknown-count-means-locked)).
 
 ## Audit write failure
 
