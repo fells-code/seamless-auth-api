@@ -197,14 +197,20 @@ RDS global bundle.
 
 ### First admin
 
-| Variable      | Required | Default | Notes                                                                                                                                                                       |
-| ------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OWNER_EMAIL` | No       | -       | Comma separated list of tenant owner emails. A user who signs up with one of these is granted `admin` on account creation, and auth events about them carry `owner = true`. |
+| Variable      | Required | Default | Notes                                                                                                                                               |
+| ------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OWNER_EMAIL` | No       | -       | Comma separated list of owner emails. An account created for one of these is granted one admin role, and auth events about it carry `owner = true`. |
 
-The grant is safe because both signup paths establish control of the email before the account is
-created (email OTP verification, or a verified OAuth profile), so only someone who actually receives
-mail at the owner address can claim it. When `OWNER_EMAIL` is unset the grant is a no-op and the
-instance has no admin until one is assigned another way.
+The role is `admin:write` when `available_roles` includes it, otherwise `admin`, and nothing when
+neither is available ([`src/lib/ownerAdmin.ts`](../src/lib/ownerAdmin.ts)). It is granted only when
+the account is created: setting `OWNER_EMAIL` after the owner already has an account promotes
+nobody.
+
+Email OTP registration creates the account, with the role, at `POST /registration/register`, before
+the address is verified. An unverified account cannot sign in (`/login` answers it as an unknown
+identifier), so only someone who receives the code at the owner address can use it. OAuth signup
+creates the account from a verified provider email. When `OWNER_EMAIL` is unset the grant is a
+no-op and the instance has no admin until one is assigned another way.
 
 ### Admin dashboard (optional)
 

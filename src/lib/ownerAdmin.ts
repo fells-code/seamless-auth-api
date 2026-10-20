@@ -5,16 +5,14 @@
  */
 
 /**
- * Managed instances are provisioned with an `OWNER_EMAIL` (the tenant owner,
- * optionally a comma separated list). A user who signs up with an owner email is
- * granted the admin role on account creation, so a freshly provisioned instance
- * has a working `/console` admin as soon as the owner signs up.
+ * `OWNER_EMAIL` names the instance owner (optionally a comma separated list). An
+ * account created for an owner email gets one admin role at creation, so a new
+ * instance has a working `/console` admin as soon as the owner signs up.
  *
- * The grant is safe because both signup paths establish control of the email
- * before the account is created (email OTP verification, or a verified OAuth
- * profile), so only someone who actually receives mail at the owner address can
- * claim it. When `OWNER_EMAIL` is unset the helpers are no-ops, so non-managed
- * deployments are unaffected.
+ * Email OTP registration creates the account, role included, before the address is
+ * verified, but an unverified account cannot sign in, so only someone who receives
+ * the code at the owner address can use it. OAuth signup creates it from a verified
+ * provider email. When `OWNER_EMAIL` is unset the helpers are no-ops.
  */
 
 /**

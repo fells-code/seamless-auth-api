@@ -20,7 +20,7 @@ report real output — never claim a change works without running them.
 | Types    | `npm run typecheck` | `tsc --noEmit`, ~2s                                             |
 | Lint     | `npm run lint`      | eslint, ~2s. Enforces license headers + import sort             |
 | Tests    | `npm run test:run`  | vitest, ~2s. **Uses a mock DB by default — no Postgres needed** |
-| Coverage | `npm run coverage`  | thresholds: lines/functions/statements 70%, branches 65%        |
+| Coverage | `npm run coverage`  | thresholds: lines/functions/statements 98%, branches 95%        |
 
 Tests default to `TEST_DB=mock`. Only set `TEST_DB=postgres` (with a running Postgres)
 when specifically exercising real DB behavior.

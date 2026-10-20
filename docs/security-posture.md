@@ -27,18 +27,18 @@ The reason is still recorded in the `login_failed` auth event metadata, now with
 
 Returning `200` for an unknown identifier is worth nothing on its own. If the next
 request distinguished the decoy, the oracle would simply have moved one step later. All
-thirteen endpoints that accept an ephemeral token therefore answer for a decoy the way
+fourteen endpoints that accept an ephemeral token therefore answer for a decoy the way
 they answer for a real account:
 
-| Endpoint group        | A decoy gets                                                    |
-| --------------------- | --------------------------------------------------------------- |
-| OTP send (4)          | `200 { message: 'success', token }`, with nothing sent          |
-| OTP verify (4)        | `401 { error: 'Not allowed' }`, the body a wrong code gets      |
-| Magic link request    | `200`, the same "if an account exists" body a real request gets |
-| Magic link poll       | `204`, the state a real account sits in until someone clicks    |
-| WebAuthn login start  | An assertion challenge over a fabricated credential id          |
-| WebAuthn login finish | `401 { error: 'Authentication failed.' }`                       |
-| TOTP login verify     | `401 { error: 'totp_verification_failed' }`                     |
+| Endpoint group         | A decoy gets                                                    |
+| ---------------------- | --------------------------------------------------------------- |
+| OTP send (4)           | `200 { message: 'success', token }`, with nothing sent          |
+| OTP verify (4)         | `401 { error: 'Not allowed' }`, the body a wrong code gets      |
+| Magic link request (2) | `200`, the same "if an account exists" body a real request gets |
+| Magic link poll        | `204`, the state a real account sits in until someone clicks    |
+| WebAuthn login start   | An assertion challenge over a fabricated credential id          |
+| WebAuthn login finish  | `401 { error: 'Authentication failed.' }`                       |
+| TOTP login verify      | `401 { error: 'totp_verification_failed' }`                     |
 
 Policy-dependent branches are reproduced rather than skipped. A deployment with
 `email_otp` disabled answers `403 login_method_disabled` for every identifier, so a decoy
@@ -120,20 +120,14 @@ Neither validation writes anything, so reproducing them costs a decoy nothing.
 
 ### What this still does not cover
 
-`/webauthn/register/start` echoes the account's email as `user.name` in the options it
-returns, because that is what an authenticator displays. A decoy has no real address, so
-it echoes its synthetic one, and a caller that reads `user.name` sees an `@example.invalid`
-address where a real account shows the identifier the caller typed. That is a complete
-oracle, one request past `/login`.
+`/webauthn/register/start` used to be reachable with a pre-auth token, and its options echo
+the account's email as `user.name`. A decoy has no real address, so it echoed a synthetic
+`@example.invalid` one, which separated decoys from real accounts one request past `/login`.
+Passkey enrollment has required an access session since 0.11.0
+([`src/routes/webauthn.routes.ts`](../src/routes/webauthn.routes.ts)), so neither a decoy nor a
+real pre-auth token reaches that endpoint any more.
 
-Closing it means the decoy echoing the identifier that was supplied, which it cannot do:
-a decoy is rebuilt from its subject alone, and the subject is a one-way HMAC. Carrying the
-identifier would mean putting it in the ephemeral token, and putting it only in decoy
-tokens would be the `decoy` claim by another name, so every ephemeral token would have to
-carry it. That is a second change to the token contract and a second coordinated release,
-so it is tracked separately rather than folded in here.
-
-For the same reason, a decoy's shape is derived from its subject and cannot depend on
+A decoy is rebuilt from its subject alone, which is a one-way HMAC, so its shape cannot depend on
 which kind of identifier was looked up. `/login` finds a phone account by its number, so
 such an account always has a phone and is always offered `phone_otp`, while only about
 half of decoys are. Where `phone_otp` is an enabled method, a phone identifier whose
@@ -151,7 +145,8 @@ Identical bodies that arrive at measurably different times still answer the ques
 real path reads the users table, the lockout counter, the credentials table and the login
 policy; the decoy path reads only the policy.
 
-`LOGIN_RESPONSE_FLOOR_MS` (default `250`) holds every `/login` answer to a minimum, which
+`LOGIN_RESPONSE_FLOOR_MS` (default `250`) holds every `200` pre-auth answer from `/login`, real or
+decoy, to a minimum, which
 removes the difference as long as both paths finish under it. Set it above the slowest
 real login the deployment sees. It is an environment variable rather than a
 `system_config` key because that schema is shared through `@seamless-auth/types`, and a
@@ -159,10 +154,12 @@ key there means a coordinated release across both SDKs for an operational tuning
 
 ### What is still observable
 
-- **Account lockout** answers `423` with `retryAfterSeconds`. Only a real account can be
-  locked, so this still discloses existence. It requires prior failed attempts against
-  that specific account, and suppressing it would leave a locked-out user with no way to
-  understand what happened. Accepted, unchanged.
+- **Account lockout.** A locked account with a passkey continues from `/login` with
+  `loginMethods: ["passkey"]`; one without a passkey is answered `423` with
+  `retryAfterSeconds`. Only a real account can be locked, so either answer discloses
+  existence. It requires prior failed attempts against that specific account, and
+  suppressing it would leave a locked-out user with no way to understand what happened.
+  Accepted. See [Account lockout](#account-lockout).
 - **A malformed identifier** answers `400`. This does not depend on whether any account
   exists, so it is not an enumeration signal.
 - **External delivery mode** answers a real OTP or magic link request with a `delivery`
@@ -416,8 +413,18 @@ of one token signs its user out, which is the direction this has to fail: the al
 is that whoever wins the race keeps a session, and the winner is not always the client that
 should have it.
 
-The absolute lifetime that a rotation resets is separate, and is
-[issue #185](https://github.com/fells-code/seamless-auth-api/issues/185).
+### Absolute and idle lifetime
+
+Rotation does not extend a session. Every session in a chain carries `chainStartedAt`, the time of
+the sign-in that began it, and a rotated session's `expiresAt` is `chainStartedAt` plus
+`refresh_token_ttl` (`REFRESH_TOKEN_TTL`, which must be set), whatever happened in between
+([`src/controllers/authentication.ts`](../src/controllers/authentication.ts)). A client that
+refreshes constantly is still signed out at the absolute limit. Shortening `refresh_token_ttl`
+applies to chains already running: the next refresh past the new limit revokes the session.
+
+Separately, `session_idle_ttl` (`SESSION_IDLE_TTL`, default `8h`) ends a session that has not been
+refreshed for that long. Using an access token does not extend it; only a refresh does. A refusal for either reason is recorded with `absolute_lifetime_reached` or
+`idle_timeout`, so the trail says which limit ended the session.
 
 ## Concurrent sessions per user
 
@@ -447,6 +454,36 @@ continues, because failing an authentication over a housekeeping step is worse
 than briefly exceeding the cap.
 
 This is NIST 800-53 AC-10.
+
+## Account lockout
+
+**Posture: repeated wrong codes lock the code factors, never the passkeys.**
+
+The policy is `lockout_policy` (`LOCKOUT_POLICY`), default
+`{ "enabled": true, "maxFailures": 10, "windowSeconds": 900, "lockoutSeconds": 900 }`
+([`src/services/lockoutPolicyService.ts`](../src/services/lockoutPolicyService.ts)).
+
+- **When it locks.** When `maxFailures` failed attempts fall inside one `windowSeconds` window. It
+  is not a rolling count that unlocks as old failures age out.
+- **How long.** `lockoutSeconds`, measured from the most recent of the last `maxFailures` failures,
+  which is the one that crossed the threshold unless more were recorded after it.
+  `retryAfterSeconds` in the `423` answer is the time actually left.
+- **What counts.** Failed logins, OTP codes, TOTP codes (sign-in and step-up) and magic links
+  against the account, recorded in `auth_failures` (`LOCKOUT_FAILURE_TYPES` in
+  [`src/services/authFailureCounter.ts`](../src/services/authFailureCounter.ts)). Failed passkey
+  assertions do not count, because an assertion cannot be guessed.
+- **What it blocks.** The code factors. Passkey sign-in is not subject to lockout, so `/login` for a
+  locked account with a passkey continues with `loginMethods: ["passkey"]`, and answers
+  `423 account_locked` only for an account with no passkey.
+
+The reason passkeys are spared is that `/login` mints an ephemeral token from an identifier alone.
+Anyone who knows an address can submit wrong codes until the account locks, and before 0.19.0 that
+locked the owner out of every method, passkeys included (GHSA-66gq-4pwg-33jq). An account with no
+passkey can still be locked out this way, which is the cost of lockout protecting a guessable
+factor. Enrolling a passkey keeps a user able to sign in through a lock someone else triggered.
+
+The counter lives in Postgres, so every instance of a deployment sees the same count. When it cannot
+be read, the account is treated as locked (see [An unknown count means locked](#an-unknown-count-means-locked)).
 
 ## Audit write failure
 

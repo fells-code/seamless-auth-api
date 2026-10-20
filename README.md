@@ -349,7 +349,8 @@ curl http://localhost:5312/health/status
 ```
 
 To get an admin account, sign up at `/console` with `owner@example.com`. That address is the compose
-file's `OWNER_EMAIL`, so the account is granted the `admin:write` and `admin` roles on creation.
+file's `OWNER_EMAIL`, so the account is granted `admin:write` on creation (or `admin` on an instance
+whose `AVAILABLE_ROLES` lists only that).
 Override it before first boot to use your own:
 
 ```bash
