@@ -8,9 +8,12 @@ body:
       value: |
         **Do not disclose security vulnerabilities publicly.**
 
-        Please report security issues by email so we can coordinate a responsible disclosure.
+        Please report security issues privately so we can coordinate a responsible disclosure:
 
-        security@seamlessauth.com  
-        Subject: Security Issue: seamless-auth-server
+        - GitHub private vulnerability reporting (preferred): https://github.com/fells-code/seamless-auth-api/security/advisories/new
+        - Email: security@seamlessauth.com
+          Subject: Security Issue: seamless-auth-api
+
+        See [SECURITY.md](https://github.com/fells-code/seamless-auth-api/blob/main/SECURITY.md) for details.
 
         This issue will be closed without discussion.

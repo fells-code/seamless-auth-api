@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Security vulnerability
-    url: mailto:security@seamlessauth.com
-    about: Please report security vulnerabilities privately.
+  - name: Security vulnerability (private report)
+    url: https://github.com/fells-code/seamless-auth-api/security/advisories/new
+    about: Report a security vulnerability privately through GitHub. Do not open a public issue.
+  - name: Security vulnerability (email)
+    url: mailto:security@seamlessauth.com?subject=Security%20Issue%3A%20seamless-auth-api
+    about: Or report it by email to security@seamlessauth.com.

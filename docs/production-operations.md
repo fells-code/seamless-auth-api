@@ -13,6 +13,82 @@ Authentication infrastructure is security-sensitive. This guide covers public de
 - Back up Postgres and test restores.
 - Monitor authentication failures and suspicious events.
 - Keep route-level rate limits enabled.
+- Verify the signature of the container image you deploy, and deploy it by digest.
+
+## Verifying the Container Image
+
+Release images are built by `.github/workflows/docker-publish.yml`, which `release.yml` calls on
+`main` after the version PR merges. For every release from v0.8.0 the workflow:
+
+- builds `linux/amd64` and `linux/arm64` with Docker Buildx and attaches an SPDX SBOM and a SLSA
+  provenance statement (`sbom: true`, `provenance: mode=max`) to the image index,
+- signs the image index digest with cosign keyless signing. The certificate is issued to the
+  workflow's GitHub OIDC identity, so there is no long-lived signing key.
+
+The examples use v0.19.1. Substitute the tag you deploy. You need
+[cosign](https://docs.sigstore.dev/cosign/system_config/installation/) v2, Docker with Buildx, and jq.
+If you would rather not install cosign, the official image works the same way:
+`docker run --rm ghcr.io/sigstore/cosign/cosign:v2.4.1 verify ...`.
+
+### 1. Resolve the tag to a digest
+
+Tags can be moved; digests cannot. Resolve once and use the digest for every step and for the
+deployment itself.
+
+```bash
+IMAGE=ghcr.io/fells-code/seamless-auth-api
+DIGEST=$(docker buildx imagetools inspect "$IMAGE:v0.19.1" --format '{{ json .Manifest }}' | jq -r .digest)
+echo "$IMAGE@$DIGEST"
+```
+
+### 2. Verify the signature
+
+```bash
+cosign verify "$IMAGE@$DIGEST" \
+  --certificate-identity-regexp '^https://github\.com/fells-code/seamless-auth-api/\.github/workflows/docker-publish\.yml@refs/(heads/main|tags/v.*)$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+A passing check proves the digest was signed by `docker-publish.yml` running in
+`fells-code/seamless-auth-api` on GitHub Actions, and that the signature is recorded in the public
+Rekor transparency log. The identity is the called workflow, at `refs/heads/main` for releases cut
+by `release.yml`, or at the tag for a release started by pushing a tag by hand. Do not loosen the
+regexp to the whole repository: that would accept an image signed by any workflow on any branch.
+
+cosign prints the verified signatures as JSON on stdout. Its `.[0].optional.githubWorkflowSha` field is
+the commit the image was built from, which should match the release tag:
+
+```bash
+git ls-remote https://github.com/fells-code/seamless-auth-api refs/tags/v0.19.1
+```
+
+### 3. Read the SBOM
+
+```bash
+docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{ json .SBOM }}' > sbom.json
+jq '.["linux/amd64"].SPDX.packages | length' sbom.json
+```
+
+The output has one SPDX 2.3 document per platform (`linux/amd64`, `linux/arm64`). Feed
+`.["linux/amd64"].SPDX` to a scanner such as Grype or Trivy to check it against current advisories.
+
+### 4. Read the provenance
+
+```bash
+docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{ json .Provenance }}' > provenance.json
+jq '.["linux/amd64"].SLSA | {
+  builder: .runDetails.builder.id,
+  revision: .buildDefinition.externalParameters.request.args["label:org.opencontainers.image.revision"],
+  version: .buildDefinition.externalParameters.request.args["label:org.opencontainers.image.version"]
+}' provenance.json
+```
+
+`builder` is the GitHub Actions run that produced the image, and `revision` is the source commit.
+
+The SBOM and provenance are BuildKit attestations stored inside the image index. They are not
+signed separately: they are covered by the cosign signature because the signed index references
+each attestation manifest by digest. Always read them by the digest you verified in step 2. There
+is no GitHub artifact attestation for the image, so `gh attestation verify` does not apply.
 
 ## Secrets Inventory
 
