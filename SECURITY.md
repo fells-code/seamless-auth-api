@@ -35,7 +35,7 @@ Report it privately, by either of these routes:
   [a new private report](https://github.com/fells-code/seamless-auth-api/security/advisories/new)
   from the repository's Security tab. The report, the discussion and the eventual advisory stay in
   one place.
-- **Email:** **security@seamlessauth.com**, subject `Security Issue: seamless-auth-api`.
+- **Email:** **security@fellscode.com**, subject `Security Issue: seamless-auth-api`.
 
 When possible, include the following information in your report:
 

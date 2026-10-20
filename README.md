@@ -460,7 +460,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 **Do not open public issues for security vulnerabilities.**
 
-Email: security@seamlessauth.com  
+Email: security@fellscode.com  
 Include reproduction steps, affected versions, and impact if known.
 
 ## License
