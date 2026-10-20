@@ -4,6 +4,7 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig';
 import { Application } from 'express';
 import { Credential } from '../../../src/models/credentials';
 import { createApp } from '../../../src/app';
+import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../../../src/lib/ephemeralTokenTtl';
 import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
@@ -316,6 +317,7 @@ describe('POST /login', () => {
     }));
 
     expect(shapes[0].status).toBe(200);
+    expect(shapes[0].ttl).toBe(EPHEMERAL_TOKEN_TTL_SECONDS);
     expect(shapes[1]).toEqual(shapes[0]);
     expect(shapes[2]).toEqual(shapes[0]);
     expect(shapes[3]).toEqual(shapes[0]);
@@ -399,7 +401,24 @@ describe('POST /login', () => {
     expect(res.body.loginMethods).toEqual(['passkey']);
   });
 
-  it('logs in with default TTL when no access token TTL is configured', async () => {
+  it('answers the pre-auth token lifetime as ttl, not the access token lifetime', async () => {
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '30m' });
+
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue({});
+    const real = await request(app).post('/login').send({ identifier: 'real@example.com' });
+
+    (User.findOne as any).mockResolvedValue(null);
+    const decoy = await request(app).post('/login').send({ identifier: 'nobody@example.com' });
+
+    expect(real.status).toBe(200);
+    expect(real.body.ttl).toBe(EPHEMERAL_TOKEN_TTL_SECONDS);
+    expect(decoy.status).toBe(200);
+    expect(decoy.body.ttl).toBe(EPHEMERAL_TOKEN_TTL_SECONDS);
+  });
+
+  it('answers the same ttl when no access token TTL is configured', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue({});
     (signEphemeralToken as any).mockResolvedValue('token');
@@ -408,7 +427,7 @@ describe('POST /login', () => {
     const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
 
     expect(res.status).toBe(200);
-    expect(res.body.ttl).toBe(900);
+    expect(res.body.ttl).toBe(EPHEMERAL_TOKEN_TTL_SECONDS);
   });
 
   it('starts an attempt: the login_success row and the token carry the same id', async () => {

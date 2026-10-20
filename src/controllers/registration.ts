@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { reviewAccountMetadata } from '../lib/reviewAccounts.js';
@@ -239,10 +240,7 @@ export const register = async (req: Request, res: Response) => {
       message: 'Success',
       sub: user.id,
       token,
-      // Seconds, and it has to match the `5m` in signEphemeralToken. A caller
-      // sets its registration cookie from this, so a larger value here leaves a
-      // cookie outliving the token it carries.
-      ttl: 300,
+      ttl: EPHEMERAL_TOKEN_TTL_SECONDS,
       ...(delivery ? { delivery } : {}),
     });
   } catch (error: unknown) {

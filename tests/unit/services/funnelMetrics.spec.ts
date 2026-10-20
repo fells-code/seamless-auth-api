@@ -96,7 +96,7 @@ describe('getFunnelMetrics', () => {
     // A retried attempt is attributed to the login_success it completed, and a sign-in
     // after the ephemeral token expired is not attributed at all.
     expect(login.sql).toContain('LEAD(created_at)');
-    expect(login.sql).toContain("INTERVAL '5 minutes'");
+    expect(login.sql).toContain("INTERVAL '300 seconds'");
   });
 
   it('applies the window to the cohort column of each query and nowhere else', async () => {

@@ -6,6 +6,7 @@
 
 import { QueryTypes } from 'sequelize';
 
+import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
 import { getSequelize } from '../models/index.js';
 import { SIGN_IN_SUCCESS_TYPES } from '../schemas/authEvent.types.js';
 
@@ -35,11 +36,11 @@ export interface FunnelMetrics {
 }
 
 /**
- * How long a completed sign-in may trail the `login_success` that started it. Matches
- * the ephemeral token TTL in `signEphemeralToken`: a factor cannot be proven on an
- * expired token, so a later sign-in belongs to a later attempt.
+ * How long a completed sign-in may trail the `login_success` that started it. A factor
+ * cannot be proven on an expired ephemeral token, so a later sign-in belongs to a later
+ * attempt.
  */
-const LOGIN_ATTEMPT_WINDOW = '5 minutes';
+const LOGIN_ATTEMPT_WINDOW = `${EPHEMERAL_TOKEN_TTL_SECONDS} seconds`;
 
 type IntervalRow = {
   count: string | number;

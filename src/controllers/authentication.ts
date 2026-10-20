@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -116,8 +117,6 @@ async function respondWithPreAuth({
     throw new Error('Failed to sign the pre-auth token');
   }
 
-  const { access_token_ttl } = await getSystemConfig();
-
   await holdUntilFloor(startedAt);
 
   return res.status(200).json({
@@ -126,7 +125,7 @@ async function respondWithPreAuth({
     token,
     identifierType,
     loginMethods,
-    ttl: parseDurationToSeconds(access_token_ttl || '15m'),
+    ttl: EPHEMERAL_TOKEN_TTL_SECONDS,
   });
 }
 

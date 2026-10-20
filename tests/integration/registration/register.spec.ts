@@ -2,6 +2,7 @@ import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js
 import request from 'supertest';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { createApp } from '../../../src/app';
+import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../../../src/lib/ephemeralTokenTtl.js';
 import { Application } from 'express';
 
 import { buildUser } from '../../factories/userFactory.js';
@@ -95,6 +96,7 @@ describe('POST /registration/register', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('Success');
+    expect(res.body.ttl).toBe(EPHEMERAL_TOKEN_TTL_SECONDS);
 
     expect(User.create).toHaveBeenCalled();
     expect(signEphemeralToken).toHaveBeenCalledWith(user.id, expect.any(String));

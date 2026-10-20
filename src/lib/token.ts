@@ -11,6 +11,7 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import { getServiceToken } from '../config/serviceToken.js';
 import getLogger from '../utils/logger.js';
 import { getSigningKey } from '../utils/signingKeyStore.js';
+import { EPHEMERAL_TOKEN_TTL_SECONDS } from './ephemeralTokenTtl.js';
 
 const logger = getLogger('tokens');
 
@@ -100,7 +101,7 @@ export async function signEphemeralToken(userId: string, attemptId: string = ran
       .setIssuedAt()
       .setIssuer(ISSUER)
       .setAudience(ISSUER)
-      .setExpirationTime('5m')
+      .setExpirationTime(`${EPHEMERAL_TOKEN_TTL_SECONDS}s`)
       .sign(privateKey);
 
     return jwt;
