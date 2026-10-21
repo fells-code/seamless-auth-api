@@ -696,6 +696,87 @@ describe('magic link attempt binding and redemption', () => {
     );
   });
 
+  function mockConfirmedLink() {
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({
+        used_at: new Date(),
+        expires_at: new Date(Date.now() + 100000),
+        ip_hash: 'ip',
+        user_agent_hash: 'ua',
+      }),
+    );
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (signAccessToken as any).mockResolvedValue('access-token');
+  }
+
+  it('claims an unverified account and drops a phone another attempt verified', async () => {
+    const user = {
+      ...completedUser(),
+      verified: false,
+      emailVerified: false,
+      phone: '+15550100',
+      phoneVerified: true,
+      phoneVerifiedAttemptId: 'attempt-other',
+    };
+    (User.findOne as any).mockResolvedValue(user);
+    mockConfirmedLink();
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(200);
+    expect(user).toEqual(
+      expect.objectContaining({
+        verified: true,
+        emailVerified: true,
+        phone: null,
+        phoneVerified: false,
+        phoneVerifiedAttemptId: null,
+      }),
+    );
+    expect(user.save).toHaveBeenCalled();
+  });
+
+  it('keeps a phone the same attempt verified', async () => {
+    const user = {
+      ...completedUser(),
+      verified: false,
+      emailVerified: false,
+      phone: '+15550100',
+      phoneVerified: true,
+      phoneVerifiedAttemptId: 'attempt-1',
+    };
+    (User.findOne as any).mockResolvedValue(user);
+    mockConfirmedLink();
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(200);
+    expect(user).toEqual(
+      expect.objectContaining({ verified: true, phone: '+15550100', phoneVerified: true }),
+    );
+  });
+
+  it('leaves an already verified account as it is', async () => {
+    const user = {
+      ...completedUser(),
+      verified: true,
+      emailVerified: true,
+      phone: '+15550100',
+      phoneVerified: true,
+      phoneVerifiedAttemptId: null,
+    };
+    (User.findOne as any).mockResolvedValue(user);
+    mockConfirmedLink();
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(200);
+    expect(user).toEqual(expect.objectContaining({ phone: '+15550100', phoneVerified: true }));
+  });
+
   it('looks the link up by the polling attempt, not only by user', async () => {
     (MagicLinkToken.findOne as any).mockResolvedValue(null);
 

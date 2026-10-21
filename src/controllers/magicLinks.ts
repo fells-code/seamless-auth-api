@@ -14,6 +14,7 @@ import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
 import { MagicLinkRequestQuerySchema } from '../schemas/magiclink.requests.js';
+import { claimUnverifiedAccount } from '../services/accountClaim.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { passkeyEnrollmentPrompt } from '../services/enrollmentService.js';
 import {
@@ -399,7 +400,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       req,
     });
 
-    user.verified = true;
+    claimUnverifiedAccount(user, authReq.attemptId);
 
     await user.save();
 
