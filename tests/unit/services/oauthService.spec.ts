@@ -882,14 +882,56 @@ describe('oauthService', () => {
     expect(url).not.toContain('nonce=');
   });
 
-  it('throws when the provider client secret env is not configured', async () => {
+  it('refuses to read an env var that is not an OAuth client secret', async () => {
+    process.env.SEAMLESS_SERVICE_TOKEN_FOR_TEST = 'value';
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+
     await expect(
       exchangeOAuthCode({
-        provider: { ...provider, clientSecretEnv: 'MISSING_SECRET_ENV' },
+        provider: { ...provider, clientSecretEnv: 'SEAMLESS_SERVICE_TOKEN_FOR_TEST' },
         code: 'code',
         redirectUri: 'https://app.example.com/oauth/callback',
       }),
-    ).rejects.toThrow('OAuth client secret env "MISSING_SECRET_ENV" is not configured');
+    ).rejects.toThrow(/must be an env var name ending in _CLIENT_SECRET/);
+    expect(fetch).not.toHaveBeenCalled();
+
+    delete process.env.SEAMLESS_SERVICE_TOKEN_FOR_TEST;
+    vi.unstubAllGlobals();
+  });
+
+  it('refuses an authorization URL the browser would run as script', () => {
+    expect(() =>
+      buildOAuthAuthorizationUrl({
+        provider: { ...provider, authorizationUrl: 'javascript:alert(1)//' },
+        redirectUri: 'https://app.example.com/oauth/callback',
+        state: 'state',
+      }),
+    ).toThrow('OAuth authorizationUrl must use https');
+  });
+
+  it('refuses an http authorization URL in production', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    expect(() =>
+      buildOAuthAuthorizationUrl({
+        provider: { ...provider, authorizationUrl: 'http://idp.example.com/authorize' },
+        redirectUri: 'https://app.example.com/oauth/callback',
+        state: 'state',
+      }),
+    ).toThrow('OAuth authorizationUrl must use https');
+
+    vi.unstubAllEnvs();
+  });
+
+  it('throws when the provider client secret env is not configured', async () => {
+    await expect(
+      exchangeOAuthCode({
+        provider: { ...provider, clientSecretEnv: 'MISSING_CLIENT_SECRET' },
+        code: 'code',
+        redirectUri: 'https://app.example.com/oauth/callback',
+      }),
+    ).rejects.toThrow('OAuth client secret env "MISSING_CLIENT_SECRET" is not configured');
   });
 
   it('throws when the token exchange responds with a non-ok status', async () => {

@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { User } from '../models/users.js';
@@ -44,6 +45,16 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
       error: 'Invalid system config payload',
       details: parsed.error,
     });
+  }
+
+  if (parsed.data.oauth_providers) {
+    const problems = parsed.data.oauth_providers.flatMap((provider) =>
+      oauthProviderProblems(provider).map((problem) => `${provider.id}: ${problem}`),
+    );
+
+    if (problems.length) {
+      return res.status(400).json({ error: 'Invalid OAuth provider', details: problems });
+    }
   }
 
   const rolesInUse = await getRolesInUse();

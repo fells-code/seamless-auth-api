@@ -98,6 +98,30 @@ describe('POST /system-config/oauth-providers', () => {
     expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 
+  it('refuses a client secret env that is not an OAuth client secret', async () => {
+    mockConfigWithProviders([]);
+
+    const res = await request(app)
+      .post('/system-config/oauth-providers')
+      .send(buildProvider({ id: 'acme', clientSecretEnv: 'SEAMLESS_SERVICE_TOKEN' }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid OAuth provider');
+    expect(res.body.details[0]).toMatch(/clientSecretEnv/);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refuses an authorization URL that is not http(s)', async () => {
+    mockConfigWithProviders([]);
+
+    const res = await request(app)
+      .post('/system-config/oauth-providers')
+      .send(buildProvider({ id: 'acme', authorizationUrl: 'javascript:alert(1)//' }));
+
+    expect(res.status).toBe(400);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('rejects an invalid payload with 400', async () => {
     mockConfigWithProviders([]);
 
@@ -133,6 +157,18 @@ describe('PATCH /system-config/oauth-providers/:id', () => {
     expect(res.body.provider.name).toBe('Google Workspace');
     expect(res.body.provider.id).toBe('google');
     expect(invalidateSystemConfigCache).toHaveBeenCalled();
+  });
+
+  it('refuses an update that points the client secret at another env var', async () => {
+    mockConfigWithProviders([buildProvider()]);
+
+    const res = await request(app)
+      .patch('/system-config/oauth-providers/google')
+      .send({ clientSecretEnv: 'DATABASE_URL' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details[0]).toMatch(/clientSecretEnv/);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 
   // fells-code/seamless-auth-types#83: the parsed patch used to carry every default,

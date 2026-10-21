@@ -8,8 +8,13 @@ Provider access tokens are used only during callback handling to fetch profile d
 
 1. Add `oauth` to `LOGIN_METHODS`.
 2. Configure one or more providers in `oauth_providers` system config or the `OAUTH_PROVIDERS` environment variable.
-3. Store provider client secrets in environment variables referenced by `clientSecretEnv`.
-4. Set `OAUTH_STATE_SECRET` in production, or ensure `SEAMLESS_SERVICE_TOKEN` is stable and secret so it
+3. Store provider client secrets in environment variables referenced by `clientSecretEnv`. The name must
+   end in `_CLIENT_SECRET` (for example `GOOGLE_CLIENT_SECRET`), so provider configuration cannot name any
+   other secret the server holds.
+4. In production, provider URLs must use `https` and resolve to public addresses, and the server does not
+   follow redirects from them. For an on-premises IdP, list its host in `OAUTH_PROVIDER_PRIVATE_HOSTS`.
+   Link-local addresses are refused even when listed.
+5. Set `OAUTH_STATE_SECRET` in production, or ensure `SEAMLESS_SERVICE_TOKEN` is stable and secret so it
    can be used as the OAuth state-signing fallback.
 
 Example provider:
