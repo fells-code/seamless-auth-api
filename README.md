@@ -464,6 +464,21 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 Email: security@seamlessauth.com  
 Include reproduction steps, affected versions, and impact if known.
 
-## License
+## License and governance
 
 Licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE).
+
+Seamless Auth is run under the fells-code [GOVERNANCE.md](https://github.com/fells-code/.github/blob/main/GOVERNANCE.md), which includes the
+[Seamless Auth License Pledge](https://github.com/fells-code/.github/blob/main/GOVERNANCE.md#the-seamless-auth-license-pledge). In brief:
+
+- **No enterprise edition.** Seamless Auth is Apache-2.0, and there is no paid or closed version.
+- **Features stay open.** Single sign-on, SCIM, multi-factor authentication, organizations, and
+  security features such as audit logging and admin controls are part of the open source product
+  and stay in it. This is about where features live, not a list of what ships today: SAML and SCIM
+  are not built yet.
+- **No relicensing.** Code released under Apache-2.0 will not be moved to a source-available or
+  more restrictive license.
+- **Hosting and support are what is sold.** Any managed offering charges for running the software
+  and for support, never for features missing from the open source release.
+
+Read the pledge in full in [GOVERNANCE.md](https://github.com/fells-code/.github/blob/main/GOVERNANCE.md#the-seamless-auth-license-pledge).
