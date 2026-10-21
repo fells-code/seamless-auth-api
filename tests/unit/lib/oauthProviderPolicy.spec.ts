@@ -1,11 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const lookup = vi.fn();
 
 vi.mock('node:dns/promises', () => ({ lookup, default: { lookup } }));
 
+const { createServer, get: httpGet } = await import('node:http');
+type AddressInfo = import('node:net').AddressInfo;
+
 const {
   assertProviderDestination,
+  guardedLookup,
+  guardedRequest,
   clientSecretEnvProblem,
   isNonPublicAddress,
   oauthProviderProblems,
@@ -144,67 +149,126 @@ describe('oauthProviderProblems', () => {
 });
 
 describe('assertProviderDestination', () => {
-  it('skips resolution outside production', async () => {
-    await expect(
-      assertProviderDestination('http://host.docker.internal:9000/token', {}),
-    ).resolves.toBeUndefined();
+  it('allows http and private hosts outside production', () => {
+    expect(() => assertProviderDestination('http://10.0.0.5:9000/token', {})).not.toThrow();
+  });
+
+  it('refuses http in production and other schemes always', () => {
+    expect(() => assertProviderDestination('http://idp.example.com/token', production)).toThrow(
+      /https/,
+    );
+    expect(() => assertProviderDestination('file:///etc/passwd', {})).toThrow(/https/);
+  });
+
+  it.each([
+    'https://169.254.169.254/token',
+    'https://10.0.0.5/token',
+    'https://[::1]/token',
+    'https://[64:ff9b::a9fe:a9fe]/token',
+    'https://[2002:a9fe:a9fe::]/token',
+    'https://[::7f00:1]/token',
+    'https://[::ffff:127.0.0.1]/token',
+    'https://2130706433/token',
+    'https://0x7f.1/token',
+  ])('refuses the non-public literal %s in production', (url) => {
+    expect(() => assertProviderDestination(url, production)).toThrow(OAuthProviderPolicyError);
+  });
+
+  it('allows a listed private literal but never link-local', () => {
+    const env = { ...production, OAUTH_PROVIDER_PRIVATE_HOSTS: '10.0.0.5,169.254.169.254' };
+
+    expect(() => assertProviderDestination('https://10.0.0.5/token', env)).not.toThrow();
+    expect(() => assertProviderDestination('https://169.254.169.254/token', env)).toThrow();
+  });
+
+  it('leaves host names to the connection lookup', () => {
+    expect(() =>
+      assertProviderDestination('https://idp.example.com/token', production),
+    ).not.toThrow();
     expect(lookup).not.toHaveBeenCalled();
   });
+});
 
-  it('refuses a host that resolves to a private address', async () => {
-    lookup.mockResolvedValue([{ address: '10.0.0.7', family: 4 }]);
+describe('guardedLookup', () => {
+  function resolve(hostname: string, env: Record<string, string>, all = false) {
+    return new Promise<{ error: Error | null; address: unknown; family?: number }>((done) => {
+      (
+        guardedLookup(env) as unknown as (
+          h: string,
+          o: { all?: boolean },
+          cb: (error: Error | null, address: unknown, family?: number) => void,
+        ) => void
+      )(hostname, { all }, (error, address, family) => done({ error, address, family }));
+    });
+  }
 
-    await expect(
-      assertProviderDestination('https://idp.example.com/token', production),
-    ).rejects.toBeInstanceOf(OAuthProviderPolicyError);
-  });
-
-  it('refuses when any resolved address is non-public', async () => {
-    lookup.mockResolvedValue([
-      { address: '93.184.216.34', family: 4 },
-      { address: '::1', family: 6 },
-    ]);
-
-    await expect(
-      assertProviderDestination('https://idp.example.com/token', production),
-    ).rejects.toThrow(/non-public/);
-  });
-
-  it('allows a listed on-premises host', async () => {
-    lookup.mockResolvedValue([{ address: '10.0.0.7', family: 4 }]);
-
-    await expect(
-      assertProviderDestination('https://idp.corp.example/token', {
-        ...production,
-        OAUTH_PROVIDER_PRIVATE_HOSTS: 'IDP.corp.example, other.example',
-      }),
-    ).resolves.toBeUndefined();
-  });
-
-  it('refuses a listed host that resolves to link-local', async () => {
-    lookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
-
-    await expect(
-      assertProviderDestination('https://idp.corp.example/token', {
-        ...production,
-        OAUTH_PROVIDER_PRIVATE_HOSTS: 'idp.corp.example',
-      }),
-    ).rejects.toThrow(/non-public/);
-  });
-
-  it('allows a public host', async () => {
+  it('answers with the resolved public address', async () => {
     lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 
-    await expect(
-      assertProviderDestination(new URL('https://idp.example.com/token'), production),
-    ).resolves.toBeUndefined();
+    expect(await resolve('idp.example.com', production)).toEqual({
+      error: null,
+      address: '93.184.216.34',
+      family: 4,
+    });
   });
 
-  it('refuses http in production and other schemes always', async () => {
+  it('answers every address when the socket asks for all', async () => {
+    const addresses = [
+      { address: '93.184.216.34', family: 4 },
+      { address: '2606:4700::1111', family: 6 },
+    ];
+    lookup.mockResolvedValue(addresses);
+
+    expect((await resolve('idp.example.com', production, true)).address).toEqual(addresses);
+  });
+
+  it('refuses when any address is non-public', async () => {
+    lookup.mockResolvedValue([
+      { address: '93.184.216.34', family: 4 },
+      { address: '64:ff9b::a9fe:a9fe', family: 6 },
+    ]);
+
+    expect((await resolve('idp.example.com', production)).error).toBeInstanceOf(
+      OAuthProviderPolicyError,
+    );
+  });
+
+  it('allows a listed on-premises host, but not link-local', async () => {
+    const env = { ...production, OAUTH_PROVIDER_PRIVATE_HOSTS: 'IDP.corp.example' };
+
+    lookup.mockResolvedValue([{ address: '10.0.0.7', family: 4 }]);
+    expect((await resolve('idp.corp.example', env)).error).toBeNull();
+
+    lookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
+    expect((await resolve('idp.corp.example', env)).error).toBeInstanceOf(OAuthProviderPolicyError);
+  });
+
+  it('passes a resolution failure through', async () => {
+    lookup.mockRejectedValue(new Error('ENOTFOUND'));
+
+    expect((await resolve('missing.example.com', production)).error?.message).toBe('ENOTFOUND');
+  });
+
+  it('is the lookup a real socket uses, so the checked address is the one connected to', async () => {
+    const server = createServer((_req, res) => res.end('ok'));
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    const { port } = server.address() as AddressInfo;
+    const get = (env: Record<string, string>) =>
+      new Promise<string>((done, fail) => {
+        httpGet(`http://idp.corp.example:${port}/`, { lookup: guardedLookup(env) }, (res) => {
+          res.resume();
+          res.on('end', () => done(String(res.statusCode)));
+        }).on('error', fail);
+      });
+
+    lookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+
+    await expect(get(production)).rejects.toBeInstanceOf(OAuthProviderPolicyError);
     await expect(
-      assertProviderDestination('http://idp.example.com/token', production),
-    ).rejects.toThrow(/https/);
-    await expect(assertProviderDestination('file:///etc/passwd', {})).rejects.toThrow(/https/);
+      get({ ...production, OAUTH_PROVIDER_PRIVATE_HOSTS: 'idp.corp.example' }),
+    ).resolves.toBe('200');
+
+    await new Promise((done) => server.close(done));
   });
 });
 
@@ -227,5 +291,87 @@ describe('providerFetch', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer));
 
     await expect(providerFetch('https://idp.example.com/token', {}, {})).resolves.toBe(answer);
+  });
+});
+
+describe('guardedRequest', () => {
+  const allowLocal = { ...production, OAUTH_PROVIDER_PRIVATE_HOSTS: 'idp.corp.example' };
+  let port = 0;
+  let close: () => Promise<void>;
+
+  beforeEach(async () => {
+    lookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+    const server = createServer((req, res) => {
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        if (req.url === '/empty') {
+          res.statusCode = 204;
+          return res.end();
+        }
+        if (req.url === '/large') {
+          return res.end('x'.repeat(1024 * 1024 + 1));
+        }
+        if (req.url === '/redirect') {
+          res.writeHead(302, { location: 'http://169.254.169.254/' });
+          return res.end();
+        }
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('set-cookie', ['a=1', 'b=2']);
+        res.end(JSON.stringify({ method: req.method, body, accept: req.headers.accept }));
+      });
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    port = (server.address() as AddressInfo).port;
+    close = () => new Promise((done) => server.close(() => done()));
+  });
+
+  afterEach(async () => {
+    await close();
+  });
+
+  const url = (path: string) => new URL(`http://idp.corp.example:${port}${path}`);
+
+  it('sends the method, headers and body, and returns the answer', async () => {
+    const response = await guardedRequest(
+      url('/token'),
+      {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new URLSearchParams({ a: 'b' }),
+      },
+      allowLocal,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/json');
+    expect(await response.json()).toEqual({
+      method: 'POST',
+      body: 'a=b',
+      accept: 'application/json',
+    });
+  });
+
+  it('returns an empty body for 204', async () => {
+    const response = await guardedRequest(url('/empty'), {}, allowLocal);
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe('');
+  });
+
+  it('hands a redirect back without following it', async () => {
+    const response = await guardedRequest(url('/redirect'), {}, allowLocal);
+
+    expect(response.status).toBe(302);
+  });
+
+  it('stops reading a response past the size limit', async () => {
+    await expect(guardedRequest(url('/large'), {}, allowLocal)).rejects.toThrow(/too large/);
+  });
+
+  it('refuses to connect when the host resolves to a non-public address', async () => {
+    await expect(guardedRequest(url('/token'), {}, production)).rejects.toBeInstanceOf(
+      OAuthProviderPolicyError,
+    );
   });
 });

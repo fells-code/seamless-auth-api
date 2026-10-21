@@ -10,7 +10,6 @@ import { createRemoteJWKSet, customFetch, type JWTPayload, jwtVerify } from 'jos
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { getServiceToken } from '../config/serviceToken.js';
 import {
-  assertProviderDestination,
   clientSecretEnvProblem,
   OAuthProviderPolicyError,
   providerFetch,
@@ -511,10 +510,12 @@ function remoteJwks(uri: string) {
   let jwks = jwksByUri.get(uri);
   if (!jwks) {
     jwks = createRemoteJWKSet(new URL(uri), {
-      [customFetch]: async (url, options) => {
-        await assertProviderDestination(url);
-        return globalThis.fetch(url, { ...options, redirect: 'manual' });
-      },
+      [customFetch]: (url, options) =>
+        providerFetch(url, {
+          headers: options.headers,
+          method: options.method,
+          signal: options.signal,
+        }),
     });
     jwksByUri.set(uri, jwks);
   }
