@@ -65,7 +65,11 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
     const config = await getSystemConfig();
     const redirectUri = await resolveOAuthRedirectUri(provider, req.body.redirectUri);
     const returnTo = allowedReturnTo(req.body.returnTo, config.origins);
-    const { state, payload: statePayload } = createOAuthState({
+    const {
+      state,
+      payload: statePayload,
+      binding,
+    } = createOAuthState({
       providerId: provider.id,
       redirectUri,
       ...(returnTo ? { returnTo } : {}),
@@ -81,6 +85,7 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
     return res.json({
       provider: serializeOAuthProvider(provider),
       state,
+      binding,
       authorizationUrl: buildOAuthAuthorizationUrl({
         provider,
         redirectUri,
@@ -104,23 +109,25 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
 
 export async function finishOAuthLogin(req: RouteRequest, res: Response) {
   const { providerId } = req.params;
-  const { code, state } = req.body;
+  const { code, state, binding } = req.body;
   const provider = await getOAuthProvider(providerId);
 
   if (!provider) {
     return res.status(404).json({ error: 'OAuth provider not found' });
   }
 
-  const statePayload = consumeOAuthState(state, provider.id);
+  const consumed = consumeOAuthState(state, provider.id, binding);
 
-  if (!statePayload) {
+  if (!consumed.ok) {
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,
-      metadata: { providerId: provider.id, reason: 'invalid_state' },
+      metadata: { providerId: provider.id, reason: consumed.reason },
     });
     return res.status(400).json({ error: 'Invalid OAuth state' });
   }
+
+  const statePayload = consumed.payload;
 
   try {
     const { accessToken, idToken } = await exchangeOAuthTokens({

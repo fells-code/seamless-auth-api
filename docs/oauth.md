@@ -40,11 +40,24 @@ Example provider:
 ## Browser Flow
 
 1. `GET /oauth/providers`
-2. `POST /oauth/:providerId/start`
+2. `POST /oauth/:providerId/start`. Keep the returned `binding` with the pending sign-in (for
+   example in `sessionStorage`, or in memory in a native app). Never send it to the provider.
 3. Redirect browser to returned `authorizationUrl`.
 4. Provider redirects back to your configured callback URL with `code` and `state`.
-5. `POST /oauth/:providerId/callback`
-6. Seamless Auth validates state, exchanges the code, fetches userinfo, resolves the local user, and issues a Seamless Auth session.
+5. `POST /oauth/:providerId/callback` with `code`, `state` and the `binding` from step 2.
+6. Seamless Auth validates state and its binding, exchanges the code, fetches userinfo, resolves the local user, and issues a Seamless Auth session.
+
+The `binding` ties the `state` to the client that started the sign-in. The state travels through
+the provider and the address bar, so without it anyone holding a state and its code could finish
+the sign-in in another browser and sign that browser in to their own account (login CSRF). A
+callback with a missing or different binding is refused with 400 `Invalid OAuth state`, and the
+`oauth_login_failed` auth event records `state_binding_missing` or `state_binding_mismatch`. The
+`@seamless-auth/client`, `@seamless-auth/react` and `@seamless-auth/react-native` SDKs keep and
+send it for you; server adapters pass it through unchanged.
+
+While upgrading clients that predate the binding, `OAUTH_ALLOW_UNBOUND_STATE=true` accepts a
+callback that carries none. It reopens login CSRF for as long as it is set, logs a warning at boot,
+and is removed in v0.20. A binding that is sent is always checked.
 
 ## Redirect Policy
 

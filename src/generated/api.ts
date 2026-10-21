@@ -7940,7 +7940,8 @@ export interface paths {
              *         ]
              *       },
              *       "state": "string",
-             *       "authorizationUrl": null
+             *       "authorizationUrl": null,
+             *       "binding": "string"
              *     }
              */
             'application/json': {
@@ -7952,6 +7953,7 @@ export interface paths {
               state: string;
               /** Format: uri */
               authorizationUrl: string;
+              binding?: string;
             };
           };
         };
@@ -8074,6 +8076,7 @@ export interface paths {
           'application/json': {
             code: string;
             state: string;
+            binding?: string;
           };
         };
       };
