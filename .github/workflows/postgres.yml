@@ -1,0 +1,164 @@
+# The main suite runs on a mock database. These jobs run against real Postgres: the
+# suite with the specs that need one, and an upgrade from the previous release's schema
+# with data in it.
+name: postgres
+
+on:
+  pull_request:
+    paths:
+      - 'src/migrations/**'
+      - 'src/models/**'
+      - 'src/config/config.cjs'
+      - 'src/config/database.cjs'
+      - '.sequelizerc'
+      # Services and controllers that send their own SQL.
+      - 'src/controllers/admin.ts'
+      - 'src/controllers/internalMetrics.ts'
+      - 'src/services/auditExport.ts'
+      - 'src/services/auditIntegrity.ts'
+      - 'src/services/auditRetention.ts'
+      - 'src/services/coverageReport.ts'
+      - 'src/services/enrollmentService.ts'
+      - 'src/services/funnelMetrics.ts'
+      - 'src/services/reviewAccountUsage.ts'
+      - 'src/services/schemaGuard.ts'
+      - 'src/services/signInMetrics.ts'
+      - 'tests/postgres/**'
+      - 'scripts/upgrade-check/**'
+      - 'vitest.config.ts'
+      - '.github/workflows/postgres.yml'
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+    inputs:
+      previous-ref:
+        description: 'Ref whose schema the upgrade starts from (default: the newest v* tag not on HEAD)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  NODE_ENV: test
+
+jobs:
+  suite:
+    name: Suite on Postgres
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: seamless_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_NAME: seamless_test
+      TEST_DB: postgres
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Migrates the database, then runs the unit project and the tests/postgres specs.
+      - name: Run tests against Postgres
+        run: npm run test:run
+
+  upgrade:
+    name: Upgrade from the previous release
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: seamless_upgrade
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_NAME: seamless_upgrade
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve the previous release
+        id: previous
+        env:
+          REQUESTED: ${{ inputs.previous-ref }}
+        run: |
+          set -euo pipefail
+          ref="${REQUESTED:-$(git tag --list 'v*' --sort=-v:refname --no-contains HEAD | head -n1)}"
+          if [ -z "${ref}" ]; then
+            echo "No previous release tag found" >&2
+            exit 1
+          fi
+          echo "Upgrading from ${ref}"
+          echo "ref=${ref}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "PREVIOUS_DIR=${RUNNER_TEMP}/previous"
+            echo "SNAPSHOT=${RUNNER_TEMP}/snapshot.json"
+          } >> "${GITHUB_ENV}"
+
+      - name: Check out the previous release
+        env:
+          REF: ${{ steps.previous.outputs.ref }}
+        run: git worktree add --detach "${PREVIOUS_DIR}" "${REF}"
+
+      - name: Migrate to the previous release's schema
+        run: |
+          set -euo pipefail
+          cd "${PREVIOUS_DIR}"
+          npm ci --ignore-scripts
+          npx sequelize-cli db:migrate
+
+      - name: Seed data on the previous schema
+        run: node scripts/upgrade-check/seed.mjs "${SNAPSHOT}"
+
+      - name: Run the current migrations
+        run: npx sequelize-cli db:migrate
+
+      - name: Verify the data survived
+        run: npx tsx scripts/upgrade-check/verify.mjs "${SNAPSHOT}"
