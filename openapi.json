@@ -9348,6 +9348,7 @@
       },
       "post": {
         "summary": "Add organization member",
+        "description": "Requires admin:write. Adding someone by email without their consent would let any account holder learn which addresses have accounts and attach strangers to an organization, so self-service adds wait for invitations.",
         "tags": ["Organizations"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -9477,6 +9478,19 @@
                       "required": ["issues"]
                     }
                   },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
                 }
               }

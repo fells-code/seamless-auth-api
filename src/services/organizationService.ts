@@ -106,9 +106,15 @@ async function buildUniqueSlug(slug: string) {
   return candidate;
 }
 
+/**
+ * The member's phone number and global roles are for administrators only: an
+ * organization manager sees who is in the organization, not those. Off unless the
+ * caller asks, so a new non-admin path cannot leak them by leaving the option out.
+ */
 export function serializeMembership(
   membership: OrganizationMembership,
   user?: User,
+  { includePrivate = false }: { includePrivate?: boolean } = {},
 ): SerializedOrganizationMembership {
   return {
     id: membership.id,
@@ -123,8 +129,8 @@ export function serializeMembership(
           user: {
             id: user.id,
             email: user.email,
-            phone: user.phone,
-            roles: user.roles ?? [],
+            phone: includePrivate ? user.phone : null,
+            roles: includePrivate ? (user.roles ?? []) : [],
           },
         }
       : {}),
@@ -432,7 +438,10 @@ export async function findOrganizationsRetiringOAuthProvider(userId: string, pro
   );
 }
 
-export async function listOrganizationMembers(organizationId: string) {
+export async function listOrganizationMembers(
+  organizationId: string,
+  options: { includePrivate?: boolean } = {},
+) {
   const memberships = await OrganizationMembership.findAll({
     where: { organizationId },
     order: [['createdAt', 'ASC']],
@@ -446,7 +455,7 @@ export async function listOrganizationMembers(organizationId: string) {
   const usersById = new Map(users.map((user) => [user.id, user]));
 
   return memberships.map((membership) =>
-    serializeMembership(membership, usersById.get(membership.userId)),
+    serializeMembership(membership, usersById.get(membership.userId), options),
   );
 }
 

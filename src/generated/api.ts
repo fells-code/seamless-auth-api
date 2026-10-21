@@ -9251,7 +9251,10 @@ export interface paths {
       };
     };
     put?: never;
-    /** Add organization member */
+    /**
+     * Add organization member
+     * @description Requires admin:write. Adding someone by email without their consent would let any account holder learn which addresses have accounts and attach strangers to an organization, so self-service adds wait for invitations.
+     */
     post: {
       parameters: {
         query?: never;
@@ -9354,6 +9357,24 @@ export interface paths {
                   message: string;
                 }[];
               };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
             };
           };
         };

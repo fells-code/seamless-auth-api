@@ -16,6 +16,7 @@ import {
   updateOrganization,
 } from '../controllers/organizations.js';
 import { createRouter } from '../lib/createRouter.js';
+import { requireAdmin } from '../middleware/requireAdmin.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import {
   AddOrganizationMemberRequestSchema,
@@ -143,11 +144,17 @@ organizationRouter.post(
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Add organization member',
+    description:
+      'Requires admin:write. Adding someone by email without their consent would let any ' +
+      'account holder learn which addresses have accounts and attach strangers to an ' +
+      'organization, so self-service adds wait for invitations.',
+    middleware: [requireAdmin('write')],
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
       response: {
         201: OrganizationMembershipEnvelopeResponseSchema,
+        403: InternalErrorSchema,
         404: InternalErrorSchema,
         409: InternalErrorSchema,
       },
