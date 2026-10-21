@@ -8,6 +8,7 @@ import { randomInt, timingSafeEqual } from 'crypto';
 
 import { reviewCodeFor } from '../lib/reviewAccounts.js';
 import { User } from '../models/users.js';
+import { claimUnverifiedAccount } from '../services/accountClaim.js';
 import { sendOTPEmail, sendOTPSMS } from '../services/messagingService.js';
 import getLogger from './logger.js';
 import { hashSha256 } from './utils.js';
@@ -191,21 +192,7 @@ export const verifyEmailOTP = async (
     user.emailVerificationToken = null;
     user.emailVerificationTokenExpiry = null;
 
-    if (user.emailVerified && !user.verified) {
-      user.verified = true;
-
-      // Anyone can start a registration for an address and verify a phone on the
-      // account it creates, so a phone verified before the address was proven only
-      // stays if this same attempt verified it. Phone-first sign up does exactly that;
-      // a phone planted through an earlier attempt by someone else does not.
-      if (user.phoneVerified && (!attemptId || user.phoneVerifiedAttemptId !== attemptId)) {
-        user.phone = null;
-        user.phoneVerified = false;
-        user.phoneVerificationToken = null;
-        user.phoneVerificationTokenExpiry = null;
-      }
-      user.phoneVerifiedAttemptId = null;
-    }
+    claimUnverifiedAccount(user, attemptId);
 
     try {
       await user.save();
