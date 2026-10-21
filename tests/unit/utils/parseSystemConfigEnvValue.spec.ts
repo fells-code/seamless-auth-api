@@ -90,7 +90,7 @@ describe('parseSystemConfigEnvValue', () => {
           id: 'mock',
           name: 'Mock',
           clientId: 'client',
-          clientSecretEnv: 'MOCK_SECRET',
+          clientSecretEnv: 'MOCK_CLIENT_SECRET',
           authorizationUrl: 'https://idp.test/authorize',
           tokenUrl: 'https://idp.test/token',
           userInfoUrl: 'https://idp.test/userinfo',

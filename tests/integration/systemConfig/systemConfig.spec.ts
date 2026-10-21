@@ -81,6 +81,34 @@ describe('PATCH /system-config/admin', () => {
     );
   });
 
+  it('refuses OAuth providers that fail the provider policy', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({
+        oauth_providers: [
+          {
+            id: 'acme',
+            name: 'Acme',
+            enabled: true,
+            clientId: 'client',
+            clientSecretEnv: 'DB_PASSWORD',
+            authorizationUrl: 'https://idp.example.com/authorize',
+            tokenUrl: 'https://idp.example.com/token',
+            userInfoUrl: 'https://idp.example.com/userinfo',
+            scopes: ['openid'],
+          },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid OAuth provider');
+    expect(res.body.details[0]).toMatch(/^acme: clientSecretEnv/);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('accepts scoped role names', async () => {
     (User.findAll as any).mockResolvedValue([]);
     (SystemConfig.findAll as any).mockResolvedValue([]);

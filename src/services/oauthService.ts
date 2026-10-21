@@ -5,10 +5,16 @@
  */
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
-import { createRemoteJWKSet, type JWTPayload, jwtVerify } from 'jose';
+import { createRemoteJWKSet, customFetch, type JWTPayload, jwtVerify } from 'jose';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { getServiceToken } from '../config/serviceToken.js';
+import {
+  assertProviderDestination,
+  clientSecretEnvProblem,
+  OAuthProviderPolicyError,
+  providerFetch,
+} from '../lib/oauthProviderPolicy.js';
 import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
 import { allowedRedirect } from '../lib/redirectAllowlist.js';
 import { OAuthIdentity } from '../models/oauthIdentities.js';
@@ -393,6 +399,15 @@ export function buildOAuthAuthorizationUrl({
 }) {
   const url = new URL(provider.authorizationUrl);
 
+  // Sent to the browser, which navigates to it: anything but http(s) would run there.
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new OAuthProviderPolicyError('OAuth authorizationUrl must use https');
+  }
+
+  if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+    throw new OAuthProviderPolicyError('OAuth authorizationUrl must use https');
+  }
+
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', provider.clientId);
   url.searchParams.set('redirect_uri', redirectUri);
@@ -434,6 +449,11 @@ export async function exchangeOAuthTokens({
   redirectUri: string;
   codeVerifier?: string;
 }) {
+  const secretProblem = clientSecretEnvProblem(provider.clientSecretEnv);
+  if (secretProblem) {
+    throw new OAuthProviderPolicyError(secretProblem);
+  }
+
   const clientSecret = process.env[provider.clientSecretEnv];
 
   if (!clientSecret) {
@@ -452,7 +472,7 @@ export async function exchangeOAuthTokens({
     body.set('code_verifier', codeVerifier);
   }
 
-  const response = await globalThis.fetch(provider.tokenUrl, {
+  const response = await providerFetch(provider.tokenUrl, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -490,7 +510,12 @@ const jwksByUri = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 function remoteJwks(uri: string) {
   let jwks = jwksByUri.get(uri);
   if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(uri));
+    jwks = createRemoteJWKSet(new URL(uri), {
+      [customFetch]: async (url, options) => {
+        await assertProviderDestination(url);
+        return globalThis.fetch(url, { ...options, redirect: 'manual' });
+      },
+    });
     jwksByUri.set(uri, jwks);
   }
   return jwks;
@@ -606,7 +631,7 @@ async function fetchGitHubVerifiedEmail(
   accessToken: string,
   profileEmail: string | null,
 ): Promise<string | null> {
-  const response = await globalThis.fetch(emailsUrl, {
+  const response = await providerFetch(emailsUrl, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -635,7 +660,7 @@ async function fetchGitHubVerifiedEmail(
 }
 
 export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessToken: string) {
-  const response = await globalThis.fetch(provider.userInfoUrl, {
+  const response = await providerFetch(provider.userInfoUrl, {
     method: 'GET',
     headers: {
       Accept: 'application/json',

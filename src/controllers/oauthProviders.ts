@@ -7,6 +7,7 @@
 import { Response } from 'express';
 
 import { invalidateSystemConfigCache } from '../config/getSystemConfig.js';
+import { oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { OAuthProviderConfig, OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
@@ -26,6 +27,13 @@ type ProviderAudit = {
 };
 
 type ProviderRefusal = { status: number; body: Record<string, unknown> };
+
+function policyRefusal(provider: OAuthProviderConfig): ProviderRefusal | null {
+  const problems = oauthProviderProblems(provider);
+  return problems.length
+    ? { status: 400, body: { error: 'Invalid OAuth provider', details: problems } }
+    : null;
+}
 
 type ProviderEdit =
   { providers: OAuthProviderConfig[]; audit: ProviderAudit } | { refusal: ProviderRefusal };
@@ -116,6 +124,11 @@ export async function listOAuthProviders(req: ServiceRequest, res: Response) {
 export async function createOAuthProvider(req: ServiceRequest, res: Response) {
   const provider = req.body as OAuthProviderConfig;
 
+  const invalid = policyRefusal(provider);
+  if (invalid) {
+    return res.status(invalid.status).json(invalid.body);
+  }
+
   const refusal = await editProviders(req, (providers) => {
     if (providers.some((existing) => existing.id === provider.id)) {
       return {
@@ -164,6 +177,11 @@ export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
           body: { error: 'Invalid OAuth provider payload', details: merged.error },
         },
       };
+    }
+
+    const invalid = policyRefusal(merged.data);
+    if (invalid) {
+      return { refusal: invalid };
     }
 
     const next = [...providers];
