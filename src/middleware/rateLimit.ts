@@ -6,7 +6,7 @@
 
 import { DefaultFlowRateLimits } from '@seamless-auth/types';
 import { NextFunction, Request, Response } from 'express';
-import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, RateLimitRequestHandler } from 'express-rate-limit';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -17,6 +17,15 @@ async function getConfiguredRateLimit() {
   const { rate_limit } = await getSystemConfig();
 
   return rate_limit ?? 50;
+}
+
+// An IPv6 client is keyed on its /56, the library's default, rather than its address.
+// A single host typically holds a whole /64, and keyed per address it could take a fresh
+// bucket for every request.
+function clientAddressKey(req: Request) {
+  const address = req.ip ?? req.socket.remoteAddress;
+
+  return address ? ipKeyGenerator(address) : 'unknown';
 }
 
 function getMagicLinkIdentityKey(req: Request) {
@@ -32,7 +41,7 @@ function getMagicLinkIdentityKey(req: Request) {
     return `email:${email.toLowerCase()}`;
   }
 
-  return `ip:${req.ip ?? req.socket.remoteAddress ?? 'unknown'}`;
+  return `ip:${clientAddressKey(req)}`;
 }
 
 function getOtpIdentityKey(req: Request) {
@@ -49,14 +58,11 @@ function getOtpIdentityKey(req: Request) {
     return `phone:${phone}`;
   }
 
-  return `ip:${req.ip ?? req.socket.remoteAddress ?? 'unknown'}`;
+  return `ip:${clientAddressKey(req)}`;
 }
 
 function getOAuthFlowKey(req: Request) {
-  return [
-    req.params?.providerId ?? 'unknown-provider',
-    req.ip ?? req.socket.remoteAddress ?? 'unknown',
-  ].join(':');
+  return [req.params?.providerId ?? 'unknown-provider', clientAddressKey(req)].join(':');
 }
 
 const dynamicLimiter = rateLimit({
