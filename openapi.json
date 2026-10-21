@@ -7934,7 +7934,8 @@
                 "example": {
                   "provider": { "id": "string", "name": "string", "scopes": [null] },
                   "state": "string",
-                  "authorizationUrl": null
+                  "authorizationUrl": null,
+                  "binding": "string"
                 },
                 "schema": {
                   "type": "object",
@@ -7949,7 +7950,8 @@
                       "required": ["id", "name", "scopes"]
                     },
                     "state": { "type": "string" },
-                    "authorizationUrl": { "type": "string", "format": "uri" }
+                    "authorizationUrl": { "type": "string", "format": "uri" },
+                    "binding": { "type": "string" }
                   },
                   "required": ["provider", "state", "authorizationUrl"]
                 }
@@ -8059,7 +8061,8 @@
                 "type": "object",
                 "properties": {
                   "code": { "type": "string", "minLength": 1 },
-                  "state": { "type": "string", "minLength": 1 }
+                  "state": { "type": "string", "minLength": 1 },
+                  "binding": { "type": "string", "minLength": 1 }
                 },
                 "required": ["code", "state"]
               }

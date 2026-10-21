@@ -115,6 +115,42 @@ describe('OAuth routes', () => {
     expect(res.body.authorizationUrl).toContain('code_challenge_method=S256');
   });
 
+  it('returns a binding for the client that started the sign-in, never to the provider', async () => {
+    const res = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.binding).toEqual(expect.any(String));
+    expect(res.body.authorizationUrl).not.toContain(res.body.binding);
+    expect(res.body.state).not.toContain(res.body.binding);
+  });
+
+  it.each([
+    ['without the binding', undefined, 'state_binding_missing'],
+    ['with another binding', 'A'.repeat(43), 'state_binding_mismatch'],
+  ])('refuses a callback %s before contacting the provider', async (_label, binding, reason) => {
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await request(app)
+      .post('/oauth/google/callback')
+      .send({ code: 'attacker-code', state: start.body.state, binding });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid OAuth state');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason },
+      }),
+    );
+  });
+
   it('ignores a returnTo that does not match an allowed origin', async () => {
     const res = await request(app).post('/oauth/google/start').send({
       redirectUri: 'http://localhost:5174/oauth/callback',
@@ -180,7 +216,7 @@ describe('OAuth routes', () => {
 
     const res = await request(app)
       .post('/oauth/google/callback')
-      .send({ code: 'oauth-code', state: start.body.state });
+      .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
 
     expect(res.status).toBe(200);
     expect(res.body.returnTo).toBe('http://localhost:5174/dashboard');
@@ -215,7 +251,7 @@ describe('OAuth routes', () => {
 
     const res = await request(app)
       .post('/oauth/google/callback')
-      .send({ code: 'oauth-code', state: start.body.state });
+      .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
 
     expect(res.status).toBe(200);
     expect(res.body).not.toHaveProperty('returnTo');
@@ -261,6 +297,7 @@ describe('OAuth routes', () => {
     const res = await request(app).post('/oauth/google/callback').send({
       code: 'oauth-code',
       state: start.body.state,
+      binding: start.body.binding,
     });
 
     expect(res.status).toBe(200);
@@ -294,6 +331,7 @@ describe('OAuth routes', () => {
     const replay = await request(app).post('/oauth/google/callback').send({
       code: 'oauth-code-replay',
       state: start.body.state,
+      binding: start.body.binding,
     });
 
     expect(replay.status).toBe(400);
@@ -366,7 +404,7 @@ describe('OAuth routes', () => {
 
     const res = await request(app)
       .post('/oauth/microsoft/callback')
-      .send({ code: 'oauth-code', state: start.body.state });
+      .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
 
     expect(res.status).toBe(200);
     expect(res.body.sub).toBe('imported-ada');
@@ -408,7 +446,7 @@ describe('OAuth routes', () => {
 
     const res = await request(app)
       .post('/oauth/idp/callback')
-      .send({ code: 'oauth-code', state: start.body.state });
+      .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('oauth_invalid_id_token');
@@ -474,6 +512,7 @@ describe('OAuth routes', () => {
     const res = await request(app).post('/oauth/google/callback').send({
       code: 'oauth-code',
       state: start.body.state,
+      binding: start.body.binding,
     });
 
     expect(res.status).toBe(403);
@@ -498,6 +537,7 @@ describe('OAuth routes', () => {
     const res = await request(app).post('/oauth/google/callback').send({
       code: 'oauth-code',
       state: start.body.state,
+      binding: start.body.binding,
     });
 
     expect(res.status).toBe(400);
@@ -532,6 +572,7 @@ describe('OAuth routes', () => {
     return request(app).post('/oauth/google/callback').send({
       code: 'oauth-code',
       state: start.body.state,
+      binding: start.body.binding,
     });
   };
 
@@ -608,7 +649,7 @@ describe('OAuth routes', () => {
 
       return request(app)
         .post('/oauth/google/callback')
-        .send({ code: 'oauth-code', state: start.body.state });
+        .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
     }
 
     beforeEach(() => {

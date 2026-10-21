@@ -35,8 +35,16 @@ export type OAuthStatePayload = {
   redirectUri: string;
   returnTo?: string;
   nonce: string;
+  /** SHA-256 of the binding returned to the client that started the sign-in. */
+  bindingHash?: string;
   createdAt: number;
 };
+
+export type OAuthStateRefusal =
+  'invalid_state' | 'state_binding_missing' | 'state_binding_mismatch';
+
+export type ConsumedOAuthState =
+  { ok: true; payload: OAuthStatePayload } | { ok: false; reason: OAuthStateRefusal };
 
 export type OAuthProfile = {
   subject: string;
@@ -126,6 +134,26 @@ function purgeConsumedStates(now = Date.now()) {
       consumedStateHashes.delete(stateHash);
     }
   }
+}
+
+/**
+ * Accepts a callback that carries no binding. Only for clients older than the binding,
+ * during an upgrade: without it a state can be finished by anyone who holds it.
+ */
+export function unboundOAuthStateAllowed(env: Record<string, string | undefined> = process.env) {
+  return env.OAUTH_ALLOW_UNBOUND_STATE?.trim().toLowerCase() === 'true';
+}
+
+export function warnIfUnboundOAuthStateAllowed(
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (!unboundOAuthStateAllowed(env)) return;
+
+  logger.warn(
+    'OAUTH_ALLOW_UNBOUND_STATE is set, so an OAuth callback without a binding is accepted and ' +
+      'a sign-in can be finished by a client other than the one that started it. Upgrade every ' +
+      'client to send the binding and unset it. It is deprecated and is removed in v0.20.',
+  );
 }
 
 function pkceEnabled(provider: OAuthProviderConfig) {
@@ -219,25 +247,37 @@ export async function resolveOAuthRedirectUri(
 }
 
 /**
- * The signed state, and the payload that went into it.
+ * The signed state, the payload that went into it, and the binding.
  *
- * Both, because the caller needs the nonce and the rest of the payload to build the
+ * The payload too, because the caller needs the nonce and the rest of it to build the
  * authorization URL. Returning only the string meant verifying it back immediately:
  * a second HMAC, a decode, a parse and a re-check of fields the caller had just set.
+ *
+ * The binding goes only to the client that asked to start, never to the provider, and
+ * the callback must present it. The state alone travels through the provider and the
+ * browser's address bar, so without the binding anyone holding a state and its code
+ * could finish the sign-in in another browser and sign that browser in to their
+ * account (login CSRF, RFC 9700 section 4.7). The PKCE verifier is derived from the
+ * payload, so PKCE does not bind the flow to a client by itself.
  */
-export function createOAuthState(payload: Omit<OAuthStatePayload, 'createdAt' | 'nonce'>): {
+export function createOAuthState(
+  payload: Omit<OAuthStatePayload, 'createdAt' | 'nonce' | 'bindingHash'>,
+): {
   state: string;
   payload: OAuthStatePayload;
+  binding: string;
 } {
+  const binding = randomBytes(32).toString('base64url');
   const statePayload: OAuthStatePayload = {
     ...payload,
     nonce: randomBytes(16).toString('base64url'),
+    bindingHash: sha256Base64Url(binding),
     createdAt: Date.now(),
   };
   const encodedPayload = base64UrlEncode(JSON.stringify(statePayload));
   const signature = signPayload(encodedPayload);
 
-  return { state: `${encodedPayload}.${signature}`, payload: statePayload };
+  return { state: `${encodedPayload}.${signature}`, payload: statePayload, binding };
 }
 
 export function verifyOAuthState(state: string, providerId: string): OAuthStatePayload | null {
@@ -262,22 +302,47 @@ export function verifyOAuthState(state: string, providerId: string): OAuthStateP
   return payload;
 }
 
-export function consumeOAuthState(state: string, providerId: string): OAuthStatePayload | null {
+function checkOAuthStateBinding(
+  payload: OAuthStatePayload,
+  binding: string | undefined,
+): OAuthStateRefusal | null {
+  if (!binding) {
+    return unboundOAuthStateAllowed() ? null : 'state_binding_missing';
+  }
+
+  if (typeof payload.bindingHash !== 'string') return 'state_binding_mismatch';
+
+  return safeEqual(sha256Base64Url(binding), payload.bindingHash) ? null : 'state_binding_mismatch';
+}
+
+/**
+ * Checked before the replay cache records the state, so a callback presenting the
+ * wrong binding cannot use up a state its rightful client has yet to finish.
+ */
+export function consumeOAuthState(
+  state: string,
+  providerId: string,
+  binding?: string,
+): ConsumedOAuthState {
   const payload = verifyOAuthState(state, providerId);
 
-  if (!payload) return null;
+  if (!payload) return { ok: false, reason: 'invalid_state' };
+
+  const refusal = checkOAuthStateBinding(payload, binding);
+
+  if (refusal) return { ok: false, reason: refusal };
 
   purgeConsumedStates();
 
   const stateHash = hashStateForReplayCache(state);
 
   if (consumedStateHashes.has(stateHash)) {
-    return null;
+    return { ok: false, reason: 'invalid_state' };
   }
 
   consumedStateHashes.set(stateHash, payload.createdAt + STATE_TTL_MS);
 
-  return payload;
+  return { ok: true, payload };
 }
 
 export function clearOAuthStateReplayCache() {
