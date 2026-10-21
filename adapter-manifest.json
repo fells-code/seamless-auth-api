@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "apiVersion": "0.19.2",
+  "apiVersion": "0.19.3",
   "session": {
     "subject": "sub",
     "token": "token",
