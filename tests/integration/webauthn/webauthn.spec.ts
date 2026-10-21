@@ -61,6 +61,7 @@ function buildReq(overrides: Record<string, unknown> = {}) {
     ip: '127.0.0.1',
     headers: {},
     get: () => undefined,
+    attemptId: 'attempt-1',
     ...overrides,
   } as any;
 }
@@ -74,6 +75,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
     attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
       req.user = buildUser();
       req.sessionId = 'session-1';
+      req.attemptId = 'attempt-1';
       next();
     },
   };
@@ -488,6 +490,69 @@ describe('GET /webauthn/register/start', () => {
   });
 });
 
+describe('passkey sign-in challenges belong to one attempt', () => {
+  it('refuses to start without an attempt to bind the challenge to', async () => {
+    const res = buildRes();
+
+    await generateWebAuthn(buildReq({ user: buildUser(), attemptId: undefined }), res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(WebAuthnChallenge.create).not.toHaveBeenCalled();
+  });
+
+  it('stores the challenge against the attempt that started the ceremony', async () => {
+    (Credential.findAll as any).mockResolvedValue([buildCredential({ id: 'cred-1' })]);
+    const { generateAuthenticationOptions } = await import('@simplewebauthn/server');
+    (generateAuthenticationOptions as any).mockResolvedValue({ challenge: 'challenge' });
+
+    const res = await request(app).post('/webauthn/login/start').send({});
+
+    expect(res.status).toBe(200);
+
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: expect.any(Date) },
+      {
+        where: expect.objectContaining({
+          purpose: 'authentication',
+          attemptId: 'attempt-1',
+          consumedAt: null,
+        }),
+      },
+    );
+    expect(WebAuthnChallenge.create).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId: 'attempt-1' }),
+    );
+  });
+
+  it('finishes against the challenge of the same attempt', async () => {
+    (Credential.findOne as any).mockResolvedValue(buildCredential({ id: 'cred-1' }));
+
+    await request(app)
+      .post('/webauthn/login/finish')
+      .send({ assertionResponse: { id: 'cred-1' } });
+
+    expect(WebAuthnChallenge.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ attemptId: 'attempt-1' }) }),
+    );
+  });
+
+  it('refuses to finish without an attempt', async () => {
+    const res = buildRes();
+
+    await verifyWebAuthn(
+      buildReq({
+        user: buildUser(),
+        attemptId: undefined,
+        body: { assertionResponse: { id: 'cred-1' } },
+      }),
+      res,
+    );
+
+    expect(WebAuthnChallenge.findOne).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+});
+
 describe('challenge is spent on every login outcome', () => {
   // The login path previously never cleared the challenge, so a captured
   // assertion stayed replayable until some later flow happened to overwrite it.
@@ -503,8 +568,9 @@ describe('challenge is spent on every login outcome', () => {
       .post('/webauthn/login/finish')
       .send({ assertionResponse: { id: 'cred-1' } });
 
-    expect(record.update).toHaveBeenCalledWith(
-      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: expect.any(Date) },
+      { where: { id: record.id, consumedAt: null } },
     );
   });
 
@@ -526,8 +592,9 @@ describe('challenge is spent on every login outcome', () => {
       .post('/webauthn/login/finish')
       .send({ assertionResponse: { id: 'cred-1' } });
 
-    expect(record.update).toHaveBeenCalledWith(
-      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: expect.any(Date) },
+      { where: { id: record.id, consumedAt: null } },
     );
   });
 

@@ -132,8 +132,9 @@ describe('step-up controller', () => {
 
     await finishWebAuthnStepUp(req, res);
 
-    expect(challengeRecord.update).toHaveBeenCalledWith(
-      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: expect.any(Date) },
+      { where: { id: challengeRecord.id, consumedAt: null } },
     );
     expect(credential.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -402,8 +403,9 @@ describe('step-up controller', () => {
 
     await finishWebAuthnStepUp(req, res);
 
-    expect(challengeRecord.update).toHaveBeenCalledWith(
-      expect.objectContaining({ consumedAt: expect.any(Date) }),
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: expect.any(Date) },
+      { where: { id: challengeRecord.id, consumedAt: null } },
     );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
