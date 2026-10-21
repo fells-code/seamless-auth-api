@@ -31,6 +31,7 @@ describe('issueChallenge', () => {
       purpose: 'registration',
       challenge: 'abc',
       context: null,
+      attemptId: null,
       expiresAt: new Date(NOW.getTime() + CHALLENGE_TTL_SECONDS * 1000),
     });
   });
@@ -86,7 +87,63 @@ describe('consumeChallenge', () => {
     });
 
     expect(result).toEqual({ challenge: 'abc', context: null });
-    expect(record.update).toHaveBeenCalledWith({ consumedAt: NOW });
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: NOW },
+      { where: { id: record.id, consumedAt: null } },
+    );
+  });
+
+  it("replaces only the same sign-in attempt's challenge", async () => {
+    (WebAuthnChallenge.create as any).mockResolvedValue({});
+
+    await issueChallenge({
+      userId: 'user-1',
+      purpose: 'authentication',
+      challenge: 'abc',
+      attemptId: 'attempt-a',
+      now: NOW,
+    });
+
+    expect(WebAuthnChallenge.update).toHaveBeenCalledWith(
+      { consumedAt: NOW },
+      {
+        where: {
+          userId: 'user-1',
+          purpose: 'authentication',
+          attemptId: 'attempt-a',
+          consumedAt: null,
+        },
+      },
+    );
+    expect(WebAuthnChallenge.create).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId: 'attempt-a' }),
+    );
+  });
+
+  it('hands back only the challenge of the attempt that asks', async () => {
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
+
+    await consumeChallenge({
+      userId: 'user-1',
+      purpose: 'authentication',
+      attemptId: 'attempt-a',
+      now: NOW,
+    });
+
+    expect(WebAuthnChallenge.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'user-1', attemptId: 'attempt-a' }),
+      }),
+    );
+  });
+
+  it('returns nothing when a concurrent verification spent the challenge first', async () => {
+    (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
+    (WebAuthnChallenge.update as any).mockResolvedValueOnce([0]);
+
+    expect(
+      await consumeChallenge({ userId: 'user-1', purpose: 'authentication', now: NOW }),
+    ).toBeNull();
   });
 
   it('returns nothing when no live challenge exists', async () => {

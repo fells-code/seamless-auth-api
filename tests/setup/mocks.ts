@@ -64,7 +64,7 @@ vi.mock('../../src/models/webauthnChallenges.js', () => ({
   WebAuthnChallenge: {
     create: vi.fn(),
     findOne: vi.fn(),
-    update: vi.fn(),
+    update: vi.fn(async () => [1]),
     destroy: vi.fn(),
   },
 }));

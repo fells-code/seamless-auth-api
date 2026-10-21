@@ -30,23 +30,30 @@ export interface IssuedChallenge {
  * Any challenge still outstanding for the same user and flow is consumed first.
  * Only the newest matters, and leaving the older ones live would widen the
  * window a caller can replay against.
+ *
+ * Sign-in passes the attempt (the ephemeral token's `jti`), which narrows "the same
+ * flow" to that attempt. A pre-auth token comes from an email address alone, so
+ * without it anyone could start a ceremony for an account and replace the challenge
+ * its owner is about to answer.
  */
 export async function issueChallenge(params: {
   userId: string;
   purpose: WebAuthnChallengePurpose;
   challenge: string;
   context?: Record<string, unknown> | null;
+  attemptId?: string;
   now?: Date;
 }): Promise<WebAuthnChallenge> {
   const now = params.now ?? new Date();
 
-  await consumeOutstanding(params.userId, params.purpose, now);
+  await consumeOutstanding(params.userId, params.purpose, params.attemptId, now);
 
   return WebAuthnChallenge.create({
     userId: params.userId,
     purpose: params.purpose,
     challenge: params.challenge,
     context: params.context ?? null,
+    attemptId: params.attemptId ?? null,
     expiresAt: new Date(now.getTime() + CHALLENGE_TTL_SECONDS * 1000),
   });
 }
@@ -62,6 +69,7 @@ export async function issueChallenge(params: {
 export async function consumeChallenge(params: {
   userId: string;
   purpose: WebAuthnChallengePurpose;
+  attemptId?: string;
   now?: Date;
 }): Promise<IssuedChallenge | null> {
   const now = params.now ?? new Date();
@@ -70,6 +78,7 @@ export async function consumeChallenge(params: {
     where: {
       userId: params.userId,
       purpose: params.purpose,
+      ...(params.attemptId !== undefined ? { attemptId: params.attemptId } : {}),
       consumedAt: null,
       expiresAt: { [Op.gt]: now },
     },
@@ -80,7 +89,15 @@ export async function consumeChallenge(params: {
     return null;
   }
 
-  await record.update({ consumedAt: now });
+  // Conditional, so two verifications racing for one challenge cannot both spend it.
+  const [spent] = await WebAuthnChallenge.update(
+    { consumedAt: now },
+    { where: { id: record.id, consumedAt: null } },
+  );
+
+  if (!spent) {
+    return null;
+  }
 
   return { challenge: record.challenge, context: record.context ?? null };
 }
@@ -103,13 +120,19 @@ export async function invalidateChallengesForUser(userId: string, now = new Date
   );
 }
 
-async function consumeOutstanding(userId: string, purpose: WebAuthnChallengePurpose, now: Date) {
+async function consumeOutstanding(
+  userId: string,
+  purpose: WebAuthnChallengePurpose,
+  attemptId: string | undefined,
+  now: Date,
+) {
   await WebAuthnChallenge.update(
     { consumedAt: now },
     {
       where: {
         userId,
         purpose,
+        ...(attemptId !== undefined ? { attemptId } : {}),
         consumedAt: null,
       },
     },

@@ -14,6 +14,7 @@ export interface WebAuthnChallengeAttributes {
   purpose: WebAuthnChallengePurpose;
   challenge: string;
   context?: Record<string, unknown> | null;
+  attemptId?: string | null;
   expiresAt: Date;
   consumedAt?: Date | null;
   createdAt?: Date;
@@ -34,6 +35,7 @@ export class WebAuthnChallenge
   declare purpose: WebAuthnChallengePurpose;
   declare challenge: string;
   declare context: Record<string, unknown> | null;
+  declare attemptId: string | null;
   declare expiresAt: Date;
   declare consumedAt: Date | null;
   declare readonly createdAt: Date;
@@ -71,6 +73,10 @@ const initializeWebAuthnChallengeModel = (sequelize: Sequelize) => {
       },
       context: {
         type: DataTypes.JSONB,
+        allowNull: true,
+      },
+      attemptId: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       expiresAt: {

@@ -38,6 +38,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
     attachAuthMiddleware: () => (req: any, _res: any, next: any) => {
       req.user = buildUser();
       req.sessionId = 'session-1';
+      req.attemptId = 'attempt-1';
       next();
     },
   };

@@ -415,6 +415,16 @@ const generateWebAuthn = async (req: Request, res: Response) => {
     return res.status(403).json({ error: 'Not allowed' });
   }
 
+  if (!authReq.attemptId) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'login_failed',
+      req,
+      metadata: { reason: 'Ephemeral token has no attempt id' },
+    });
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
   creds = await Credential.findAll({ where: { userId: user.id } });
 
   try {
@@ -454,6 +464,7 @@ const generateWebAuthn = async (req: Request, res: Response) => {
       userId: user.id,
       purpose: 'authentication',
       challenge: options.challenge,
+      attemptId: authReq.attemptId,
     });
 
     await AuthEventService.log({
@@ -515,9 +526,14 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
     // Consumed before anything else can fail, so this path cannot leave a live
     // challenge behind for an assertion to be replayed against.
-    const issued = user
-      ? await consumeChallenge({ userId: user.id, purpose: 'authentication' })
-      : null;
+    const issued =
+      user && authReq.attemptId
+        ? await consumeChallenge({
+            userId: user.id,
+            purpose: 'authentication',
+            attemptId: authReq.attemptId,
+          })
+        : null;
 
     if (!user || !issued) {
       logger.error('User or user challenge missing');
