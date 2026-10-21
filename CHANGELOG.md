@@ -1,5 +1,46 @@
 # seamless-auth-api
 
+## 0.19.4
+
+### Patch Changes
+
+- b4faddd: Completing registration with a magic link now claims the account the same way the email code does (GHSA-9xg2-j8fg-427c).
+
+  - The address is marked verified (`emailVerified`), since opening the link proves it.
+  - A phone number verified by a different registration attempt is removed. A phone the same attempt verified, as in phone-first sign up, stays.
+  - Accounts that were already verified are unchanged.
+
+  If `phone_otp` is in `login_methods`, review accounts that finished registration by magic link on an earlier version and whose phone was verified before their email: the phone may not be the owner's. Accounts that never had `phone_otp` enabled are not affected.
+
+- b8e8c71: OAuth provider configuration can no longer reach server secrets or internal addresses (GHSA-qx82-28gf-w744).
+
+  - `clientSecretEnv` must name an env var ending in `_CLIENT_SECRET` (for example `GOOGLE_CLIENT_SECRET`). Writes through `PATCH /system-config/admin` and `/system-config/oauth-providers` that name anything else answer `400 { "error": "Invalid OAuth provider" }` with the reasons, and a stored provider that names anything else fails at sign-in without reading the variable.
+  - Provider URLs must be `http(s)`. In production they must be `https`, and token, userinfo, JWKS and GitHub email requests connect only to public addresses. The check runs in the connection's own DNS lookup, so a host name cannot resolve one way for the check and another for the request, and IPv6 forms that carry an IPv4 address (NAT64, 6to4, IPv4-mapped and IPv4-compatible) are judged by that address. List an on-premises IdP in the new `OAUTH_PROVIDER_PRIVATE_HOSTS`. Link-local addresses are refused even when listed.
+  - Provider responses are capped at 1 MiB and requests time out after 10 seconds.
+  - Provider requests no longer follow redirects.
+  - An `authorizationUrl` that is not `http(s)` (`https` in production) is refused when stored and when sign-in starts.
+
+  Upgrade note: rename a provider secret variable that does not end in `_CLIENT_SECRET` before upgrading, and add an internal IdP's host to `OAUTH_PROVIDER_PRIVATE_HOSTS`. Destination checks apply with `NODE_ENV=production`, as the published image sets; development mode (the bundled `docker-compose.yml`) leaves them off so local stacks can reach a provider on a private address.
+
+- c6d5e61: Adding someone to an organization requires an administrator (GHSA-v2q2-q246-8chm).
+
+  - `POST /organizations/{organizationId}/members` now requires `admin:write`, the same as `POST /admin/organizations/{organizationId}/members`, and answers `403` otherwise. Any account could create an organization and then add other accounts by email without their consent, which also told it which addresses have accounts. Self-service adds return in v0.20 as invitations the member accepts.
+  - `GET /organizations/{organizationId}/members` and the member returned by `PATCH /organizations/{organizationId}/members/{userId}` show the member's `phone` and global `roles` only to `admin:read` callers. Others get `phone: null` and `roles: []`; organization roles and scopes are unchanged.
+
+  Breaking for apps that let non-administrators call `addOrganizationMember` from `@seamless-auth/client`: those calls now fail with `403`. The admin dashboard and the CLI use the admin routes and are unaffected.
+
+  Earlier versions did not record who added a member. If self-service organizations were in use, review `organization_memberships` for members of organizations that a non-administrator created.
+
+- 55c82cf: Passkey sign-in challenges belong to the sign-in attempt that asked for them (GHSA-v9q2-hcqj-ggqr).
+
+  - `POST /webauthn/login/start` stores its challenge against the pre-auth token's attempt (`jti`) and replaces only that attempt's earlier challenge. Starting another attempt for the same account, which only needs its email address, no longer invalidates the challenge the owner is answering.
+  - `POST /webauthn/login/finish` checks the assertion against its own attempt's challenge.
+  - A pre-auth token without a `jti` is refused on login start with `400`.
+  - Challenges are spent with a conditional update, so two verifications racing for one challenge cannot both use it.
+  - Migration: `webauthn_challenges` gains `attempt_id`. Passkey sign-ins in progress during the upgrade have to start again.
+
+  Registration and step-up challenges are unchanged: both already need an access session.
+
 ## 0.19.3
 
 ### Patch Changes
