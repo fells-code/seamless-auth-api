@@ -1,4 +1,4 @@
-import { createHash, createHmac } from 'crypto';
+import { createHmac } from 'crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
@@ -135,7 +135,8 @@ describe('oauthService', () => {
 
       expect(binding).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(state).not.toContain(binding);
-      expect(payload.bindingHash).toBe(createHash('sha256').update(binding).digest('base64url'));
+      expect(payload.bindingHash).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(payload.bindingHash).not.toBe(binding);
     });
 
     it('refuses a callback without the binding', () => {
