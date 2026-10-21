@@ -126,11 +126,21 @@ npx vitest run tests/unit/utils                       # a directory
 npx vitest tests/unit/utils/redaction.spec.ts         # watch mode
 ```
 
-Only a few tests exercise real database behavior. To run those against a running Postgres:
+The specs under [`tests/postgres/`](./tests/postgres) need a real database: they cover the
+audit hash chain triggers and the services that send their own SQL. With `TEST_DB=postgres`
+the run migrates the database named by the `DB_*` variables (default `seamless_test` on
+localhost), then runs the unit suite and those specs. The schema is dropped first, so the
+database name must contain `test`.
 
 ```bash
-TEST_DB=postgres npm run test:run
+TEST_DB=postgres DB_USER=postgres DB_PASSWORD=postgres npm run test:run
 ```
+
+The `postgres` workflow also checks upgrades: it migrates an empty database to the previous
+release's schema, seeds it with [`scripts/upgrade-check/seed.mjs`](./scripts/upgrade-check/seed.mjs),
+runs the current migrations and compares every seeded row with
+[`scripts/upgrade-check/verify.mjs`](./scripts/upgrade-check/verify.mjs). A migration that is
+meant to change or remove existing data lists it in `EXPECTED_CHANGES` there.
 
 ### Writing a test
 

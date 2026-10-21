@@ -1,10 +1,11 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, type TestProjectInlineConfiguration } from 'vitest/config';
 
-export default defineConfig({
+const unit: TestProjectInlineConfiguration = {
+  extends: true,
   test: {
-    globals: true,
-    environment: 'node',
+    name: 'unit',
     include: ['tests/**/*.spec.ts'],
+    exclude: ['tests/postgres/**'],
 
     // mockClear() empties call history but leaves the mockResolvedValueOnce queue intact, so a
     // value queued by one test and never consumed is returned to a later, unrelated one. That
@@ -30,8 +31,31 @@ export default defineConfig({
       './tests/setup/mocks.ts',
       './tests/setup/supertestServer.ts',
     ],
+  },
+};
 
-    globalSetup: ['./tests/setup/globalSetup.ts'],
+// Runs against a real database built by the migration chain, with none of the shared
+// mocks, so the triggers and raw SQL are exercised as deployed. Only with TEST_DB=postgres.
+const postgres: TestProjectInlineConfiguration = {
+  extends: true,
+  test: {
+    name: 'postgres',
+    include: ['tests/postgres/**/*.spec.ts'],
+    setupFiles: ['./tests/setup/env.ts'],
+    globalSetup: ['./tests/postgres/globalSetup.ts'],
+    // Every file shares the one database.
+    fileParallelism: false,
+    testTimeout: 30000,
+    hookTimeout: 120000,
+  },
+};
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+
+    projects: process.env.TEST_DB === 'postgres' ? [unit, postgres] : [unit],
 
     coverage: {
       provider: 'v8',
