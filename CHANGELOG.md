@@ -1,5 +1,19 @@
 # seamless-auth-api
 
+## 0.19.2
+
+### Patch Changes
+
+- c3028d6: Pull `follow-redirects` 1.16.1, which fixes GHSA-q3jh-wrc6-jgq8 and GHSA-8r9p-f939-6h3c (credential headers kept on a cross-origin redirect). It reaches the server through Twilio's HTTP client, used only for direct SMS delivery.
+- 8649771: `POST /login` now answers `ttl: 300`, the real lifetime of the pre-auth token it returns, instead of the access token lifetime. A caller that set its pre-auth cookie or a timer from `ttl` kept it for the access token TTL (often 15 minutes) while the token inside expired after 5. The signing expiry and the `ttl` on `/login` and `/registration/register` now share one constant, and decoy answers carry the same value as real accounts.
+- ae8815d: Bind the OAuth `state` to the client that started the sign-in (#463). The state was signed, expiring and single use, but anyone holding an unconsumed state and its provider code could finish the sign-in in another browser and sign that browser in to their own account (login CSRF, RFC 9700 section 4.7).
+
+  `POST /oauth/:providerId/start` now also returns a random `binding`, and its SHA-256 is signed into the state. `POST /oauth/:providerId/callback` must send that `binding` back, and a callback with a missing or different one is refused with 400 `Invalid OAuth state` before the provider is contacted. The `oauth_login_failed` auth event records `state_binding_missing` or `state_binding_mismatch`.
+
+  This breaks OAuth sign-in for clients that predate the binding. Upgrade `@seamless-auth/client`, `@seamless-auth/react` or `@seamless-auth/react-native`, which keep and send it; server adapters pass it through unchanged. A direct API integration must store `binding` from `/start` and send it with the callback. Until every client is upgraded, `OAUTH_ALLOW_UNBOUND_STATE=true` accepts a callback without one. It reopens the login CSRF while set, warns at boot, and is removed in v0.20.
+
+- 4ec6933: The magic link, OTP and OAuth flow rate limiters key an IPv6 client on its /56 when they fall back to the client address, as the other limiters already do. Keyed on the full address, a client holding a whole IPv6 range could take a fresh bucket for each request. Requests keyed on an email or phone number are unchanged.
+
 ## 0.19.1
 
 ### Patch Changes
