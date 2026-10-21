@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { hasScopedRole } from '../lib/scopedRoles.js';
 import { signAccessToken } from '../lib/token.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
@@ -191,7 +192,9 @@ export async function listMembers(req: RouteRequest, res: Response) {
     return res.status(404).json({ error: 'Organization not found' });
   }
 
-  const members = await listOrganizationMembers(organizationId);
+  const members = await listOrganizationMembers(organizationId, {
+    includePrivate: hasScopedRole(user.roles, 'admin:read'),
+  });
   return res.json({ members, total: members.length });
 }
 
@@ -278,7 +281,9 @@ export async function updateMember(req: RouteRequest, res: Response) {
   const memberUser = await User.findByPk(userId);
 
   return res.json({
-    membership: serializeMembership(membership, memberUser ?? undefined),
+    membership: serializeMembership(membership, memberUser ?? undefined, {
+      includePrivate: hasScopedRole(user.roles, 'admin:read'),
+    }),
   });
 }
 

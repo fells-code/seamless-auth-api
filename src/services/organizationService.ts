@@ -106,9 +106,14 @@ async function buildUniqueSlug(slug: string) {
   return candidate;
 }
 
+/**
+ * `includePrivate` is false for callers who are not administrators: an organization
+ * manager sees who is in the organization, not their phone number or global roles.
+ */
 export function serializeMembership(
   membership: OrganizationMembership,
   user?: User,
+  { includePrivate = true }: { includePrivate?: boolean } = {},
 ): SerializedOrganizationMembership {
   return {
     id: membership.id,
@@ -123,8 +128,8 @@ export function serializeMembership(
           user: {
             id: user.id,
             email: user.email,
-            phone: user.phone,
-            roles: user.roles ?? [],
+            phone: includePrivate ? user.phone : null,
+            roles: includePrivate ? (user.roles ?? []) : [],
           },
         }
       : {}),
@@ -432,7 +437,10 @@ export async function findOrganizationsRetiringOAuthProvider(userId: string, pro
   );
 }
 
-export async function listOrganizationMembers(organizationId: string) {
+export async function listOrganizationMembers(
+  organizationId: string,
+  options: { includePrivate?: boolean } = {},
+) {
   const memberships = await OrganizationMembership.findAll({
     where: { organizationId },
     order: [['createdAt', 'ASC']],
@@ -446,7 +454,7 @@ export async function listOrganizationMembers(organizationId: string) {
   const usersById = new Map(users.map((user) => [user.id, user]));
 
   return memberships.map((membership) =>
-    serializeMembership(membership, usersById.get(membership.userId)),
+    serializeMembership(membership, usersById.get(membership.userId), options),
   );
 }
 
