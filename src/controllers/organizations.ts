@@ -230,7 +230,7 @@ export async function addMember(req: RouteRequest, res: Response) {
     });
 
     return res.status(201).json({
-      membership: serializeMembership(membership, memberUser),
+      membership: serializeMembership(membership, memberUser, { includePrivate: true }),
     });
   } catch (error) {
     // The lookup above and this insert are two statements, so two administrators acting

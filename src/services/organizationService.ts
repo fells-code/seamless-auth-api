@@ -107,13 +107,14 @@ async function buildUniqueSlug(slug: string) {
 }
 
 /**
- * `includePrivate` is false for callers who are not administrators: an organization
- * manager sees who is in the organization, not their phone number or global roles.
+ * The member's phone number and global roles are for administrators only: an
+ * organization manager sees who is in the organization, not those. Off unless the
+ * caller asks, so a new non-admin path cannot leak them by leaving the option out.
  */
 export function serializeMembership(
   membership: OrganizationMembership,
   user?: User,
-  { includePrivate = true }: { includePrivate?: boolean } = {},
+  { includePrivate = false }: { includePrivate?: boolean } = {},
 ): SerializedOrganizationMembership {
   return {
     id: membership.id,
