@@ -16,6 +16,7 @@ import {
   verifyEmailOTP,
 } from '../../../src/utils/otp.js';
 
+import { User } from '../../../src/models/users.js';
 import { sendOTPEmail, sendOTPSMS } from '../../../src/services/messagingService';
 function buildUser(overrides: any = {}) {
   return {
@@ -427,5 +428,113 @@ describe('OTP verification save failures', () => {
 
     expect(result.verified).toBe(true);
     expect(user.verified).toBe(true);
+  });
+});
+
+describe('OTP consumption under concurrency', () => {
+  // Two requests holding the same valid code both pass the comparison, so the clear is
+  // conditional on the issuance that was compared and only one of them may win it.
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const emailPending = (overrides: any = {}) =>
+    buildUser({
+      id: 'user-1',
+      emailVerificationToken: hashOtpToken('ABCDEF'),
+      emailVerificationTokenExpiry: 1_900_000_000_000,
+      phone: null,
+      ...overrides,
+    });
+
+  const phonePending = (overrides: any = {}) =>
+    buildUser({
+      id: 'user-1',
+      phoneVerificationToken: hashOtpToken('123456'),
+      phoneVerificationTokenExpiry: 1_900_000_000_000,
+      emailVerified: true,
+      ...overrides,
+    });
+
+  it('clears the email OTP only where it still holds the compared issuance', async () => {
+    const user = emailPending();
+
+    await expect(verifyEmailOTP(user as any, 'abcdef')).resolves.toMatchObject({
+      verified: true,
+    });
+
+    expect(User.update).toHaveBeenCalledWith(
+      { emailVerificationToken: null, emailVerificationTokenExpiry: null },
+      {
+        where: {
+          id: 'user-1',
+          emailVerificationToken: hashOtpToken('ABCDEF'),
+          emailVerificationTokenExpiry: 1_900_000_000_000,
+        },
+        transaction: expect.anything(),
+      },
+    );
+    expect(user.save).toHaveBeenCalledWith({ transaction: expect.anything() });
+  });
+
+  it('fails the email OTP when a concurrent verification already consumed it', async () => {
+    (User.update as any).mockResolvedValueOnce([0]);
+    const user = emailPending();
+
+    const result = await verifyEmailOTP(user as any, 'abcdef');
+
+    expect(result.verified).toBe(false);
+    expect(user.save).not.toHaveBeenCalled();
+    expect(user.emailVerified).toBe(false);
+    expect(user.verified).toBe(false);
+  });
+
+  it('clears the phone OTP only where it still holds the compared issuance', async () => {
+    const user = phonePending();
+
+    await expect(verifyPhoneOTP(user as any, '123456')).resolves.toMatchObject({
+      verified: true,
+    });
+
+    expect(User.update).toHaveBeenCalledWith(
+      { phoneVerificationToken: null, phoneVerificationTokenExpiry: null },
+      {
+        where: {
+          id: 'user-1',
+          phoneVerificationToken: hashOtpToken('123456'),
+          phoneVerificationTokenExpiry: 1_900_000_000_000,
+        },
+        transaction: expect.anything(),
+      },
+    );
+    expect(user.save).toHaveBeenCalledWith({ transaction: expect.anything() });
+  });
+
+  it('fails the phone OTP when a concurrent verification already consumed it', async () => {
+    (User.update as any).mockResolvedValueOnce([0]);
+    const user = phonePending();
+
+    const result = await verifyPhoneOTP(user as any, '123456', 'attempt-a');
+
+    expect(result.verified).toBe(false);
+    expect(user.save).not.toHaveBeenCalled();
+    expect(user.phoneVerified).toBe(false);
+    expect(user.phoneVerifiedAttemptId).toBeUndefined();
+  });
+
+  it('throws when the conditional email OTP clear fails', async () => {
+    (User.update as any).mockRejectedValueOnce(new Error('db down'));
+
+    await expect(verifyEmailOTP(emailPending() as any, 'abcdef')).rejects.toThrow(
+      'Failed to update user verification via email OTP',
+    );
+  });
+
+  it('throws when the conditional phone OTP clear fails', async () => {
+    (User.update as any).mockRejectedValueOnce(new Error('db down'));
+
+    await expect(verifyPhoneOTP(phonePending() as any, '123456')).rejects.toThrow(
+      'Failed to update user verification via phone OTP',
+    );
   });
 });

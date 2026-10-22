@@ -5,6 +5,7 @@
  */
 
 import { createCipheriv, createDecipheriv, createHash } from 'crypto';
+import { Op } from 'sequelize';
 
 import { getServiceToken } from '../config/serviceToken.js';
 import { TotpCredential } from '../models/totpCredentials.js';
@@ -19,6 +20,8 @@ import {
 } from '../utils/totp.js';
 
 const TOTP_CIPHER = 'aes-256-gcm';
+
+class TotpClaimLost extends Error {}
 
 type TotpCredentialLike = Pick<
   TotpCredential,
@@ -169,12 +172,37 @@ export async function verifyTotpEnrollment(userId: string, code: string) {
   }
 
   const now = new Date();
-  await TotpCredential.update({ enabled: false }, { where: { userId, enabled: true } });
-  await credential.update({
+  const counter = verification.counter;
+  try {
+    await TotpCredential.sequelize!.transaction(async (transaction) => {
+      await TotpCredential.update(
+        { enabled: false },
+        { where: { userId, enabled: true, id: { [Op.ne]: credential.id } }, transaction },
+      );
+
+      // A concurrent enrollment with the same code, or a newer one that destroyed this
+      // pending row, leaves nothing to enable, and the disable above must not stand alone.
+      const [claimed] = await TotpCredential.update(
+        { enabled: true, verifiedAt: now, lastUsedAt: now, lastUsedCounter: counter },
+        { where: { id: credential.id, enabled: false }, transaction },
+      );
+
+      if (claimed === 0) {
+        throw new TotpClaimLost();
+      }
+    });
+  } catch (error) {
+    if (error instanceof TotpClaimLost) {
+      return { verified: false, reason: 'invalid_code' };
+    }
+    throw error;
+  }
+
+  Object.assign(credential, {
     enabled: true,
     verifiedAt: now,
     lastUsedAt: now,
-    lastUsedCounter: verification.counter,
+    lastUsedCounter: counter,
   });
 
   return { verified: true, credential };
@@ -193,10 +221,28 @@ export async function verifyEnabledTotp(userId: string, code: string) {
     return { verified: false, reason: 'invalid_code' };
   }
 
-  await credential.update({
-    lastUsedAt: new Date(),
-    lastUsedCounter: verification.counter,
-  });
+  // Two requests with the same code both pass verifyTotpCode against the counter they
+  // read, so only the update that still finds an older counter accepts the code.
+  const now = new Date();
+  const [claimed] = await TotpCredential.update(
+    { lastUsedAt: now, lastUsedCounter: verification.counter },
+    {
+      where: {
+        id: credential.id,
+        enabled: true,
+        [Op.or]: [
+          { lastUsedCounter: null },
+          { lastUsedCounter: { [Op.lt]: verification.counter } },
+        ],
+      },
+    },
+  );
+
+  if (claimed === 0) {
+    return { verified: false, reason: 'invalid_code' };
+  }
+
+  Object.assign(credential, { lastUsedAt: now, lastUsedCounter: verification.counter });
 
   return { verified: true, credential };
 }

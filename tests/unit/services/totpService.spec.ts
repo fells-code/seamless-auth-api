@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { Op } from 'sequelize';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
@@ -62,16 +63,92 @@ describe('totpService', () => {
     expect(result.verified).toBe(true);
     expect(TotpCredential.update).toHaveBeenCalledWith(
       { enabled: false },
-      { where: { userId: 'user-1', enabled: true } },
+      {
+        where: { userId: 'user-1', enabled: true, id: { [Op.ne]: 'totp-1' } },
+        transaction: expect.anything(),
+      },
     );
-    expect(credential.update).toHaveBeenCalledWith(
+    expect(TotpCredential.update).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: true,
         verifiedAt: expect.any(Date),
         lastUsedAt: expect.any(Date),
         lastUsedCounter: expect.any(Number),
       }),
+      { where: { id: 'totp-1', enabled: false }, transaction: expect.anything() },
     );
+    expect(credential.enabled).toBe(true);
+  });
+
+  it('rejects enrollment when a concurrent verification already enabled the credential', async () => {
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const credential = buildTotpCredential({
+      ...encryptTotpSecret(secret),
+      enabled: false,
+      lastUsedCounter: null,
+    });
+
+    (TotpCredential.findOne as any).mockResolvedValue(credential);
+    (TotpCredential.update as any).mockResolvedValueOnce([0]).mockResolvedValueOnce([0]);
+
+    await expect(verifyTotpEnrollment('user-1', generateTotpCode({ secret }))).resolves.toEqual({
+      verified: false,
+      reason: 'invalid_code',
+    });
+    expect(credential.enabled).toBe(false);
+  });
+
+  it('propagates a database failure during enrollment', async () => {
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const credential = buildTotpCredential({
+      ...encryptTotpSecret(secret),
+      enabled: false,
+      lastUsedCounter: null,
+    });
+
+    (TotpCredential.findOne as any).mockResolvedValue(credential);
+    (TotpCredential.update as any).mockRejectedValueOnce(new Error('db down'));
+
+    await expect(verifyTotpEnrollment('user-1', generateTotpCode({ secret }))).rejects.toThrow(
+      'db down',
+    );
+  });
+
+  it('accepts a code only while the stored counter is still older', async () => {
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const credential = buildTotpCredential({ ...encryptTotpSecret(secret), lastUsedCounter: 5 });
+
+    (TotpCredential.findOne as any).mockResolvedValue(credential);
+
+    const result = await verifyEnabledTotp('user-1', generateTotpCode({ secret }));
+
+    expect(result.verified).toBe(true);
+    const [values, options] = (TotpCredential.update as any).mock.calls[0];
+    expect(options).toEqual({
+      where: {
+        id: 'totp-1',
+        enabled: true,
+        [Op.or]: [
+          { lastUsedCounter: null },
+          { lastUsedCounter: { [Op.lt]: values.lastUsedCounter } },
+        ],
+      },
+    });
+    expect(credential.lastUsedCounter).toBe(values.lastUsedCounter);
+  });
+
+  it('rejects a code another request consumed between the read and the write', async () => {
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const credential = buildTotpCredential({ ...encryptTotpSecret(secret), lastUsedCounter: null });
+
+    (TotpCredential.findOne as any).mockResolvedValue(credential);
+    (TotpCredential.update as any).mockResolvedValueOnce([0]);
+
+    await expect(verifyEnabledTotp('user-1', generateTotpCode({ secret }))).resolves.toEqual({
+      verified: false,
+      reason: 'invalid_code',
+    });
+    expect(credential.lastUsedCounter).toBeNull();
   });
 
   it('rejects reused TOTP counters', async () => {
@@ -86,7 +163,7 @@ describe('totpService', () => {
     (TotpCredential.findOne as any).mockResolvedValue(firstCredential);
 
     const firstResult = await verifyEnabledTotp('user-1', code);
-    const usedCounter = firstCredential.update.mock.calls[0][0].lastUsedCounter;
+    const usedCounter = (TotpCredential.update as any).mock.calls[0][0].lastUsedCounter;
     const replayedCredential = buildTotpCredential({
       ...encrypted,
       lastUsedCounter: usedCounter,
@@ -98,7 +175,7 @@ describe('totpService', () => {
 
     expect(firstResult.verified).toBe(true);
     expect(replayResult.verified).toBe(false);
-    expect(replayedCredential.update).not.toHaveBeenCalled();
+    expect(TotpCredential.update).toHaveBeenCalledTimes(1);
   });
 
   it('reports enabled status from the active credential', async () => {
@@ -150,7 +227,6 @@ describe('totpService', () => {
       verified: false,
       reason: 'invalid_code',
     });
-    expect(credential.update).not.toHaveBeenCalled();
     expect(TotpCredential.update).not.toHaveBeenCalled();
   });
 
@@ -173,7 +249,7 @@ describe('totpService', () => {
       verified: false,
       reason: 'invalid_code',
     });
-    expect(credential.update).not.toHaveBeenCalled();
+    expect(TotpCredential.update).not.toHaveBeenCalled();
   });
 
   it('rejects disabling when no enabled credential exists', async () => {

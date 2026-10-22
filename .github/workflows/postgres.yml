@@ -23,6 +23,9 @@ on:
       - 'src/services/reviewAccountUsage.ts'
       - 'src/services/schemaGuard.ts'
       - 'src/services/signInMetrics.ts'
+      # Conditional updates whose single winner only a real database can show.
+      - 'src/services/totpService.ts'
+      - 'src/utils/otp.ts'
       - 'tests/postgres/**'
       - 'scripts/upgrade-check/**'
       - 'vitest.config.ts'
