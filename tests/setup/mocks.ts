@@ -267,6 +267,8 @@ vi.mock('../../src/models/magicLinks.js', () => ({
 vi.mock('../../src/services/messagingService.js', () => ({
   sendMagicLinkEmail: vi.fn(),
   sendEnrollmentInviteEmail: vi.fn(),
+  sendNoticeEmail: vi.fn(),
+  sendNoticeSms: vi.fn(),
 }));
 
 vi.mock('crypto', async () => {
