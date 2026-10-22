@@ -89,6 +89,19 @@ describe('POST /system-config/oauth-providers', () => {
     expect(invalidateSystemConfigCache).toHaveBeenCalled();
   });
 
+  it('refuses a provider in production while OAUTH_STATE_SECRET is unset', async () => {
+    mockConfigWithProviders([]);
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('OAUTH_STATE_SECRET', '');
+
+    const res = await request(app).post('/system-config/oauth-providers').send(buildProvider());
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('rejects a duplicate provider id with 409', async () => {
     mockConfigWithProviders([buildProvider()]);
 

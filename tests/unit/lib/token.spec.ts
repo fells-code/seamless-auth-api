@@ -221,13 +221,14 @@ describe('token utils', () => {
     expect(result).toBe('lookup-hash');
   });
 
-  it('keys refresh token lookups from SEAMLESS_SERVICE_TOKEN', async () => {
+  it('never keys refresh token lookups from the service token in production', async () => {
+    process.env.NODE_ENV = 'production';
     process.env.SEAMLESS_SERVICE_TOKEN = 'service-secret';
-    const crypto = await import('crypto');
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
 
-    expect(createRefreshTokenLookup('token')).toBe('lookup-hash');
-    expect(crypto.createHmac).toHaveBeenCalledWith('sha256', 'service-secret');
+    expect(() => createRefreshTokenLookup('token')).toThrow(
+      'REFRESH_TOKEN_LOOKUP_SECRET must be set in production.',
+    );
   });
 
   it('prefers an explicit refresh token lookup secret when configured', async () => {
@@ -260,7 +261,7 @@ describe('token utils', () => {
     const { createRefreshTokenLookup } = await import('../../../src/lib/token');
 
     expect(() => createRefreshTokenLookup('token')).toThrow(
-      'REFRESH_TOKEN_LOOKUP_SECRET (or SEAMLESS_SERVICE_TOKEN) must be set',
+      'REFRESH_TOKEN_LOOKUP_SECRET must be set in production.',
     );
   });
 });

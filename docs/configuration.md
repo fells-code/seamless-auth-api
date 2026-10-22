@@ -38,6 +38,11 @@ For local development, these are the only values you must set (all are present i
 | `SEAMLESS_SERVICE_TOKEN` | `<32-byte hex>`         | Trusted server-adapter and internal bearer secret (`API_SERVICE_TOKEN` still accepted) |
 | Database connectivity    | see below               | `DATABASE_URL`/`DB_URI` **or** the `DB_*` set                                          |
 
+In production, also `REFRESH_TOKEN_LOOKUP_SECRET` and `DECOY_SUBJECT_SECRET`, plus
+`TOTP_SECRET_ENCRYPTION_KEY` once TOTP is used and `OAUTH_STATE_SECRET` once an OAuth provider is
+configured. The server checks these itself after reading its stored config, rather than in
+`validateEnvs.sh`, because which ones apply depends on that config.
+
 Everything else is optional or environment-specific.
 
 The container entrypoint validates these at startup via
@@ -107,19 +112,21 @@ then daily, and each run also logs the audit chain head as an external anchor. S
 
 ### Service tokens and secrets
 
-| Variable                       | Required | Default                                                           | Notes                                                                                                                                                                                                                |
-| ------------------------------ | -------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SEAMLESS_SERVICE_TOKEN`       | Yes      | -                                                                 | Trusted server-adapter and internal bearer secret. Also the fallback for the secrets below.                                                                                                                          |
-| `API_SERVICE_TOKEN`            | No       | -                                                                 | Supported fallback name for `SEAMLESS_SERVICE_TOKEN`. Used only when `SEAMLESS_SERVICE_TOKEN` is unset, with an info notice at boot. Setting both to different values stops the server at boot.                      |
-| `REFRESH_TOKEN_LOOKUP_SECRET`  | No       | falls back to the service token (deprecated, required from v0.20) | HMAC key for indexed refresh-token lookup fingerprints. In development only, an unset value derives a local secret.                                                                                                  |
-| `TOTP_SECRET_ENCRYPTION_KEY`   | No       | falls back to the service token (deprecated, required from v0.20) | 32-byte base64url/base64/hex key for encrypted TOTP secrets. Production requires this or the service token.                                                                                                          |
-| `OAUTH_STATE_SECRET`           | No       | falls back to the service token (deprecated, required from v0.20) | Dedicated signing secret for OAuth state.                                                                                                                                                                            |
-| `DECOY_SUBJECT_SECRET`         | No       | falls back to the service token (deprecated, required from v0.20) | HMAC key the decoy pre-auth subjects on `POST /login` derive from. Rotating it re-maps which subject an unknown identifier gets, which is harmless: decoys are stateless and pre-auth tokens live five minutes.      |
-| `OAUTH_ALLOW_UNBOUND_STATE`    | No       | `false`                                                           | Deprecated, removed in v0.20. `true` accepts an OAuth callback without the `binding` from `/start`, for clients that predate it. Reopens login CSRF while set; see [docs/oauth.md](./oauth.md#browser-flow).         |
-| `OAUTH_PROVIDER_PRIVATE_HOSTS` | No       | -                                                                 | Comma-separated OAuth provider hosts allowed to resolve to private or loopback addresses in production, for an on-premises IdP. Other provider hosts must resolve to public addresses. Link-local is always refused. |
+| Variable                       | Required                             | Default                | Notes                                                                                                                                                                                                                                                        |
+| ------------------------------ | ------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SEAMLESS_SERVICE_TOKEN`       | Yes                                  | -                      | Trusted server-adapter and internal bearer secret. No other secret falls back to it.                                                                                                                                                                         |
+| `API_SERVICE_TOKEN`            | No                                   | -                      | Supported fallback name for `SEAMLESS_SERVICE_TOKEN`. Used only when `SEAMLESS_SERVICE_TOKEN` is unset, with an info notice at boot. Setting both to different values stops the server at boot.                                                              |
+| `REFRESH_TOKEN_LOOKUP_SECRET`  | Production                           | development-only value | HMAC key for indexed refresh-token lookup fingerprints. Always required in production.                                                                                                                                                                       |
+| `TOTP_SECRET_ENCRYPTION_KEY`   | Production, once TOTP is used        | development-only value | Encrypts stored TOTP secrets (hashed with SHA-256 to derive the key, so any high-entropy value works). Production refuses to start while any TOTP credential exists without it, and `POST /totp/enroll/start` answers `409 secret_required` until it is set. |
+| `OAUTH_STATE_SECRET`           | Production, once OAuth is configured | development-only value | Signs OAuth state. Production refuses to start with a provider configured and no value, and adding a provider answers `409 secret_required` until it is set.                                                                                                 |
+| `DECOY_SUBJECT_SECRET`         | Production                           | development-only value | HMAC key the decoy pre-auth subjects on `POST /login` derive from. Always required in production. Rotating it re-maps which subject an unknown identifier gets, which is harmless: decoys are stateless and pre-auth tokens live five minutes.               |
+| `OAUTH_ALLOW_UNBOUND_STATE`    | No                                   | `false`                | Deprecated, removed in v0.20. `true` accepts an OAuth callback without the `binding` from `/start`, for clients that predate it. Reopens login CSRF while set; see [docs/oauth.md](./oauth.md#browser-flow).                                                 |
+| `OAUTH_PROVIDER_PRIVATE_HOSTS` | No                                   | -                      | Comma-separated OAuth provider hosts allowed to resolve to private or loopback addresses in production, for an on-premises IdP. Other provider hosts must resolve to public addresses. Link-local is always refused.                                         |
 
-> Prefer setting dedicated secrets in production rather than relying on the service token
-> fallbacks. See [docs/production-operations.md](./production-operations.md).
+> None of these falls back to the service token. Development (any `NODE_ENV` other than
+> `production`) uses a fixed development-only value for each unset one, with a warning. See
+> [docs/production-operations.md](./production-operations.md) for upgrading from a deployment
+> that relied on the fallback.
 
 ### Database
 
