@@ -10,6 +10,7 @@ import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { reviewAccountMetadata } from '../lib/reviewAccounts.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { rejectWeakFactorForBreakGlass } from '../services/breakGlassService.js';
 import { DeliveryError } from '../services/deliveryError.js';
 import { passkeyEnrollmentPrompt } from '../services/enrollmentService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
@@ -39,6 +40,10 @@ async function rejectDisabledLoginMethod(
 ): Promise<boolean> {
   const policy = await getLoginPolicy();
   const user = (req as AuthenticatedRequest).user;
+
+  if (await rejectWeakFactorForBreakGlass(user, method, req, res)) {
+    return true;
+  }
 
   if (
     isLoginMethodEnabled(policy, method) &&
@@ -320,6 +325,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
   // a way to sign in. A rule that requires a passkey does, once the account is already
   // verified, or this endpoint would be the way around it.
   if (await rejectIfUserLocked({ userId: user.id, req, res })) {
+    return;
+  }
+
+  if (user.verified && (await rejectWeakFactorForBreakGlass(user, 'email_otp', req, res))) {
     return;
   }
 

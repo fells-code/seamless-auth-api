@@ -494,6 +494,21 @@ address lock its owner out of the one way back in that does not need an administ
 session a code issues is restricted to enrolling a new factor; see
 [docs/account-recovery.md](./account-recovery.md).
 
+## Break-glass admin
+
+Accounts in `BREAK_GLASS_EMAILS` that hold `admin:write` are exempt from sign-in policy, so no
+policy change can leave a deployment with nobody able to administer it. The exemption is set in
+the environment rather than in `system_config` for that reason. It is narrow by design: a
+break-glass account can only sign in with a passkey, TOTP or a recovery code, never with email OTP,
+SMS OTP, a magic link or OAuth, because those prove control of an address or an outside identity,
+which is what someone taking the account over would have. Session issuance enforces this as a
+backstop as well as each endpoint. TOTP stays subject to lockout. Every sign-in that relied on the
+exemption is a `break_glass_sign_in` event with `severity: "high"` and is emailed to every admin;
+see [Break-glass admin](./admin-operations.md#break-glass-admin).
+
+The cost is a standing exception to policy for a few named accounts, which is why each must hold
+the admin role to count, why their use is loud, and why their factors belong offline.
+
 ## Audit write failure
 
 **Posture: the trail may be lost, no security control may be.**

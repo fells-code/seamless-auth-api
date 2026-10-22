@@ -18,6 +18,7 @@ export const AUTH_EVENT_TYPES = [
   'admin_user_import_completed',
   'admin_user_imported',
   'bearer_token_failed',
+  'break_glass_sign_in',
   'credentials_deleted',
   'informational',
   'internal_user_updated_by_owner',

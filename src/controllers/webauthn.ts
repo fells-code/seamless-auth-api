@@ -14,6 +14,7 @@ import {
 import base64url from 'base64url';
 import { Request, Response } from 'express';
 
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { classifyAttestation } from '../lib/attestationType.js';
 import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
@@ -29,6 +30,7 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { breakGlassWaivers, recordBreakGlassSignIn } from '../services/breakGlassService.js';
 import {
   ensureMetadataServiceReady,
   hasMetadataStatement,
@@ -114,8 +116,12 @@ const registerWebAuthn = async (req: Request, res: Response) => {
 
     const { app_name, rpid, authenticator_policy } = await getSystemConfig();
     const userVerification = authenticator_policy.userVerification;
+    // A break-glass admin enrolls whatever authenticator it has to hand, so a policy that
+    // pins a kind nobody holds cannot stop the way back in.
     const pinnedAttachment =
-      authenticator_policy.attachment === 'any' ? null : authenticator_policy.attachment;
+      authenticator_policy.attachment === 'any' || isBreakGlassAdmin(verifiedUser)
+        ? null
+        : authenticator_policy.attachment;
 
     // A pinned deployment policy bounds the request, so a caller cannot widen it by
     // asking for the kind the agency has chosen not to enrol.
@@ -307,7 +313,9 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       attestationType,
     });
 
-    if (!verdict.allowed) {
+    const breakGlassOverride = !verdict.allowed && isBreakGlassAdmin(user);
+
+    if (!verdict.allowed && !breakGlassOverride) {
       logger.warn(`Registration refused by authenticator policy: ${verdict.detail}`);
       await AuthEventService.log({
         userId: user.id,
@@ -376,7 +384,13 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'registration_success',
       req,
-      metadata: {},
+      metadata: breakGlassOverride
+        ? {
+            severity: 'high',
+            breakGlassWaived: ['authenticator_policy'],
+            authenticatorPolicyRefusal: verdict.detail,
+          }
+        : {},
     });
 
     if (authReq.recoverySession) {
@@ -613,6 +627,8 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'Successful login' },
       });
 
+      const waived = isBreakGlassAdmin(user) ? await breakGlassWaivers('passkey', user.id) : [];
+
       await issueSessionAndRespond({
         method: 'passkey',
         user: {
@@ -628,6 +644,8 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       await user.update({
         lastLogin: new Date(),
       });
+
+      await recordBreakGlassSignIn({ req, user, factor: 'passkey', waived });
 
       return;
     }

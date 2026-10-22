@@ -222,6 +222,50 @@ describe('OAuth routes', () => {
     expect(res.body.returnTo).toBe('http://localhost:5174/dashboard');
   });
 
+  // A provider account proves an outside identity, which is what someone taking over a
+  // break-glass account would have, so it never signs one in.
+  it('refuses to sign in a break-glass admin with OAuth', async () => {
+    vi.stubEnv('BREAK_GLASS_EMAILS', 'person@example.com');
+    const start = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'http://localhost:5174/oauth/callback',
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'provider-token' }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: 'provider-user',
+          email: 'person@example.com',
+          email_verified: true,
+        }),
+      });
+
+    (OAuthIdentity.findOne as any).mockResolvedValue(null);
+    (OAuthIdentity.findOrCreate as any).mockResolvedValue([]);
+    (User.findOne as any).mockResolvedValue(
+      buildUser({ id: 'user-1', email: 'person@example.com', phone: null, roles: ['admin'] }),
+    );
+
+    const res = await request(app)
+      .post('/oauth/google/callback')
+      .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'login_method_disabled' });
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: expect.objectContaining({ reason: 'break_glass_strong_factor_required' }),
+      }),
+    );
+  });
+
   it('omits returnTo when the caller asked for none', async () => {
     const start = await request(app).post('/oauth/google/start').send({
       redirectUri: 'http://localhost:5174/oauth/callback',

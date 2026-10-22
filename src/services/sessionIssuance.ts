@@ -6,6 +6,7 @@
 
 import { Request, Response } from 'express';
 
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
@@ -24,6 +25,19 @@ export class PasskeyRequiredError extends Error {
     this.name = 'PasskeyRequiredError';
   }
 }
+
+export class BreakGlassFactorError extends Error {
+  constructor(method: SessionMethod) {
+    super(`Refused to issue a break-glass admin session from ${method}`);
+    this.name = 'BreakGlassFactorError';
+  }
+}
+
+const BREAK_GLASS_FACTORS: ReadonlySet<SessionMethod> = new Set([
+  'passkey',
+  'totp',
+  'recovery_code',
+]);
 
 type IssueSessionParams = {
   method: SessionMethod;
@@ -63,7 +77,15 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
 
   // Every endpoint that reaches here with another factor refuses first. This is the
   // backstop for one that does not, so it fails closed rather than trusting the gates.
-  if (method !== 'passkey' && !accountVerification && !recovery) {
+  // A break-glass admin is held to its own rule instead: a strong factor, whatever the
+  // policy says.
+  const breakGlass = isBreakGlassAdmin(user);
+
+  if (breakGlass && !accountVerification && !BREAK_GLASS_FACTORS.has(method)) {
+    throw new BreakGlassFactorError(method);
+  }
+
+  if (!breakGlass && method !== 'passkey' && !accountVerification && !recovery) {
     const { phishingResistantOnly } = await getLoginPolicy();
     if (phishingResistantOnly) {
       throw new PasskeyRequiredError(method);

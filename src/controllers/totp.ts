@@ -7,8 +7,10 @@
 import { Request, Response } from 'express';
 
 import { productionSecretMissing } from '../config/authSecrets.js';
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { breakGlassWaivers, recordBreakGlassSignIn } from '../services/breakGlassService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
@@ -181,7 +183,12 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
     return;
   }
 
-  if (await isPasskeyRequiredForUser(user.id)) {
+  // Lockout above still binds: a break-glass account is exempt from policy, not from
+  // the control that stops its codes being guessed.
+  const breakGlass = isBreakGlassAdmin(user);
+  const waived = breakGlass ? await breakGlassWaivers('totp', user.id) : [];
+
+  if (!breakGlass && (await isPasskeyRequiredForUser(user.id))) {
     await AuthEventService.log({
       userId: user.id,
       type: 'login_failed',
@@ -225,6 +232,8 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
   await user.update({
     lastLogin: new Date(),
   });
+
+  await recordBreakGlassSignIn({ req, user, factor: 'totp', waived });
 };
 
 export const verifyTotpMfa = async (req: Request, res: Response) => {
