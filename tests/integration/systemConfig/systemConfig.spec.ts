@@ -9,6 +9,8 @@ import {
   getSystemConfig,
   invalidateSystemConfigCache,
 } from '../../../src/config/getSystemConfig.js';
+import { Session } from '../../../src/models/sessions.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 
 let app: Application;
@@ -20,6 +22,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
 
   (getSystemConfig as any).mockResolvedValue({
     available_roles: ['user', 'admin'],

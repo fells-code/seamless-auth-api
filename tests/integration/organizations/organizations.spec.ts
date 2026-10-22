@@ -14,7 +14,7 @@ import {
   buildOrganizationMembership,
   testOrganizationId,
 } from '../../factories/organizationFactory';
-import { buildSession } from '../../factories/sessionFactory';
+import { buildFreshStepUpSession, buildSession } from '../../factories/sessionFactory';
 import { buildUser } from '../../factories/userFactory';
 import { signAccessToken } from '../../../src/lib/token.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
@@ -30,6 +30,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
 });
 
 describe('organizations', () => {

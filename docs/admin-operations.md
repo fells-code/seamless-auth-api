@@ -56,6 +56,54 @@ no one able to administer it.
 Instances whose `available_roles` predates scoped roles and lists only `admin` get `admin`
 instead, which is equivalent in power, so the grant never silently becomes a no-op.
 
+## Step-Up On Admin Writes
+
+Every admin write that changes who can sign in, or what an account can do, needs a fresh
+step-up on the calling session as well as the admin role. The session has to have passed a
+WebAuthn step-up (`/step-up/webauthn/start` and `/finish`) or a TOTP check
+(`POST /totp/verify-mfa`) in the last five minutes.
+
+Guarded routes:
+
+- `PATCH /system-config/admin`
+- `POST /system-config/oauth-providers`, `PATCH` and `DELETE /system-config/oauth-providers/:id`
+- `POST /admin/users`, `POST /admin/users/import`, `PATCH /admin/users/:userId`, `DELETE /admin/users`
+- `POST /admin/users/:userId/recovery/device-replacement`
+- `DELETE /admin/sessions/by-id/:id`, `DELETE /admin/sessions/:userId/revoke-all`
+- `POST /admin/organizations`, `PATCH` and `DELETE /admin/organizations/:organizationId`
+- `POST /admin/organizations/:organizationId/members`, `PATCH` and `DELETE` on
+  `/admin/organizations/:organizationId/members/:userId`
+- `PUT` and `DELETE /admin/organizations/:organizationId/oauth-providers/:providerId/retirement`
+- `POST /organizations/:organizationId/members` (the self-service route that requires `admin:write`)
+- `GET /admin/auth-events/export`, which is a read but hands out the whole audit trail
+
+Admin reads stay on the admin role alone. `POST /admin/enrollment/invites` does too: it emails
+existing users a link to the sign-in page and changes nothing about their accounts.
+
+The role check runs first, so a caller without `admin:write` still gets `403 { "error": "Forbidden" }`.
+A caller with the role and no fresh step-up gets:
+
+```json
+{
+  "error": "step_up_required",
+  "message": "Recent step-up authentication is required",
+  "fresh": false,
+  "method": null,
+  "verifiedAt": null,
+  "expiresAt": null,
+  "maxAgeSeconds": 300
+}
+```
+
+Step-up, retry the call. `GET /step-up/status` reports the same fields when a client wants to
+check before it writes, which is what the admin console does.
+
+There is no exemption for a non-interactive caller. Admin routes only accept an access token
+bound to a session, never the internal service token, so a script or the CLI has to step up on
+its own session like the console does. With no passkey or TOTP enrolled, an admin cannot make
+these writes at all; enroll one first. A long run such as a user import in many batches has to
+step up again when the five-minute window lapses.
+
 ## Device Replacement Recovery
 
 Administrators with write access can prepare an account for device replacement:
