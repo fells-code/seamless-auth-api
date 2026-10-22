@@ -38,6 +38,8 @@ const PREFIX_CATEGORIES: ReadonlyArray<[string, AuthEventCategory]> = [
   ['registration_', 'registration'],
   ['login_', 'login'],
   ['logout_', 'login'],
+  // Signing in with a recovery code, and managing the set, are sign-in events.
+  ['recovery_code', 'login'],
   ['refresh_token_', 'token'],
   ['bearer_token_', 'token'],
   ['service_token_', 'token'],

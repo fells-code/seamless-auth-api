@@ -524,6 +524,7 @@ describe('sessionService', () => {
       user,
       sessionId: 'session-1',
       organizationId: 'org-1',
+      recovery: false,
     });
   });
 
@@ -761,5 +762,25 @@ describe('sessionService', () => {
     const result = await validateBearerToken('token');
 
     expect(result).toBeNull();
+  });
+});
+
+describe('liftRecoveryRestriction', () => {
+  it('clears the flag on a recovery session only', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { liftRecoveryRestriction } = await import('../../../src/services/sessionService');
+    (Session.update as any).mockResolvedValueOnce([1]);
+
+    expect(await liftRecoveryRestriction('session-1')).toBe(true);
+    expect(Session.update).toHaveBeenCalledWith(
+      { recovery: false },
+      { where: { id: 'session-1', recovery: true } },
+    );
+  });
+
+  it('does nothing without a session', async () => {
+    const { liftRecoveryRestriction } = await import('../../../src/services/sessionService');
+
+    expect(await liftRecoveryRestriction(undefined)).toBe(false);
   });
 });

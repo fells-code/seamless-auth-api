@@ -34,6 +34,7 @@ import {
   hasMetadataStatement,
 } from '../services/metadataServiceBootstrap.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { liftRecoveryRestriction } from '../services/sessionService.js';
 import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -377,6 +378,10 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       req,
       metadata: {},
     });
+
+    if (authReq.recoverySession) {
+      await liftRecoveryRestriction(authReq.sessionId);
+    }
 
     // Enrollment is not a sign-in. The caller reached here with an access session, so
     // issuing another one would leave the first live and unrevoked, and count against

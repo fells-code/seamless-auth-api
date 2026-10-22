@@ -33,6 +33,8 @@ export interface AuthenticatedRequest extends RouteRequest {
    * Unset on access sessions, and on ephemeral tokens minted before the claim existed.
    */
   attemptId?: string;
+  /** Set on an access session a recovery issued; see `allowRecoverySession`. */
+  recoverySession?: boolean;
   organizationId?: string | null;
   clientId?: string;
   trustedClientIp?: string;

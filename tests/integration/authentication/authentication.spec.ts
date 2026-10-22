@@ -615,6 +615,7 @@ describe('POST /refresh', () => {
       expect.any(String),
       expect.any(Array),
       undefined,
+      { recovery: false },
     );
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({ refreshTokenLookup: 'refresh-lookup' }),

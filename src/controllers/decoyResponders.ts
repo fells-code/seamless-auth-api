@@ -314,3 +314,15 @@ export const decoyVerifyTotpLogin = async (req: Request, res: Response) => {
 
   return res.status(401).json({ error: 'totp_verification_failed' });
 };
+
+export const decoyRedeemRecoveryCode = async (req: Request, res: Response) => {
+  const { recovery_codes } = await getSystemConfig();
+
+  if (recovery_codes?.enabled === false) {
+    return res.status(403).json({ error: 'recovery_codes_disabled' });
+  }
+
+  await logDecoy(req, 'recovery-codes:redeem');
+
+  return res.status(401).json({ error: 'invalid_recovery_code' });
+};

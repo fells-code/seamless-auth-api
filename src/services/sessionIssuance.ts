@@ -15,7 +15,8 @@ import { getLoginPolicy } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 /** The factor that proved the user, as far as session issuance needs to know it. */
-export type SessionMethod = 'passkey' | 'email_otp' | 'phone_otp' | 'magic_link' | 'totp' | 'oauth';
+export type SessionMethod =
+  'passkey' | 'email_otp' | 'phone_otp' | 'magic_link' | 'totp' | 'oauth' | 'recovery_code';
 
 export class PasskeyRequiredError extends Error {
   constructor(method: SessionMethod) {
@@ -32,6 +33,12 @@ type IssueSessionParams = {
    * nothing else to sign in with until its first passkey is enrolled.
    */
   accountVerification?: boolean;
+  /**
+   * A session for someone who proved the account another way after losing their factors.
+   * Restricted until they enroll a new one, so policy that removes their other sign-in
+   * methods does not apply: this is how they get one back.
+   */
+  recovery?: boolean;
   user: {
     id: string;
     email: string;
@@ -52,11 +59,11 @@ type IssueSessionParams = {
 };
 
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
-  const { user, req, res, extraFields, method, accountVerification } = params;
+  const { user, req, res, extraFields, method, accountVerification, recovery = false } = params;
 
   // Every endpoint that reaches here with another factor refuses first. This is the
   // backstop for one that does not, so it fails closed rather than trusting the gates.
-  if (method !== 'passkey' && !accountVerification) {
+  if (method !== 'passkey' && !accountVerification && !recovery) {
     const { phishingResistantOnly } = await getLoginPolicy();
     if (phishingResistantOnly) {
       throw new PasskeyRequiredError(method);
@@ -96,9 +103,12 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     idleExpiresAt,
     chainStartedAt: now,
     lastUsedAt: undefined,
+    recovery,
   });
 
-  const token = await signAccessToken(session.id, user.id, user.roles, organizationId);
+  const token = await signAccessToken(session.id, user.id, user.roles, organizationId, {
+    recovery,
+  });
 
   if (!token || !refreshToken) {
     throw new Error('Failed to issue session tokens');
@@ -119,5 +129,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     phone: user.phone,
     ttl: parseDurationToSeconds(access_token_ttl || '15m'),
     refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1d'),
+    ...(recovery ? { recovery: true, nextStep: 'enroll_passkey' } : {}),
   });
 }

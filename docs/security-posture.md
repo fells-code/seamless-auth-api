@@ -485,6 +485,15 @@ factor. Enrolling a passkey keeps a user able to sign in through a lock someone 
 The counter lives in Postgres, so every instance of a deployment sees the same count. When it cannot
 be read, the account is treated as locked (see [An unknown count means locked](#an-unknown-count-means-locked)).
 
+## Recovery codes and lockout
+
+Redeeming a recovery code (`POST /recovery-codes/redeem`) is rate limited like an OTP but is
+not subject to lockout and does not count towards it. Codes carry 50 bits, so guessing one
+under the flow limits is not practical, while counting failures would let anyone who knows an
+address lock its owner out of the one way back in that does not need an administrator. The
+session a code issues is restricted to enrolling a new factor; see
+[docs/account-recovery.md](./account-recovery.md).
+
 ## Audit write failure
 
 **Posture: the trail may be lost, no security control may be.**

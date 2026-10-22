@@ -609,6 +609,8 @@ export const refreshSession = async (req: Request, res: Response) => {
     expiresAt,
     idleExpiresAt,
     chainStartedAt,
+    // Refreshing does not lift the restriction; enrolling a new factor does.
+    recovery: session.recovery === true,
   });
 
   // The read, the reuse check and this link are separate statements, so two refreshes
@@ -648,7 +650,9 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'refresh_token_reused' });
   }
 
-  const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId);
+  const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId, {
+    recovery: session.recovery === true,
+  });
 
   if (token && newRefreshToken) {
     logger.info(
@@ -670,6 +674,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       // What is left of the chain, not a full lifetime, so a caller sizing a cookie or a
       // keychain entry from it does not outlive the session.
       refreshTtl: Math.floor((expiresAt.getTime() - now.getTime()) / 1000),
+      ...(session.recovery === true ? { recovery: true } : {}),
     });
   }
 

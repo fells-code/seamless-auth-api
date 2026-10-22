@@ -265,6 +265,8 @@ export interface ValidatedBearerToken {
   decoy?: boolean;
   /** The ephemeral token's `jti`, absent on tokens minted before it was set. */
   attemptId?: string;
+  /** An access session a recovery issued, restricted until a new factor is enrolled. */
+  recovery?: boolean;
 }
 
 export async function validateEphemeralToken(token: string): Promise<ValidatedBearerToken | null> {
@@ -331,6 +333,25 @@ export async function validateBearerToken(
         user,
         sessionId: accessToken.sessionId,
         organizationId: accessToken.organizationId,
+        // Read from the session rather than the token: enrolling a factor clears it on
+        // the row, which takes effect at once, before the client next refreshes.
+        recovery: session.recovery === true,
       }
     : null;
+}
+
+/**
+ * Ends a recovery session's restriction once the user has enrolled a factor of their
+ * own. The API reads the flag from the row, so this applies to the very next request;
+ * the access token keeps its `recovery` claim until the client refreshes.
+ */
+export async function liftRecoveryRestriction(sessionId: string | undefined) {
+  if (!sessionId) return false;
+
+  const [updated] = await Session.update(
+    { recovery: false },
+    { where: { id: sessionId, recovery: true } },
+  );
+
+  return updated > 0;
 }
