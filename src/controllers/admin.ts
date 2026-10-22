@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 import { Op, UniqueConstraintError, WhereOptions } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { wantsExternalDelivery } from '../lib/externalDelivery.js';
 import { unavailableRoles } from '../lib/scopedRoles.js';
 import { AuthEvent, AuthEventAttributes } from '../models/authEvents.js';
 import { Credential } from '../models/credentials.js';
@@ -34,6 +35,12 @@ import { streamAuthEventExport } from '../services/auditExport.js';
 import { verifyAuthEventChain } from '../services/auditIntegrity.js';
 import { serializeAuthEvents } from '../services/authEventSerialization.js';
 import { AuthEventService } from '../services/authEventService.js';
+import {
+  auditIdentityChanges,
+  detectIdentityChanges,
+  revokeSessionsForIdentityChange,
+  sendIdentityChangeNotices,
+} from '../services/identityChangeService.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { importUsers as runUserImport } from '../services/userImportService.js';
 import type { AuthenticatedRequest } from '../types/types.js';
@@ -354,8 +361,28 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
       });
     }
 
+    const identityChanges = detectIdentityChanges(user, updateData);
+
     try {
-      await user.update(updateData);
+      let revokedSessions = 0;
+
+      if (identityChanges.length > 0) {
+        // One transaction, so a failed revocation cannot leave the new address stored
+        // and the change undetectable on a retry.
+        await User.sequelize!.transaction(async (transaction) => {
+          await user.update(updateData, { transaction });
+          revokedSessions = await revokeSessionsForIdentityChange(user.id, transaction);
+        });
+      } else {
+        await user.update(updateData);
+      }
+
+      const notices =
+        identityChanges.length > 0
+          ? await sendIdentityChangeNotices(identityChanges, {
+              external: wantsExternalDelivery(req),
+            })
+          : [];
 
       await AuthEventService.log({
         userId,
@@ -366,6 +393,13 @@ export const updateUser = async (req: ServiceRequest, res: Response) => {
           before,
           after: updateData,
           targetUser: userId,
+          ...(identityChanges.length > 0
+            ? {
+                identityChanges: auditIdentityChanges(identityChanges),
+                revokedSessions,
+                notices,
+              }
+            : {}),
         },
       });
     } catch (error) {

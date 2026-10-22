@@ -11,9 +11,19 @@ const createDirectAuthMessagingServiceMock = vi.fn(() => ({
   sendEnrollmentInviteEmail: sendEnrollmentInviteEmailMock,
 }));
 
+const emailTransportSendMock = vi.fn();
+const smsTransportSendMock = vi.fn();
+const createDirectEmailTransportMock = vi.fn(() => ({
+  name: 'email',
+  send: emailTransportSendMock,
+}));
+const createDirectSmsTransportMock = vi.fn(() => ({ name: 'sms', send: smsTransportSendMock }));
+
 vi.unmock('../../../src/services/messagingService');
 vi.mock('../../../src/config/directMessaging', () => ({
   createDirectAuthMessagingService: createDirectAuthMessagingServiceMock,
+  createDirectEmailTransport: createDirectEmailTransportMock,
+  createDirectSmsTransport: createDirectSmsTransportMock,
 }));
 vi.mock('../../../src/config/getSystemConfig', () => ({
   getSystemConfig: vi.fn(async () => ({
@@ -170,5 +180,52 @@ describe('messagingService', () => {
 
     await expect(sendOTPSMS('+14155552671', 123456)).resolves.toBeUndefined();
     expect(sendOtpSmsMock).toHaveBeenCalledWith({ to: '+14155552671', token: 123456 });
+  });
+
+  it('does not send account notices in development', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const { sendNoticeEmail, sendNoticeSms } =
+      await import('../../../src/services/messagingService');
+
+    await sendNoticeEmail('test@example.com', 'Subject', 'Body');
+    await sendNoticeSms('+14155552671', 'Body');
+    expect(createDirectEmailTransportMock).not.toHaveBeenCalled();
+    expect(createDirectSmsTransportMock).not.toHaveBeenCalled();
+  });
+
+  it('sends account notices through the configured transports and reuses them', async () => {
+    process.env.NODE_ENV = 'production';
+
+    const { sendNoticeEmail, sendNoticeSms } =
+      await import('../../../src/services/messagingService');
+
+    await sendNoticeEmail('test@example.com', 'Subject', 'Body');
+    await sendNoticeEmail('other@example.com', 'Subject', 'Body');
+    await sendNoticeSms('+14155552671', 'Body');
+
+    expect(emailTransportSendMock).toHaveBeenCalledWith({
+      to: 'test@example.com',
+      subject: 'Subject',
+      text: 'Body',
+    });
+    expect(createDirectEmailTransportMock).toHaveBeenCalledTimes(1);
+    expect(smsTransportSendMock).toHaveBeenCalledWith({ to: '+14155552671', body: 'Body' });
+  });
+
+  it('reports failed account notices as delivery errors', async () => {
+    process.env.NODE_ENV = 'production';
+    emailTransportSendMock.mockRejectedValueOnce(new Error('email down'));
+    smsTransportSendMock.mockRejectedValueOnce(new Error('sms down'));
+
+    const { sendNoticeEmail, sendNoticeSms } =
+      await import('../../../src/services/messagingService');
+    const { DeliveryError } = await import('../../../src/services/deliveryError');
+
+    await expect(sendNoticeEmail('test@example.com', 'S', 'B')).rejects.toBeInstanceOf(
+      DeliveryError,
+    );
+    await expect(sendNoticeSms('+14155552671', 'B')).rejects.toBeInstanceOf(DeliveryError);
+    await expect(sendNoticeSms('not-a-phone', 'B')).rejects.toBeInstanceOf(DeliveryError);
   });
 });
