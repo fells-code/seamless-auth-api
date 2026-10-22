@@ -540,22 +540,32 @@ describe('DELETE /logout', () => {
 });
 
 describe('DELETE /logout/all', () => {
-  it('logs out all user sessions', async () => {
-    const sessions = [{ id: 'session-1' }, { id: 'session-2' }];
-    (Session.findAll as any).mockResolvedValue(sessions);
+  it('logs out all user sessions in one update and records the cutoff', async () => {
+    (Session.update as any).mockResolvedValue([2]);
 
     const res = await request(app).delete('/logout/all');
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('Success');
-    expect(Session.findAll).toHaveBeenCalledWith({
-      where: { userId: expect.any(String), revokedAt: null },
-    });
-    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
+    expect(Session.update).toHaveBeenCalledWith(
+      { revokedAt: expect.any(Date), revokedReason: 'user_logout_all' },
+      { where: { userId: expect.any(String), revokedAt: null } },
+    );
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      { where: { id: expect.any(String) } },
+    );
+    expect(Session.findAll).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'logout_success',
+        metadata: { scope: 'all_sessions', revokedSessions: 2 },
+      }),
+    );
   });
 
   it('still succeeds when revoking all sessions throws', async () => {
-    (Session.findAll as any).mockRejectedValue(new Error('db down'));
+    (Session.update as any).mockRejectedValue(new Error('db down'));
 
     const res = await request(app).delete('/logout/all');
 
@@ -791,5 +801,158 @@ describe('POST /refresh', () => {
     expect(res.status).toBe(200);
     expect(res.body.ttl).toBe(900);
     expect(res.body.refreshTtl).toBe(86400);
+  });
+});
+
+describe('POST /refresh racing DELETE /logout/all', () => {
+  type Row = {
+    id: string;
+    userId: string;
+    infraId: string;
+    mode: 'server';
+    userAgent: string;
+    organizationId: string | null;
+    chainStartedAt: Date;
+    createdAt: Date;
+    revokedAt: Date | null;
+    revokedReason: string | null;
+    replacedBySessionId: string | null;
+    save: () => Promise<void>;
+    reload: () => Promise<void>;
+  };
+
+  const owner = buildUser();
+  let rows: Row[];
+  let cutoff: Date | null;
+
+  function row(id: string, createdAt: Date): Row {
+    return {
+      id,
+      userId: owner.id,
+      infraId: 'app',
+      mode: 'server',
+      userAgent: 'agent',
+      organizationId: null,
+      chainStartedAt: createdAt,
+      createdAt,
+      revokedAt: null,
+      revokedReason: null,
+      replacedBySessionId: null,
+      save: async () => {},
+      reload: async () => {},
+    };
+  }
+
+  const liveRows = () => rows.filter((candidate) => candidate.revokedAt === null);
+
+  // A store the handlers share, so the revoke-all runs against the rows the refresh is
+  // writing, at the point in the rotation each case names.
+  function installStore(raceAt: 'before_replacement' | 'after_claim') {
+    rows = [row('session-old', new Date(Date.now() - 60_000))];
+    cutoff = null;
+
+    const revokeAll = async () => {
+      const res = await request(app).delete('/logout/all');
+      expect(res.status).toBe(200);
+    };
+    const matches = (candidate: Row, where: Record<string, unknown>) =>
+      candidate.userId === where.userId && candidate.revokedAt === where.revokedAt;
+
+    (findRefreshSessionByToken as any).mockImplementation(async () => rows[0]);
+    (User.findOne as any).mockImplementation(async () => ({
+      ...owner,
+      sessionsRevokedBefore: cutoff,
+    }));
+    (User.update as any).mockImplementation(async (values: any) => {
+      cutoff = values.sessionsRevokedBefore;
+      return [1];
+    });
+    (Session.findAll as any).mockImplementation(async ({ where }: any) =>
+      rows.filter((candidate) => matches(candidate, where)),
+    );
+    (Session.update as any).mockImplementation(async (values: any, { where }: any) => {
+      const hit = rows.filter((candidate) => matches(candidate, where));
+      hit.forEach((candidate) => Object.assign(candidate, values));
+      return [hit.length];
+    });
+    (Session.create as any).mockImplementation(async () => {
+      if (raceAt === 'before_replacement') await revokeAll();
+      const created = row('session-new', new Date());
+      rows.push(created);
+      return created;
+    });
+    (claimSessionRotation as any).mockImplementation(async (session: Row, replacement: string) => {
+      if (session.replacedBySessionId || session.revokedAt) return false;
+      session.replacedBySessionId = replacement;
+      if (raceAt === 'after_claim') await revokeAll();
+      return true;
+    });
+    (hardRevokeSession as any).mockImplementation(async (session: Row, reason: string) => {
+      session.revokedAt = new Date();
+      session.revokedReason = reason;
+    });
+    (revokeSessionChain as any).mockImplementation(async (session: Row) => {
+      let current: Row | undefined = session;
+      while (current) {
+        current.revokedAt ??= new Date();
+        const next: string | null = current.replacedBySessionId;
+        current = rows.find((candidate) => candidate.id === next);
+      }
+    });
+    (signAccessToken as any).mockResolvedValue('access');
+    (generateRefreshToken as any).mockReturnValue('refresh');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+    });
+  }
+
+  it.each(['before_replacement', 'after_claim'] as const)(
+    'leaves no live session when the revoke lands %s',
+    async (raceAt) => {
+      installStore(raceAt);
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(401);
+      expect(res.body.refreshToken).toBeUndefined();
+      expect(rows).toHaveLength(2);
+      expect(liveRows()).toEqual([]);
+    },
+  );
+
+  it('refuses a session the revoke-all missed, by its cutoff', async () => {
+    installStore('after_claim');
+    cutoff = new Date();
+
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('invalid_refresh_token');
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(hardRevokeSession).toHaveBeenCalledWith(rows[0], 'sessions_revoked');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'refresh_token_failed',
+        metadata: expect.objectContaining({ refusal: 'sessions_revoked' }),
+      }),
+    );
+  });
+
+  it('refuses the rotation when the owner is gone by the time it completes', async () => {
+    installStore('before_replacement');
+    (Session.create as any).mockImplementation(async () => {
+      const created = row('session-new', new Date());
+      rows.push(created);
+      (User.findOne as any).mockResolvedValue(null);
+      return created;
+    });
+
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+    expect(res.status).toBe(401);
+    expect(hardRevokeSession).toHaveBeenCalledWith(rows[1], 'sessions_revoked');
   });
 });

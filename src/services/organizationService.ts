@@ -9,8 +9,8 @@ import { Op, UniqueConstraintError, WhereOptions } from 'sequelize';
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
-import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
+import { revokeAllSessionsForUsers } from './sessionRevocation.js';
 
 export type OrganizationRole = 'owner' | 'admin' | 'member';
 
@@ -406,9 +406,10 @@ export async function setOAuthProviderRetired(
       const userIds = memberships.map((membership) => membership.userId);
 
       if (userIds.length > 0) {
-        [revokedSessions] = await Session.update(
-          { revokedAt: new Date(), revokedReason: 'oauth_provider_retired' },
-          { where: { userId: userIds, revokedAt: null }, transaction },
+        revokedSessions = await revokeAllSessionsForUsers(
+          userIds,
+          'oauth_provider_retired',
+          transaction,
         );
       }
     }

@@ -413,6 +413,28 @@ of one token signs its user out, which is the direction this has to fail: the al
 is that whoever wins the race keeps a session, and the winner is not always the client that
 should have it.
 
+### Log out everywhere
+
+"Log out everywhere" (`DELETE /logout/all`, `DELETE /sessions`) and the admin equivalents
+(`DELETE /admin/sessions/:userId/revoke-all`, device-replacement recovery, and retiring an
+OAuth provider for an organization) used to read a user's sessions and then revoke them one
+row at a time. A refresh landing between the read and the writes created a replacement that
+nothing revoked, so the user stayed signed in on the device they were trying to remove.
+
+All of them now go through
+[`revokeAllSessionsForUsers`](../src/services/sessionRevocation.ts), which revokes with one
+`UPDATE ... WHERE user_id = ? AND revoked_at IS NULL` and first records
+`users.sessions_revoked_before`. A session created at or before that time is refused by
+`validateSessionRecord` and by `POST /refresh` even if its own row was never revoked, and a
+refresh re-reads the cutoff after it claims the rotation, so a rotation that started before
+the revoke cannot hand out a working session. It answers `401 invalid_refresh_token`, revokes
+the session with `revokedReason: 'sessions_revoked'`, and records `refresh_token_failed` with
+`refusal: 'sessions_revoked'`.
+
+The comparison uses the API's clock for both sides. Instances with skewed clocks can refuse a
+session created within the skew after a revoke-all, which signs that user in again rather than
+leaving a session alive.
+
 ### Absolute and idle lifetime
 
 Rotation does not extend a session. Every session in a chain carries `chainStartedAt`, the time of

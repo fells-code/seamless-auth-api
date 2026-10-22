@@ -4,6 +4,7 @@ import { Application } from 'express';
 
 import { createApp } from '../../../src/app';
 import { Session } from '../../../src/models/sessions.js';
+import { User } from '../../../src/models/users.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 
@@ -106,15 +107,21 @@ describe('Session Security - Revocation', () => {
     expect(hardRevokeSession).toHaveBeenCalledWith(session, 'user_revoked');
   });
 
-  it('revokes all active sessions', async () => {
-    const sessions = [buildSession({ id: '1' }), buildSession({ id: '2' })];
-
-    (Session.findAll as any).mockResolvedValue(sessions);
+  it('revokes all active sessions in one update and records the cutoff', async () => {
+    (Session.update as any).mockResolvedValue([2]);
 
     const res = await request(app).delete('/sessions');
 
     expect(res.status).toBe(200);
-    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
+    expect(Session.update).toHaveBeenCalledWith(
+      { revokedAt: expect.any(Date), revokedReason: 'user_logout_all' },
+      { where: { userId: expect.any(String), revokedAt: null } },
+    );
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      { where: { id: expect.any(String) } },
+    );
+    expect(Session.findAll).not.toHaveBeenCalled();
   });
 
   it('handles no sessions safely', async () => {

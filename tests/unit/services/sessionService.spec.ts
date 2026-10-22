@@ -245,16 +245,66 @@ describe('sessionService', () => {
 
   it('returns session if valid', async () => {
     const { Session } = await import('../../../src/models/sessions');
+    const { User } = await import('../../../src/models/users');
 
-    const session = buildSession();
+    const session = buildSession({ userId: 'user-1' });
 
     (Session.findByPk as any).mockResolvedValue(session);
+    (User.findOne as any).mockResolvedValue({ id: 'user-1', sessionsRevokedBefore: null });
 
     const { validateSessionRecord } = await import('../../../src/services/sessionService');
 
     const result = await validateSessionRecord('id');
 
     expect(result).toBe(session);
+    expect(User.findOne).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      attributes: ['id', 'sessionsRevokedBefore'],
+    });
+  });
+
+  describe('after a revoke-all', () => {
+    const revokedAt = new Date('2026-10-22T12:00:00Z');
+
+    async function validate(createdAt: Date | undefined) {
+      const { Session } = await import('../../../src/models/sessions');
+      const { User } = await import('../../../src/models/users');
+
+      (Session.findByPk as any).mockResolvedValue(buildSession({ userId: 'user-1', createdAt }));
+      (User.findOne as any).mockResolvedValue({ id: 'user-1', sessionsRevokedBefore: revokedAt });
+
+      const { validateSessionRecord } = await import('../../../src/services/sessionService');
+
+      return validateSessionRecord('id');
+    }
+
+    it('refuses a session created before the cutoff that the revoke missed', async () => {
+      expect(await validate(new Date(revokedAt.getTime() - 1))).toBeNull();
+    });
+
+    it('refuses a session created at the cutoff', async () => {
+      expect(await validate(revokedAt)).toBeNull();
+    });
+
+    it('refuses a session with no creation time', async () => {
+      expect(await validate(undefined)).toBeNull();
+    });
+
+    it('accepts a session started after the cutoff', async () => {
+      expect(await validate(new Date(revokedAt.getTime() + 1))).not.toBeNull();
+    });
+  });
+
+  it('refuses a session whose owner no longer exists', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { User } = await import('../../../src/models/users');
+
+    (Session.findByPk as any).mockResolvedValue(buildSession({ userId: 'user-1' }));
+    (User.findOne as any).mockResolvedValue(null);
+
+    const { validateSessionRecord } = await import('../../../src/services/sessionService');
+
+    expect(await validateSessionRecord('id')).toBeNull();
   });
 
   // The keyed fingerprint is what authenticates the token, so a row whose stored value
@@ -542,12 +592,16 @@ describe('sessionService', () => {
     });
 
     (Session.findByPk as any).mockResolvedValue(buildSession({ id: 'session-1', userId: 'other' }));
+    const { User } = await import('../../../src/models/users');
+    (User.findOne as any).mockResolvedValue({ id: 'other', sessionsRevokedBefore: null });
 
     const { validateBearerToken } = await import('../../../src/services/sessionService');
 
     const result = await validateBearerToken('token');
 
     expect(result).toBeNull();
+    // Refused on the subject check, not earlier for want of an owner row.
+    expect(User.findOne).toHaveBeenCalledTimes(1);
   });
 
   it('returns user when ephemeral bearer token is valid', async () => {
@@ -738,11 +792,15 @@ describe('sessionService', () => {
       payload: { typ: 'access', sub: 'user', sid: 'session-1' },
     });
     (Session.findByPk as any).mockResolvedValue(buildSession({ id: 'session-1', userId: 'user' }));
-    (User.findOne as any).mockResolvedValue(null);
+    // The cutoff lookup finds the row; the revoked-user filter in getUserFromSession does not.
+    (User.findOne as any)
+      .mockResolvedValueOnce({ id: 'user', sessionsRevokedBefore: null })
+      .mockResolvedValueOnce(null);
 
     const { validateBearerToken } = await import('../../../src/services/sessionService');
 
     expect(await validateBearerToken('token')).toBeNull();
+    expect(User.findOne).toHaveBeenCalledTimes(2);
   });
 
   it('returns null when the access token session record is missing', async () => {
