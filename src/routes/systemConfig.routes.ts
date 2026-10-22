@@ -18,7 +18,11 @@ import {
 } from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
-import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
+import {
+  ErrorSchema,
+  InternalErrorSchema,
+  SecretRequiredSchema,
+} from '../schemas/generic.responses.js';
 import {
   OAuthProviderCreateSchema,
   OAuthProviderIdParamSchema,
@@ -112,6 +116,7 @@ systemConfigRouter.patch(
         200: UpdateSystemConfigResponseSchema,
         400: InvalidPayloadSchema,
         401: ErrorSchema,
+        409: SecretRequiredSchema,
       },
     },
   },
@@ -153,7 +158,7 @@ systemConfigRouter.post(
         201: OAuthProviderResponseSchema,
         400: InvalidPayloadSchema,
         401: ErrorSchema,
-        409: ErrorSchema,
+        409: SecretRequiredSchema,
       },
     },
   },

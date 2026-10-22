@@ -13273,6 +13273,19 @@
               }
             }
           },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "variable": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "error": { "type": "string" }, "variable": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "429": {
             "description": "HTTP 429",
             "content": {
@@ -13625,10 +13638,10 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
-                "example": { "message": "string", "error": "string" },
+                "example": { "error": "string", "variable": "string" },
                 "schema": {
                   "type": "object",
-                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "properties": { "error": { "type": "string" }, "variable": { "type": "string" } },
                   "required": ["error"]
                 }
               }
@@ -14130,6 +14143,19 @@
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "variable": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "error": { "type": "string" }, "variable": { "type": "string" } },
                   "required": ["error"]
                 }
               }

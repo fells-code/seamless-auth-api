@@ -44,6 +44,15 @@ export const InternalErrorSchema = ErrorSchema;
  * `defineRoute` declares this for any route that validates a request, so the
  * documented 400 matches what validation actually answers with.
  */
+/**
+ * A conflict, which for `secret_required` names the env var the deployment has to set
+ * before the feature can be turned on.
+ */
+export const SecretRequiredSchema = z.object({
+  error: z.string(),
+  variable: z.string().optional(),
+});
+
 export const ValidationErrorSchema = z.object({
   error: z.string(),
   message: z.string().optional(),
