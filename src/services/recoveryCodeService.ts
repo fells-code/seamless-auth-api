@@ -7,6 +7,7 @@
 import { createHmac, randomInt } from 'crypto';
 
 import { authSecret } from '../config/authSecrets.js';
+import { getSystemConfig } from '../config/getSystemConfig.js';
 import { RecoveryCode } from '../models/recoveryCodes.js';
 
 export const RECOVERY_CODE_COUNT = 10;
@@ -37,6 +38,15 @@ function hashRecoveryCode(code: string) {
   return createHmac('sha256', authSecret('REFRESH_TOKEN_LOOKUP_SECRET'))
     .update(`recovery-code:${normalizeRecoveryCode(code)}`)
     .digest('hex');
+}
+
+/** Whether the user can sign in with a recovery code right now. */
+export async function hasUsableRecoveryCode(userId: string) {
+  const { recovery_codes } = await getSystemConfig();
+  if (recovery_codes?.enabled === false) return false;
+
+  const unused = await RecoveryCode.count({ where: { userId, usedAt: null } });
+  return unused > 0;
 }
 
 export async function getRecoveryCodeStatus(userId: string) {
