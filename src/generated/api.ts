@@ -3160,6 +3160,11 @@ export interface paths {
                 | 'otp_failed'
                 | 'otp_success'
                 | 'otp_suspicious'
+                | 'policy_draft_discarded'
+                | 'policy_draft_saved'
+                | 'policy_dry_run'
+                | 'policy_published'
+                | 'policy_rolled_back'
                 | 'refresh_token_failed'
                 | 'refresh_token_success'
                 | 'refresh_token_suspicious'
@@ -3233,6 +3238,11 @@ export interface paths {
                     | 'otp_failed'
                     | 'otp_success'
                     | 'otp_suspicious'
+                    | 'policy_draft_discarded'
+                    | 'policy_draft_saved'
+                    | 'policy_dry_run'
+                    | 'policy_published'
+                    | 'policy_rolled_back'
                     | 'refresh_token_failed'
                     | 'refresh_token_success'
                     | 'refresh_token_suspicious'
@@ -14200,6 +14210,1817 @@ export interface paths {
         };
       };
     };
+    trace?: never;
+  };
+  '/system-config/policy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read the published auth policy and the draft, if any */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "published": {
+             *         "version": 0,
+             *         "policy": {
+             *           "login_methods": [
+             *             null
+             *           ],
+             *           "passkey_login_fallback_enabled": true,
+             *           "phishing_resistant_only": null,
+             *           "prompt_passkey_enrollment": null,
+             *           "authenticator_policy": null,
+             *           "lockout_policy": null,
+             *           "recovery_codes": null,
+             *           "account_recovery": null
+             *         },
+             *         "source": null,
+             *         "publishedAt": null,
+             *         "publishedBy": "string",
+             *         "rolledBackTo": 0
+             *       },
+             *       "draft": {
+             *         "policy": {
+             *           "login_methods": [
+             *             null
+             *           ],
+             *           "passkey_login_fallback_enabled": true,
+             *           "phishing_resistant_only": null,
+             *           "prompt_passkey_enrollment": null,
+             *           "authenticator_policy": null,
+             *           "lockout_policy": null,
+             *           "recovery_codes": null,
+             *           "account_recovery": null
+             *         },
+             *         "basedOnVersion": 0,
+             *         "updatedAt": null,
+             *         "updatedBy": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              published: {
+                version: number;
+                policy: {
+                  login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+                  passkey_login_fallback_enabled: boolean;
+                  /** @default false */
+                  phishing_resistant_only: boolean;
+                  /** @default false */
+                  prompt_passkey_enrollment: boolean;
+                  /**
+                   * @default {
+                   *       "attachment": "any",
+                   *       "userVerification": "required",
+                   *       "attestation": "none",
+                   *       "requireKnownAuthenticator": false,
+                   *       "syncedPasskeys": "allow",
+                   *       "aaguidAllowList": [],
+                   *       "aaguidDenyList": []
+                   *     }
+                   */
+                  authenticator_policy: {
+                    /**
+                     * @default any
+                     * @enum {string}
+                     */
+                    attachment: 'any' | 'platform' | 'cross-platform';
+                    /**
+                     * @default required
+                     * @enum {string}
+                     */
+                    userVerification: 'required' | 'preferred' | 'discouraged';
+                    /**
+                     * @default none
+                     * @enum {string}
+                     */
+                    attestation: 'none' | 'direct';
+                    /** @default false */
+                    requireKnownAuthenticator: boolean;
+                    /**
+                     * @default allow
+                     * @enum {string}
+                     */
+                    syncedPasskeys: 'allow' | 'block';
+                    /** @default [] */
+                    aaguidAllowList: string[];
+                    /** @default [] */
+                    aaguidDenyList: string[];
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": true,
+                   *       "maxFailures": 10,
+                   *       "windowSeconds": 900,
+                   *       "lockoutSeconds": 900
+                   *     }
+                   */
+                  lockout_policy: {
+                    /** @default true */
+                    enabled: boolean;
+                    /** @default 10 */
+                    maxFailures: number;
+                    /** @default 900 */
+                    windowSeconds: number;
+                    /** @default 900 */
+                    lockoutSeconds: number;
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": true,
+                   *       "requireAtEnrollment": false
+                   *     }
+                   */
+                  recovery_codes: {
+                    /** @default true */
+                    enabled: boolean;
+                    /** @default false */
+                    requireAtEnrollment: boolean;
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": false,
+                   *       "delay": "24h"
+                   *     }
+                   */
+                  account_recovery: {
+                    /** @default false */
+                    enabled: boolean;
+                    /** @default 24h */
+                    delay: string;
+                  };
+                };
+                /** @enum {string} */
+                source: 'publish' | 'rollback' | 'config_patch' | 'bootstrap';
+                /** Format: date-time */
+                publishedAt: string | null;
+                publishedBy: string | null;
+                rolledBackTo?: number;
+              };
+              draft: {
+                policy: {
+                  login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+                  passkey_login_fallback_enabled: boolean;
+                  /** @default false */
+                  phishing_resistant_only: boolean;
+                  /** @default false */
+                  prompt_passkey_enrollment: boolean;
+                  /**
+                   * @default {
+                   *       "attachment": "any",
+                   *       "userVerification": "required",
+                   *       "attestation": "none",
+                   *       "requireKnownAuthenticator": false,
+                   *       "syncedPasskeys": "allow",
+                   *       "aaguidAllowList": [],
+                   *       "aaguidDenyList": []
+                   *     }
+                   */
+                  authenticator_policy: {
+                    /**
+                     * @default any
+                     * @enum {string}
+                     */
+                    attachment: 'any' | 'platform' | 'cross-platform';
+                    /**
+                     * @default required
+                     * @enum {string}
+                     */
+                    userVerification: 'required' | 'preferred' | 'discouraged';
+                    /**
+                     * @default none
+                     * @enum {string}
+                     */
+                    attestation: 'none' | 'direct';
+                    /** @default false */
+                    requireKnownAuthenticator: boolean;
+                    /**
+                     * @default allow
+                     * @enum {string}
+                     */
+                    syncedPasskeys: 'allow' | 'block';
+                    /** @default [] */
+                    aaguidAllowList: string[];
+                    /** @default [] */
+                    aaguidDenyList: string[];
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": true,
+                   *       "maxFailures": 10,
+                   *       "windowSeconds": 900,
+                   *       "lockoutSeconds": 900
+                   *     }
+                   */
+                  lockout_policy: {
+                    /** @default true */
+                    enabled: boolean;
+                    /** @default 10 */
+                    maxFailures: number;
+                    /** @default 900 */
+                    windowSeconds: number;
+                    /** @default 900 */
+                    lockoutSeconds: number;
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": true,
+                   *       "requireAtEnrollment": false
+                   *     }
+                   */
+                  recovery_codes: {
+                    /** @default true */
+                    enabled: boolean;
+                    /** @default false */
+                    requireAtEnrollment: boolean;
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": false,
+                   *       "delay": "24h"
+                   *     }
+                   */
+                  account_recovery: {
+                    /** @default false */
+                    enabled: boolean;
+                    /** @default 24h */
+                    delay: string;
+                  };
+                };
+                basedOnVersion: number;
+                /** Format: date-time */
+                updatedAt: string | null;
+                updatedBy: string | null;
+              } | null;
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/system-config/policy/draft': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Save the auth policy draft
+     * @description Replaces the single draft. A draft changes nothing until it is published, and keeps the version it was started from across saves.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            policy: {
+              login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+              passkey_login_fallback_enabled: boolean;
+              /** @default false */
+              phishing_resistant_only?: boolean;
+              /** @default false */
+              prompt_passkey_enrollment?: boolean;
+              /**
+               * @default {
+               *       "attachment": "any",
+               *       "userVerification": "required",
+               *       "attestation": "none",
+               *       "requireKnownAuthenticator": false,
+               *       "syncedPasskeys": "allow",
+               *       "aaguidAllowList": [],
+               *       "aaguidDenyList": []
+               *     }
+               */
+              authenticator_policy?: {
+                /**
+                 * @default any
+                 * @enum {string}
+                 */
+                attachment?: 'any' | 'platform' | 'cross-platform';
+                /**
+                 * @default required
+                 * @enum {string}
+                 */
+                userVerification?: 'required' | 'preferred' | 'discouraged';
+                /**
+                 * @default none
+                 * @enum {string}
+                 */
+                attestation?: 'none' | 'direct';
+                /** @default false */
+                requireKnownAuthenticator?: boolean;
+                /**
+                 * @default allow
+                 * @enum {string}
+                 */
+                syncedPasskeys?: 'allow' | 'block';
+                /** @default [] */
+                aaguidAllowList?: string[];
+                /** @default [] */
+                aaguidDenyList?: string[];
+              };
+              /**
+               * @default {
+               *       "enabled": true,
+               *       "maxFailures": 10,
+               *       "windowSeconds": 900,
+               *       "lockoutSeconds": 900
+               *     }
+               */
+              lockout_policy?: {
+                /** @default true */
+                enabled?: boolean;
+                /** @default 10 */
+                maxFailures?: number;
+                /** @default 900 */
+                windowSeconds?: number;
+                /** @default 900 */
+                lockoutSeconds?: number;
+              };
+              /**
+               * @default {
+               *       "enabled": true,
+               *       "requireAtEnrollment": false
+               *     }
+               */
+              recovery_codes?: {
+                /** @default true */
+                enabled?: boolean;
+                /** @default false */
+                requireAtEnrollment?: boolean;
+              };
+              /**
+               * @default {
+               *       "enabled": false,
+               *       "delay": "24h"
+               *     }
+               */
+              account_recovery?: {
+                /** @default false */
+                enabled?: boolean;
+                /** @default 24h */
+                delay?: string;
+              };
+            };
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "policy": {
+             *         "login_methods": [
+             *           null
+             *         ],
+             *         "passkey_login_fallback_enabled": true,
+             *         "phishing_resistant_only": null,
+             *         "prompt_passkey_enrollment": null,
+             *         "authenticator_policy": null,
+             *         "lockout_policy": null,
+             *         "recovery_codes": null,
+             *         "account_recovery": null
+             *       },
+             *       "basedOnVersion": 0,
+             *       "updatedAt": null,
+             *       "updatedBy": "string"
+             *     }
+             */
+            'application/json': {
+              policy: {
+                login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+                passkey_login_fallback_enabled: boolean;
+                /** @default false */
+                phishing_resistant_only: boolean;
+                /** @default false */
+                prompt_passkey_enrollment: boolean;
+                /**
+                 * @default {
+                 *       "attachment": "any",
+                 *       "userVerification": "required",
+                 *       "attestation": "none",
+                 *       "requireKnownAuthenticator": false,
+                 *       "syncedPasskeys": "allow",
+                 *       "aaguidAllowList": [],
+                 *       "aaguidDenyList": []
+                 *     }
+                 */
+                authenticator_policy: {
+                  /**
+                   * @default any
+                   * @enum {string}
+                   */
+                  attachment: 'any' | 'platform' | 'cross-platform';
+                  /**
+                   * @default required
+                   * @enum {string}
+                   */
+                  userVerification: 'required' | 'preferred' | 'discouraged';
+                  /**
+                   * @default none
+                   * @enum {string}
+                   */
+                  attestation: 'none' | 'direct';
+                  /** @default false */
+                  requireKnownAuthenticator: boolean;
+                  /**
+                   * @default allow
+                   * @enum {string}
+                   */
+                  syncedPasskeys: 'allow' | 'block';
+                  /** @default [] */
+                  aaguidAllowList: string[];
+                  /** @default [] */
+                  aaguidDenyList: string[];
+                };
+                /**
+                 * @default {
+                 *       "enabled": true,
+                 *       "maxFailures": 10,
+                 *       "windowSeconds": 900,
+                 *       "lockoutSeconds": 900
+                 *     }
+                 */
+                lockout_policy: {
+                  /** @default true */
+                  enabled: boolean;
+                  /** @default 10 */
+                  maxFailures: number;
+                  /** @default 900 */
+                  windowSeconds: number;
+                  /** @default 900 */
+                  lockoutSeconds: number;
+                };
+                /**
+                 * @default {
+                 *       "enabled": true,
+                 *       "requireAtEnrollment": false
+                 *     }
+                 */
+                recovery_codes: {
+                  /** @default true */
+                  enabled: boolean;
+                  /** @default false */
+                  requireAtEnrollment: boolean;
+                };
+                /**
+                 * @default {
+                 *       "enabled": false,
+                 *       "delay": "24h"
+                 *     }
+                 */
+                account_recovery: {
+                  /** @default false */
+                  enabled: boolean;
+                  /** @default 24h */
+                  delay: string;
+                };
+              };
+              basedOnVersion: number;
+              /** Format: date-time */
+              updatedAt: string | null;
+              updatedBy: string | null;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    /** Discard the auth policy draft */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string"
+             *     }
+             */
+            'application/json': {
+              message: string;
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/system-config/policy/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Publish the auth policy draft
+     * @description Applies the draft to system config and records it as the next version in one transaction. Answers 409 when expectedVersion is no longer the published version.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            expectedVersion: number;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "version": 0,
+             *       "policy": {
+             *         "login_methods": [
+             *           null
+             *         ],
+             *         "passkey_login_fallback_enabled": true,
+             *         "phishing_resistant_only": null,
+             *         "prompt_passkey_enrollment": null,
+             *         "authenticator_policy": null,
+             *         "lockout_policy": null,
+             *         "recovery_codes": null,
+             *         "account_recovery": null
+             *       },
+             *       "source": null,
+             *       "publishedAt": null,
+             *       "publishedBy": "string",
+             *       "rolledBackTo": 0
+             *     }
+             */
+            'application/json': {
+              version: number;
+              policy: {
+                login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+                passkey_login_fallback_enabled: boolean;
+                /** @default false */
+                phishing_resistant_only: boolean;
+                /** @default false */
+                prompt_passkey_enrollment: boolean;
+                /**
+                 * @default {
+                 *       "attachment": "any",
+                 *       "userVerification": "required",
+                 *       "attestation": "none",
+                 *       "requireKnownAuthenticator": false,
+                 *       "syncedPasskeys": "allow",
+                 *       "aaguidAllowList": [],
+                 *       "aaguidDenyList": []
+                 *     }
+                 */
+                authenticator_policy: {
+                  /**
+                   * @default any
+                   * @enum {string}
+                   */
+                  attachment: 'any' | 'platform' | 'cross-platform';
+                  /**
+                   * @default required
+                   * @enum {string}
+                   */
+                  userVerification: 'required' | 'preferred' | 'discouraged';
+                  /**
+                   * @default none
+                   * @enum {string}
+                   */
+                  attestation: 'none' | 'direct';
+                  /** @default false */
+                  requireKnownAuthenticator: boolean;
+                  /**
+                   * @default allow
+                   * @enum {string}
+                   */
+                  syncedPasskeys: 'allow' | 'block';
+                  /** @default [] */
+                  aaguidAllowList: string[];
+                  /** @default [] */
+                  aaguidDenyList: string[];
+                };
+                /**
+                 * @default {
+                 *       "enabled": true,
+                 *       "maxFailures": 10,
+                 *       "windowSeconds": 900,
+                 *       "lockoutSeconds": 900
+                 *     }
+                 */
+                lockout_policy: {
+                  /** @default true */
+                  enabled: boolean;
+                  /** @default 10 */
+                  maxFailures: number;
+                  /** @default 900 */
+                  windowSeconds: number;
+                  /** @default 900 */
+                  lockoutSeconds: number;
+                };
+                /**
+                 * @default {
+                 *       "enabled": true,
+                 *       "requireAtEnrollment": false
+                 *     }
+                 */
+                recovery_codes: {
+                  /** @default true */
+                  enabled: boolean;
+                  /** @default false */
+                  requireAtEnrollment: boolean;
+                };
+                /**
+                 * @default {
+                 *       "enabled": false,
+                 *       "delay": "24h"
+                 *     }
+                 */
+                account_recovery: {
+                  /** @default false */
+                  enabled: boolean;
+                  /** @default 24h */
+                  delay: string;
+                };
+              };
+              /** @enum {string} */
+              source: 'publish' | 'rollback' | 'config_patch' | 'bootstrap';
+              /** Format: date-time */
+              publishedAt: string | null;
+              publishedBy: string | null;
+              rolledBackTo?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/system-config/policy/rollback': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Roll the auth policy back to an earlier version
+     * @description Publishes a copy of the named version as the next version. Answers 409 when expectedVersion is no longer the published version.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            version: number;
+            expectedVersion: number;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "version": 0,
+             *       "policy": {
+             *         "login_methods": [
+             *           null
+             *         ],
+             *         "passkey_login_fallback_enabled": true,
+             *         "phishing_resistant_only": null,
+             *         "prompt_passkey_enrollment": null,
+             *         "authenticator_policy": null,
+             *         "lockout_policy": null,
+             *         "recovery_codes": null,
+             *         "account_recovery": null
+             *       },
+             *       "source": null,
+             *       "publishedAt": null,
+             *       "publishedBy": "string",
+             *       "rolledBackTo": 0
+             *     }
+             */
+            'application/json': {
+              version: number;
+              policy: {
+                login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+                passkey_login_fallback_enabled: boolean;
+                /** @default false */
+                phishing_resistant_only: boolean;
+                /** @default false */
+                prompt_passkey_enrollment: boolean;
+                /**
+                 * @default {
+                 *       "attachment": "any",
+                 *       "userVerification": "required",
+                 *       "attestation": "none",
+                 *       "requireKnownAuthenticator": false,
+                 *       "syncedPasskeys": "allow",
+                 *       "aaguidAllowList": [],
+                 *       "aaguidDenyList": []
+                 *     }
+                 */
+                authenticator_policy: {
+                  /**
+                   * @default any
+                   * @enum {string}
+                   */
+                  attachment: 'any' | 'platform' | 'cross-platform';
+                  /**
+                   * @default required
+                   * @enum {string}
+                   */
+                  userVerification: 'required' | 'preferred' | 'discouraged';
+                  /**
+                   * @default none
+                   * @enum {string}
+                   */
+                  attestation: 'none' | 'direct';
+                  /** @default false */
+                  requireKnownAuthenticator: boolean;
+                  /**
+                   * @default allow
+                   * @enum {string}
+                   */
+                  syncedPasskeys: 'allow' | 'block';
+                  /** @default [] */
+                  aaguidAllowList: string[];
+                  /** @default [] */
+                  aaguidDenyList: string[];
+                };
+                /**
+                 * @default {
+                 *       "enabled": true,
+                 *       "maxFailures": 10,
+                 *       "windowSeconds": 900,
+                 *       "lockoutSeconds": 900
+                 *     }
+                 */
+                lockout_policy: {
+                  /** @default true */
+                  enabled: boolean;
+                  /** @default 10 */
+                  maxFailures: number;
+                  /** @default 900 */
+                  windowSeconds: number;
+                  /** @default 900 */
+                  lockoutSeconds: number;
+                };
+                /**
+                 * @default {
+                 *       "enabled": true,
+                 *       "requireAtEnrollment": false
+                 *     }
+                 */
+                recovery_codes: {
+                  /** @default true */
+                  enabled: boolean;
+                  /** @default false */
+                  requireAtEnrollment: boolean;
+                };
+                /**
+                 * @default {
+                 *       "enabled": false,
+                 *       "delay": "24h"
+                 *     }
+                 */
+                account_recovery: {
+                  /** @default false */
+                  enabled: boolean;
+                  /** @default 24h */
+                  delay: string;
+                };
+              };
+              /** @enum {string} */
+              source: 'publish' | 'rollback' | 'config_patch' | 'bootstrap';
+              /** Format: date-time */
+              publishedAt: string | null;
+              publishedBy: string | null;
+              rolledBackTo?: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/system-config/policy/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List published auth policy versions, newest first */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "versions": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              versions: {
+                version: number;
+                policy: {
+                  login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+                  passkey_login_fallback_enabled: boolean;
+                  /** @default false */
+                  phishing_resistant_only: boolean;
+                  /** @default false */
+                  prompt_passkey_enrollment: boolean;
+                  /**
+                   * @default {
+                   *       "attachment": "any",
+                   *       "userVerification": "required",
+                   *       "attestation": "none",
+                   *       "requireKnownAuthenticator": false,
+                   *       "syncedPasskeys": "allow",
+                   *       "aaguidAllowList": [],
+                   *       "aaguidDenyList": []
+                   *     }
+                   */
+                  authenticator_policy: {
+                    /**
+                     * @default any
+                     * @enum {string}
+                     */
+                    attachment: 'any' | 'platform' | 'cross-platform';
+                    /**
+                     * @default required
+                     * @enum {string}
+                     */
+                    userVerification: 'required' | 'preferred' | 'discouraged';
+                    /**
+                     * @default none
+                     * @enum {string}
+                     */
+                    attestation: 'none' | 'direct';
+                    /** @default false */
+                    requireKnownAuthenticator: boolean;
+                    /**
+                     * @default allow
+                     * @enum {string}
+                     */
+                    syncedPasskeys: 'allow' | 'block';
+                    /** @default [] */
+                    aaguidAllowList: string[];
+                    /** @default [] */
+                    aaguidDenyList: string[];
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": true,
+                   *       "maxFailures": 10,
+                   *       "windowSeconds": 900,
+                   *       "lockoutSeconds": 900
+                   *     }
+                   */
+                  lockout_policy: {
+                    /** @default true */
+                    enabled: boolean;
+                    /** @default 10 */
+                    maxFailures: number;
+                    /** @default 900 */
+                    windowSeconds: number;
+                    /** @default 900 */
+                    lockoutSeconds: number;
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": true,
+                   *       "requireAtEnrollment": false
+                   *     }
+                   */
+                  recovery_codes: {
+                    /** @default true */
+                    enabled: boolean;
+                    /** @default false */
+                    requireAtEnrollment: boolean;
+                  };
+                  /**
+                   * @default {
+                   *       "enabled": false,
+                   *       "delay": "24h"
+                   *     }
+                   */
+                  account_recovery: {
+                    /** @default false */
+                    enabled: boolean;
+                    /** @default 24h */
+                    delay: string;
+                  };
+                };
+                /** @enum {string} */
+                source: 'publish' | 'rollback' | 'config_patch' | 'bootstrap';
+                /** Format: date-time */
+                publishedAt: string | null;
+                publishedBy: string | null;
+                rolledBackTo?: number;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/system-config/policy/dry-run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Evaluate an auth policy against recent sign-ins
+     * @description Evaluates the policy in the request, or the draft when none is sent, against the sign-ins of the last `days` days. Evaluates at most 10,000 accounts.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            policy?: {
+              login_methods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+              passkey_login_fallback_enabled: boolean;
+              /** @default false */
+              phishing_resistant_only?: boolean;
+              /** @default false */
+              prompt_passkey_enrollment?: boolean;
+              /**
+               * @default {
+               *       "attachment": "any",
+               *       "userVerification": "required",
+               *       "attestation": "none",
+               *       "requireKnownAuthenticator": false,
+               *       "syncedPasskeys": "allow",
+               *       "aaguidAllowList": [],
+               *       "aaguidDenyList": []
+               *     }
+               */
+              authenticator_policy?: {
+                /**
+                 * @default any
+                 * @enum {string}
+                 */
+                attachment?: 'any' | 'platform' | 'cross-platform';
+                /**
+                 * @default required
+                 * @enum {string}
+                 */
+                userVerification?: 'required' | 'preferred' | 'discouraged';
+                /**
+                 * @default none
+                 * @enum {string}
+                 */
+                attestation?: 'none' | 'direct';
+                /** @default false */
+                requireKnownAuthenticator?: boolean;
+                /**
+                 * @default allow
+                 * @enum {string}
+                 */
+                syncedPasskeys?: 'allow' | 'block';
+                /** @default [] */
+                aaguidAllowList?: string[];
+                /** @default [] */
+                aaguidDenyList?: string[];
+              };
+              /**
+               * @default {
+               *       "enabled": true,
+               *       "maxFailures": 10,
+               *       "windowSeconds": 900,
+               *       "lockoutSeconds": 900
+               *     }
+               */
+              lockout_policy?: {
+                /** @default true */
+                enabled?: boolean;
+                /** @default 10 */
+                maxFailures?: number;
+                /** @default 900 */
+                windowSeconds?: number;
+                /** @default 900 */
+                lockoutSeconds?: number;
+              };
+              /**
+               * @default {
+               *       "enabled": true,
+               *       "requireAtEnrollment": false
+               *     }
+               */
+              recovery_codes?: {
+                /** @default true */
+                enabled?: boolean;
+                /** @default false */
+                requireAtEnrollment?: boolean;
+              };
+              /**
+               * @default {
+               *       "enabled": false,
+               *       "delay": "24h"
+               *     }
+               */
+              account_recovery?: {
+                /** @default false */
+                enabled?: boolean;
+                /** @default 24h */
+                delay?: string;
+              };
+            };
+            /** @default 7 */
+            days?: number;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "window": {
+             *         "from": null,
+             *         "to": null
+             *       },
+             *       "signInsEvaluated": 0,
+             *       "usersEvaluated": 0,
+             *       "wouldFail": [
+             *         null
+             *       ],
+             *       "usersLockedOut": 0,
+             *       "breakGlassAccounts": 0
+             *     }
+             */
+            'application/json': {
+              window: {
+                /** Format: date-time */
+                from: string | null;
+                /** Format: date-time */
+                to: string | null;
+              };
+              signInsEvaluated: number;
+              usersEvaluated: number;
+              wouldFail: {
+                userId: string;
+                email: string;
+                signIns: number;
+                reasons: (
+                  | 'method_disabled'
+                  | 'phishing_resistant_required'
+                  | 'fallback_disabled'
+                  | 'synced_passkey_blocked'
+                  | 'authenticator_not_allowed'
+                  | 'user_verification_required'
+                )[];
+                lockedOut: boolean;
+              }[];
+              usersLockedOut: number;
+              breakGlassAccounts: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   '/totp/status': {

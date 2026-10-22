@@ -38,6 +38,29 @@ vi.mock('../../src/models/systemConfig.js', () => ({
   },
 }));
 
+// Policy writes run inside SystemConfig's transaction and take an advisory lock through
+// this query, so the double offers both.
+vi.mock('../../src/models/policyVersions.js', () => ({
+  PolicyVersion: {
+    findOne: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findByPk: vi.fn(),
+    create: vi.fn(),
+    sequelize: {
+      query: vi.fn(async () => [[], 0]),
+    },
+  },
+}));
+
+vi.mock('../../src/models/policyDrafts.js', () => ({
+  POLICY_DRAFT_ID: 1,
+  PolicyDraft: {
+    findByPk: vi.fn(),
+    create: vi.fn(),
+    destroy: vi.fn(async () => 0),
+  },
+}));
+
 vi.mock('../../src/models/authFailures.js', () => ({
   AuthFailure: {
     create: vi.fn(),

@@ -3468,6 +3468,11 @@
                     "otp_failed",
                     "otp_success",
                     "otp_suspicious",
+                    "policy_draft_discarded",
+                    "policy_draft_saved",
+                    "policy_dry_run",
+                    "policy_published",
+                    "policy_rolled_back",
                     "refresh_token_failed",
                     "refresh_token_success",
                     "refresh_token_suspicious",
@@ -3547,6 +3552,11 @@
                           "otp_failed",
                           "otp_success",
                           "otp_suspicious",
+                          "policy_draft_discarded",
+                          "policy_draft_saved",
+                          "policy_dry_run",
+                          "policy_published",
+                          "policy_rolled_back",
                           "refresh_token_failed",
                           "refresh_token_success",
                           "refresh_token_suspicious",
@@ -13971,6 +13981,1867 @@
           },
           "404": {
             "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/policy": {
+      "get": {
+        "summary": "Read the published auth policy and the draft, if any",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "published": {
+                    "version": 0,
+                    "policy": {
+                      "login_methods": [null],
+                      "passkey_login_fallback_enabled": true,
+                      "phishing_resistant_only": null,
+                      "prompt_passkey_enrollment": null,
+                      "authenticator_policy": null,
+                      "lockout_policy": null,
+                      "recovery_codes": null,
+                      "account_recovery": null
+                    },
+                    "source": null,
+                    "publishedAt": null,
+                    "publishedBy": "string",
+                    "rolledBackTo": 0
+                  },
+                  "draft": {
+                    "policy": {
+                      "login_methods": [null],
+                      "passkey_login_fallback_enabled": true,
+                      "phishing_resistant_only": null,
+                      "prompt_passkey_enrollment": null,
+                      "authenticator_policy": null,
+                      "lockout_policy": null,
+                      "recovery_codes": null,
+                      "account_recovery": null
+                    },
+                    "basedOnVersion": 0,
+                    "updatedAt": null,
+                    "updatedBy": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "published": {
+                      "type": "object",
+                      "properties": {
+                        "version": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                        "policy": {
+                          "type": "object",
+                          "properties": {
+                            "login_methods": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                              },
+                              "minItems": 1
+                            },
+                            "passkey_login_fallback_enabled": { "type": "boolean" },
+                            "phishing_resistant_only": { "type": "boolean", "default": false },
+                            "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                            "authenticator_policy": {
+                              "type": "object",
+                              "properties": {
+                                "attachment": {
+                                  "type": "string",
+                                  "enum": ["any", "platform", "cross-platform"],
+                                  "default": "any"
+                                },
+                                "userVerification": {
+                                  "type": "string",
+                                  "enum": ["required", "preferred", "discouraged"],
+                                  "default": "required"
+                                },
+                                "attestation": {
+                                  "type": "string",
+                                  "enum": ["none", "direct"],
+                                  "default": "none"
+                                },
+                                "requireKnownAuthenticator": {
+                                  "type": "boolean",
+                                  "default": false
+                                },
+                                "syncedPasskeys": {
+                                  "type": "string",
+                                  "enum": ["allow", "block"],
+                                  "default": "allow"
+                                },
+                                "aaguidAllowList": {
+                                  "type": "array",
+                                  "items": { "type": "string" },
+                                  "default": []
+                                },
+                                "aaguidDenyList": {
+                                  "type": "array",
+                                  "items": { "type": "string" },
+                                  "default": []
+                                }
+                              },
+                              "default": {
+                                "attachment": "any",
+                                "userVerification": "required",
+                                "attestation": "none",
+                                "requireKnownAuthenticator": false,
+                                "syncedPasskeys": "allow",
+                                "aaguidAllowList": [],
+                                "aaguidDenyList": []
+                              }
+                            },
+                            "lockout_policy": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": { "type": "boolean", "default": true },
+                                "maxFailures": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "default": 10
+                                },
+                                "windowSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "default": 900
+                                },
+                                "lockoutSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "default": 900
+                                }
+                              },
+                              "default": {
+                                "enabled": true,
+                                "maxFailures": 10,
+                                "windowSeconds": 900,
+                                "lockoutSeconds": 900
+                              }
+                            },
+                            "recovery_codes": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": { "type": "boolean", "default": true },
+                                "requireAtEnrollment": { "type": "boolean", "default": false }
+                              },
+                              "default": { "enabled": true, "requireAtEnrollment": false }
+                            },
+                            "account_recovery": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": { "type": "boolean", "default": false },
+                                "delay": {
+                                  "type": "string",
+                                  "pattern": "^\\d+[smhd]$",
+                                  "default": "24h"
+                                }
+                              },
+                              "default": { "enabled": false, "delay": "24h" }
+                            }
+                          },
+                          "required": ["login_methods", "passkey_login_fallback_enabled"]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": ["publish", "rollback", "config_patch", "bootstrap"]
+                        },
+                        "publishedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "publishedBy": { "type": "string", "nullable": true },
+                        "rolledBackTo": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": ["version", "policy", "source", "publishedAt", "publishedBy"]
+                    },
+                    "draft": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "policy": {
+                          "type": "object",
+                          "properties": {
+                            "login_methods": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                              },
+                              "minItems": 1
+                            },
+                            "passkey_login_fallback_enabled": { "type": "boolean" },
+                            "phishing_resistant_only": { "type": "boolean", "default": false },
+                            "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                            "authenticator_policy": {
+                              "type": "object",
+                              "properties": {
+                                "attachment": {
+                                  "type": "string",
+                                  "enum": ["any", "platform", "cross-platform"],
+                                  "default": "any"
+                                },
+                                "userVerification": {
+                                  "type": "string",
+                                  "enum": ["required", "preferred", "discouraged"],
+                                  "default": "required"
+                                },
+                                "attestation": {
+                                  "type": "string",
+                                  "enum": ["none", "direct"],
+                                  "default": "none"
+                                },
+                                "requireKnownAuthenticator": {
+                                  "type": "boolean",
+                                  "default": false
+                                },
+                                "syncedPasskeys": {
+                                  "type": "string",
+                                  "enum": ["allow", "block"],
+                                  "default": "allow"
+                                },
+                                "aaguidAllowList": {
+                                  "type": "array",
+                                  "items": { "type": "string" },
+                                  "default": []
+                                },
+                                "aaguidDenyList": {
+                                  "type": "array",
+                                  "items": { "type": "string" },
+                                  "default": []
+                                }
+                              },
+                              "default": {
+                                "attachment": "any",
+                                "userVerification": "required",
+                                "attestation": "none",
+                                "requireKnownAuthenticator": false,
+                                "syncedPasskeys": "allow",
+                                "aaguidAllowList": [],
+                                "aaguidDenyList": []
+                              }
+                            },
+                            "lockout_policy": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": { "type": "boolean", "default": true },
+                                "maxFailures": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "default": 10
+                                },
+                                "windowSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "default": 900
+                                },
+                                "lockoutSeconds": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "default": 900
+                                }
+                              },
+                              "default": {
+                                "enabled": true,
+                                "maxFailures": 10,
+                                "windowSeconds": 900,
+                                "lockoutSeconds": 900
+                              }
+                            },
+                            "recovery_codes": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": { "type": "boolean", "default": true },
+                                "requireAtEnrollment": { "type": "boolean", "default": false }
+                              },
+                              "default": { "enabled": true, "requireAtEnrollment": false }
+                            },
+                            "account_recovery": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": { "type": "boolean", "default": false },
+                                "delay": {
+                                  "type": "string",
+                                  "pattern": "^\\d+[smhd]$",
+                                  "default": "24h"
+                                }
+                              },
+                              "default": { "enabled": false, "delay": "24h" }
+                            }
+                          },
+                          "required": ["login_methods", "passkey_login_fallback_enabled"]
+                        },
+                        "basedOnVersion": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedBy": { "type": "string", "nullable": true }
+                      },
+                      "required": ["policy", "basedOnVersion", "updatedAt", "updatedBy"]
+                    }
+                  },
+                  "required": ["published", "draft"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/policy/draft": {
+      "put": {
+        "summary": "Save the auth policy draft",
+        "description": "Replaces the single draft. A draft changes nothing until it is published, and keeps the version it was started from across saves.",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policy": {
+                    "type": "object",
+                    "properties": {
+                      "login_methods": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                        },
+                        "minItems": 1
+                      },
+                      "passkey_login_fallback_enabled": { "type": "boolean" },
+                      "phishing_resistant_only": { "type": "boolean", "default": false },
+                      "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                      "authenticator_policy": {
+                        "type": "object",
+                        "properties": {
+                          "attachment": {
+                            "type": "string",
+                            "enum": ["any", "platform", "cross-platform"],
+                            "default": "any"
+                          },
+                          "userVerification": {
+                            "type": "string",
+                            "enum": ["required", "preferred", "discouraged"],
+                            "default": "required"
+                          },
+                          "attestation": {
+                            "type": "string",
+                            "enum": ["none", "direct"],
+                            "default": "none"
+                          },
+                          "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                          "syncedPasskeys": {
+                            "type": "string",
+                            "enum": ["allow", "block"],
+                            "default": "allow"
+                          },
+                          "aaguidAllowList": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          },
+                          "aaguidDenyList": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          }
+                        },
+                        "default": {
+                          "attachment": "any",
+                          "userVerification": "required",
+                          "attestation": "none",
+                          "requireKnownAuthenticator": false,
+                          "syncedPasskeys": "allow",
+                          "aaguidAllowList": [],
+                          "aaguidDenyList": []
+                        }
+                      },
+                      "lockout_policy": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean", "default": true },
+                          "maxFailures": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 10
+                          },
+                          "windowSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 900
+                          },
+                          "lockoutSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 900
+                          }
+                        },
+                        "default": {
+                          "enabled": true,
+                          "maxFailures": 10,
+                          "windowSeconds": 900,
+                          "lockoutSeconds": 900
+                        }
+                      },
+                      "recovery_codes": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean", "default": true },
+                          "requireAtEnrollment": { "type": "boolean", "default": false }
+                        },
+                        "default": { "enabled": true, "requireAtEnrollment": false }
+                      },
+                      "account_recovery": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean", "default": false },
+                          "delay": { "type": "string", "pattern": "^\\d+[smhd]$", "default": "24h" }
+                        },
+                        "default": { "enabled": false, "delay": "24h" }
+                      }
+                    },
+                    "required": ["login_methods", "passkey_login_fallback_enabled"]
+                  }
+                },
+                "required": ["policy"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "policy": {
+                    "login_methods": [null],
+                    "passkey_login_fallback_enabled": true,
+                    "phishing_resistant_only": null,
+                    "prompt_passkey_enrollment": null,
+                    "authenticator_policy": null,
+                    "lockout_policy": null,
+                    "recovery_codes": null,
+                    "account_recovery": null
+                  },
+                  "basedOnVersion": 0,
+                  "updatedAt": null,
+                  "updatedBy": "string"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "policy": {
+                      "type": "object",
+                      "properties": {
+                        "login_methods": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                          },
+                          "minItems": 1
+                        },
+                        "passkey_login_fallback_enabled": { "type": "boolean" },
+                        "phishing_resistant_only": { "type": "boolean", "default": false },
+                        "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                        "authenticator_policy": {
+                          "type": "object",
+                          "properties": {
+                            "attachment": {
+                              "type": "string",
+                              "enum": ["any", "platform", "cross-platform"],
+                              "default": "any"
+                            },
+                            "userVerification": {
+                              "type": "string",
+                              "enum": ["required", "preferred", "discouraged"],
+                              "default": "required"
+                            },
+                            "attestation": {
+                              "type": "string",
+                              "enum": ["none", "direct"],
+                              "default": "none"
+                            },
+                            "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                            "syncedPasskeys": {
+                              "type": "string",
+                              "enum": ["allow", "block"],
+                              "default": "allow"
+                            },
+                            "aaguidAllowList": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "default": []
+                            },
+                            "aaguidDenyList": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "default": []
+                            }
+                          },
+                          "default": {
+                            "attachment": "any",
+                            "userVerification": "required",
+                            "attestation": "none",
+                            "requireKnownAuthenticator": false,
+                            "syncedPasskeys": "allow",
+                            "aaguidAllowList": [],
+                            "aaguidDenyList": []
+                          }
+                        },
+                        "lockout_policy": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": true },
+                            "maxFailures": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 10
+                            },
+                            "windowSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 900
+                            },
+                            "lockoutSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 900
+                            }
+                          },
+                          "default": {
+                            "enabled": true,
+                            "maxFailures": 10,
+                            "windowSeconds": 900,
+                            "lockoutSeconds": 900
+                          }
+                        },
+                        "recovery_codes": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": true },
+                            "requireAtEnrollment": { "type": "boolean", "default": false }
+                          },
+                          "default": { "enabled": true, "requireAtEnrollment": false }
+                        },
+                        "account_recovery": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": false },
+                            "delay": {
+                              "type": "string",
+                              "pattern": "^\\d+[smhd]$",
+                              "default": "24h"
+                            }
+                          },
+                          "default": { "enabled": false, "delay": "24h" }
+                        }
+                      },
+                      "required": ["login_methods", "passkey_login_fallback_enabled"]
+                    },
+                    "basedOnVersion": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                    "updatedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                    "updatedBy": { "type": "string", "nullable": true }
+                  },
+                  "required": ["policy", "basedOnVersion", "updatedAt", "updatedBy"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Discard the auth policy draft",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/policy/publish": {
+      "post": {
+        "summary": "Publish the auth policy draft",
+        "description": "Applies the draft to system config and records it as the next version in one transaction. Answers 409 when expectedVersion is no longer the published version.",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedVersion": { "type": "integer", "minimum": 0, "exclusiveMinimum": true }
+                },
+                "required": ["expectedVersion"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "version": 0,
+                  "policy": {
+                    "login_methods": [null],
+                    "passkey_login_fallback_enabled": true,
+                    "phishing_resistant_only": null,
+                    "prompt_passkey_enrollment": null,
+                    "authenticator_policy": null,
+                    "lockout_policy": null,
+                    "recovery_codes": null,
+                    "account_recovery": null
+                  },
+                  "source": null,
+                  "publishedAt": null,
+                  "publishedBy": "string",
+                  "rolledBackTo": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                    "policy": {
+                      "type": "object",
+                      "properties": {
+                        "login_methods": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                          },
+                          "minItems": 1
+                        },
+                        "passkey_login_fallback_enabled": { "type": "boolean" },
+                        "phishing_resistant_only": { "type": "boolean", "default": false },
+                        "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                        "authenticator_policy": {
+                          "type": "object",
+                          "properties": {
+                            "attachment": {
+                              "type": "string",
+                              "enum": ["any", "platform", "cross-platform"],
+                              "default": "any"
+                            },
+                            "userVerification": {
+                              "type": "string",
+                              "enum": ["required", "preferred", "discouraged"],
+                              "default": "required"
+                            },
+                            "attestation": {
+                              "type": "string",
+                              "enum": ["none", "direct"],
+                              "default": "none"
+                            },
+                            "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                            "syncedPasskeys": {
+                              "type": "string",
+                              "enum": ["allow", "block"],
+                              "default": "allow"
+                            },
+                            "aaguidAllowList": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "default": []
+                            },
+                            "aaguidDenyList": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "default": []
+                            }
+                          },
+                          "default": {
+                            "attachment": "any",
+                            "userVerification": "required",
+                            "attestation": "none",
+                            "requireKnownAuthenticator": false,
+                            "syncedPasskeys": "allow",
+                            "aaguidAllowList": [],
+                            "aaguidDenyList": []
+                          }
+                        },
+                        "lockout_policy": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": true },
+                            "maxFailures": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 10
+                            },
+                            "windowSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 900
+                            },
+                            "lockoutSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 900
+                            }
+                          },
+                          "default": {
+                            "enabled": true,
+                            "maxFailures": 10,
+                            "windowSeconds": 900,
+                            "lockoutSeconds": 900
+                          }
+                        },
+                        "recovery_codes": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": true },
+                            "requireAtEnrollment": { "type": "boolean", "default": false }
+                          },
+                          "default": { "enabled": true, "requireAtEnrollment": false }
+                        },
+                        "account_recovery": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": false },
+                            "delay": {
+                              "type": "string",
+                              "pattern": "^\\d+[smhd]$",
+                              "default": "24h"
+                            }
+                          },
+                          "default": { "enabled": false, "delay": "24h" }
+                        }
+                      },
+                      "required": ["login_methods", "passkey_login_fallback_enabled"]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["publish", "rollback", "config_patch", "bootstrap"]
+                    },
+                    "publishedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                    "publishedBy": { "type": "string", "nullable": true },
+                    "rolledBackTo": { "type": "integer", "minimum": 0, "exclusiveMinimum": true }
+                  },
+                  "required": ["version", "policy", "source", "publishedAt", "publishedBy"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/policy/rollback": {
+      "post": {
+        "summary": "Roll the auth policy back to an earlier version",
+        "description": "Publishes a copy of the named version as the next version. Answers 409 when expectedVersion is no longer the published version.",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                  "expectedVersion": { "type": "integer", "minimum": 0, "exclusiveMinimum": true }
+                },
+                "required": ["version", "expectedVersion"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "version": 0,
+                  "policy": {
+                    "login_methods": [null],
+                    "passkey_login_fallback_enabled": true,
+                    "phishing_resistant_only": null,
+                    "prompt_passkey_enrollment": null,
+                    "authenticator_policy": null,
+                    "lockout_policy": null,
+                    "recovery_codes": null,
+                    "account_recovery": null
+                  },
+                  "source": null,
+                  "publishedAt": null,
+                  "publishedBy": "string",
+                  "rolledBackTo": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                    "policy": {
+                      "type": "object",
+                      "properties": {
+                        "login_methods": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                          },
+                          "minItems": 1
+                        },
+                        "passkey_login_fallback_enabled": { "type": "boolean" },
+                        "phishing_resistant_only": { "type": "boolean", "default": false },
+                        "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                        "authenticator_policy": {
+                          "type": "object",
+                          "properties": {
+                            "attachment": {
+                              "type": "string",
+                              "enum": ["any", "platform", "cross-platform"],
+                              "default": "any"
+                            },
+                            "userVerification": {
+                              "type": "string",
+                              "enum": ["required", "preferred", "discouraged"],
+                              "default": "required"
+                            },
+                            "attestation": {
+                              "type": "string",
+                              "enum": ["none", "direct"],
+                              "default": "none"
+                            },
+                            "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                            "syncedPasskeys": {
+                              "type": "string",
+                              "enum": ["allow", "block"],
+                              "default": "allow"
+                            },
+                            "aaguidAllowList": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "default": []
+                            },
+                            "aaguidDenyList": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "default": []
+                            }
+                          },
+                          "default": {
+                            "attachment": "any",
+                            "userVerification": "required",
+                            "attestation": "none",
+                            "requireKnownAuthenticator": false,
+                            "syncedPasskeys": "allow",
+                            "aaguidAllowList": [],
+                            "aaguidDenyList": []
+                          }
+                        },
+                        "lockout_policy": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": true },
+                            "maxFailures": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 10
+                            },
+                            "windowSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 900
+                            },
+                            "lockoutSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "exclusiveMinimum": true,
+                              "default": 900
+                            }
+                          },
+                          "default": {
+                            "enabled": true,
+                            "maxFailures": 10,
+                            "windowSeconds": 900,
+                            "lockoutSeconds": 900
+                          }
+                        },
+                        "recovery_codes": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": true },
+                            "requireAtEnrollment": { "type": "boolean", "default": false }
+                          },
+                          "default": { "enabled": true, "requireAtEnrollment": false }
+                        },
+                        "account_recovery": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean", "default": false },
+                            "delay": {
+                              "type": "string",
+                              "pattern": "^\\d+[smhd]$",
+                              "default": "24h"
+                            }
+                          },
+                          "default": { "enabled": false, "delay": "24h" }
+                        }
+                      },
+                      "required": ["login_methods", "passkey_login_fallback_enabled"]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["publish", "rollback", "config_patch", "bootstrap"]
+                    },
+                    "publishedAt": { "type": "string", "nullable": true, "format": "date-time" },
+                    "publishedBy": { "type": "string", "nullable": true },
+                    "rolledBackTo": { "type": "integer", "minimum": 0, "exclusiveMinimum": true }
+                  },
+                  "required": ["version", "policy", "source", "publishedAt", "publishedBy"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/policy/versions": {
+      "get": {
+        "summary": "List published auth policy versions, newest first",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "versions": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "version": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                          "policy": {
+                            "type": "object",
+                            "properties": {
+                              "login_methods": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "passkey",
+                                    "magic_link",
+                                    "email_otp",
+                                    "phone_otp",
+                                    "oauth"
+                                  ]
+                                },
+                                "minItems": 1
+                              },
+                              "passkey_login_fallback_enabled": { "type": "boolean" },
+                              "phishing_resistant_only": { "type": "boolean", "default": false },
+                              "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                              "authenticator_policy": {
+                                "type": "object",
+                                "properties": {
+                                  "attachment": {
+                                    "type": "string",
+                                    "enum": ["any", "platform", "cross-platform"],
+                                    "default": "any"
+                                  },
+                                  "userVerification": {
+                                    "type": "string",
+                                    "enum": ["required", "preferred", "discouraged"],
+                                    "default": "required"
+                                  },
+                                  "attestation": {
+                                    "type": "string",
+                                    "enum": ["none", "direct"],
+                                    "default": "none"
+                                  },
+                                  "requireKnownAuthenticator": {
+                                    "type": "boolean",
+                                    "default": false
+                                  },
+                                  "syncedPasskeys": {
+                                    "type": "string",
+                                    "enum": ["allow", "block"],
+                                    "default": "allow"
+                                  },
+                                  "aaguidAllowList": {
+                                    "type": "array",
+                                    "items": { "type": "string" },
+                                    "default": []
+                                  },
+                                  "aaguidDenyList": {
+                                    "type": "array",
+                                    "items": { "type": "string" },
+                                    "default": []
+                                  }
+                                },
+                                "default": {
+                                  "attachment": "any",
+                                  "userVerification": "required",
+                                  "attestation": "none",
+                                  "requireKnownAuthenticator": false,
+                                  "syncedPasskeys": "allow",
+                                  "aaguidAllowList": [],
+                                  "aaguidDenyList": []
+                                }
+                              },
+                              "lockout_policy": {
+                                "type": "object",
+                                "properties": {
+                                  "enabled": { "type": "boolean", "default": true },
+                                  "maxFailures": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "exclusiveMinimum": true,
+                                    "default": 10
+                                  },
+                                  "windowSeconds": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "exclusiveMinimum": true,
+                                    "default": 900
+                                  },
+                                  "lockoutSeconds": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "exclusiveMinimum": true,
+                                    "default": 900
+                                  }
+                                },
+                                "default": {
+                                  "enabled": true,
+                                  "maxFailures": 10,
+                                  "windowSeconds": 900,
+                                  "lockoutSeconds": 900
+                                }
+                              },
+                              "recovery_codes": {
+                                "type": "object",
+                                "properties": {
+                                  "enabled": { "type": "boolean", "default": true },
+                                  "requireAtEnrollment": { "type": "boolean", "default": false }
+                                },
+                                "default": { "enabled": true, "requireAtEnrollment": false }
+                              },
+                              "account_recovery": {
+                                "type": "object",
+                                "properties": {
+                                  "enabled": { "type": "boolean", "default": false },
+                                  "delay": {
+                                    "type": "string",
+                                    "pattern": "^\\d+[smhd]$",
+                                    "default": "24h"
+                                  }
+                                },
+                                "default": { "enabled": false, "delay": "24h" }
+                              }
+                            },
+                            "required": ["login_methods", "passkey_login_fallback_enabled"]
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": ["publish", "rollback", "config_patch", "bootstrap"]
+                          },
+                          "publishedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "publishedBy": { "type": "string", "nullable": true },
+                          "rolledBackTo": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true
+                          }
+                        },
+                        "required": ["version", "policy", "source", "publishedAt", "publishedBy"]
+                      }
+                    }
+                  },
+                  "required": ["versions"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/policy/dry-run": {
+      "post": {
+        "summary": "Evaluate an auth policy against recent sign-ins",
+        "description": "Evaluates the policy in the request, or the draft when none is sent, against the sign-ins of the last `days` days. Evaluates at most 10,000 accounts.",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policy": {
+                    "type": "object",
+                    "properties": {
+                      "login_methods": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
+                        },
+                        "minItems": 1
+                      },
+                      "passkey_login_fallback_enabled": { "type": "boolean" },
+                      "phishing_resistant_only": { "type": "boolean", "default": false },
+                      "prompt_passkey_enrollment": { "type": "boolean", "default": false },
+                      "authenticator_policy": {
+                        "type": "object",
+                        "properties": {
+                          "attachment": {
+                            "type": "string",
+                            "enum": ["any", "platform", "cross-platform"],
+                            "default": "any"
+                          },
+                          "userVerification": {
+                            "type": "string",
+                            "enum": ["required", "preferred", "discouraged"],
+                            "default": "required"
+                          },
+                          "attestation": {
+                            "type": "string",
+                            "enum": ["none", "direct"],
+                            "default": "none"
+                          },
+                          "requireKnownAuthenticator": { "type": "boolean", "default": false },
+                          "syncedPasskeys": {
+                            "type": "string",
+                            "enum": ["allow", "block"],
+                            "default": "allow"
+                          },
+                          "aaguidAllowList": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          },
+                          "aaguidDenyList": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          }
+                        },
+                        "default": {
+                          "attachment": "any",
+                          "userVerification": "required",
+                          "attestation": "none",
+                          "requireKnownAuthenticator": false,
+                          "syncedPasskeys": "allow",
+                          "aaguidAllowList": [],
+                          "aaguidDenyList": []
+                        }
+                      },
+                      "lockout_policy": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean", "default": true },
+                          "maxFailures": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 10
+                          },
+                          "windowSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 900
+                          },
+                          "lockoutSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "default": 900
+                          }
+                        },
+                        "default": {
+                          "enabled": true,
+                          "maxFailures": 10,
+                          "windowSeconds": 900,
+                          "lockoutSeconds": 900
+                        }
+                      },
+                      "recovery_codes": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean", "default": true },
+                          "requireAtEnrollment": { "type": "boolean", "default": false }
+                        },
+                        "default": { "enabled": true, "requireAtEnrollment": false }
+                      },
+                      "account_recovery": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean", "default": false },
+                          "delay": { "type": "string", "pattern": "^\\d+[smhd]$", "default": "24h" }
+                        },
+                        "default": { "enabled": false, "delay": "24h" }
+                      }
+                    },
+                    "required": ["login_methods", "passkey_login_fallback_enabled"]
+                  },
+                  "days": { "type": "integer", "minimum": 1, "maximum": 30, "default": 7 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "window": { "from": null, "to": null },
+                  "signInsEvaluated": 0,
+                  "usersEvaluated": 0,
+                  "wouldFail": [null],
+                  "usersLockedOut": 0,
+                  "breakGlassAccounts": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "window": {
+                      "type": "object",
+                      "properties": {
+                        "from": { "type": "string", "nullable": true, "format": "date-time" },
+                        "to": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": ["from", "to"]
+                    },
+                    "signInsEvaluated": { "type": "integer", "minimum": 0 },
+                    "usersEvaluated": { "type": "integer", "minimum": 0 },
+                    "wouldFail": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": { "type": "string" },
+                          "email": { "type": "string" },
+                          "signIns": { "type": "integer", "minimum": 0 },
+                          "reasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "method_disabled",
+                                "phishing_resistant_required",
+                                "fallback_disabled",
+                                "synced_passkey_blocked",
+                                "authenticator_not_allowed",
+                                "user_verification_required"
+                              ]
+                            },
+                            "minItems": 1
+                          },
+                          "lockedOut": { "type": "boolean" }
+                        },
+                        "required": ["userId", "email", "signIns", "reasons", "lockedOut"]
+                      }
+                    },
+                    "usersLockedOut": { "type": "integer", "minimum": 0 },
+                    "breakGlassAccounts": { "type": "integer", "minimum": 0 }
+                  },
+                  "required": [
+                    "window",
+                    "signInsEvaluated",
+                    "usersEvaluated",
+                    "wouldFail",
+                    "usersLockedOut",
+                    "breakGlassAccounts"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },
