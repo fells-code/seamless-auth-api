@@ -33,6 +33,7 @@ import {
   LoginMethod,
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
+import { hasUsableRecoveryCode } from '../services/recoveryCodeService.js';
 import {
   claimSessionRotation,
   classifyExpiredRefreshToken,
@@ -350,13 +351,15 @@ export const login = async (req: Request, res: Response) => {
       ? availableMethods.filter((method) => method === 'passkey')
       : availableMethods;
 
-    // TOTP and recovery codes are not login methods, so an account holding only those
-    // would be answered as a decoy. A break-glass admin continues, with the list a decoy
-    // in its place would show.
+    // Recovery codes are not a login method, so an account left with nothing else, by a
+    // lock or by a policy its factors no longer meet, would be answered as a decoy or a
+    // lock. It continues with a real pre-auth token and the list a decoy would show, so
+    // the code can be redeemed and the answer still looks like any other account's. A
+    // break-glass admin also continues on its TOTP.
     const continueWithCode =
-      breakGlass &&
       loginMethods.length === 0 &&
-      (await hasBreakGlassCodeFactor(user.id, lockout.locked));
+      ((await hasUsableRecoveryCode(user.id)) ||
+        (breakGlass && (await hasBreakGlassCodeFactor(user.id, lockout.locked))));
     const responseMethods = continueWithCode
       ? resolveAvailableLoginMethods({
           policy: loginPolicy,

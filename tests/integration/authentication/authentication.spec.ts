@@ -382,6 +382,49 @@ describe('POST /login', () => {
     expect(res.body.retryAfterSeconds).toBeLessThanOrEqual(900);
   });
 
+  it('lets a locked account with no passkey continue when it holds a recovery code', async () => {
+    const { RecoveryCode } = await import('../../../src/models/recoveryCodes.js');
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue(null);
+    (RecoveryCode.count as any).mockResolvedValueOnce(3);
+    (signEphemeralToken as any).mockResolvedValue('token');
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 10 }, () => ({ occurredAt: new Date() })),
+    );
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey', 'email_otp', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+      lockout_policy: { enabled: true, maxFailures: 10, windowSeconds: 900, lockoutSeconds: 900 },
+    });
+
+    const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
+
+    // The pre-auth token is what /recovery-codes/redeem needs; the list is the one a
+    // decoy would show, so a recovery code holder is not singled out.
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBe('token');
+    expect(res.body.loginMethods).toEqual(['passkey']);
+  });
+
+  it('still answers a lock when recovery codes are turned off', async () => {
+    const { RecoveryCode } = await import('../../../src/models/recoveryCodes.js');
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    (Credential.findOne as any).mockResolvedValue(null);
+    (RecoveryCode.count as any).mockResolvedValue(3);
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 10 }, () => ({ occurredAt: new Date() })),
+    );
+    (getSystemConfig as any).mockResolvedValue({
+      recovery_codes: { enabled: false, requireAtEnrollment: false },
+      lockout_policy: { enabled: true, maxFailures: 10, windowSeconds: 900, lockoutSeconds: 900 },
+    });
+
+    const res = await request(app).post('/login').send({ identifier: 'test@example.com' });
+
+    (RecoveryCode.count as any).mockResolvedValue(0);
+    expect(res.status).toBe(423);
+  });
+
   it('lets a locked account continue with its passkey only', async () => {
     (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
     (Credential.findOne as any).mockResolvedValue({ id: 'cred-1' });

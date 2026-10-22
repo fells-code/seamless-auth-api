@@ -81,6 +81,7 @@ vi.mock('../../src/models/totpCredentials.js', () => ({
 
 vi.mock('../../src/models/recoveryCodes.js', () => ({
   RecoveryCode: {
+    count: vi.fn(async () => 0),
     findAll: vi.fn(async () => []),
     update: vi.fn(async () => [1]),
     destroy: vi.fn(),
