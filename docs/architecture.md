@@ -94,8 +94,10 @@ Supported login methods are controlled by `login_methods` system config:
 Accounts holding a passkey can be restricted to passkey-only continuation by disabling
 `passkey_login_fallback_enabled`. `phishing_resistant_only` goes further and restricts every
 account to passkeys, apart from the one session that verifies a new account's address. Both
-are enforced on each continuation endpoint as well as in the `/login` method list, and session
-issuance refuses a non-passkey factor in phishing-resistant-only mode as a backstop. The client sends a `passkeyAvailable` capability hint on
+are enforced on each continuation endpoint, including the OAuth callback, as well as in the
+`/login` method list. Session issuance applies both rules again as a backstop, refusing a
+non-passkey factor whenever either one requires a passkey, so a sign-in path that forgets the
+check fails closed instead of issuing a session. The client sends a `passkeyAvailable` capability hint on
 `POST /login`, but it is advisory: it can remove passkey from a set the policy already permits,
 never add a weaker method to a passkey-only one.
 
