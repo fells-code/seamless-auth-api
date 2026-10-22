@@ -14,7 +14,7 @@ import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
-import { warnIfUnboundOAuthStateAllowed } from './services/oauthService.js';
+import { warnIfUnboundOAuthStateSet } from './services/oauthService.js';
 import { assertSchemaCurrent } from './services/schemaGuard.js';
 import getLogger from './utils/logger.js';
 import { initDevSigningKey } from './utils/signingKeyStore.js';
@@ -29,7 +29,7 @@ async function startServer() {
     // First, so conflicting service token env vars stop boot before anything connects.
     assertServiceTokenConfig();
     assertDevModeIsLocal();
-    warnIfUnboundOAuthStateAllowed();
+    warnIfUnboundOAuthStateSet();
 
     const models = await initializeModels();
 

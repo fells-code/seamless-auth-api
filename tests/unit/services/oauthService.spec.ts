@@ -18,9 +18,8 @@ import {
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
-  unboundOAuthStateAllowed,
   verifyOAuthState,
-  warnIfUnboundOAuthStateAllowed,
+  warnIfUnboundOAuthStateSet,
 } from '../../../src/services/oauthService.js';
 import getLogger from '../../../src/utils/logger.js';
 
@@ -183,38 +182,25 @@ describe('oauthService', () => {
       });
     });
 
-    it('accepts a callback without the binding only when unbound state is allowed', () => {
+    it('refuses a callback without the binding even when the old escape hatch is set', () => {
       vi.stubEnv('OAUTH_ALLOW_UNBOUND_STATE', 'true');
       const { state } = start();
 
-      expect(consumeOAuthState(state, 'google').ok).toBe(true);
-    });
-
-    it('still checks a binding that is sent when unbound state is allowed', () => {
-      vi.stubEnv('OAUTH_ALLOW_UNBOUND_STATE', 'true');
-      const { state } = start();
-
-      expect(consumeOAuthState(state, 'google', 'wrong')).toEqual({
+      expect(consumeOAuthState(state, 'google')).toEqual({
         ok: false,
-        reason: 'state_binding_mismatch',
+        reason: 'state_binding_missing',
       });
     });
 
-    it('warns at boot only while unbound state is allowed', () => {
+    it('warns at boot that the old escape hatch is ignored', () => {
       const logger = getLogger('oauthService');
       const warn = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
 
-      warnIfUnboundOAuthStateAllowed({});
+      warnIfUnboundOAuthStateSet({});
       expect(warn).not.toHaveBeenCalled();
 
-      warnIfUnboundOAuthStateAllowed({ OAUTH_ALLOW_UNBOUND_STATE: 'true' });
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('removed in v0.20'));
-    });
-
-    it('reads the escape hatch case-insensitively and only as true', () => {
-      expect(unboundOAuthStateAllowed({ OAUTH_ALLOW_UNBOUND_STATE: ' TRUE ' })).toBe(true);
-      expect(unboundOAuthStateAllowed({ OAUTH_ALLOW_UNBOUND_STATE: '1' })).toBe(false);
-      expect(unboundOAuthStateAllowed({})).toBe(false);
+      warnIfUnboundOAuthStateSet({ OAUTH_ALLOW_UNBOUND_STATE: 'true' });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no longer read'));
     });
   });
 
