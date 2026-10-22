@@ -8,6 +8,11 @@
 import { z } from 'zod';
 
 export const AUTH_EVENT_TYPES = [
+  'account_recovery_cancelled',
+  'account_recovery_completed',
+  'account_recovery_failed',
+  'account_recovery_started',
+  'account_recovery_verified',
   'auth_action_incremented',
   'admin_device_replacement_recovery',
   'admin_enrollment_invite_sent',
