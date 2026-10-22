@@ -22,6 +22,10 @@ A user can generate a set of ten single-use codes, shown once as `XXXXX-XXXXX`.
   does not count towards it: a code cannot be guessed under those limits, and lockout is
   exactly what someone recovering may be locked out by (see GHSA-66gq-4pwg-33jq for why a
   stranger must not be able to shut an owner out of their way back in).
+- An account that `/login` would otherwise answer with a lock or a decoy (no passkey, and
+  either locked or left with no method the policy allows) continues with a real pre-auth token
+  when it holds an unused code, so the code can be redeemed. The method list it gets is the one
+  a decoy would show, so the answer does not single out accounts that hold codes.
 - Recovery codes are not a login method, so no `login_methods` change can remove them. They
   are turned off only by `recovery_codes.enabled` (`RECOVERY_CODES`), and
   `GET /system-config/public` reports `recoveryCodes` so sign-in screens offer them only

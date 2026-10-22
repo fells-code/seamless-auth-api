@@ -30,6 +30,7 @@ import {
   LoginMethod,
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
+import { hasUsableRecoveryCode } from '../services/recoveryCodeService.js';
 import {
   claimSessionRotation,
   classifyExpiredRefreshToken,
@@ -339,7 +340,22 @@ export const login = async (req: Request, res: Response) => {
       ? availableMethods.filter((method) => method === 'passkey')
       : availableMethods;
 
-    if (lockout.locked && loginMethods.length === 0) {
+    // Recovery codes are not a login method, so an account left with nothing else, by a
+    // lock or by a policy its factors no longer meet, would be answered as a decoy or a
+    // lock. It continues with a real pre-auth token and the list a decoy would show, so
+    // the code can be redeemed and the answer still looks like any other account's.
+    const continueWithRecoveryCode =
+      loginMethods.length === 0 && (await hasUsableRecoveryCode(user.id));
+    const responseMethods = continueWithRecoveryCode
+      ? resolveAvailableLoginMethods({
+          policy: loginPolicy,
+          user,
+          hasPasskeyCredential: true,
+          passkeyAvailable,
+        }).filter((method) => !lockout.locked || method === 'passkey')
+      : loginMethods;
+
+    if (lockout.locked && loginMethods.length === 0 && !continueWithRecoveryCode) {
       await AuthEventService.log({
         userId: user.id,
         type: 'login_suspicious',
@@ -358,7 +374,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    if (loginMethods.length === 0) {
+    if (loginMethods.length === 0 && !continueWithRecoveryCode) {
       logger.error('Login attempt had no allowed continuation methods');
       return await respondWithDecoy({
         req,
@@ -391,7 +407,7 @@ export const login = async (req: Request, res: Response) => {
       subject: user.id,
       attemptId,
       identifierType: identifierType!,
-      loginMethods,
+      loginMethods: responseMethods,
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
