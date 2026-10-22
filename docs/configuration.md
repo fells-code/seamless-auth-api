@@ -239,8 +239,13 @@ sets `VITE_BASE_PATH=/console/` and `VITE_SAME_ORIGIN=true` so the assets, the r
 and the origin-derived API base all agree) in a dedicated stage (see the `admin-dashboard` stage
 in [`Dockerfile`](../Dockerfile)). Bump the dashboard shipped to tenants by raising the
 `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG; the new version then flows to tenants through the normal
-upstream auth-image release. The ref is pinned to the dashboard release tag `v0.10.1`;
-`v0.2.0` was the first release to ship the same-origin `/console` build.
+upstream auth-image release. The ref is the full commit SHA of the dashboard release tag
+`v0.10.1` (`e16c1e84e6a105fb7cadc328570a2fbc469f463d`), because a tag can be moved and a SHA
+cannot. The build refuses a ref that is not a full SHA and checks the checked-out commit against
+it. To bump, resolve the new tag with
+`git ls-remote https://github.com/fells-code/seamless-auth-admin-dashboard refs/tags/<tag>`
+(use the `^{}` line for an annotated tag) and update the tag named in the comment above the
+ARG. `v0.2.0` was the first release to ship the same-origin `/console` build.
 
 Because the same-origin build derives its API base from the page origin **and still speaks the
 server-adapter contract** (it calls `<origin>/auth/...` with `credentials: include`), the origin
@@ -374,6 +379,16 @@ the `/docs` explorer, fallback development secrets, and the variables above. The
 start in development mode when `ISSUER` or any `APP_ORIGINS` entry is reachable from outside, and
 names each one. Local means `localhost`, `*.localhost`, `*.test`, a single-label name such as a
 compose service, a loopback or private address.
+
+That check reads configuration, not the address the server listens on, so it cannot tell when a
+machine left on these localhost defaults is reachable from the network. The bundled
+`docker-compose.yml` and `docker-compose.dev.yml` therefore publish the API on `127.0.0.1` only,
+because Docker's port publishing bypasses host firewalls such as ufw. `docker-compose.yml` does not
+publish Postgres at all; `docker-compose.dev.yml` publishes it on `127.0.0.1` for running the suite
+with `TEST_DB=postgres`. Neither sets a default `OWNER_EMAIL`, so no fixed address is granted
+admin. To reach the stack from another machine, put a TLS proxy in front of it and move to a
+production configuration ([docs/production-operations.md](./production-operations.md)) rather
+than widening the bind address.
 
 | Variable                      | Required | Default | Notes                                                                                                                                                           |
 | ----------------------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
