@@ -9968,6 +9968,19 @@
               }
             }
           },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "429": {
             "description": "HTTP 429",
             "content": {
@@ -10062,6 +10075,19 @@
           },
           "400": {
             "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

@@ -15,10 +15,10 @@ import {
   decoyVerifyPhoneOtp,
 } from '../controllers/decoyResponders.js';
 import {
-  sendEmailOTP,
   sendLoginEmailOTP,
   sendLoginPhoneOTP,
   sendPhoneOTP,
+  sendRegistrationEmailOTP,
   verifyEmail,
   verifyLoginEmail,
   verifyLoginPhoneNumber,
@@ -46,11 +46,12 @@ otpRouter.post(
       response: {
         200: MessageSchema,
         400: ErrorSchema,
+        403: ErrorSchema,
         500: InternalErrorSchema,
       },
     },
   },
-  sendEmailOTP,
+  sendRegistrationEmailOTP,
 );
 
 otpRouter.get(
@@ -70,11 +71,12 @@ otpRouter.get(
       response: {
         200: MessageSchema,
         400: ErrorSchema,
+        403: ErrorSchema,
         500: InternalErrorSchema,
       },
     },
   },
-  sendEmailOTP,
+  sendRegistrationEmailOTP,
 );
 
 otpRouter.post(
