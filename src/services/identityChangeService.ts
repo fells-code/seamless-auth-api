@@ -7,11 +7,11 @@
 import type { Transaction } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { Session } from '../models/sessions.js';
 import getLogger from '../utils/logger.js';
 import { hashSha256 } from '../utils/utils.js';
 import { DeliveryError } from './deliveryError.js';
 import { sendNoticeEmail, sendNoticeSms } from './messagingService.js';
+import { revokeAllSessionsForUsers } from './sessionRevocation.js';
 
 const logger = getLogger('identityChange');
 
@@ -76,12 +76,7 @@ export async function revokeSessionsForIdentityChange(
   userId: string,
   transaction?: Transaction,
 ): Promise<number> {
-  const [revoked] = await Session.update(
-    { revokedAt: new Date(), revokedReason: 'admin_identity_change' },
-    { where: { userId, revokedAt: null }, transaction },
-  );
-
-  return revoked;
+  return revokeAllSessionsForUsers(userId, 'admin_identity_change', transaction);
 }
 
 function noticeText(appName: string, field: IdentityField, recipient: 'previous' | 'new') {
