@@ -92,6 +92,19 @@ describe('POST /system-config/oauth-providers', () => {
     expect(invalidateSystemConfigCache).toHaveBeenCalled();
   });
 
+  it('refuses a provider in production while OAUTH_STATE_SECRET is unset', async () => {
+    mockConfigWithProviders([]);
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('OAUTH_STATE_SECRET', '');
+
+    const res = await request(app).post('/system-config/oauth-providers').send(buildProvider());
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('rejects a duplicate provider id with 409', async () => {
     mockConfigWithProviders([buildProvider()]);
 
@@ -109,8 +122,23 @@ describe('POST /system-config/oauth-providers', () => {
       .send(buildProvider({ id: 'acme', clientSecretEnv: 'SEAMLESS_SERVICE_TOKEN' }));
 
     expect(res.status).toBe(400);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  // The shared schema holds the scheme and secret name rules, so this is the case only
+  // the server's own policy can refuse: http is a valid URL, but not in production.
+  it('refuses an http provider URL in production', async () => {
+    mockConfigWithProviders([]);
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const res = await request(app)
+      .post('/system-config/oauth-providers')
+      .send(buildProvider({ id: 'acme', tokenUrl: 'http://idp.example.com/token' }));
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid OAuth provider');
-    expect(res.body.details[0]).toMatch(/clientSecretEnv/);
+    expect(res.body.details).toEqual(['tokenUrl must use https']);
     expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 
@@ -170,7 +198,20 @@ describe('PATCH /system-config/oauth-providers/:id', () => {
       .send({ clientSecretEnv: 'DATABASE_URL' });
 
     expect(res.status).toBe(400);
-    expect(res.body.details[0]).toMatch(/clientSecretEnv/);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refuses an update to an http provider URL in production', async () => {
+    mockConfigWithProviders([buildProvider()]);
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const res = await request(app)
+      .patch('/system-config/oauth-providers/google')
+      .send({ userInfoUrl: 'http://idp.example.com/userinfo' });
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(400);
+    expect(res.body.details).toEqual(['userInfoUrl must use https']);
     expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 

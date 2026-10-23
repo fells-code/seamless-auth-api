@@ -6,6 +6,7 @@
 
 import { Response } from 'express';
 
+import { productionSecretMissing } from '../config/authSecrets.js';
 import { invalidateSystemConfigCache } from '../config/getSystemConfig.js';
 import { oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
@@ -127,6 +128,10 @@ export async function createOAuthProvider(req: ServiceRequest, res: Response) {
   const invalid = policyRefusal(provider);
   if (invalid) {
     return res.status(invalid.status).json(invalid.body);
+  }
+
+  if (productionSecretMissing('OAUTH_STATE_SECRET')) {
+    return res.status(409).json({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
   }
 
   const refusal = await editProviders(req, (providers) => {

@@ -7,8 +7,8 @@
 import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
+import { authSecret } from '../config/authSecrets.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { getServiceToken } from '../config/serviceToken.js';
 import getLogger from '../utils/logger.js';
 import { getSigningKey } from '../utils/signingKeyStore.js';
 import { EPHEMERAL_TOKEN_TTL_SECONDS } from './ephemeralTokenTtl.js';
@@ -20,33 +20,8 @@ const logger = getLogger('tokens');
 // the adopter's `audience` to equal its `authServerUrl`, which is byte-identical to
 // this ISSUER. Omitting `aud` makes jose reject every token the adapter checks.
 const ISSUER = process.env.ISSUER!;
-let warnedAboutDevLookupSecret = false;
-
 function getRefreshTokenLookupSecret() {
-  const explicitSecret = process.env.REFRESH_TOKEN_LOOKUP_SECRET?.trim();
-  if (explicitSecret) {
-    return explicitSecret;
-  }
-
-  const apiServiceSecret = getServiceToken();
-  if (apiServiceSecret) {
-    return apiServiceSecret;
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    if (!warnedAboutDevLookupSecret) {
-      logger.warn(
-        'REFRESH_TOKEN_LOOKUP_SECRET is not set. Falling back to a development-only secret for refresh token lookup fingerprints.',
-      );
-      warnedAboutDevLookupSecret = true;
-    }
-
-    return `dev-refresh-lookup:${process.env.APP_ID ?? 'local'}:${ISSUER}`;
-  }
-
-  throw new Error(
-    'REFRESH_TOKEN_LOOKUP_SECRET (or SEAMLESS_SERVICE_TOKEN) must be set to derive refresh token lookup fingerprints in production.',
-  );
+  return authSecret('REFRESH_TOKEN_LOOKUP_SECRET');
 }
 
 export async function signAccessToken(

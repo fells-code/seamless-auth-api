@@ -19,7 +19,11 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
-import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
+import {
+  ErrorSchema,
+  InternalErrorSchema,
+  SecretRequiredSchema,
+} from '../schemas/generic.responses.js';
 import {
   OAuthProviderCreateSchema,
   OAuthProviderIdParamSchema,
@@ -115,6 +119,7 @@ systemConfigRouter.patch(
         400: InvalidPayloadSchema,
         401: ErrorSchema,
         403: StepUpRequiredErrorSchema,
+        409: SecretRequiredSchema,
       },
     },
   },
@@ -157,7 +162,7 @@ systemConfigRouter.post(
         400: InvalidPayloadSchema,
         401: ErrorSchema,
         403: StepUpRequiredErrorSchema,
-        409: ErrorSchema,
+        409: SecretRequiredSchema,
       },
     },
   },
