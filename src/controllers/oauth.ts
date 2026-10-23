@@ -10,6 +10,7 @@ import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
 import {
   buildOAuthAuthorizationUrl,
   consumeOAuthState,
@@ -160,6 +161,16 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
         type: 'oauth_login_failed',
         req,
         metadata: { providerId: provider.id, reason: 'break_glass_strong_factor_required' },
+      });
+      return res.status(403).json({ error: 'login_method_disabled' });
+    }
+
+    if (await isPasskeyRequiredForUser(user.id)) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'oauth_login_failed',
+        req,
+        metadata: { providerId: provider.id, reason: 'passkey_required' },
       });
       return res.status(403).json({ error: 'login_method_disabled' });
     }

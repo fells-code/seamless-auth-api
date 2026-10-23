@@ -9,6 +9,7 @@ import { Op } from 'sequelize';
 
 import { Session } from '../models/sessions.js';
 import { serializeSession } from '../services/apiResponseSerializers.js';
+import { revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -77,13 +78,7 @@ export const revokeAllSessions = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Not allowed' });
   }
 
-  const sessions = await Session.findAll({
-    where: { userId: user.id, revokedAt: null },
-  });
-
-  for (const session of sessions) {
-    await hardRevokeSession(session, 'user_logout_all');
-  }
+  await revokeAllSessionsForUsers(user.id, 'user_logout_all');
 
   logger.info(`All sessions revoked for user ${user.id}`);
 

@@ -132,12 +132,14 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
     return res.status(400).json({ error: 'Invalid request' });
   }
-  // Expire all previous links
+  // Only this attempt's earlier links. Anyone who knows the address can start an attempt,
+  // so expiring every link for the user would let them void the one the owner is opening.
   await MagicLinkToken.update(
     { expires_at: new Date() },
     {
       where: {
         user_id: user.id,
+        attempt_id: authReq.attemptId,
       },
     },
   );

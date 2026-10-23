@@ -36,6 +36,7 @@ vi.mock('../../../src/utils/utils.js', () => ({
 }));
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { Credential } from '../../../src/models/credentials.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -153,6 +154,57 @@ describe('issueSessionAndRespond', () => {
       { absoluteTtl: '1h', idleTtl: '8h' },
       expect.any(Date),
     );
+  });
+
+  describe('with passkey fallback off', () => {
+    beforeEach(() => {
+      (getSystemConfig as any).mockResolvedValue({
+        access_token_ttl: '15m',
+        refresh_token_ttl: '1h',
+        session_idle_ttl: '8h',
+        login_methods: ['passkey', 'email_otp', 'oauth'],
+        passkey_login_fallback_enabled: false,
+      });
+    });
+
+    it.each(['email_otp', 'phone_otp', 'magic_link', 'totp', 'oauth'] as const)(
+      'refuses to start a session from %s for an account that holds a passkey',
+      async (method) => {
+        (Credential.count as any).mockResolvedValue(1);
+
+        await expect(
+          issueSessionAndRespond({ method, user: mockUser, req: mockReq(), res: mockRes() }),
+        ).rejects.toBeInstanceOf(PasskeyRequiredError);
+
+        expect(Credential.count).toHaveBeenCalledWith({ where: { userId: mockUser.id } });
+        expect(Session.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it('starts a session from another factor for an account with no passkey', async () => {
+      (Credential.count as any).mockResolvedValue(0);
+
+      await issueSessionAndRespond({
+        method: 'oauth',
+        user: mockUser,
+        req: mockReq(),
+        res: mockRes(),
+      });
+
+      expect(Session.create).toHaveBeenCalled();
+    });
+
+    it('starts a session from a passkey without counting credentials', async () => {
+      await issueSessionAndRespond({
+        method: 'passkey',
+        user: mockUser,
+        req: mockReq(),
+        res: mockRes(),
+      });
+
+      expect(Credential.count).not.toHaveBeenCalled();
+      expect(Session.create).toHaveBeenCalled();
+    });
   });
 
   describe('in phishing-resistant-only mode', () => {

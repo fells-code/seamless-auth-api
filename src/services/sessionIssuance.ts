@@ -12,7 +12,7 @@ import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from 
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
-import { getLoginPolicy } from './loginPolicyService.js';
+import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 /** The factor that proved the user, as far as session issuance needs to know it. */
@@ -21,7 +21,7 @@ export type SessionMethod =
 
 export class PasskeyRequiredError extends Error {
   constructor(method: SessionMethod) {
-    super(`Refused to issue a session from ${method} in phishing-resistant-only mode`);
+    super(`Refused to issue a session from ${method}: this sign-in has to be a passkey`);
     this.name = 'PasskeyRequiredError';
   }
 }
@@ -75,21 +75,26 @@ type IssueSessionParams = {
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
   const { user, req, res, extraFields, method, accountVerification, recovery = false } = params;
 
-  // Every endpoint that reaches here with another factor refuses first. This is the
-  // backstop for one that does not, so it fails closed rather than trusting the gates.
-  // A break-glass admin is held to its own rule instead: a strong factor, whatever the
-  // policy says.
+  // Every endpoint that reaches here with another factor refuses first, with a 403. This
+  // is the backstop for one that does not, so it fails closed rather than trusting the
+  // gates. It covers both rules, phishing-resistant-only mode and an account that holds a
+  // passkey while fallback is off, because OAuth once shipped without the second. A
+  // break-glass admin is held to its own rule instead: a strong factor, whatever the
+  // policy says. A recovery session is exempt: enrolling a passkey is all it can do.
   const breakGlass = isBreakGlassAdmin(user);
 
   if (breakGlass && !accountVerification && !BREAK_GLASS_FACTORS.has(method)) {
     throw new BreakGlassFactorError(method);
   }
 
-  if (!breakGlass && method !== 'passkey' && !accountVerification && !recovery) {
-    const { phishingResistantOnly } = await getLoginPolicy();
-    if (phishingResistantOnly) {
-      throw new PasskeyRequiredError(method);
-    }
+  if (
+    !breakGlass &&
+    method !== 'passkey' &&
+    !accountVerification &&
+    !recovery &&
+    (await isPasskeyRequiredForUser(user.id))
+  ) {
+    throw new PasskeyRequiredError(method);
   }
 
   const refreshToken = generateRefreshToken();
