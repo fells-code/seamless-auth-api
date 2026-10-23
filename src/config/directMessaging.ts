@@ -7,7 +7,9 @@
 import {
   type AuthMessagingService,
   createAuthMessagingService,
+  type EmailTransport,
   MessagingConfigurationError,
+  type SmsTransport,
 } from '@seamless-auth/messaging';
 import { createAwsEmailTransport, createAwsSmsTransport } from '@seamless-auth/messaging-aws';
 import { createTwilioSmsTransport } from '@seamless-auth/messaging-twilio';
@@ -113,4 +115,12 @@ export function createDirectAuthMessagingService(appName: string): AuthMessaging
     email: buildEmailTransport(),
     sms: buildSmsTransport(),
   });
+}
+
+export function createDirectEmailTransport(): EmailTransport {
+  return buildEmailTransport();
+}
+
+export function createDirectSmsTransport(): SmsTransport {
+  return buildSmsTransport();
 }

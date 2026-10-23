@@ -4068,7 +4068,10 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Update user */
+    /**
+     * Update user
+     * @description Changing `email` or `phone` revokes all of the user's sessions and sends a notice to the previous and the new address. With `x-seamless-auth-delivery-mode: external` no notice is sent.
+     */
     patch: {
       parameters: {
         query?: never;
