@@ -15,7 +15,12 @@ import {
 } from '../controllers/totp.js';
 import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
-import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
+import {
+  ErrorSchema,
+  InternalErrorSchema,
+  MessageSchema,
+  SecretRequiredSchema,
+} from '../schemas/generic.responses.js';
 import { StepUpSuccessSchema } from '../schemas/stepUp.responses.js';
 import { TotpVerifyRequestSchema } from '../schemas/totp.requests.js';
 import {
@@ -55,6 +60,7 @@ totpRouter.post(
       response: {
         200: TotpEnrollmentStartSchema,
         401: ErrorSchema,
+        409: SecretRequiredSchema,
         500: InternalErrorSchema,
       },
     },

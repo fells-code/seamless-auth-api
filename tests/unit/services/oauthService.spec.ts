@@ -649,7 +649,7 @@ describe('oauthService', () => {
             providerId: 'google',
             redirectUri: 'https://app.example.com/oauth/callback',
           }),
-        ).toThrow('OAUTH_STATE_SECRET or SEAMLESS_SERVICE_TOKEN is required in production.');
+        ).toThrow('OAUTH_STATE_SECRET must be set in production.');
       },
     );
   });

@@ -7,7 +7,7 @@
 import { createCipheriv, createDecipheriv, createHash } from 'crypto';
 import { Op } from 'sequelize';
 
-import { getServiceToken } from '../config/serviceToken.js';
+import { authSecret } from '../config/authSecrets.js';
 import { TotpCredential } from '../models/totpCredentials.js';
 import {
   buildTotpUri,
@@ -29,21 +29,7 @@ type TotpCredentialLike = Pick<
 >;
 
 function getTotpEncryptionKey() {
-  const explicitSecret = process.env.TOTP_SECRET_ENCRYPTION_KEY?.trim() || getServiceToken();
-
-  if (explicitSecret) {
-    return createHash('sha256').update(explicitSecret).digest();
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'TOTP_SECRET_ENCRYPTION_KEY or SEAMLESS_SERVICE_TOKEN must be set in production.',
-    );
-  }
-
-  return createHash('sha256')
-    .update(`dev-totp-secret:${process.env.APP_ID ?? 'local'}:${process.env.ISSUER ?? 'local'}`)
-    .digest();
+  return createHash('sha256').update(authSecret('TOTP_SECRET_ENCRYPTION_KEY')).digest();
 }
 
 export function encryptTotpSecret(secret: string) {

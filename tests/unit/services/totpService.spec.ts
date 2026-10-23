@@ -372,7 +372,7 @@ describe('totpService', () => {
 
     try {
       expect(() => encryptTotpSecret('JBSWY3DPEHPK3PXP')).toThrow(
-        'TOTP_SECRET_ENCRYPTION_KEY or SEAMLESS_SERVICE_TOKEN must be set in production.',
+        'TOTP_SECRET_ENCRYPTION_KEY must be set in production.',
       );
     } finally {
       process.env.TOTP_SECRET_ENCRYPTION_KEY = previous.key;

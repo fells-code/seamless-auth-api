@@ -48,6 +48,18 @@ describe('TOTP routes', () => {
     );
   });
 
+  it('refuses to start enrollment in production while the encryption key is unset', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('TOTP_SECRET_ENCRYPTION_KEY', '');
+
+    const res = await request(app).post('/totp/enroll/start');
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'secret_required', variable: 'TOTP_SECRET_ENCRYPTION_KEY' });
+    expect(TotpCredential.create).not.toHaveBeenCalled();
+  });
+
   it('returns TOTP status without exposing the secret', async () => {
     (TotpCredential.findOne as any).mockResolvedValue(
       buildTotpCredential({
