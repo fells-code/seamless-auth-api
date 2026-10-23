@@ -157,28 +157,24 @@ selecting the signer, and the three steps above are three applies. See ADR 0011,
 `Terraform owns the JWKS document, and rotation overlaps`, and the procedure in that repo's
 `portal-auth/README.md`.
 
-## Secrets That Fall Back To The Service Token
+## Secrets Separate From The Service Token
 
 `REFRESH_TOKEN_LOOKUP_SECRET`, `TOTP_SECRET_ENCRYPTION_KEY`, `OAUTH_STATE_SECRET` and
-`DECOY_SUBJECT_SECRET` each fall back to the service token (`SEAMLESS_SERVICE_TOKEN`, or
-`API_SERVICE_TOKEN`) when unset, and the server logs a warning at boot naming each one that does.
-The server adapter holds the service token as well, so it is the secret most likely to need
-rotating, and while the others share it, rotating it signs everyone out and makes every stored TOTP
-secret unreadable.
+`DECOY_SUBJECT_SECRET` no longer fall back to the service token. In production the refresh lookup
+and decoy secrets are always required, the TOTP key once any TOTP credential exists, and the state
+secret once an OAuth provider is configured. The server refuses to start without the ones it needs
+and names each.
 
-To separate them without breaking anything, in this order:
+Upgrading a deployment that relied on the fallback (before v0.20), in this order:
 
-1. Set each of the four variables to the **current** service token value and redeploy. Nothing
-   changes yet, because each one already resolves to that value.
-2. Rotate the service token: set the new value on the API and on every server adapter.
+1. Set each missing variable to the **current** service token value and deploy v0.20. Stored
+   refresh token fingerprints and TOTP secrets were made with that value, so nothing changes.
+2. Give each one a value of its own before the service token is next rotated, then rotate the
+   service token freely. Changing the refresh lookup secret signs everyone out and changing the
+   TOTP key makes stored TOTP secrets unreadable, so change those two only deliberately.
 
-The fallback is deprecated. From v0.20 each secret is required whenever the feature that uses it
-is in use (TOTP for the encryption key, OAuth sign-in for the state secret, and always for the
-refresh lookup and decoy secrets), so do this before upgrading to v0.20.
-
-From then on the service token can be rotated freely. Do not set the four to new values in step 1:
-stored refresh token fingerprints and TOTP secrets were made with the old key and would stop
-matching.
+Do not set them to new values in step 1: existing sessions and TOTP enrollments would stop
+working.
 
 Refresh tokens are opaque values. The API stores hashes and lookup fingerprints, not raw refresh tokens.
 
@@ -186,7 +182,7 @@ Use a stable `REFRESH_TOKEN_LOOKUP_SECRET` in production. Rotating it without du
 
 ## TOTP Secrets
 
-TOTP secrets are encrypted at rest. Use `TOTP_SECRET_ENCRYPTION_KEY` in production instead of relying on development fallbacks.
+TOTP secrets are encrypted at rest with a key derived from `TOTP_SECRET_ENCRYPTION_KEY`, which production requires once TOTP is in use.
 
 If rotating the TOTP encryption key, decrypt and re-encrypt stored secrets in a controlled migration. If the old key is unavailable, users must re-enroll TOTP.
 

@@ -7,11 +7,14 @@
 import { Application } from 'express';
 
 import { createApp } from './app.js';
+import { assertAuthSecrets } from './config/authSecrets.js';
 import { bootstrapSystemConfig } from './config/bootstrapSystemConfig.js';
 import { assertDevModeIsLocal } from './config/devModeGuard.js';
+import { getSystemConfig } from './config/getSystemConfig.js';
 import { assertServiceTokenConfig } from './config/serviceToken.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
+import { TotpCredential } from './models/totpCredentials.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { warnIfUnboundOAuthStateAllowed } from './services/oauthService.js';
@@ -36,6 +39,9 @@ async function startServer() {
     await connectToDb(models);
     await assertSchemaCurrent(models.sequelize);
     await bootstrapSystemConfig();
+
+    // After bootstrap, since which secrets are needed depends on the stored config.
+    assertAuthSecrets(await getSystemConfig(), (await TotpCredential.count()) > 0);
 
     // After config is bootstrapped, since it decides whether attestation is
     // requested at all. Never throws: a metadata blob that cannot be fetched is
