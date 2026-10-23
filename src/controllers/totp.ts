@@ -6,6 +6,7 @@
 
 import { Request, Response } from 'express';
 
+import { productionSecretMissing } from '../config/authSecrets.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
@@ -59,6 +60,13 @@ export const startCurrentTotpEnrollment = async (req: Request, res: Response) =>
       metadata: { reason: 'Missing authenticated user or email' },
     });
     return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  // Refused before a secret is stored under a key the deployment has not set.
+  if (productionSecretMissing('TOTP_SECRET_ENCRYPTION_KEY')) {
+    return res
+      .status(409)
+      .json({ error: 'secret_required', variable: 'TOTP_SECRET_ENCRYPTION_KEY' });
   }
 
   try {

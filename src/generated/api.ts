@@ -13422,6 +13422,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "variable": "string"
+             *     }
+             */
+            'application/json': {
+              error: string;
+              variable?: string;
+            };
+          };
+        };
         /** @description HTTP 429 */
         429: {
           headers: {
@@ -13785,13 +13803,13 @@ export interface paths {
           content: {
             /**
              * @example {
-             *       "message": "string",
-             *       "error": "string"
+             *       "error": "string",
+             *       "variable": "string"
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              variable?: string;
             };
           };
         };
@@ -16189,6 +16207,24 @@ export interface paths {
             'application/json': {
               message?: string;
               error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "variable": "string"
+             *     }
+             */
+            'application/json': {
+              error: string;
+              variable?: string;
             };
           };
         };

@@ -111,6 +111,33 @@ describe('PATCH /system-config/admin', () => {
     expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 
+  it('refuses OAuth providers in production while OAUTH_STATE_SECRET is unset', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('OAUTH_STATE_SECRET', '');
+    (User.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({
+        oauth_providers: [
+          {
+            id: 'acme',
+            name: 'Acme',
+            clientId: 'client',
+            clientSecretEnv: 'ACME_CLIENT_SECRET',
+            authorizationUrl: 'https://idp.example.com/authorize',
+            tokenUrl: 'https://idp.example.com/token',
+            userInfoUrl: 'https://idp.example.com/userinfo',
+          },
+        ],
+      });
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('accepts scoped role names', async () => {
     (User.findAll as any).mockResolvedValue([]);
     (SystemConfig.findAll as any).mockResolvedValue([]);
