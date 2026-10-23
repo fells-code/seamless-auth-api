@@ -15,8 +15,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    # Loopback only, as in docker-compose.yml: Docker publishes ports ahead of host firewalls.
     ports:
-      - '${API_PORT:-5312}:5312'
+      - '127.0.0.1:${API_PORT:-5312}:5312'
     volumes:
       - .:/app
       # node_modules stays out of the bind mount: the host tree is built for the host's
@@ -67,7 +68,7 @@ services:
 
       SEAMLESS_SERVICE_TOKEN: ${SEAMLESS_SERVICE_TOKEN:-${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}}
       ALLOW_UNCREDENTIALED_DELIVERY_SECRETS: 'true'
-      OWNER_EMAIL: ${OWNER_EMAIL:-owner@example.com}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
       SERVE_ADMIN_DASHBOARD: 'false'
     env_file:
       - path: .env
@@ -76,8 +77,9 @@ services:
 
   postgres:
     image: postgres:18-alpine
+    # Published on loopback so the suite can run against it with TEST_DB=postgres.
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_USER: seamless
       POSTGRES_PASSWORD: seamless

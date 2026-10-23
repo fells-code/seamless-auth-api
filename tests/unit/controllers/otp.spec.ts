@@ -366,7 +366,7 @@ describe('otp controller', () => {
   it('issues a session when email verification fully verifies the user', async () => {
     const { verifyEmail } = await loadOtpController();
     const verifiedUser = buildUser();
-    const req = buildReq(buildUser(), {
+    const req = buildReq(buildUser({ verified: false, emailVerified: false }), {
       body: { verificationToken: 'EMAILOTP' },
     });
     const res = buildRes();
@@ -1107,6 +1107,83 @@ describe('otp controller', () => {
         expect.objectContaining({ method: 'email_otp', accountVerification: true }),
       );
     });
+  });
+
+  describe('when email OTP is not a login method', () => {
+    const emailOtpOff = {
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+    };
+
+    // The bypass this closes: the registration path signed a verified account in with an
+    // email code whatever login_methods said.
+    it('refuses to send a registration code to an already verified account', async () => {
+      const { sendRegistrationEmailOTP } = await loadOtpController();
+      getSystemConfigMock.mockResolvedValue(emailOtpOff);
+      const res = buildRes();
+
+      await sendRegistrationEmailOTP(buildReq(buildUser()), res);
+
+      expect(generateEmailOTPMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
+    });
+
+    it('refuses to sign an already verified account in through email verification', async () => {
+      const { verifyEmail } = await loadOtpController();
+      getSystemConfigMock.mockResolvedValue(emailOtpOff);
+      const res = buildRes();
+
+      await verifyEmail(buildReq(buildUser(), { body: { verificationToken: 'EMAILOTP' } }), res);
+
+      expect(verifyEmailOTPMock).not.toHaveBeenCalled();
+      expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'login_method_disabled' });
+      expect(authEventLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'login_failed',
+          metadata: { reason: 'Login method disabled', method: 'email_otp' },
+        }),
+      );
+    });
+
+    it('still sends a code to and verifies an unverified account', async () => {
+      const { sendRegistrationEmailOTP, verifyEmail } = await loadOtpController();
+      getSystemConfigMock.mockResolvedValue(emailOtpOff);
+      const newcomer = () => buildUser({ verified: false, emailVerified: false });
+      verifyEmailOTPMock.mockResolvedValue({ user: buildUser(), verified: true });
+
+      const sendRes = buildRes();
+      await sendRegistrationEmailOTP(buildReq(newcomer()), sendRes);
+      await verifyEmail(
+        buildReq(newcomer(), { body: { verificationToken: 'EMAILOTP' } }),
+        buildRes(),
+      );
+
+      expect(generateEmailOTPMock).toHaveBeenCalled();
+      expect(sendRes.status).toHaveBeenCalledWith(200);
+      expect(issueSessionAndRespondMock).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'email_otp', accountVerification: true }),
+      );
+    });
+  });
+
+  it('signs a verified account in as a login rather than an account verification', async () => {
+    const { sendRegistrationEmailOTP, verifyEmail } = await loadOtpController();
+    verifyEmailOTPMock.mockResolvedValue({ user: buildUser(), verified: true });
+
+    const sendRes = buildRes();
+    await sendRegistrationEmailOTP(buildReq(buildUser()), sendRes);
+    await verifyEmail(
+      buildReq(buildUser(), { body: { verificationToken: 'EMAILOTP' } }),
+      buildRes(),
+    );
+
+    expect(sendRes.status).toHaveBeenCalledWith(200);
+    expect(issueSessionAndRespondMock).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'email_otp', accountVerification: false }),
+    );
   });
 
   describe('review accounts', () => {
