@@ -5730,7 +5730,8 @@
                   "email": "string",
                   "phone": "string",
                   "ttl": 0,
-                  "refreshTtl": 0
+                  "refreshTtl": 0,
+                  "recovery": true
                 },
                 "schema": {
                   "type": "object",
@@ -5745,7 +5746,8 @@
                     "email": { "type": "string" },
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
-                    "refreshTtl": { "type": "number" }
+                    "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" }
                   },
                   "required": ["message"]
                 }
@@ -7377,6 +7379,7 @@
                         "phone": { "type": "string", "nullable": true },
                         "ttl": { "type": "number" },
                         "refreshTtl": { "type": "number" },
+                        "recovery": { "type": "boolean" },
                         "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                       },
                       "required": ["message"]
@@ -8085,6 +8088,7 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
+                  "recovery": true,
                   "returnTo": null,
                   "nextStep": null
                 },
@@ -8101,6 +8105,7 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
                     "returnTo": { "type": "string", "format": "uri" },
                     "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
@@ -10790,6 +10795,7 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
+                  "recovery": true,
                   "nextStep": null
                 },
                 "schema": {
@@ -10805,6 +10811,7 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
                     "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
@@ -10940,6 +10947,7 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
+                  "recovery": true,
                   "nextStep": null
                 },
                 "schema": {
@@ -10955,6 +10963,7 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
                     "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
@@ -11090,6 +11099,7 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
+                  "recovery": true,
                   "nextStep": null
                 },
                 "schema": {
@@ -11105,6 +11115,7 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
                     "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
@@ -11227,6 +11238,7 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
+                  "recovery": true,
                   "nextStep": null
                 },
                 "schema": {
@@ -11242,6 +11254,7 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
                     "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
@@ -11701,6 +11714,7 @@
                   "phone": "string",
                   "ttl": 0,
                   "refreshTtl": 0,
+                  "recovery": true,
                   "nextStep": null
                 },
                 "schema": {
@@ -11716,6 +11730,7 @@
                     "phone": { "type": "string", "nullable": true },
                     "ttl": { "type": "number" },
                     "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
                     "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
                   },
                   "required": ["message"]
@@ -12494,7 +12509,11 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "example": { "loginMethods": [null] },
+                "example": {
+                  "loginMethods": [null],
+                  "recoveryCodes": true,
+                  "accountRecovery": true
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -12505,7 +12524,9 @@
                         "enum": ["passkey", "magic_link", "email_otp", "phone_otp", "oauth"]
                       },
                       "minItems": 1
-                    }
+                    },
+                    "recoveryCodes": { "type": "boolean" },
+                    "accountRecovery": { "type": "boolean" }
                   },
                   "required": ["loginMethods"]
                 }
@@ -12610,6 +12631,8 @@
                   "oauth_providers": null,
                   "lockout_policy": null,
                   "authenticator_policy": null,
+                  "recovery_codes": null,
+                  "account_recovery": null,
                   "access_token_ttl": "string",
                   "session_idle_ttl": null,
                   "refresh_token_ttl": "string",
@@ -12662,7 +12685,10 @@
                           "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                           "enabled": { "type": "boolean", "default": true },
                           "clientId": { "type": "string", "minLength": 1 },
-                          "clientSecretEnv": { "type": "string", "minLength": 1 },
+                          "clientSecretEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                          },
                           "authorizationUrl": { "type": "string", "format": "uri" },
                           "tokenUrl": { "type": "string", "format": "uri" },
                           "userInfoUrl": { "type": "string", "format": "uri" },
@@ -12788,6 +12814,22 @@
                         "aaguidAllowList": [],
                         "aaguidDenyList": []
                       }
+                    },
+                    "recovery_codes": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": { "type": "boolean", "default": true },
+                        "requireAtEnrollment": { "type": "boolean", "default": false }
+                      },
+                      "default": { "enabled": true, "requireAtEnrollment": false }
+                    },
+                    "account_recovery": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": { "type": "boolean", "default": false },
+                        "delay": { "type": "string", "pattern": "^\\d+[smhd]$", "default": "24h" }
+                      },
+                      "default": { "enabled": false, "delay": "24h" }
                     },
                     "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
                     "session_idle_ttl": {
@@ -12994,7 +13036,10 @@
                         "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                         "enabled": { "type": "boolean", "default": true },
                         "clientId": { "type": "string", "minLength": 1 },
-                        "clientSecretEnv": { "type": "string", "minLength": 1 },
+                        "clientSecretEnv": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                        },
                         "authorizationUrl": { "type": "string", "format": "uri" },
                         "tokenUrl": { "type": "string", "format": "uri" },
                         "userInfoUrl": { "type": "string", "format": "uri" },
@@ -13103,6 +13148,20 @@
                         "items": { "type": "string" },
                         "default": []
                       }
+                    }
+                  },
+                  "recovery_codes": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": { "type": "boolean", "default": true },
+                      "requireAtEnrollment": { "type": "boolean", "default": false }
+                    }
+                  },
+                  "account_recovery": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": { "type": "boolean", "default": false },
+                      "delay": { "type": "string", "pattern": "^\\d+[smhd]$", "default": "24h" }
                     }
                   },
                   "access_token_ttl": { "type": "string", "pattern": "^\\d+[smhd]$" },
@@ -13240,6 +13299,19 @@
               }
             }
           },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "variable": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "error": { "type": "string" }, "variable": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "429": {
             "description": "HTTP 429",
             "content": {
@@ -13292,7 +13364,10 @@
                           "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                           "enabled": { "type": "boolean", "default": true },
                           "clientId": { "type": "string", "minLength": 1 },
-                          "clientSecretEnv": { "type": "string", "minLength": 1 },
+                          "clientSecretEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                          },
                           "authorizationUrl": { "type": "string", "format": "uri" },
                           "tokenUrl": { "type": "string", "format": "uri" },
                           "userInfoUrl": { "type": "string", "format": "uri" },
@@ -13404,7 +13479,10 @@
                   "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                   "enabled": { "type": "boolean", "default": true },
                   "clientId": { "type": "string", "minLength": 1 },
-                  "clientSecretEnv": { "type": "string", "minLength": 1 },
+                  "clientSecretEnv": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                  },
                   "authorizationUrl": { "type": "string", "format": "uri" },
                   "tokenUrl": { "type": "string", "format": "uri" },
                   "userInfoUrl": { "type": "string", "format": "uri" },
@@ -13497,7 +13575,10 @@
                         "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                         "enabled": { "type": "boolean", "default": true },
                         "clientId": { "type": "string", "minLength": 1 },
-                        "clientSecretEnv": { "type": "string", "minLength": 1 },
+                        "clientSecretEnv": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                        },
                         "authorizationUrl": { "type": "string", "format": "uri" },
                         "tokenUrl": { "type": "string", "format": "uri" },
                         "userInfoUrl": { "type": "string", "format": "uri" },
@@ -13583,10 +13664,10 @@
             "description": "HTTP 409",
             "content": {
               "application/json": {
-                "example": { "message": "string", "error": "string" },
+                "example": { "error": "string", "variable": "string" },
                 "schema": {
                   "type": "object",
-                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "properties": { "error": { "type": "string" }, "variable": { "type": "string" } },
                   "required": ["error"]
                 }
               }
@@ -13643,7 +13724,10 @@
                   "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                   "enabled": { "type": "boolean" },
                   "clientId": { "type": "string", "minLength": 1 },
-                  "clientSecretEnv": { "type": "string", "minLength": 1 },
+                  "clientSecretEnv": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                  },
                   "authorizationUrl": { "type": "string", "format": "uri" },
                   "tokenUrl": { "type": "string", "format": "uri" },
                   "userInfoUrl": { "type": "string", "format": "uri" },
@@ -13715,7 +13799,10 @@
                         "name": { "type": "string", "minLength": 1, "maxLength": 80 },
                         "enabled": { "type": "boolean", "default": true },
                         "clientId": { "type": "string", "minLength": 1 },
-                        "clientSecretEnv": { "type": "string", "minLength": 1 },
+                        "clientSecretEnv": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                        },
                         "authorizationUrl": { "type": "string", "format": "uri" },
                         "tokenUrl": { "type": "string", "format": "uri" },
                         "userInfoUrl": { "type": "string", "format": "uri" },
@@ -14082,6 +14169,19 @@
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "variable": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "error": { "type": "string" }, "variable": { "type": "string" } },
                   "required": ["error"]
                 }
               }

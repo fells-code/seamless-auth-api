@@ -4,7 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { AuthenticatorPolicySchema, DefaultFlowRateLimits } from '@seamless-auth/types';
+import {
+  AccountRecoveryPolicySchema,
+  AuthenticatorPolicySchema,
+  DefaultFlowRateLimits,
+  RecoveryCodesPolicySchema,
+} from '@seamless-auth/types';
 
 import type { SystemConfig } from '../schemas/systemConfig.schema.js';
 
@@ -24,6 +29,8 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   // Manager passkey and so failed the first registration on a stock install. Naming it
   // seeds the right value on either version. Drop it once the floor is 0.19.0.
   authenticator_policy: AuthenticatorPolicySchema.parse({ syncedPasskeys: 'allow' }),
+  recovery_codes: RecoveryCodesPolicySchema.parse({}),
+  account_recovery: AccountRecoveryPolicySchema.parse({}),
   session_idle_ttl: '8h',
   // No cap unless a deployment asks for one, so nothing changes for an instance
   // that predates the key.

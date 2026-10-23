@@ -6,7 +6,7 @@
 
 import { createHmac } from 'crypto';
 
-import { getServiceToken } from '../config/serviceToken.js';
+import { authSecret } from '../config/authSecrets.js';
 import { User } from '../models/users.js';
 
 /**
@@ -37,23 +37,9 @@ const DECOY_PHONE_INFO = 'seamless-auth/decoy-phone';
 const DECOY_CREDENTIAL_INFO = 'seamless-auth/decoy-credential';
 const DECOY_SHAPE_INFO = 'seamless-auth/decoy-shape';
 
-/**
- * Mirrors `stateSecret()` in oauthService: prefer a dedicated secret, fall back to the
- * service token that production already requires, and refuse to invent one in
- * production. A decoy subject derived from a guessable key is not a decoy.
- */
+/** A decoy subject derived from a guessable key is not a decoy, so production requires one. */
 function decoySecret() {
-  const explicit = process.env.DECOY_SUBJECT_SECRET?.trim();
-  if (explicit) return explicit;
-
-  const serviceSecret = getServiceToken();
-  if (serviceSecret) return serviceSecret;
-
-  if (process.env.NODE_ENV !== 'production') {
-    return `dev-decoy-subject:${process.env.APP_ID ?? 'local'}`;
-  }
-
-  throw new Error('DECOY_SUBJECT_SECRET or SEAMLESS_SERVICE_TOKEN is required in production.');
+  return authSecret('DECOY_SUBJECT_SECRET');
 }
 
 function derive(info: string, value: string) {

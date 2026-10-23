@@ -82,6 +82,7 @@ describe('PATCH /system-config/admin', () => {
   });
 
   it('refuses OAuth providers that fail the provider policy', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
     (User.findAll as any).mockResolvedValue([]);
     (SystemConfig.findAll as any).mockResolvedValue([]);
 
@@ -94,18 +95,46 @@ describe('PATCH /system-config/admin', () => {
             name: 'Acme',
             enabled: true,
             clientId: 'client',
-            clientSecretEnv: 'DB_PASSWORD',
+            clientSecretEnv: 'ACME_CLIENT_SECRET',
             authorizationUrl: 'https://idp.example.com/authorize',
-            tokenUrl: 'https://idp.example.com/token',
+            tokenUrl: 'http://idp.example.com/token',
             userInfoUrl: 'https://idp.example.com/userinfo',
             scopes: ['openid'],
           },
         ],
       });
 
+    vi.unstubAllEnvs();
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid OAuth provider');
-    expect(res.body.details[0]).toMatch(/^acme: clientSecretEnv/);
+    expect(res.body.details).toEqual(['acme: tokenUrl must use https']);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refuses OAuth providers in production while OAUTH_STATE_SECRET is unset', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('OAUTH_STATE_SECRET', '');
+    (User.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({
+        oauth_providers: [
+          {
+            id: 'acme',
+            name: 'Acme',
+            clientId: 'client',
+            clientSecretEnv: 'ACME_CLIENT_SECRET',
+            authorizationUrl: 'https://idp.example.com/authorize',
+            tokenUrl: 'https://idp.example.com/token',
+            userInfoUrl: 'https://idp.example.com/userinfo',
+          },
+        ],
+      });
+
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
     expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 
