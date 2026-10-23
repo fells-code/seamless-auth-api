@@ -14,8 +14,8 @@ Provider access tokens are used only during callback handling to fetch profile d
 4. In production, provider URLs must use `https` and resolve to public addresses, and the server does not
    follow redirects from them. For an on-premises IdP, list its host in `OAUTH_PROVIDER_PRIVATE_HOSTS`.
    Link-local addresses are refused even when listed.
-5. Set `OAUTH_STATE_SECRET` in production, or ensure `SEAMLESS_SERVICE_TOKEN` is stable and secret so it
-   can be used as the OAuth state-signing fallback.
+5. Set `OAUTH_STATE_SECRET` in production. Adding a provider answers `409 secret_required` until it is
+   set, and the server refuses to start with a provider configured and no value.
 
 Example provider:
 
