@@ -937,6 +937,11 @@ describe('PATCH /admin/users/:userId', () => {
       { revokedAt: expect.any(Date), revokedReason: 'admin_identity_change' },
       expect.objectContaining({ where: { userId: user.id, revokedAt: null } }),
     );
+    // The cutoff, so a refresh racing the change cannot leave a session behind.
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      expect.objectContaining({ where: { id: user.id } }),
+    );
     expect(sendNoticeEmail).toHaveBeenCalledWith(
       'old@example.com',
       expect.any(String),
