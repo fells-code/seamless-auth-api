@@ -108,7 +108,9 @@ describe('issueSessionAndRespond', () => {
         refreshTokenLookup: 'refresh-lookup',
       }),
     );
-    expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null);
+    expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
+      recovery: false,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'Success',
@@ -226,6 +228,26 @@ describe('issueSessionAndRespond', () => {
       },
     );
 
+    it('starts a restricted recovery session, which is how a user gets a passkey back', async () => {
+      const res = mockRes();
+
+      await issueSessionAndRespond({
+        method: 'recovery_code',
+        recovery: true,
+        user: mockUser,
+        req: mockReq(),
+        res,
+      });
+
+      expect(Session.create).toHaveBeenCalledWith(expect.objectContaining({ recovery: true }));
+      expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
+        recovery: true,
+      });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ recovery: true, nextStep: 'enroll_passkey' }),
+      );
+    });
+
     it('starts a session from a passkey', async () => {
       await issueSessionAndRespond({
         method: 'passkey',
@@ -301,7 +323,15 @@ describe('issueSessionAndRespond', () => {
         organizationId: 'org-1',
       }),
     );
-    expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, 'org-1');
+    expect(signAccessToken).toHaveBeenCalledWith(
+      'session-1',
+      mockUser.id,
+      mockUser.roles,
+      'org-1',
+      {
+        recovery: false,
+      },
+    );
   });
 
   it('uses default TTL values when config missing', async () => {

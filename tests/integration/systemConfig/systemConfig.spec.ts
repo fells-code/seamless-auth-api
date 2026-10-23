@@ -254,12 +254,22 @@ describe('GET /system-config/public', () => {
     expect(res.body.loginMethods).toEqual(['passkey', 'magic_link']);
   });
 
-  it('exposes nothing but the login methods', async () => {
+  it('exposes only what the sign-in screens need', async () => {
     (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
 
     const res = await request(app).get('/system-config/public');
 
     expect(res.status).toBe(200);
-    expect(Object.keys(res.body)).toEqual(['loginMethods']);
+    expect(Object.keys(res.body)).toEqual(['loginMethods', 'recoveryCodes']);
+  });
+
+  it('says whether recovery codes can be used', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ recovery_codes: { enabled: false, requireAtEnrollment: false } }),
+    );
+
+    const res = await request(app).get('/system-config/public');
+
+    expect(res.body.recoveryCodes).toBe(false);
   });
 });

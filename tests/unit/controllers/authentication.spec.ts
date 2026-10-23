@@ -148,7 +148,9 @@ describe('refreshSession', () => {
         refreshTokenLookup: 'new-refresh-lookup',
       }),
     );
-    expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, undefined);
+    expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, undefined, {
+      recovery: false,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'Success',

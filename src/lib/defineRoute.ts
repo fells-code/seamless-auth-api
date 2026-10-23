@@ -38,6 +38,13 @@ interface DefineRouteOptions<S extends RouteSchemas> {
   auth?: AuthTokenType | undefined;
 
   /**
+   * Accepts an access session a recovery issued (`recovery: true`). Every other access
+   * route answers `403 enrollment_required` to one, so a half-recovered account can only
+   * enroll a new factor, manage recovery codes, read itself and sign out.
+   */
+  allowRecoverySession?: boolean;
+
+  /**
    * What a server adapter does with this route. Required on public and ephemeral
    * routes; access routes default to an exposed passthrough. See `adapterManifest.ts`.
    */
@@ -380,7 +387,9 @@ export function defineRoute<S extends RouteSchemas>(
   const middlewareStack: RequestHandler[] = [];
 
   if (auth) {
-    middlewareStack.push(attachAuthMiddleware(auth));
+    middlewareStack.push(
+      attachAuthMiddleware(auth, { allowRecoverySession: options.allowRecoverySession }),
+    );
   }
 
   if (options.middleware) {

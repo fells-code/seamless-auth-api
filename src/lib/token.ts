@@ -29,6 +29,7 @@ export async function signAccessToken(
   userId: string,
   roles?: string[],
   organizationId?: string | null,
+  { recovery = false }: { recovery?: boolean } = {},
 ) {
   const { kid, privateKeyPem } = await getSigningKey();
 
@@ -42,6 +43,8 @@ export async function signAccessToken(
     typ: 'access',
     roles,
     ...(organizationId ? { org_id: organizationId } : {}),
+    // Lets a server adapter refuse a half-recovered account without asking the API.
+    ...(recovery ? { recovery: true } : {}),
   })
     .setProtectedHeader({ alg: 'RS256', kid })
     .setIssuedAt()

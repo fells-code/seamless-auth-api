@@ -258,6 +258,38 @@ describe('totp controller', () => {
     });
   });
 
+  describe('enrolling from a recovery session', () => {
+    it('lifts the restriction once the new factor is confirmed', async () => {
+      const { liftRecoveryRestriction } = await import('../../../src/services/sessionService.js');
+      const { verifyCurrentTotpEnrollment } = await loadTotpController();
+      verifyTotpEnrollmentMock.mockResolvedValue({ verified: true });
+
+      await verifyCurrentTotpEnrollment(
+        buildReq(buildUser(), {
+          body: { code: '123456' },
+          recoverySession: true,
+          sessionId: 'session-1',
+        }),
+        buildRes(),
+      );
+
+      expect(liftRecoveryRestriction).toHaveBeenCalledWith('session-1');
+    });
+
+    it('leaves an ordinary session alone', async () => {
+      const { liftRecoveryRestriction } = await import('../../../src/services/sessionService.js');
+      const { verifyCurrentTotpEnrollment } = await loadTotpController();
+      verifyTotpEnrollmentMock.mockResolvedValue({ verified: true });
+
+      await verifyCurrentTotpEnrollment(
+        buildReq(buildUser(), { body: { code: '123456' }, sessionId: 'session-1' }),
+        buildRes(),
+      );
+
+      expect(liftRecoveryRestriction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('disableCurrentTotp', () => {
     it('returns 401 when the user is missing an id', async () => {
       const { disableCurrentTotp } = await loadTotpController();

@@ -17,9 +17,12 @@ export function getSecuritySchemeName(_authType: AuthTokenType): string {
   return 'bearerAuth';
 }
 
-export function attachAuthMiddleware(authType: AuthTokenType = 'access') {
+export function attachAuthMiddleware(
+  authType: AuthTokenType = 'access',
+  options: { allowRecoverySession?: boolean } = {},
+) {
   const handler = ((req, res, next) =>
-    verifyBearerAuth(req, res, next, authType)) as AuthAwareRequestHandler;
+    verifyBearerAuth(req, res, next, authType, options)) as AuthAwareRequestHandler;
 
   handler.seamlessAuthType = authType;
 

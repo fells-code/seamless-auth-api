@@ -22,6 +22,7 @@ export interface SessionAttributes {
   chainStartedAt?: Date | null;
   stepUpVerifiedAt?: Date | null;
   stepUpMethod?: string | null;
+  recovery?: boolean;
   replacedBySessionId?: string | null;
   revokedAt?: Date | null;
   revokedReason?: string | null;
@@ -60,6 +61,7 @@ export class Session
   declare chainStartedAt: Date | null;
   declare stepUpVerifiedAt: Date | null;
   declare stepUpMethod: string | null;
+  declare recovery: boolean;
   declare replacedBySessionId: string | null;
   declare revokedAt: Date | null;
   declare revokedReason: string | null;
@@ -125,6 +127,12 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       stepUpMethod: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      // A session a recovery issued, restricted to enrolling a new factor until one is.
+      recovery: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       replacedBySessionId: {
         type: DataTypes.UUID,

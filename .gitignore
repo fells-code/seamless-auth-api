@@ -35,6 +35,7 @@ docker-data/
 # Lint / tooling cache
 .eslintcache
 docs/*
+!docs/account-recovery.md
 !docs/admin-operations.md
 !docs/api-contract.md
 !docs/architecture.md
