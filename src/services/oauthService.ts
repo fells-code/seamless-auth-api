@@ -7,8 +7,8 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { createRemoteJWKSet, customFetch, type JWTPayload, jwtVerify } from 'jose';
 
+import { authSecret } from '../config/authSecrets.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { getServiceToken } from '../config/serviceToken.js';
 import {
   clientSecretEnvProblem,
   OAuthProviderPolicyError,
@@ -104,17 +104,7 @@ async function assertProviderNotRetired(provider: OAuthProviderConfig, user: Use
 }
 
 function stateSecret() {
-  const explicit = process.env.OAUTH_STATE_SECRET?.trim();
-  if (explicit) return explicit;
-
-  const serviceSecret = getServiceToken();
-  if (serviceSecret) return serviceSecret;
-
-  if (process.env.NODE_ENV !== 'production') {
-    return `dev-oauth-state:${process.env.APP_ID ?? 'local'}`;
-  }
-
-  throw new Error('OAUTH_STATE_SECRET or SEAMLESS_SERVICE_TOKEN is required in production.');
+  return authSecret('OAUTH_STATE_SECRET');
 }
 
 function base64UrlEncode(value: string) {
