@@ -707,6 +707,51 @@ describe('OAuth routes', () => {
       expect(Credential.count).not.toHaveBeenCalled();
     });
 
+    it('refuses an account that holds a passkey when passkey fallback is off', async () => {
+      (getSystemConfig as any).mockResolvedValue(
+        buildSystemConfig({
+          login_methods: ['passkey', 'oauth'],
+          passkey_login_fallback_enabled: false,
+          oauth_providers: [provider],
+        }),
+      );
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (Credential.count as any).mockResolvedValue(1);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'login_method_disabled' });
+      expect(Session.create).not.toHaveBeenCalled();
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'oauth_login_failed',
+          userId: 'user-1',
+          metadata: expect.objectContaining({ reason: 'passkey_required' }),
+        }),
+      );
+      expect(AuthEventService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'oauth_login_success' }),
+      );
+    });
+
+    it('signs in an account with no passkey when passkey fallback is off', async () => {
+      (getSystemConfig as any).mockResolvedValue(
+        buildSystemConfig({
+          login_methods: ['passkey', 'oauth'],
+          passkey_login_fallback_enabled: false,
+          oauth_providers: [provider],
+        }),
+      );
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1', phone: null }));
+      (Credential.count as any).mockResolvedValue(0);
+
+      const res = await finishGoogleSignIn();
+
+      expect(res.status).toBe(200);
+      expect(res.body.token).toBe('access-token');
+    });
+
     it('refuses a member of an organization that retired the provider, before linking', async () => {
       const user = buildUser({ id: 'user-1', phone: null, verified: false });
       (User.findOne as any).mockResolvedValue(user);

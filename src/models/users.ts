@@ -27,6 +27,7 @@ export interface UserAttributes {
   verified?: boolean;
   lastLogin?: Date;
   enrollmentInvitedAt?: Date | null;
+  sessionsRevokedBefore?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   credentials?: Credential[];
@@ -51,6 +52,7 @@ export class User extends Model<UserAttributes> implements UserAttributes {
   declare roles?: string[];
   declare lastLogin?: Date;
   declare enrollmentInvitedAt: Date | null;
+  declare sessionsRevokedBefore: Date | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
   declare readonly credentials?: Credential[];
@@ -159,6 +161,10 @@ const initializeUserModel = (sequelize: Sequelize) => {
         allowNull: true,
       },
       enrollmentInvitedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      sessionsRevokedBefore: {
         type: DataTypes.DATE,
         allowNull: true,
       },

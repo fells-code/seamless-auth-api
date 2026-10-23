@@ -227,12 +227,21 @@ describe('DELETE /admin/sessions/by-id/:id', () => {
 });
 
 describe('DELETE /admin/sessions/:userId/revoke-all', () => {
-  it('revokes all sessions', async () => {
-    (Session.findAll as any).mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
+  it('revokes all sessions in one update and records the cutoff', async () => {
+    (Session.update as any).mockResolvedValue([2]);
 
     const res = await request(app).delete(`/admin/sessions/${testGuid}/revoke-all`);
 
     expect(res.status).toBe(200);
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      { where: { id: testGuid } },
+    );
+    expect(Session.update).toHaveBeenCalledWith(
+      { revokedAt: expect.any(Date), revokedReason: 'admin_revoke_all' },
+      { where: { userId: testGuid, revokedAt: null } },
+    );
+    expect(Session.findAll).not.toHaveBeenCalled();
   });
 });
 
@@ -240,14 +249,13 @@ const validProofing = { method: 'in_person', evidenceRef: 'TICKET-1042' };
 
 describe('POST /admin/users/:userId/recovery/device-replacement', () => {
   it('revokes sessions, removes passkeys, and disables TOTP for device replacement', async () => {
-    const sessions = [buildSession({ id: 's1' }), buildSession({ id: 's2' })];
     const credentials = [buildCredential({ id: 'cred-1' }), buildCredential({ id: 'cred-2' })];
 
     (Session.findOne as any).mockResolvedValue(
       buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' }),
     );
     (User.findByPk as any).mockResolvedValue(buildUser({ id: testGuid }));
-    (Session.findAll as any).mockResolvedValue(sessions);
+    (Session.update as any).mockResolvedValue([2]);
     (Credential.findAll as any).mockResolvedValue(credentials);
     (TotpCredential.update as any).mockResolvedValue([1]);
 
@@ -256,7 +264,14 @@ describe('POST /admin/users/:userId/recovery/device-replacement', () => {
       .send({ proofing: validProofing });
 
     expect(res.status).toBe(200);
-    expect(hardRevokeSession).toHaveBeenCalledTimes(2);
+    expect(Session.update).toHaveBeenCalledWith(
+      { revokedAt: expect.any(Date), revokedReason: 'admin_device_replacement' },
+      { where: { userId: testGuid, revokedAt: null } },
+    );
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      { where: { id: testGuid } },
+    );
     expect(credentials[0].destroy).toHaveBeenCalled();
     expect(credentials[1].destroy).toHaveBeenCalled();
     expect(TotpCredential.update).toHaveBeenCalledWith(
@@ -389,10 +404,7 @@ describe('admin actions are attributed', () => {
   });
 
   it('records a bulk session revoke', async () => {
-    (Session.findAll as any).mockResolvedValue([
-      buildSession({ id: 's1' }),
-      buildSession({ id: 's2' }),
-    ]);
+    (Session.update as any).mockResolvedValue([2]);
 
     const res = await request(app).delete(`/admin/sessions/${testGuid}/revoke-all`);
 
@@ -1189,7 +1201,7 @@ describe('admin session failure paths', () => {
   });
 
   it('returns 500 when revoking all sessions fails', async () => {
-    (Session.findAll as any).mockRejectedValue(new Error('boom'));
+    (Session.update as any).mockRejectedValue(new Error('boom'));
 
     const res = await request(app).delete(`/admin/sessions/${testGuid}/revoke-all`);
 

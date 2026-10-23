@@ -52,6 +52,12 @@ Example provider:
 5. `POST /oauth/:providerId/callback` with `code`, `state` and the `binding` from step 2.
 6. Seamless Auth validates state and its binding, exchanges the code, fetches userinfo, resolves the local user, and issues a Seamless Auth session.
 
+OAuth is a non-passkey factor, so the passkey rules bind here as they do on every other
+continuation. When the resolved account has to sign in with a passkey (phishing-resistant-only
+mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off), the callback
+answers 403 `login_method_disabled`, records `oauth_login_failed` with reason `passkey_required`,
+and issues no session.
+
 The `binding` ties the `state` to the client that started the sign-in. The state travels through
 the provider and the address bar, so without it anyone holding a state and its code could finish
 the sign-in in another browser and sign that browser in to their own account (login CSRF). A
