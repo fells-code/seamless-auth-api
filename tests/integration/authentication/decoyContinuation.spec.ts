@@ -166,6 +166,26 @@ describe('decoy continuation: OTP', () => {
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'login_method_disabled' });
   });
+
+  // A real verified account is refused the registration code path too once email OTP
+  // is off, and a decoy stands in for a verified account.
+  it.each([
+    ['/otp/generate-email-otp', 'get'],
+    ['/otp/verify-email-otp', 'post'],
+  ] as const)('refuses %s when email OTP is not a login method', async (path, method) => {
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    const res =
+      method === 'get'
+        ? await request(app).get(path)
+        : await request(app).post(path).send({ verificationToken: '123456' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'login_method_disabled' });
+  });
 });
 
 describe('decoy continuation: magic link', () => {
@@ -301,6 +321,7 @@ describe('decoy continuation: TOTP', () => {
 describe('decoy continuation: passkey required', () => {
   const PASSKEY_ONLY_PATHS: [string, 'get' | 'post'][] = [
     ['/otp/generate-login-email-otp', 'get'],
+    ['/otp/generate-email-otp', 'get'],
     ['/otp/verify-login-email-otp', 'post'],
     ['/otp/verify-email-otp', 'post'],
     ['/magic-link', 'get'],

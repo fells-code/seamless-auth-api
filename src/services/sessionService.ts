@@ -14,6 +14,7 @@ import { User } from '../models/users.js';
 import getLogger from '../utils/logger.js';
 import { getPublicKeyByKid } from '../utils/signingKeyStore.js';
 import { decoyPrincipalAsUser, decoyPrincipalForSubject } from './decoyPrincipal.js';
+import { isRevokedByCutoff } from './sessionRevocation.js';
 
 const logger = getLogger('sessionService');
 
@@ -246,6 +247,13 @@ export async function validateSessionRecord(sessionId: string) {
 
   if (session.expiresAt < now) return null;
   if (session.idleExpiresAt < now) return null;
+
+  // Catches a session that a revoke-all missed because a refresh created it mid-revoke.
+  const owner = await User.findOne({
+    where: { id: session.userId },
+    attributes: ['id', 'sessionsRevokedBefore'],
+  });
+  if (!owner || isRevokedByCutoff(session, owner.sessionsRevokedBefore)) return null;
 
   return session;
 }

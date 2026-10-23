@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
 
 import { createApp } from '../../../src/app';
+import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { verifyPhoneOTP, verifyEmailOTP } from '../../../src/utils/otp.js';
 
 let app: Application;
@@ -14,6 +15,9 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  // The shared auth mock injects an already verified account, which email verification
+  // refuses unless email OTP is a login method.
+  (getSystemConfig as any).mockResolvedValue({ login_methods: ['passkey', 'email_otp'] });
 });
 
 describe('OTP Security - Phone Verification', () => {

@@ -335,12 +335,18 @@ development defaults, so there is nothing to configure first: no `.env` file, no
 no separate Postgres.
 
 ```bash
-docker compose up
+OWNER_EMAIL=you@example.com docker compose up
 ```
 
 That starts the API on `http://localhost:5312`, runs migrations on first boot, generates a
 development signing keypair (kept on the `dev-keys` volume, so it survives a recreate), and serves
 the admin console at `http://localhost:5312/console`.
+
+The API is published on `127.0.0.1` only, so it is not reachable from other machines on the
+network, and Postgres is not published at all: only the API container reaches it. Docker's port
+publishing bypasses host firewalls such as ufw, which is why the bind address is set in the compose
+file rather than left to the host. For a database shell, use
+`docker compose exec postgres psql -U seamless seamless_auth`.
 
 Verify it:
 
@@ -348,16 +354,13 @@ Verify it:
 curl http://localhost:5312/health/status
 ```
 
-To get an admin account, sign up at `/console` with `owner@example.com`. That address is the compose
-file's `OWNER_EMAIL`, so the account is granted `admin:write` on creation (or `admin` on an instance
-whose `AVAILABLE_ROLES` lists only that).
-Override it before first boot to use your own:
+To get an admin account, sign up at `/console` with the address you passed as `OWNER_EMAIL`. That
+account is granted `admin:write` on creation (or `admin` on an instance whose `AVAILABLE_ROLES`
+lists only that). `OWNER_EMAIL` has no default: without it the stack still starts, but nobody is
+granted admin. The grant happens only when the account is created, so set it before that account
+signs up.
 
-```bash
-OWNER_EMAIL=you@example.com docker compose up
-```
-
-Other values worth overriding are `API_PORT`, `POSTGRES_PORT`, `APP_ORIGINS`, `ORIGINS`, and
+Other values worth overriding are `API_PORT`, `APP_ORIGINS`, `ORIGINS`, and
 `SEAMLESS_AUTH_IMAGE` (to pin a specific published tag). Stop the stack with `docker compose down`,
 or `docker compose down -v` to also discard the database.
 

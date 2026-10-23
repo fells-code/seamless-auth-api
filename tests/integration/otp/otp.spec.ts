@@ -78,6 +78,34 @@ describe('OTP - Generate', () => {
   });
 });
 
+describe('OTP - Registration path for a verified account', () => {
+  beforeEach(() => {
+    (getSystemConfig as any).mockResolvedValue({
+      login_methods: ['passkey', 'magic_link'],
+      passkey_login_fallback_enabled: true,
+    });
+  });
+
+  it('refuses to send a registration code when email OTP is not a login method', async () => {
+    const res = await request(app).post('/otp/generate-email-otp');
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'login_method_disabled' });
+    expect(generateEmailOTP).not.toHaveBeenCalled();
+  });
+
+  it('refuses to sign in through email verification when email OTP is not a login method', async () => {
+    const res = await request(app)
+      .post('/otp/verify-email-otp')
+      .send({ verificationToken: '123456' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'login_method_disabled' });
+    expect(verifyEmailOTP).not.toHaveBeenCalled();
+    expect(issueSessionAndRespond).not.toHaveBeenCalled();
+  });
+});
+
 describe('OTP - Verify Phone', () => {
   it('fails when token missing', async () => {
     const res = await request(app).post('/otp/verify-phone-otp').send({});

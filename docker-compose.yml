@@ -3,6 +3,7 @@
 # Brings up Postgres and the published Seamless Auth API image with development
 # defaults, so no .env file and no generated secrets are needed to try the project.
 # The admin console is served by the same container at http://localhost:5312/console.
+# The API listens on 127.0.0.1 only and Postgres is not published.
 #
 # Every value below is a LOCAL DEVELOPMENT default and is not safe for a deployed
 # instance. See docs/configuration.md for the real thing, and
@@ -16,8 +17,10 @@ name: seamless-auth
 services:
   api:
     image: ${SEAMLESS_AUTH_IMAGE:-ghcr.io/fells-code/seamless-auth-api:latest}
+    # Loopback only. Docker publishes ports ahead of host firewalls such as ufw, so a bare
+    # port here would expose these development defaults to the network.
     ports:
-      - '${API_PORT:-5312}:5312'
+      - '127.0.0.1:${API_PORT:-5312}:5312'
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,8 +70,10 @@ services:
       ALLOW_UNCREDENTIALED_DELIVERY_SECRETS: 'true'
 
       # The first account created with this email is granted the admin role, so the
-      # console at /console has a working admin as soon as you sign up.
-      OWNER_EMAIL: ${OWNER_EMAIL:-owner@example.com}
+      # console at /console has a working admin as soon as you sign up. No default: unset,
+      # nobody is granted admin. Set it before that account signs up, for example
+      # `OWNER_EMAIL=you@example.com docker compose up`.
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
 
       SERVE_ADMIN_DASHBOARD: 'true'
 
@@ -91,8 +96,8 @@ services:
 
   postgres:
     image: postgres:18-alpine
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+    # Not published: only the api service reaches it, over the compose network. Use
+    # `docker compose exec postgres psql -U seamless seamless_auth` for a shell.
     environment:
       POSTGRES_USER: seamless
       POSTGRES_PASSWORD: seamless

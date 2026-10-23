@@ -107,7 +107,7 @@ It does not return credential private material, TOTP secrets, recovery codes, re
 
 ## Session Hygiene
 
-Administrative session endpoints can list sessions and revoke individual or all sessions for a user. Use these endpoints when responding to suspicious account activity or user-requested device cleanup.
+Administrative session endpoints can list sessions and revoke individual or all sessions for a user. Use these endpoints when responding to suspicious account activity or user-requested device cleanup. Revoking all of a user's sessions also records a cutoff on the account, so a session a concurrent refresh was creating at that moment is refused as well (see [Log out everywhere](./security-posture.md#log-out-everywhere)).
 
 ## Lockout Policy
 
