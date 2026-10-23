@@ -60,9 +60,9 @@ callback with a missing or different binding is refused with 400 `Invalid OAuth 
 `@seamless-auth/client`, `@seamless-auth/react` and `@seamless-auth/react-native` SDKs keep and
 send it for you; server adapters pass it through unchanged.
 
-While upgrading clients that predate the binding, `OAUTH_ALLOW_UNBOUND_STATE=true` accepts a
-callback that carries none. It reopens login CSRF for as long as it is set, logs a warning at boot,
-and is removed in v0.20. A binding that is sent is always checked.
+Every callback must carry the binding. `OAUTH_ALLOW_UNBOUND_STATE`, which accepted callbacks
+without one while clients upgraded, was removed in v0.20; a deployment that still sets it gets a
+warning at boot and the variable has no effect.
 
 ## Redirect Policy
 
