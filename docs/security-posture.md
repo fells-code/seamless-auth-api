@@ -204,8 +204,9 @@ Ephemeral tokens ([`src/lib/token.ts`](../src/lib/token.ts)) are validated by si
 but are not single-use, so a leaked one can be replayed until it expires.
 
 The window is 5 minutes. Every continuation endpoint that accepts an ephemeral token is behind the
-OTP, magic-link, or registration rate limiters, which are keyed per IP and per identity, so replay
-cannot be used to generate OTPs in bulk. An ephemeral token also cannot be exchanged for anything
+OTP, magic-link, or registration rate limiters, which are keyed per IP, per identity and attempt,
+and per identity across attempts (see [Code and link sends per address](#code-and-link-sends-per-address)),
+so replay cannot be used to generate OTPs in bulk. An ephemeral token also cannot be exchanged for anything
 on its own: it authorizes a continuation step that still requires the OTP code, the magic-link
 token, or a WebAuthn assertion.
 
@@ -484,6 +485,31 @@ factor. Enrolling a passkey keeps a user able to sign in through a lock someone 
 
 The counter lives in Postgres, so every instance of a deployment sees the same count. When it cannot
 be read, the account is treated as locked (see [An unknown count means locked](#an-unknown-count-means-locked)).
+
+## Code and link sends per address
+
+**Posture: one attempt cannot spend or void another attempt's codes or links.**
+
+The same thing that makes lockout a denial-of-service lever applies to message sends: `/login`
+mints an ephemeral token from an address alone, so anyone can start attempts for someone else's
+address. Previously the OTP and magic link identity limiters keyed on the address only, and a
+magic link request expired every earlier link for the account, so a stranger could keep those
+methods unavailable to the owner.
+
+- **Per attempt.** `flow_rate_limits.otp.perIdentity` and `magicLink.perIdentity` (default 5 per
+  15 minutes) bound one attempt for one address: the address plus the ephemeral token's `jti`,
+  or the requester's IP for a request without one. Another attempt for the same address has its
+  own allowance.
+- **Per address.** Every attempt for one address together is capped at four times `perIdentity`
+  (20 by default), so minting fresh attempts still cannot message an address without bound. With
+  the default limits a single network location cannot reach the OTP cap, because `otp.perIp` is
+  10; the magic link cap equals `magicLink.perIp`, so one location can just reach it.
+- **Links.** Requesting a magic link expires only earlier links from the same attempt. A link
+  another attempt is waiting on stays usable until it expires or is used.
+
+What remains: a stranger with several network locations can still fill the per-address cap for the
+window, and the owner then waits it out, as with lockout. Wrong codes from every attempt still
+count toward lockout together, because lockout is per account (see [Account lockout](#account-lockout)).
 
 ## Audit write failure
 

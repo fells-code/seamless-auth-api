@@ -429,9 +429,13 @@ Validation is enforced by [`systemConfig.schema.ts`](../src/schemas/systemConfig
 carry a second, tighter set of limits, `flow_rate_limits`, applied per 15-minute window (the
 `windowSeconds` default) and split two ways per flow:
 
-- `perIdentity` bounds how often one address or phone can be messaged (`otp`, `magicLink`) and
-  how often one provider can be started from one address (`oauth.perProvider`). This is the
-  abuse a sender cares about, and it rarely needs changing.
+- `perIdentity` bounds how often one sign-in attempt can message one address or phone (`otp`,
+  `magicLink`), keyed on the identifier plus the ephemeral token's attempt (`jti`, or the
+  requester's IP without one), and how often one provider can be started from one address
+  (`oauth.perProvider`). All attempts for one identifier together are capped at four times
+  `perIdentity`, so a stranger starting attempts for someone else's address cannot use up the
+  owner's allowance ([security posture](./security-posture.md#code-and-link-sends-per-address)).
+  This is the abuse a sender cares about, and it rarely needs changing.
 - `perIp` bounds how many distinct flows one network location can drive. This is the
   enumeration and spam guard, and it is the one a mobile audience runs into: carriers put
   thousands of subscribers behind one IPv4 address, so `otp.perIp: 10` refuses a phone
