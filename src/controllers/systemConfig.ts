@@ -6,6 +6,7 @@
 
 import { Request, Response } from 'express';
 
+import { productionSecretMissing } from '../config/authSecrets.js';
 import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
 import { oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
@@ -55,6 +56,10 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
     if (problems.length) {
       return res.status(400).json({ error: 'Invalid OAuth provider', details: problems });
     }
+  }
+
+  if (parsed.data.oauth_providers?.length && productionSecretMissing('OAUTH_STATE_SECRET')) {
+    return res.status(409).json({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
   }
 
   const rolesInUse = await getRolesInUse();

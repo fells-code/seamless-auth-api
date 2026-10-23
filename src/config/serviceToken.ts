@@ -58,46 +58,8 @@ export function getServiceToken(env: EnvSource = process.env): string | undefine
  * Boot-time check: throws on conflicting values so a misconfigured instance refuses to
  * start, and notes once when only the legacy name is in use.
  */
-/**
- * Secrets that fall back to the service token when unset, and what rotating the
- * service token would then break. The server adapter holds the service token too, so
- * it is the one most likely to need rotating, and the fallback turns that into a
- * lockout or a forced sign-out.
- */
-export const SECRETS_SHARING_SERVICE_TOKEN = [
-  {
-    env: 'REFRESH_TOKEN_LOOKUP_SECRET',
-    onRotate: 'every refresh token stops working and everyone is signed out',
-  },
-  {
-    env: 'TOTP_SECRET_ENCRYPTION_KEY',
-    onRotate: 'every stored TOTP secret becomes unreadable and those users must re-enroll',
-  },
-  { env: 'OAUTH_STATE_SECRET', onRotate: 'OAuth sign-ins in progress fail' },
-  { env: 'DECOY_SUBJECT_SECRET', onRotate: 'the decoy subjects for unknown identifiers change' },
-] as const;
-
-export function secretsSharingServiceToken(env: EnvSource = process.env) {
-  if (!resolveServiceToken(env).value) {
-    return [];
-  }
-
-  return SECRETS_SHARING_SERVICE_TOKEN.filter(({ env: name }) => !env[name]?.trim());
-}
-
 export function assertServiceTokenConfig(env: EnvSource = process.env) {
   const resolved = resolveServiceToken(env);
-  const shared = secretsSharingServiceToken(env);
-
-  if (shared.length > 0) {
-    logger.warn(
-      `These secrets are unset and fall back to the service token: ` +
-        shared.map(({ env: name, onRotate }) => `${name} (rotating it: ${onRotate})`).join('; ') +
-        `. This fallback is deprecated and is removed in v0.20, which requires each secret ` +
-        `whose feature is in use. To separate them safely, set each one to the current service ` +
-        `token value first, then rotate the service token. See docs/production-operations.md.`,
-    );
-  }
 
   if (resolved.source === LEGACY_SERVICE_TOKEN_ENV) {
     logger.info(

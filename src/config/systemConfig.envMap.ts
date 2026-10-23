@@ -11,6 +11,8 @@ export const SYSTEM_CONFIG_ENV_MAP = {
   oauth_providers: 'OAUTH_PROVIDERS',
   lockout_policy: 'LOCKOUT_POLICY',
   authenticator_policy: 'AUTHENTICATOR_POLICY',
+  recovery_codes: 'RECOVERY_CODES',
+  account_recovery: 'ACCOUNT_RECOVERY',
   passkey_login_fallback_enabled: 'PASSKEY_LOGIN_FALLBACK_ENABLED',
   prompt_passkey_enrollment: 'PROMPT_PASSKEY_ENROLLMENT',
   phishing_resistant_only: 'PHISHING_RESISTANT_ONLY',

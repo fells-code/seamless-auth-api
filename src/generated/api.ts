@@ -5524,7 +5524,8 @@ export interface paths {
              *       "email": "string",
              *       "phone": "string",
              *       "ttl": 0,
-             *       "refreshTtl": 0
+             *       "refreshTtl": 0,
+             *       "recovery": true
              *     }
              */
             'application/json': {
@@ -5539,6 +5540,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
             };
           };
         };
@@ -7318,6 +7320,7 @@ export interface paths {
                   phone?: string | null;
                   ttl?: number;
                   refreshTtl?: number;
+                  recovery?: boolean;
                   /** @enum {string} */
                   nextStep?: 'enroll_passkey';
                 }
@@ -8104,6 +8107,7 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
+             *       "recovery": true,
              *       "returnTo": null,
              *       "nextStep": null
              *     }
@@ -8119,6 +8123,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
               /** Format: uri */
               returnTo?: string;
               /** @enum {string} */
@@ -10783,6 +10788,7 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
+             *       "recovery": true,
              *       "nextStep": null
              *     }
              */
@@ -10797,6 +10803,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
               /** @enum {string} */
               nextStep?: 'enroll_passkey';
             };
@@ -10957,6 +10964,7 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
+             *       "recovery": true,
              *       "nextStep": null
              *     }
              */
@@ -10971,6 +10979,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
               /** @enum {string} */
               nextStep?: 'enroll_passkey';
             };
@@ -11131,6 +11140,7 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
+             *       "recovery": true,
              *       "nextStep": null
              *     }
              */
@@ -11145,6 +11155,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
               /** @enum {string} */
               nextStep?: 'enroll_passkey';
             };
@@ -11287,6 +11298,7 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
+             *       "recovery": true,
              *       "nextStep": null
              *     }
              */
@@ -11301,6 +11313,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
               /** @enum {string} */
               nextStep?: 'enroll_passkey';
             };
@@ -11791,6 +11804,7 @@ export interface paths {
              *       "phone": "string",
              *       "ttl": 0,
              *       "refreshTtl": 0,
+             *       "recovery": true,
              *       "nextStep": null
              *     }
              */
@@ -11805,6 +11819,7 @@ export interface paths {
               phone?: string | null;
               ttl?: number;
               refreshTtl?: number;
+              recovery?: boolean;
               /** @enum {string} */
               nextStep?: 'enroll_passkey';
             };
@@ -12709,11 +12724,15 @@ export interface paths {
              * @example {
              *       "loginMethods": [
              *         null
-             *       ]
+             *       ],
+             *       "recoveryCodes": true,
+             *       "accountRecovery": true
              *     }
              */
             'application/json': {
               loginMethods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
+              recoveryCodes?: boolean;
+              accountRecovery?: boolean;
             };
           };
         };
@@ -12885,6 +12904,8 @@ export interface paths {
              *       "oauth_providers": null,
              *       "lockout_policy": null,
              *       "authenticator_policy": null,
+             *       "recovery_codes": null,
+             *       "account_recovery": null,
              *       "access_token_ttl": "string",
              *       "session_idle_ttl": null,
              *       "refresh_token_ttl": "string",
@@ -13012,6 +13033,30 @@ export interface paths {
                 aaguidAllowList: string[];
                 /** @default [] */
                 aaguidDenyList: string[];
+              };
+              /**
+               * @default {
+               *       "enabled": true,
+               *       "requireAtEnrollment": false
+               *     }
+               */
+              recovery_codes: {
+                /** @default true */
+                enabled: boolean;
+                /** @default false */
+                requireAtEnrollment: boolean;
+              };
+              /**
+               * @default {
+               *       "enabled": false,
+               *       "delay": "24h"
+               *     }
+               */
+              account_recovery: {
+                /** @default false */
+                enabled: boolean;
+                /** @default 24h */
+                delay: string;
               };
               access_token_ttl: string;
               /** @default 8h */
@@ -13249,6 +13294,18 @@ export interface paths {
               /** @default [] */
               aaguidDenyList?: string[];
             };
+            recovery_codes?: {
+              /** @default true */
+              enabled?: boolean;
+              /** @default false */
+              requireAtEnrollment?: boolean;
+            };
+            account_recovery?: {
+              /** @default false */
+              enabled?: boolean;
+              /** @default 24h */
+              delay?: string;
+            };
             access_token_ttl?: string;
             session_idle_ttl?: string;
             refresh_token_ttl?: string;
@@ -13355,6 +13412,24 @@ export interface paths {
             'application/json': {
               message?: string;
               error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "variable": "string"
+             *     }
+             */
+            'application/json': {
+              error: string;
+              variable?: string;
             };
           };
         };
@@ -13721,13 +13796,13 @@ export interface paths {
           content: {
             /**
              * @example {
-             *       "message": "string",
-             *       "error": "string"
+             *       "error": "string",
+             *       "variable": "string"
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
+              variable?: string;
             };
           };
         };
@@ -14314,6 +14389,24 @@ export interface paths {
             'application/json': {
               message?: string;
               error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "variable": "string"
+             *     }
+             */
+            'application/json': {
+              error: string;
+              variable?: string;
             };
           };
         };
