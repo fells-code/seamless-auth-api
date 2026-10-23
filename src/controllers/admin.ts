@@ -41,6 +41,7 @@ import {
   revokeSessionsForIdentityChange,
   sendIdentityChangeNotices,
 } from '../services/identityChangeService.js';
+import { revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { importUsers as runUserImport } from '../services/userImportService.js';
 import type { AuthenticatedRequest } from '../types/types.js';
@@ -540,16 +541,7 @@ export const revokeAllUserSessions = async (req: RouteRequest, res: Response) =>
   const { userId } = req.params;
 
   try {
-    const sessions = await Session.findAll({
-      where: {
-        userId,
-        revokedAt: null,
-      },
-    });
-
-    for (const session of sessions) {
-      await hardRevokeSession(session, 'admin_revoke_all');
-    }
+    const revokedSessions = await revokeAllSessionsForUsers(userId, 'admin_revoke_all');
 
     logger.info('All sessions revoked for user');
 
@@ -560,7 +552,7 @@ export const revokeAllUserSessions = async (req: RouteRequest, res: Response) =>
       req,
       metadata: {
         targetUser: userId,
-        revokedSessions: sessions.length,
+        revokedSessions,
         scope: 'all',
       },
     });
@@ -630,18 +622,7 @@ export const recoverUserForDeviceReplacement = async (req: RouteRequest, res: Re
   let disabledTotpCredentials = 0;
 
   if (revokeSessions) {
-    const sessions = await Session.findAll({
-      where: {
-        userId,
-        revokedAt: null,
-      },
-    });
-
-    for (const session of sessions) {
-      await hardRevokeSession(session, 'admin_device_replacement');
-    }
-
-    revokedSessions = sessions.length;
+    revokedSessions = await revokeAllSessionsForUsers(userId, 'admin_device_replacement');
   }
 
   if (removePasskeys) {

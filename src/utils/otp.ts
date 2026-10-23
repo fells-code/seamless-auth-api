@@ -60,6 +60,37 @@ function otpMatchesStoredValue(
   return safeStringEqual(storedToken, hashOtpToken(normalize(verificationToken)));
 }
 
+type OtpIssuance =
+  | { emailVerificationToken: string; emailVerificationTokenExpiry: number }
+  | { phoneVerificationToken: string; phoneVerificationTokenExpiry: number };
+
+// Two requests holding the same code both pass the in-memory comparison, so the clear is
+// conditional on the issuance that was compared: whichever clears it first wins and the
+// other sees no affected rows. The expiry is part of the match because a review account
+// is issued the same code each time, so the hash alone does not identify one issuance.
+async function consumeOtp(
+  user: User,
+  issuance: OtpIssuance,
+  applyVerification: () => void,
+): Promise<boolean> {
+  const cleared = Object.fromEntries(Object.keys(issuance).map((column) => [column, null]));
+
+  return User.sequelize!.transaction(async (transaction) => {
+    const [claimed] = await User.update(cleared, {
+      where: { id: user.id, ...issuance },
+      transaction,
+    });
+
+    if (claimed === 0) {
+      return false;
+    }
+
+    applyVerification();
+    await user.save({ transaction });
+    return true;
+  });
+}
+
 export const generateRandomEmailOTP = (): string => {
   let result = '';
   for (let i = 0; i < 6; i++) {
@@ -158,20 +189,33 @@ export const verifyPhoneOTP = async (
     otpMatchesStoredValue(user.phoneVerificationToken, verificationToken, normalizePhoneOtp) &&
     user.phoneVerificationTokenExpiry > new Date().getTime()
   ) {
-    user.phoneVerified = true;
-    user.phoneVerificationToken = null;
-    user.phoneVerificationTokenExpiry = null;
-    user.phoneVerifiedAttemptId = attemptId ?? null;
-
-    if (user.emailVerified && !user.verified) {
-      user.verified = true;
-    }
-
+    let claimed: boolean;
     try {
-      await user.save();
+      claimed = await consumeOtp(
+        user,
+        {
+          phoneVerificationToken: user.phoneVerificationToken,
+          phoneVerificationTokenExpiry: user.phoneVerificationTokenExpiry,
+        },
+        () => {
+          user.phoneVerified = true;
+          user.phoneVerificationToken = null;
+          user.phoneVerificationTokenExpiry = null;
+          user.phoneVerifiedAttemptId = attemptId ?? null;
+
+          if (user.emailVerified && !user.verified) {
+            user.verified = true;
+          }
+        },
+      );
     } catch (error) {
       logger.error(`Error verifying phone OTP: ${error}`);
       throw new Error('Failed to update user verification via phone OTP', { cause: error });
+    }
+
+    if (!claimed) {
+      logger.warn('Phone OTP was consumed by a concurrent verification');
+      return { user, verified: false };
     }
   } else {
     return { user, verified: false };
@@ -193,17 +237,30 @@ export const verifyEmailOTP = async (
     otpMatchesStoredValue(user.emailVerificationToken, verificationToken, normalizeEmailOtp) &&
     user.emailVerificationTokenExpiry > new Date().getTime()
   ) {
-    user.emailVerified = true;
-    user.emailVerificationToken = null;
-    user.emailVerificationTokenExpiry = null;
-
-    claimUnverifiedAccount(user, attemptId);
-
+    let claimed: boolean;
     try {
-      await user.save();
+      claimed = await consumeOtp(
+        user,
+        {
+          emailVerificationToken: user.emailVerificationToken,
+          emailVerificationTokenExpiry: user.emailVerificationTokenExpiry,
+        },
+        () => {
+          user.emailVerified = true;
+          user.emailVerificationToken = null;
+          user.emailVerificationTokenExpiry = null;
+
+          claimUnverifiedAccount(user, attemptId);
+        },
+      );
     } catch (error) {
       logger.error(`Error verifying email OTP: ${error}`);
       throw new Error('Failed to update user verification via email OTP', { cause: error });
+    }
+
+    if (!claimed) {
+      logger.warn('Email OTP was consumed by a concurrent verification');
+      return { user, verified: false };
     }
   } else {
     return { user, verified: false };

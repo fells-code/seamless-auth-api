@@ -124,8 +124,13 @@ async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | '
   return res.status(200).json({ message: 'success', token });
 }
 
-export const decoySendEmailOtp = (req: Request, res: Response) =>
-  respondOtpSent(req, res, 'otp_email');
+export const decoySendEmailOtp = async (req: Request, res: Response) => {
+  if (await rejectDisabledMethod('email_otp', req, res)) {
+    return;
+  }
+
+  return respondOtpSent(req, res, 'otp_email');
+};
 
 export const decoySendPhoneOtp = (req: Request, res: Response) =>
   respondOtpSent(req, res, 'otp_sms');
@@ -158,8 +163,8 @@ async function respondOtpVerifyFailed(req: Request, res: Response) {
 }
 
 /**
- * Mirrors the passkey rule on the paths a real verified account cannot use once a passkey
- * is required: email verification, which signs such an account in, and TOTP login.
+ * Mirrors the passkey rule on TOTP login, which a real verified account cannot use once a
+ * passkey is required.
  */
 async function rejectPasskeyRequired(method: string, req: Request, res: Response) {
   const policy = await getLoginPolicy();
@@ -180,7 +185,7 @@ async function rejectPasskeyRequired(method: string, req: Request, res: Response
 }
 
 export const decoyVerifyEmailOtp = async (req: Request, res: Response) => {
-  if (await rejectPasskeyRequired('email_otp', req, res)) {
+  if (await rejectDisabledMethod('email_otp', req, res)) {
     return;
   }
 

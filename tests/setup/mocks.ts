@@ -71,9 +71,13 @@ vi.mock('../../src/models/webauthnChallenges.js', () => ({
 
 vi.mock('../../src/models/totpCredentials.js', () => ({
   TotpCredential: {
+    sequelize: {
+      transaction: vi.fn((fn: any) => fn({})),
+    },
     create: vi.fn(),
     findOne: vi.fn(),
-    update: vi.fn(),
+    // Defaults to one affected row, the uncontended outcome of a conditional update.
+    update: vi.fn(async () => [1]),
     destroy: vi.fn(),
     count: vi.fn(),
   },
@@ -148,7 +152,8 @@ vi.mock('../../src/models/users.js', () => ({
       transaction: vi.fn((fn: any) => fn({})),
     },
     create: vi.fn(),
-    update: vi.fn(),
+    // Defaults to one affected row, the uncontended outcome of a conditional update.
+    update: vi.fn(async () => [1]),
     findOne: vi.fn(),
     findByPk: vi.fn(),
     findAll: vi.fn(),

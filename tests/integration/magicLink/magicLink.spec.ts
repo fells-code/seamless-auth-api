@@ -120,6 +120,21 @@ describe('GET /magic-link', () => {
     expect(MagicLinkToken.create).toHaveBeenCalled();
   });
 
+  // Anyone who knows the address can start an attempt, so expiring every link for the
+  // user let them void the one the owner was about to open.
+  it("expires only the requesting attempt's earlier links", async () => {
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+    (MagicLinkToken.create as any).mockResolvedValue({});
+
+    const res = await request(app).post('/magic-link');
+
+    expect(res.status).toBe(200);
+    expect(MagicLinkToken.update).toHaveBeenCalledWith(
+      { expires_at: expect.any(Date) },
+      { where: { user_id: 'user-1', attempt_id: 'attempt-1' } },
+    );
+  });
+
   it('returns external magic-link delivery payload without direct email delivery', async () => {
     (MagicLinkToken.update as any).mockResolvedValue([1]);
     (MagicLinkToken.create as any).mockResolvedValue({ id: 'link-1' });

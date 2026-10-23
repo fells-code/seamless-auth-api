@@ -8747,7 +8747,7 @@
     "/oauth/{providerId}/callback": {
       "post": {
         "summary": "Finish OAuth login",
-        "description": "Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider. A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.",
+        "description": "Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider, and 403 `login_method_disabled` when the account has to sign in with a passkey (phishing-resistant-only mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off). A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.",
         "tags": ["OAuth"],
         "parameters": [
           {
@@ -10673,6 +10673,19 @@
               }
             }
           },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "429": {
             "description": "HTTP 429",
             "content": {
@@ -10767,6 +10780,19 @@
           },
           "400": {
             "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

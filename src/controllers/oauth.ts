@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
 import {
   buildOAuthAuthorizationUrl,
   consumeOAuthState,
@@ -151,6 +152,16 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
         metadata: { providerId: provider.id, reason: 'signup_disabled' },
       });
       return res.status(403).json({ error: 'OAuth signup is disabled' });
+    }
+
+    if (await isPasskeyRequiredForUser(user.id)) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'oauth_login_failed',
+        req,
+        metadata: { providerId: provider.id, reason: 'passkey_required' },
+      });
+      return res.status(403).json({ error: 'login_method_disabled' });
     }
 
     await AuthEventService.log({

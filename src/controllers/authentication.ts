@@ -31,6 +31,7 @@ import {
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
 import { hasUsableRecoveryCode } from '../services/recoveryCodeService.js';
+import { isRevokedByCutoff, revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
 import {
   claimSessionRotation,
   classifyExpiredRefreshToken,
@@ -471,15 +472,13 @@ export const logoutAllSessions = async (req: Request, res: Response) => {
   logger.info('User logged out all sessions');
 
   try {
-    const sessions = await Session.findAll({ where: { userId: authUser.id, revokedAt: null } });
-
-    await Promise.all(sessions.map((session) => hardRevokeSession(session, 'user_logout_all')));
+    const revokedSessions = await revokeAllSessionsForUsers(authUser.id, 'user_logout_all');
 
     await AuthEventService.log({
       userId: authUser.id,
       type: 'logout_success',
       req,
-      metadata: { scope: 'all_sessions', revokedSessions: sessions.length },
+      metadata: { scope: 'all_sessions', revokedSessions },
     });
   } catch (error) {
     logger.error(`Error during logout: ${error}`);
@@ -488,6 +487,18 @@ export const logoutAllSessions = async (req: Request, res: Response) => {
 
   return res.json({ message: 'Success' });
 };
+
+async function refuseRevokedRefresh(req: Request, res: Response, userId: string, session: Session) {
+  await hardRevokeSession(session, 'sessions_revoked');
+  await AuthEventService.log({
+    userId,
+    sessionId: session.id,
+    type: 'refresh_token_failed',
+    req,
+    metadata: { reason: 'Sessions revoked for user', refusal: 'sessions_revoked' },
+  });
+  return res.status(401).json({ error: 'invalid_refresh_token' });
+}
 
 export const refreshSession = async (req: Request, res: Response) => {
   logger.info(`Refreshing user token`);
@@ -586,6 +597,10 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'invalid_session' });
   }
 
+  if (isRevokedByCutoff(session, user.sessionsRevokedBefore)) {
+    return refuseRevokedRefresh(req, res, user.id, session);
+  }
+
   const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
   const chainStartedAt = session.chainStartedAt ?? session.createdAt ?? now;
   const { expiresAt, idleExpiresAt } = computeRotatedSessionTimes(
@@ -664,6 +679,18 @@ export const refreshSession = async (req: Request, res: Response) => {
     });
 
     return res.status(401).json({ error: 'refresh_token_reused' });
+  }
+
+  // Read again because a revoke-all can land while this rotation is in flight. Its cutoff
+  // covers the session the rotation started from, so the replacement is refused whether
+  // or not the bulk update reached its row.
+  const owner = await User.findOne({
+    where: { id: user.id, revoked: false },
+    attributes: ['id', 'sessionsRevokedBefore'],
+  });
+
+  if (!owner || isRevokedByCutoff(session, owner.sessionsRevokedBefore)) {
+    return refuseRevokedRefresh(req, res, user.id, newSession);
   }
 
   const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId, {

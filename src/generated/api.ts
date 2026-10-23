@@ -8916,7 +8916,7 @@ export interface paths {
     put?: never;
     /**
      * Finish OAuth login
-     * @description Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider. A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.
+     * @description Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider, and 403 `login_method_disabled` when the account has to sign in with a passkey (phishing-resistant-only mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off). A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.
      */
     post: {
       parameters: {
@@ -10717,6 +10717,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
         /** @description HTTP 429 */
         429: {
           headers: {
@@ -10813,6 +10831,24 @@ export interface paths {
         };
         /** @description HTTP 400 */
         400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
           headers: {
             [name: string]: unknown;
           };
