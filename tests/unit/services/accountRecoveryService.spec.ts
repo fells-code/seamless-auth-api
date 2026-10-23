@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AccountRecoveryRequest } from '../../../src/models/accountRecoveryRequests.js';
 import { Session } from '../../../src/models/sessions.js';
+import { User } from '../../../src/models/users.js';
 import {
   cancelRecoveryByToken,
   completeRecovery,
@@ -171,6 +172,11 @@ describe('completeRecovery', () => {
     expect(Session.update).toHaveBeenCalledWith(
       expect.objectContaining({ revokedReason: 'account_recovery' }),
       { where: { userId: 'user-1', revokedAt: null } },
+    );
+    // The cutoff, so a refresh that raced completion cannot keep a session alive.
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      { where: { id: 'user-1' } },
     );
     expect(recoveryStatus(rows[0] as any).state).toBe('completed');
     expect((await completeRecovery('user-1', 'attempt-1')).outcome).toBe('not_found');

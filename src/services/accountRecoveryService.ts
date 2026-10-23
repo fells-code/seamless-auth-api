@@ -12,9 +12,9 @@ import {
   RecoveryChannel,
   StoredRecoveryState,
 } from '../models/accountRecoveryRequests.js';
-import { Session } from '../models/sessions.js';
 import { generateRandomPhoneOTP, hashOtpToken, otpHashMatches } from '../utils/otp.js';
 import { hashSha256 } from '../utils/utils.js';
+import { revokeAllSessionsForUsers } from './sessionRevocation.js';
 
 export const RECOVERY_CODE_TTL_MS = 10 * 60 * 1000;
 export const MAX_RECOVERY_CODE_ATTEMPTS = 5;
@@ -223,12 +223,7 @@ export async function completeRecovery(
     return { outcome: 'not_found' };
   }
 
-  // A bulk update rather than a per-session revoke, as the identity change path does.
-  // It becomes revokeAllSessionsForUsers once #488 lands.
-  const [revokedSessions] = await Session.update(
-    { revokedAt: now, revokedReason: 'account_recovery' },
-    { where: { userId, revokedAt: null } },
-  );
+  const revokedSessions = await revokeAllSessionsForUsers(userId, 'account_recovery');
 
   await request.reload();
 
