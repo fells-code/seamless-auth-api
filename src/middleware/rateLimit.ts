@@ -61,6 +61,19 @@ function getOtpIdentityKey(req: Request) {
   return `ip:${clientAddressKey(req)}`;
 }
 
+// Scopes an identifier's key to the attempt carrying the request, so one attempt cannot
+// spend another's allowance. The attempt is the ephemeral token's jti, which bearer auth
+// has already set by the time route middleware runs. A request without one falls back to
+// the requester's address.
+function withAttempt(identityKey: (req: Request) => string) {
+  return (req: Request) => {
+    const { attemptId } = req as AuthenticatedRequest;
+    const scope = attemptId ? `attempt:${attemptId}` : `ip:${clientAddressKey(req)}`;
+
+    return `${identityKey(req)}:${scope}`;
+  };
+}
+
 function getOAuthFlowKey(req: Request) {
   return [req.params?.providerId ?? 'unknown-provider', clientAddressKey(req)].join(':');
 }
@@ -119,13 +132,39 @@ function createFlowLimiter(
   };
 }
 
+/**
+ * `perIdentity` is enforced per attempt. Across every attempt for one identifier the cap
+ * is this many times `perIdentity`, so minting fresh attempts still cannot message an
+ * address without bound, while a stranger has to drive several attempts' worth of
+ * requests before the owner is refused. A multiple rather than its own config value,
+ * because `flow_rate_limits` is a shared schema and a new key there needs a types release.
+ */
+export const IDENTIFIER_ATTEMPT_MULTIPLIER = 4;
+
+function createIdentityLimiter(
+  pick: (limits: FlowRateLimits) => number,
+  identityKey: (req: Request) => string,
+) {
+  const perAttempt = createFlowLimiter(pick, withAttempt(identityKey));
+  const perIdentifier = createFlowLimiter(
+    (limits) => pick(limits) * IDENTIFIER_ATTEMPT_MULTIPLIER,
+    identityKey,
+  );
+
+  return function identityLimiter(req: Request, res: Response, next: NextFunction) {
+    return perAttempt(req, res, (error?: unknown) =>
+      error ? next(error) : perIdentifier(req, res, next),
+    );
+  };
+}
+
 const magicLinkIpCachedLimiter = createFlowLimiter((limits) => limits.magicLink.perIp);
-const magicLinkIdentityCachedLimiter = createFlowLimiter(
+const magicLinkIdentityCachedLimiter = createIdentityLimiter(
   (limits) => limits.magicLink.perIdentity,
   getMagicLinkIdentityKey,
 );
 const otpIpCachedLimiter = createFlowLimiter((limits) => limits.otp.perIp);
-const otpIdentityCachedLimiter = createFlowLimiter(
+const otpIdentityCachedLimiter = createIdentityLimiter(
   (limits) => limits.otp.perIdentity,
   getOtpIdentityKey,
 );

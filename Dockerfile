@@ -19,23 +19,26 @@ RUN npm prune --omit=dev
 # (`build:console` sets VITE_BASE_PATH=/console/ and VITE_SAME_ORIGIN=true, so assets, the
 # React Router basename, and the origin-derived API base all agree). This API then serves the
 # result at /console. The dashboard repo is public, but its npm package is not published
-# (package.json is marked private), so it is fetched from git. Bump
-# SEAMLESS_ADMIN_DASHBOARD_REF to a dashboard release tag to ship a new dashboard on the next
-# auth-image release. Never point a release build at a floating branch.
+# (package.json is marked private), so it is fetched from git. To ship a new dashboard on the
+# next auth-image release, set SEAMLESS_ADMIN_DASHBOARD_REF to the full commit SHA of a
+# dashboard release tag and update the tag in the comment above it. A tag can be moved, so the
+# build refuses anything but a full SHA and checks HEAD against it after checkout.
 FROM node:24-slim AS admin-dashboard
 WORKDIR /dashboard
 
 ARG SEAMLESS_ADMIN_DASHBOARD_REPO=https://github.com/fells-code/seamless-auth-admin-dashboard.git
-# Pinned dashboard release tag. The same-origin /console build has shipped since v0.2.0.
-ARG SEAMLESS_ADMIN_DASHBOARD_REF=v0.10.1
+# Dashboard release v0.10.1. The same-origin /console build has shipped since v0.2.0.
+ARG SEAMLESS_ADMIN_DASHBOARD_REF=e16c1e84e6a105fb7cadc328570a2fbc469f463d
 
 RUN apt-get update && \
   apt-get install -y git python3 make g++ && \
   rm -rf /var/lib/apt/lists/*
 
-# Full clone + checkout so the ref can be a tag, branch, or commit SHA.
+RUN echo "${SEAMLESS_ADMIN_DASHBOARD_REF}" | grep -Eqx '[0-9a-f]{40}' || \
+  { echo "SEAMLESS_ADMIN_DASHBOARD_REF must be a full commit SHA" >&2; exit 1; }
 RUN git clone "${SEAMLESS_ADMIN_DASHBOARD_REPO}" . && \
-  git checkout "${SEAMLESS_ADMIN_DASHBOARD_REF}"
+  git -c advice.detachedHead=false checkout --detach "${SEAMLESS_ADMIN_DASHBOARD_REF}" && \
+  test "$(git rev-parse HEAD)" = "${SEAMLESS_ADMIN_DASHBOARD_REF}"
 RUN npm ci
 RUN npm run build:console
 

@@ -224,6 +224,16 @@ export const sendLoginPhoneOTP = async (req: Request, res: Response) => {
   return sendPhoneOTP(req, res);
 };
 
+export const sendRegistrationEmailOTP = async (req: Request, res: Response) => {
+  const user = (req as AuthenticatedRequest).user;
+
+  if (user.verified && (await rejectDisabledLoginMethod('email_otp', req, res))) {
+    return;
+  }
+
+  return sendEmailOTP(req, res);
+};
+
 export const sendLoginEmailOTP = async (req: Request, res: Response) => {
   if (await rejectDisabledLoginMethod('email_otp', req, res)) {
     return;
@@ -312,25 +322,19 @@ export const verifyEmail = async (req: Request, res: Response) => {
   let user = authReq.user;
   const email = user.email;
 
-  // This endpoint issues a session for an already-verified account, so it is a login
-  // whatever its name says, and the lockout policy has to bind here too. Without it,
-  // an account locked out of /otp/verify-login-email-otp could still authenticate
-  // through this one. The login-method list deliberately does not gate it: email OTP
-  // is how registration proves an address, whether or not the deployment offers it as
-  // a way to sign in. A rule that requires a passkey does, once the account is already
-  // verified, or this endpoint would be the way around it.
+  // For an account that was already verified this endpoint is a login whatever its name
+  // says, so the lockout policy and the login method list bind here as they do on
+  // /otp/verify-login-email-otp. Only an unverified account skips the method list, since
+  // email OTP is how registration proves an address whether or not the deployment
+  // offers it as a way to sign in.
   if (await rejectIfUserLocked({ userId: user.id, req, res })) {
     return;
   }
 
-  if (user.verified && (await isPasskeyRequiredForUser(user.id))) {
-    await AuthEventService.log({
-      userId: user.id,
-      type: 'login_failed',
-      req,
-      metadata: { reason: 'Passkey required', method: 'email_otp' },
-    });
-    return res.status(403).json({ error: 'login_method_disabled' });
+  const wasVerified = Boolean(user.verified);
+
+  if (wasVerified && (await rejectDisabledLoginMethod('email_otp', req, res))) {
+    return;
   }
 
   logger.info('Verifying email');
@@ -402,7 +406,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
       await issueSessionAndRespond({
         method: 'email_otp',
-        accountVerification: true,
+        accountVerification: !wasVerified,
         user: {
           id: user.id,
           email: user.email,

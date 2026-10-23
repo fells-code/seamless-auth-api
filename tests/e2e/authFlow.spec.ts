@@ -45,8 +45,11 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
 
+  // The shared auth mock injects an already verified account, which only signs in
+  // through email verification while email OTP is a login method.
   (getSystemConfig as any).mockResolvedValue({
     default_roles: ['user'],
+    login_methods: ['passkey', 'email_otp'],
   });
 
   (signEphemeralToken as any).mockResolvedValue('ephemeral-token');

@@ -11,7 +11,7 @@ import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from 
 import { Session } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
-import { getLoginPolicy } from './loginPolicyService.js';
+import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 /** The factor that proved the user, as far as session issuance needs to know it. */
@@ -19,7 +19,7 @@ export type SessionMethod = 'passkey' | 'email_otp' | 'phone_otp' | 'magic_link'
 
 export class PasskeyRequiredError extends Error {
   constructor(method: SessionMethod) {
-    super(`Refused to issue a session from ${method} in phishing-resistant-only mode`);
+    super(`Refused to issue a session from ${method}: this sign-in has to be a passkey`);
     this.name = 'PasskeyRequiredError';
   }
 }
@@ -54,13 +54,12 @@ type IssueSessionParams = {
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
   const { user, req, res, extraFields, method, accountVerification } = params;
 
-  // Every endpoint that reaches here with another factor refuses first. This is the
-  // backstop for one that does not, so it fails closed rather than trusting the gates.
-  if (method !== 'passkey' && !accountVerification) {
-    const { phishingResistantOnly } = await getLoginPolicy();
-    if (phishingResistantOnly) {
-      throw new PasskeyRequiredError(method);
-    }
+  // Every endpoint that reaches here with another factor refuses first, with a 403. This
+  // is the backstop for one that does not, so it fails closed rather than trusting the
+  // gates. It covers both rules, phishing-resistant-only mode and an account that holds a
+  // passkey while fallback is off, because OAuth once shipped without the second.
+  if (method !== 'passkey' && !accountVerification && (await isPasskeyRequiredForUser(user.id))) {
+    throw new PasskeyRequiredError(method);
   }
 
   const refreshToken = generateRefreshToken();

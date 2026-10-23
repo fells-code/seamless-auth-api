@@ -132,22 +132,17 @@ function purgeConsumedStates(now = Date.now()) {
 }
 
 /**
- * Accepts a callback that carries no binding. Only for clients older than the binding,
- * during an upgrade: without it a state can be finished by anyone who holds it.
+ * The escape hatch that accepted callbacks without a binding is gone, and a deployment
+ * that still sets it should hear that it no longer does anything rather than assume the
+ * old clients it was set for still work.
  */
-export function unboundOAuthStateAllowed(env: Record<string, string | undefined> = process.env) {
-  return env.OAUTH_ALLOW_UNBOUND_STATE?.trim().toLowerCase() === 'true';
-}
-
-export function warnIfUnboundOAuthStateAllowed(
-  env: Record<string, string | undefined> = process.env,
-) {
-  if (!unboundOAuthStateAllowed(env)) return;
+export function warnIfUnboundOAuthStateSet(env: Record<string, string | undefined> = process.env) {
+  if (env.OAUTH_ALLOW_UNBOUND_STATE === undefined) return;
 
   logger.warn(
-    'OAUTH_ALLOW_UNBOUND_STATE is set, so an OAuth callback without a binding is accepted and ' +
-      'a sign-in can be finished by a client other than the one that started it. Upgrade every ' +
-      'client to send the binding and unset it. It is deprecated and is removed in v0.20.',
+    'OAUTH_ALLOW_UNBOUND_STATE is set but no longer read: since v0.20 every OAuth callback must ' +
+      'carry the binding from /start. Unset it, and upgrade any client older than ' +
+      '@seamless-auth/client 0.7.1.',
   );
 }
 
@@ -301,9 +296,7 @@ function checkOAuthStateBinding(
   payload: OAuthStatePayload,
   binding: string | undefined,
 ): OAuthStateRefusal | null {
-  if (!binding) {
-    return unboundOAuthStateAllowed() ? null : 'state_binding_missing';
-  }
+  if (!binding) return 'state_binding_missing';
 
   if (typeof payload.bindingHash !== 'string') return 'state_binding_mismatch';
 

@@ -202,11 +202,13 @@ function lastOptions(rateLimit: any) {
 }
 
 describe('flow limiters', () => {
+  // The identity limiters build two: per attempt, then the looser identifier-wide cap,
+  // which is the last one built.
   it.each([
     ['magicLinkIpLimiter', 20],
-    ['magicLinkEmailLimiter', 5],
+    ['magicLinkEmailLimiter', 20],
     ['otpIpLimiter', 10],
-    ['otpIdentityLimiter', 5],
+    ['otpIdentityLimiter', 20],
     ['oauthIpLimiter', 30],
     ['oauthProviderLimiter', 10],
   ] as const)(
@@ -242,10 +244,13 @@ describe('flow limiters', () => {
     const otpIp = lastOptions(rateLimit);
     // @ts-ignore
     await limiters.otpIdentityLimiter({ body: { email: 'a@b.c' } }, {}, vi.fn());
+    const calls = rateLimit.default.mock.calls;
+    const otpAttempt = calls[calls.length - 2][0];
     const otpIdentity = lastOptions(rateLimit);
 
     await expect(otpIp.limit()).resolves.toBe(500);
-    await expect(otpIdentity.limit()).resolves.toBe(5);
+    await expect(otpAttempt.limit()).resolves.toBe(5);
+    await expect(otpIdentity.limit()).resolves.toBe(20);
   });
 
   it('takes a changed limit on the next hit without rebuilding the limiter', async () => {
@@ -323,6 +328,58 @@ describe('otpIdentityLimiter', () => {
     expect(options.keyGenerator({ user: { email: 'Test@Example.com' } })).toBe(
       'email:test@example.com',
     );
+  });
+});
+
+describe('identity limiters', () => {
+  async function attemptAndIdentifierKeys(name: 'otpIdentityLimiter' | 'magicLinkEmailLimiter') {
+    const { rateLimit, limiters } = await loadFlowLimiters();
+    // @ts-ignore
+    await limiters[name]({ params: {} }, {}, vi.fn());
+    const calls = rateLimit.default.mock.calls;
+
+    return {
+      attempt: calls[calls.length - 2][0].keyGenerator,
+      identifier: calls[calls.length - 1][0].keyGenerator,
+    };
+  }
+
+  it.each(['otpIdentityLimiter', 'magicLinkEmailLimiter'] as const)(
+    '%s keys the strict bucket on identifier and attempt',
+    async (name) => {
+      const { attempt, identifier } = await attemptAndIdentifierKeys(name);
+      const owner = { user: { email: 'Owner@x.com' }, attemptId: 'owner-attempt' };
+      const stranger = { user: { email: 'owner@x.com' }, attemptId: 'stranger-attempt' };
+
+      expect(attempt(owner)).toBe('email:owner@x.com:attempt:owner-attempt');
+      expect(attempt(owner)).not.toBe(attempt(stranger));
+      expect(identifier(owner)).toBe(identifier(stranger));
+    },
+  );
+
+  it('falls back to the requester address when there is no attempt', async () => {
+    const { attempt } = await attemptAndIdentifierKeys('otpIdentityLimiter');
+
+    expect(attempt({ user: { email: 'a@x.com' }, ip: '1.2.3.4' })).toBe('email:a@x.com:ip:1.2.3.4');
+  });
+
+  it('passes an attempt bucket error on without consulting the identifier cap', async () => {
+    const { rateLimit, limiters } = await loadFlowLimiters();
+    const next = vi.fn();
+    // @ts-ignore
+    await limiters.otpIdentityLimiter({ params: {} }, {}, vi.fn());
+    const calls = rateLimit.default.mock.calls;
+    const attemptLimiter = rateLimit.default.mock.results[calls.length - 2].value;
+    const identifierLimiter = rateLimit.default.mock.results[calls.length - 1].value;
+    const failure = new Error('store unavailable');
+    attemptLimiter.mockImplementationOnce((_req: any, _res: any, done: any) => done(failure));
+    identifierLimiter.mockClear();
+
+    // @ts-ignore
+    await limiters.otpIdentityLimiter({ params: {} }, {}, next);
+
+    expect(next).toHaveBeenCalledWith(failure);
+    expect(identifierLimiter).not.toHaveBeenCalled();
   });
 });
 
@@ -418,7 +475,7 @@ describe('refusal body', () => {
     const messages = (rateLimit.default as any).mock.calls.map(
       ([options]: any[]) => options.message,
     );
-    expect(messages).toHaveLength(8);
+    expect(messages).toHaveLength(10);
     for (const message of messages) {
       expect(message).toEqual({ error: 'Too many requests, please try again later' });
     }
@@ -486,12 +543,12 @@ describe('rate limiter caches', () => {
     // @ts-ignore
     await magicLinkIpLimiter({}, {}, next);
 
-    // One general limiter at load, then one per flow limiter on first use, and a
-    // repeat hit reuses the instance it built.
-    expect(rateLimit.default).toHaveBeenCalledTimes(3);
+    // One general limiter at load, then one per flow limiter on first use (two for the
+    // identity limiter), and a repeat hit reuses the instance it built.
+    expect(rateLimit.default).toHaveBeenCalledTimes(4);
     const limits = await Promise.all(
       (rateLimit.default as any).mock.calls.map(([options]: any[]) => options.limit()),
     );
-    expect(limits).toEqual([100, 20, 5]);
+    expect(limits).toEqual([100, 20, 5, 20]);
   });
 });
