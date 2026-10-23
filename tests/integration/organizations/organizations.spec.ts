@@ -718,6 +718,13 @@ describe('admin OAuth provider retirement', () => {
         transaction: expect.anything(),
       }),
     );
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      expect.objectContaining({
+        where: { id: ['user-1', otherUserId] },
+        transaction: expect.anything(),
+      }),
+    );
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'admin_oauth_provider_retired',
