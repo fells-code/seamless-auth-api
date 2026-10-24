@@ -6,7 +6,6 @@ import { getSequelize } from '../../../src/models/index.js';
 import { PolicyDocumentSchema } from '../../../src/schemas/policy.schema.js';
 import { normalizeLoginPolicy } from '../../../src/services/loginPolicyService.js';
 import {
-  breakGlassEmails,
   hasUsableFactor,
   POLICY_DRY_RUN_USER_CAP,
   runPolicyDryRun,
@@ -135,20 +134,6 @@ describe('hasUsableFactor', () => {
         enabled,
       ),
     ).toBe(false);
-  });
-});
-
-describe('breakGlassEmails', () => {
-  it('reads a trimmed, lower-cased list', () => {
-    vi.stubEnv('BREAK_GLASS_EMAILS', ' Root@Example.com, ,ops@example.com ');
-
-    expect([...breakGlassEmails()]).toEqual(['root@example.com', 'ops@example.com']);
-  });
-
-  it('is empty when unset', () => {
-    vi.stubEnv('BREAK_GLASS_EMAILS', '');
-
-    expect(breakGlassEmails().size).toBe(0);
   });
 });
 

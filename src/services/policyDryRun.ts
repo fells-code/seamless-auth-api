@@ -6,6 +6,7 @@
 
 import { QueryTypes } from 'sequelize';
 
+import { breakGlassEmails } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import type { AttestationType } from '../lib/attestationType.js';
 import { Credential } from '../models/credentials.js';
@@ -20,7 +21,6 @@ import { evaluateAuthenticatorPolicy } from './authenticatorPolicyService.js';
 import { SIGN_IN_EVENT_TYPES } from './coverageReport.js';
 import {
   isLoginMethodEnabled,
-  isPasskeyRequired,
   type LoginPolicy,
   normalizeLoginPolicy,
   resolveAvailableLoginMethods,
@@ -56,19 +56,6 @@ interface SignInRow {
 }
 
 /**
- * Break-glass accounts are exempt from policy, so a dry run counts them and never lists
- * them. Read from `BREAK_GLASS_EMAILS`, a comma separated list.
- */
-export function breakGlassEmails(): Set<string> {
-  return new Set(
-    (process.env.BREAK_GLASS_EMAILS ?? '')
-      .split(',')
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
-/**
  * Why the policy would refuse a sign-in made with `method`, or null if it would not.
  *
  * Mirrors the checks the sign-in endpoints make. Authenticator rules are not among them:
@@ -100,7 +87,14 @@ export function signInRefusal(
   }
 
   // OAuth completes without the ephemeral token the passkey requirement is checked on.
-  if (method !== 'oauth' && isPasskeyRequired(policy, hasPasskey)) {
+  // isPasskeyRequired, less the phishing-resistant case handled above. Not called
+  // directly: it also guards session issuance, and this policy is request input.
+  if (
+    method !== 'oauth' &&
+    hasPasskey &&
+    !policy.passkeyFallbackEnabled &&
+    isLoginMethodEnabled(policy, 'passkey')
+  ) {
     return 'fallback_disabled';
   }
 
@@ -290,6 +284,7 @@ export async function runPolicyDryRun(params: {
   const from = new Date(to.getTime() - params.days * DAY_MS);
   const cap = params.cap ?? POLICY_DRY_RUN_USER_CAP;
   const policy = normalizeLoginPolicy(params.policy as unknown as Record<string, unknown>);
+  // Break-glass accounts are exempt from policy, so they are counted and never listed.
   const breakGlass = breakGlassEmails();
 
   const [rows, breakGlassAccounts, config] = await Promise.all([
