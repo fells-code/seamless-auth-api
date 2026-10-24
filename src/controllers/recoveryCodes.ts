@@ -6,9 +6,13 @@
 
 import { Request, Response } from 'express';
 
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
+import { sendAccountNotice } from '../services/accountNotices.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { breakGlassWaivers, recordBreakGlassSignIn } from '../services/breakGlassService.js';
 import {
   generateRecoveryCodes,
   getRecoveryCodeStatus,
@@ -20,6 +24,12 @@ import { AuthenticatedRequest } from '../types/types.js';
 async function recoveryCodesEnabled() {
   const { recovery_codes } = await getSystemConfig();
   return recovery_codes?.enabled !== false;
+}
+
+// Turning recovery codes off does not reach a break-glass admin's, which may be the only
+// factor it has left after a bad policy change.
+async function recoveryCodesUsableBy(user: Parameters<typeof isBreakGlassAdmin>[0]) {
+  return isBreakGlassAdmin(user) || (await recoveryCodesEnabled());
 }
 
 function refuseDisabled(res: Response) {
@@ -57,11 +67,12 @@ async function issueRecoveryCodes(req: Request, res: Response) {
  * back into the account.
  */
 export const createRecoveryCodes = async (req: Request, res: Response) => {
-  if (!(await recoveryCodesEnabled())) {
+  const { user } = req as AuthenticatedRequest;
+
+  if (!(await recoveryCodesUsableBy(user))) {
     return refuseDisabled(res);
   }
 
-  const { user } = req as AuthenticatedRequest;
   const { total } = await getRecoveryCodeStatus(user.id);
 
   if (total === 0) {
@@ -77,11 +88,13 @@ export const createRecoveryCodes = async (req: Request, res: Response) => {
  * be locked out by. The session it issues is restricted until a new factor is enrolled.
  */
 export const redeemRecoveryCodeLogin = async (req: Request, res: Response) => {
-  if (!(await recoveryCodesEnabled())) {
+  const { user } = req as AuthenticatedRequest;
+
+  if (!(await recoveryCodesUsableBy(user))) {
     return refuseDisabled(res);
   }
 
-  const { user } = req as AuthenticatedRequest;
+  const waived = isBreakGlassAdmin(user) ? await breakGlassWaivers('recovery_code', user.id) : [];
   const redeemed = await redeemRecoveryCode(user.id, req.body.code);
 
   if (!redeemed) {
@@ -90,12 +103,23 @@ export const redeemRecoveryCodeLogin = async (req: Request, res: Response) => {
   }
 
   const { remaining } = await getRecoveryCodeStatus(user.id);
+  const { app_name: name } = await getSystemConfig();
+  const notices = await sendAccountNotice(
+    user,
+    {
+      subject: `A recovery code was used on your ${name} account`,
+      text:
+        `A recovery code was used to sign in to your ${name} account (${remaining} left). ` +
+        'If this was not you, contact your administrator.',
+    },
+    { external: await canReturnExternalDelivery(req) },
+  );
 
   await AuthEventService.log({
     userId: user.id,
     type: 'recovery_code_used',
     req,
-    metadata: { remaining },
+    metadata: { remaining, notices },
   });
 
   await issueSessionAndRespond({
@@ -110,4 +134,6 @@ export const redeemRecoveryCodeLogin = async (req: Request, res: Response) => {
     req,
     res,
   });
+
+  await recordBreakGlassSignIn({ req, user, factor: 'recovery_code', waived });
 };

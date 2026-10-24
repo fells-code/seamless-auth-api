@@ -8,6 +8,7 @@ vi.unmock('../../../src/models/systemConfig.js');
 vi.unmock('../../../src/models/credentials.js');
 vi.unmock('../../../src/models/totpCredentials.js');
 vi.unmock('../../../src/models/recoveryCodes.js');
+vi.unmock('../../../src/models/accountRecoveryRequests.js');
 vi.unmock('../../../src/models/magicLinks.js');
 vi.unmock('../../../src/models/oauthIdentities.js');
 vi.unmock('../../../src/models/organizations.js');

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  BreakGlassFactorError,
   issueSessionAndRespond,
   PasskeyRequiredError,
 } from '../../../src/services/sessionIssuance.js';
@@ -257,6 +258,59 @@ describe('issueSessionAndRespond', () => {
       });
 
       expect(Session.create).toHaveBeenCalled();
+    });
+
+    describe('for a break-glass admin', () => {
+      const breakGlassUser = { ...mockUser, email: 'Root@Example.com', roles: ['admin:write'] };
+
+      beforeEach(() => {
+        vi.stubEnv('BREAK_GLASS_EMAILS', 'root@example.com');
+      });
+
+      afterEach(() => {
+        vi.unstubAllEnvs();
+      });
+
+      it.each(['passkey', 'totp', 'recovery_code'] as const)(
+        'starts a session from %s, which policy cannot take away',
+        async (method) => {
+          await issueSessionAndRespond({
+            method,
+            user: breakGlassUser,
+            req: mockReq(),
+            res: mockRes(),
+          });
+
+          expect(Session.create).toHaveBeenCalled();
+        },
+      );
+
+      it.each(['email_otp', 'phone_otp', 'magic_link', 'oauth'] as const)(
+        'refuses %s, which proves only an address or an outside identity',
+        async (method) => {
+          await expect(
+            issueSessionAndRespond({
+              method,
+              user: breakGlassUser,
+              req: mockReq(),
+              res: mockRes(),
+            }),
+          ).rejects.toBeInstanceOf(BreakGlassFactorError);
+
+          expect(Session.create).not.toHaveBeenCalled();
+        },
+      );
+
+      it('gives a listed account without an admin role no exemption', async () => {
+        await expect(
+          issueSessionAndRespond({
+            method: 'totp',
+            user: { ...breakGlassUser, roles: ['user'] },
+            req: mockReq(),
+            res: mockRes(),
+          }),
+        ).rejects.toBeInstanceOf(PasskeyRequiredError);
+      });
     });
 
     it("starts the one session that completes a new account's address verification", async () => {

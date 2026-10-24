@@ -8,6 +8,11 @@
 import { z } from 'zod';
 
 export const AUTH_EVENT_TYPES = [
+  'account_recovery_cancelled',
+  'account_recovery_completed',
+  'account_recovery_failed',
+  'account_recovery_started',
+  'account_recovery_verified',
   'auth_action_incremented',
   'admin_device_replacement_recovery',
   'admin_enrollment_invite_sent',
@@ -18,6 +23,8 @@ export const AUTH_EVENT_TYPES = [
   'admin_user_import_completed',
   'admin_user_imported',
   'bearer_token_failed',
+  'break_glass_enrollment',
+  'break_glass_sign_in',
   'credentials_deleted',
   'informational',
   'internal_user_updated_by_owner',

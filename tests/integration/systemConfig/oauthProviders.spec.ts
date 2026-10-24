@@ -8,6 +8,8 @@ import {
 } from '../../../src/config/getSystemConfig.js';
 import { SystemConfig } from '../../../src/models/systemConfig.js';
 import { createApp } from '../../../src/app';
+import { Session } from '../../../src/models/sessions.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 
 let app: Application;
@@ -47,6 +49,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   (SystemConfig.upsert as any).mockResolvedValue(undefined);
 });
 

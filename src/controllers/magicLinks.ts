@@ -16,6 +16,7 @@ import { User } from '../models/users.js';
 import { MagicLinkRequestQuerySchema } from '../schemas/magiclink.requests.js';
 import { claimUnverifiedAccount } from '../services/accountClaim.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { rejectWeakFactorForBreakGlass } from '../services/breakGlassService.js';
 import { passkeyEnrollmentPrompt } from '../services/enrollmentService.js';
 import {
   getLoginPolicy,
@@ -38,7 +39,15 @@ const logger = getLogger('magic-links');
 
 const TTL_MINUTES = 15;
 
-async function rejectDisabledMagicLink(req: Request, res: Response, user?: { id: string } | null) {
+async function rejectDisabledMagicLink(
+  req: Request,
+  res: Response,
+  user?: { id: string; email?: string | null; roles?: string[] | null } | null,
+) {
+  if (user && (await rejectWeakFactorForBreakGlass(user, 'magic_link', req, res))) {
+    return true;
+  }
+
   const policy = await getLoginPolicy();
 
   if (
