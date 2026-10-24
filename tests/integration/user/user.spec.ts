@@ -4,8 +4,10 @@ import { Application } from 'express';
 
 import { createApp } from '../../../src/app';
 import { Credential } from '../../../src/models/credentials.js';
+import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -37,6 +39,8 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  // DELETE /users/delete needs a fresh step-up; the session lookup is how it is read.
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   vi.clearAllMocks();
 });
 
@@ -245,10 +249,10 @@ describe('user not-found branches', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 404 from DELETE /users/delete when unauthenticated', async () => {
+  it('refuses DELETE /users/delete with no user before reaching the handler', async () => {
     const res = await request(app).delete('/users/delete').set('x-omit-user', 'true');
 
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe('User not found.');
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('unauthorized');
   });
 });

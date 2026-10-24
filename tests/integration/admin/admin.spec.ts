@@ -21,7 +21,7 @@ import {
   updateUser,
 } from '../../../src/controllers/admin.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
-import { buildSession } from '../../factories/sessionFactory.js';
+import { buildFreshStepUpSession, buildSession } from '../../factories/sessionFactory.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 
@@ -33,6 +33,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
 });
 
 describe('GET /admin/users', () => {
@@ -209,7 +210,9 @@ describe('GET /admin/sessions/:userId', () => {
 describe('DELETE /admin/sessions/by-id/:id', () => {
   it('revokes a single admin-managed session', async () => {
     const session = buildSession({ id: 'session-to-revoke', userId: testGuid });
-    (Session.findOne as any).mockResolvedValue(session);
+    (Session.findOne as any)
+      .mockResolvedValueOnce(buildFreshStepUpSession())
+      .mockResolvedValueOnce(session);
 
     const res = await request(app).delete('/admin/sessions/by-id/session-to-revoke');
 
@@ -218,7 +221,9 @@ describe('DELETE /admin/sessions/by-id/:id', () => {
   });
 
   it('returns 404 when a single admin-managed session is missing', async () => {
-    (Session.findOne as any).mockResolvedValue(null);
+    (Session.findOne as any)
+      .mockResolvedValueOnce(buildFreshStepUpSession())
+      .mockResolvedValueOnce(null);
 
     const res = await request(app).delete('/admin/sessions/by-id/missing-session');
 
@@ -1292,7 +1297,9 @@ describe('admin session failure paths', () => {
   });
 
   it('returns 500 when a single session revoke fails', async () => {
-    (Session.findOne as any).mockRejectedValue(new Error('boom'));
+    (Session.findOne as any)
+      .mockResolvedValueOnce(buildFreshStepUpSession())
+      .mockRejectedValueOnce(new Error('boom'));
 
     const res = await request(app).delete('/admin/sessions/by-id/session-x');
 
