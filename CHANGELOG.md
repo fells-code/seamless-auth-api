@@ -1,5 +1,86 @@
 # seamless-auth-api
 
+## 0.20.0
+
+### Minor Changes
+
+- 7ae63d1: Recovery codes, and restricted recovery sessions (#398).
+
+  - `GET /recovery-codes` reports how many of the user's codes are left. `POST /recovery-codes` returns a new set of ten single-use codes (`XXXXX-XXXXX`), the only time they are shown, and invalidates the previous set; replacing a set needs a fresh step-up. Codes are stored as keyed hashes.
+  - `POST /recovery-codes/redeem`, with the pre-auth token from `/login`, signs in with a code. It is rate limited like an OTP, is not subject to account lockout, and works whatever `login_methods` or `phishing_resistant_only` say. Turned off with `recovery_codes.enabled`.
+  - The session a code issues is a recovery session: `recovery: true` and `nextStep: "enroll_passkey"` in the response, a `recovery: true` claim in the access token, and `403 enrollment_required` on every access route except passkey and TOTP enrollment, recovery codes, `GET /users/me` and logout, until a new factor is enrolled. Refreshing keeps the restriction; enrolling lifts it.
+  - `POST /login` lets an account continue to the code when it would otherwise be answered with a lock or a decoy (no passkey, locked or left with no allowed method) and holds an unused code.
+  - `GET /system-config/public` reports `recoveryCodes`.
+  - Migration: new `recovery_codes` table, and `sessions.recovery`.
+
+  See docs/account-recovery.md.
+
+- 5f41ee0: `OAUTH_ALLOW_UNBOUND_STATE` is removed. Every OAuth callback must carry the binding `/start` returned, as clients from `@seamless-auth/client` 0.7.1 (`@seamless-auth/react` 0.18.1, `@seamless-auth/react-native` 0.3.3) do. A callback without one is refused with `400 Invalid OAuth state` and audited as `state_binding_missing`, whatever the variable says. A deployment that still sets it gets a boot warning that it is ignored.
+
+  Breaking for any client older than those SDK versions that starts OAuth sign-in: upgrade it before this release.
+
+- 4205828: The server's own secrets no longer fall back to the service token (#447).
+
+  - In production, `REFRESH_TOKEN_LOOKUP_SECRET` and `DECOY_SUBJECT_SECRET` are always required, `TOTP_SECRET_ENCRYPTION_KEY` once any TOTP credential exists, and `OAUTH_STATE_SECRET` once an OAuth provider is configured. The server refuses to start without the ones it needs and names each one.
+  - Adding an OAuth provider (`POST /system-config/oauth-providers`, or `oauth_providers` in `PATCH /system-config/admin`) answers `409 { "error": "secret_required", "variable": "OAUTH_STATE_SECRET" }` while it is unset, and `POST /totp/enroll/start` answers the same for `TOTP_SECRET_ENCRYPTION_KEY`.
+  - Development keeps a fixed development-only value for each unset secret, with a warning.
+  - The boot warning about secrets sharing the service token is gone, since none do.
+
+  Breaking for a production deployment that relied on the fallback: before upgrading, set each missing variable to the current service token value, so existing sessions, TOTP enrollments and OAuth sign-ins in flight stay valid. See docs/production-operations.md.
+
+- 894a8bf: Moves to `@seamless-auth/types` 0.30.0.
+
+  - OAuth provider config is refused at request validation when `clientSecretEnv` does not end in `_CLIENT_SECRET` or a provider URL is not `http(s)`, the same rules 0.19.4 enforced after parsing. The production-only checks (https, public destinations) stay in the server.
+  - New system config keys `recovery_codes` (`RECOVERY_CODES`, default `{"enabled":true,"requireAtEnrollment":false}`) and `account_recovery` (`ACCOUNT_RECOVERY`, default `{"enabled":false,"delay":"24h"}`), seeded at boot and patchable. The recovery features that read them arrive in this release.
+
+### Patch Changes
+
+- ea27343: Changing a user's email or phone through `PATCH /admin/users/{userId}` now signs the user out and tells them (#475).
+
+  - Every active session for the user is revoked, in the same transaction as the change. Access tokens already issued stay valid until they expire.
+  - A notice goes to the previous address and to the new one, by email for an email change and by SMS for a phone change, through the configured direct transports. A failed notice does not fail the request.
+  - The `internal_user_updated_by_owner` audit event records `identityChanges` (SHA-256 digests of the previous and new values), `revokedSessions` and the outcome of each notice.
+  - With `x-seamless-auth-delivery-mode: external` no notice is sent, because the delivery payload has no kind for account notices yet. Each is recorded as `not_sent_external_delivery`.
+
+  The response shape is unchanged.
+
+- c1b2226: Consume one-time credentials atomically. Email and phone OTPs are now cleared with an update conditional on the issuance that was compared, and a TOTP code is only accepted while the stored counter is still older than it, so concurrent submissions of one valid code yield exactly one success. TOTP enrollment enables the pending credential the same way. The losing request gets the same response and audit event as an invalid code.
+- 7b5484c: OTP and magic link limits and links are scoped to the sign-in attempt, so a stranger who knows an address can no longer use up or void the owner's codes and links (#468).
+
+  - The OTP and magic link identity limiters key `flow_rate_limits.*.perIdentity` on the identifier plus the ephemeral token's attempt (`jti`), or the requester's IP when there is none. Another attempt for the same address keeps its own allowance.
+  - Every attempt for one identifier together is capped at four times `perIdentity` (20 per window by default), so minting fresh attempts still cannot message an address without bound.
+  - `POST /magic-link` expires only earlier links from the same attempt instead of every link for the account.
+  - `FLOW_RATE_LIMITS` / `flow_rate_limits` keep their shape and meaning. No new config key.
+
+- e46987a: Update body-parser to 2.4.0 and ip-address to 10.7.4 to pick up fixes for GHSA-27r3-jxmh-p828 and GHSA-rxp7-6hxx-x8q5.
+- 88ea07c: The bundled Docker Compose stack serves on loopback only and no longer grants admin to a fixed address (#473).
+
+  - `docker-compose.yml` publishes the API on `127.0.0.1:${API_PORT:-5312}` and no longer publishes Postgres. Docker's port publishing bypasses host firewalls such as ufw, so the old bare port exposed the development defaults to the network. `POSTGRES_PORT` no longer applies to this file; use `docker compose exec postgres psql -U seamless seamless_auth` for a shell.
+  - `docker-compose.dev.yml` publishes the API and Postgres on `127.0.0.1` only.
+  - Neither file defaults `OWNER_EMAIL` to `owner@example.com` any more. Pass your own, for example `OWNER_EMAIL=you@example.com docker compose up`; without it nobody is granted admin. An existing stack whose owner account was already created keeps its role.
+
+  The release image now builds the admin dashboard from a pinned commit (`SEAMLESS_ADMIN_DASHBOARD_REF`, dashboard v0.10.1) and refuses a build arg that is not a full commit SHA (#474). Overriding it with a tag or branch name fails the build.
+
+- 9f6ba6b: OAuth sign-in respects the per-account passkey requirement (#469).
+
+  - With `passkey_login_fallback_enabled` off, `POST /oauth/:providerId/callback` for an account that holds a passkey now answers `403 login_method_disabled` and issues no session, as the email code, phone code, magic link and TOTP continuations already did. The refusal is recorded as `oauth_login_failed` with reason `passkey_required`.
+  - Session issuance now applies the same rule as its backstop, not only phishing-resistant-only mode, so a sign-in path that misses the check fails closed instead of issuing a session.
+
+- d83d2ac: The registration email OTP path honours `login_methods` for accounts that are already verified (#470).
+
+  - `POST /otp/verify-email-otp` signs an already verified account in only when `email_otp` is a login method (and the passkey rules allow it). Otherwise it answers `403 login_method_disabled` before checking the code, the same answer as `/otp/verify-login-email-otp`. Before, a deployment that removed `email_otp` from `login_methods` could still be signed in to with an email code through this endpoint.
+  - `POST /otp/generate-email-otp` (and its deprecated `GET`) refuses an already verified account the same way, and its OpenAPI responses now list `403`.
+  - An unverified account still receives and verifies its registration code whatever `login_methods` says.
+  - The session is marked as an account verification only when the code actually moved the account from unverified to verified, so the phishing-resistant-only backstop in session issuance stays in force for an existing account.
+  - Decoy continuations answer both endpoints the same way a verified account is answered.
+
+- ee9a575: Log out everywhere can no longer miss a session a concurrent refresh was creating (#471).
+
+  - `DELETE /logout/all`, `DELETE /sessions`, `DELETE /admin/sessions/:userId/revoke-all`, device-replacement recovery and OAuth provider retirement revoke with one bulk update instead of reading the sessions and revoking them one at a time.
+  - Each also records a per-user cutoff. A session created at or before it is refused on every authenticated request and on `POST /refresh`, which re-reads the cutoff after claiming the rotation, so a rotation that started before the revoke cannot produce a live session. The refusal is `401 invalid_refresh_token`, with `refusal: 'sessions_revoked'` on the `refresh_token_failed` auth event.
+  - Validating an access token now reads the cutoff from the session owner's row, one indexed lookup per authenticated request.
+  - Migration: `users` gains `sessions_revoked_before`.
+
 ## 0.19.4
 
 ### Patch Changes
