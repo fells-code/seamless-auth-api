@@ -18,6 +18,7 @@ import { TotpCredential } from './models/totpCredentials.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { warnIfUnboundOAuthStateSet } from './services/oauthService.js';
+import { recordBootstrapPolicyVersion } from './services/policyVersionService.js';
 import { assertSchemaCurrent } from './services/schemaGuard.js';
 import getLogger from './utils/logger.js';
 import { initDevSigningKey } from './utils/signingKeyStore.js';
@@ -39,6 +40,7 @@ async function startServer() {
     await connectToDb(models);
     await assertSchemaCurrent(models.sequelize);
     await bootstrapSystemConfig();
+    await recordBootstrapPolicyVersion();
 
     // After bootstrap, since which secrets are needed depends on the stored config.
     assertAuthSecrets(await getSystemConfig(), (await TotpCredential.count()) > 0);

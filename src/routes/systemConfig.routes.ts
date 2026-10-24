@@ -11,6 +11,15 @@ import {
   updateOAuthProvider,
 } from '../controllers/oauthProviders.js';
 import {
+  discardPolicyDraftHandler,
+  dryRunPolicyHandler,
+  getPolicyStateHandler,
+  listPolicyVersionsHandler,
+  publishPolicyHandler,
+  rollbackPolicyHandler,
+  savePolicyDraftHandler,
+} from '../controllers/policy.js';
+import {
   getAvailableRoles,
   getPublicSystemConfig,
   getSystemConfigHandler,
@@ -18,6 +27,7 @@ import {
 } from '../controllers/systemConfig.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requireStepUp } from '../middleware/requireStepUp.js';
 import {
   ErrorSchema,
   InternalErrorSchema,
@@ -33,6 +43,18 @@ import {
   OAuthProviderResponseSchema,
   OAuthProvidersListResponseSchema,
 } from '../schemas/oauthProviders.responses.js';
+import {
+  MessageResponseSchema,
+  PolicyDraftSaveRequestSchema,
+  PolicyDraftSchema,
+  PolicyDryRunRequestSchema,
+  PolicyDryRunResponseSchema,
+  PolicyPublishRequestSchema,
+  PolicyRollbackRequestSchema,
+  PolicyStateResponseSchema,
+  PolicyVersionSchema,
+  PolicyVersionsResponseSchema,
+} from '../schemas/policy.schema.js';
 import { SystemConfigPatchSchema } from '../schemas/systemConfig.patch.schema.js';
 import {
   AvailableRolesResponseSchema,
@@ -207,6 +229,163 @@ systemConfigRouter.delete(
     },
   },
   deleteOAuthProvider,
+);
+
+systemConfigRouter.get(
+  '/policy',
+  {
+    auth: 'access',
+    summary: 'Read the published auth policy and the draft, if any',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('read')],
+
+    schemas: {
+      response: {
+        200: PolicyStateResponseSchema,
+        401: ErrorSchema,
+      },
+    },
+  },
+  getPolicyStateHandler,
+);
+
+systemConfigRouter.put(
+  '/policy/draft',
+  {
+    auth: 'access',
+    summary: 'Save the auth policy draft',
+    description:
+      'Replaces the single draft. A draft changes nothing until it is published, and keeps ' +
+      'the version it was started from across saves.',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write')],
+
+    schemas: {
+      body: PolicyDraftSaveRequestSchema,
+      response: {
+        200: PolicyDraftSchema,
+        401: ErrorSchema,
+      },
+    },
+  },
+  savePolicyDraftHandler,
+);
+
+systemConfigRouter.delete(
+  '/policy/draft',
+  {
+    auth: 'access',
+    summary: 'Discard the auth policy draft',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write')],
+
+    schemas: {
+      response: {
+        200: MessageResponseSchema,
+        401: ErrorSchema,
+        404: ErrorSchema,
+      },
+    },
+  },
+  discardPolicyDraftHandler,
+);
+
+systemConfigRouter.post(
+  '/policy/publish',
+  {
+    auth: 'access',
+    summary: 'Publish the auth policy draft',
+    description:
+      'Applies the draft to system config and records it as the next version in one ' +
+      'transaction. Answers 409 when expectedVersion is no longer the published version.',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write'), requireStepUp()],
+
+    schemas: {
+      body: PolicyPublishRequestSchema,
+      response: {
+        200: PolicyVersionSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+        404: ErrorSchema,
+        409: ErrorSchema,
+      },
+    },
+  },
+  publishPolicyHandler,
+);
+
+systemConfigRouter.post(
+  '/policy/rollback',
+  {
+    auth: 'access',
+    summary: 'Roll the auth policy back to an earlier version',
+    description:
+      'Publishes a copy of the named version as the next version. Answers 409 when ' +
+      'expectedVersion is no longer the published version.',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write'), requireStepUp()],
+
+    schemas: {
+      body: PolicyRollbackRequestSchema,
+      response: {
+        200: PolicyVersionSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+        404: ErrorSchema,
+        409: ErrorSchema,
+      },
+    },
+  },
+  rollbackPolicyHandler,
+);
+
+systemConfigRouter.get(
+  '/policy/versions',
+  {
+    auth: 'access',
+    summary: 'List published auth policy versions, newest first',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('read')],
+
+    schemas: {
+      response: {
+        200: PolicyVersionsResponseSchema,
+        401: ErrorSchema,
+      },
+    },
+  },
+  listPolicyVersionsHandler,
+);
+
+systemConfigRouter.post(
+  '/policy/dry-run',
+  {
+    auth: 'access',
+    summary: 'Evaluate an auth policy against recent sign-ins',
+    description:
+      'Evaluates the policy in the request, or the draft when none is sent, against the ' +
+      'sign-ins of the last `days` days. Evaluates at most 10,000 accounts.',
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('read')],
+
+    schemas: {
+      body: PolicyDryRunRequestSchema,
+      response: {
+        200: PolicyDryRunResponseSchema,
+        400: ErrorSchema,
+        401: ErrorSchema,
+      },
+    },
+  },
+  dryRunPolicyHandler,
 );
 
 export default systemConfigRouter.router;

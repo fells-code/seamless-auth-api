@@ -16,6 +16,11 @@ import { createPatchSystemConfigSchema } from '../schemas/systemConfig.patch.sch
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { getLoginPolicy } from '../services/loginPolicyService.js';
+import {
+  isPolicyKey,
+  lockPolicyForConfigPatch,
+  recordConfigPatchPolicyVersion,
+} from '../services/policyVersionService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -93,7 +98,13 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 
   const updatedBy = resolveSystemConfigUpdatedBy(req);
 
-  await SystemConfig.sequelize!.transaction(async (tx) => {
+  const touchesPolicy = Object.keys(updates).some(isPolicyKey);
+
+  const policyVersion = await SystemConfig.sequelize!.transaction(async (tx) => {
+    if (touchesPolicy) {
+      await lockPolicyForConfigPatch(tx);
+    }
+
     for (const [key, value] of Object.entries(updates)) {
       await SystemConfig.upsert(
         {
@@ -105,6 +116,10 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
         { transaction: tx },
       );
     }
+
+    // Drafts are optional, so a policy change made here is versioned like a publish and
+    // can be rolled back the same way.
+    return touchesPolicy ? recordConfigPatchPolicyVersion(tx, updatedBy) : null;
   });
 
   invalidateSystemConfigCache();
@@ -115,6 +130,7 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
     metadata: {
       before: existingMap,
       after: updates,
+      ...(policyVersion ? { policyVersion: policyVersion.version } : {}),
     },
   });
 

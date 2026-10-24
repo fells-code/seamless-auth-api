@@ -124,6 +124,87 @@ Administrative session endpoints can list sessions and revoke individual or all 
 
 Lockout is checked after a user has been identified. Keep route-level and destination-aware limits enabled for unknown identifiers and delivery abuse.
 
+## Policy Changes
+
+The policy keys are the `system_config` keys that decide who can sign in, and how:
+`login_methods`, `passkey_login_fallback_enabled`, `phishing_resistant_only`,
+`prompt_passkey_enrollment`, `authenticator_policy`, `lockout_policy`, `recovery_codes` and
+`account_recovery`. A change to them can lock people out, so every change is kept as a numbered
+version that can be restored in one step, and a change can be staged as a draft and dry-run before
+it applies.
+
+Staging is optional. A whole-config `PATCH /system-config/admin` that changes a policy key still
+applies immediately, and is recorded as a `config_patch` version in the same transaction, so it
+can be rolled back like any other. See [Policy versions](./configuration.md#policy-versions) for
+how versions are recorded.
+
+| Route                                 | Access                    | Does                                                       |
+| ------------------------------------- | ------------------------- | ---------------------------------------------------------- |
+| `GET /system-config/policy`           | `admin:read`              | The published version and the draft, if any                |
+| `PUT /system-config/policy/draft`     | `admin:write`             | Saves the draft. Nothing changes until it is published     |
+| `DELETE /system-config/policy/draft`  | `admin:write`             | Discards the draft. `404` when there is none               |
+| `POST /system-config/policy/publish`  | `admin:write` and step-up | Applies the draft as the next version                      |
+| `POST /system-config/policy/rollback` | `admin:write` and step-up | Publishes a copy of an earlier version as the next version |
+| `GET /system-config/policy/versions`  | `admin:read`              | Every version, newest first                                |
+| `POST /system-config/policy/dry-run`  | `admin:read`              | Who the request's policy, or the draft, would refuse       |
+
+There is one draft per instance, shared by every administrator. It records the published version it
+was started from (`basedOnVersion`) and keeps it across saves, so a draft begun before someone else
+published still says so.
+
+Publish and rollback take `expectedVersion`, the published version the caller reviewed, and answer
+`409 policy_version_conflict` when another version has been published since. A stale draft cannot
+silently undo someone else's change. Both need a fresh step-up (`403 step_up_required` otherwise).
+Publish writes every policy key to `system_config`, records the version and clears the draft in one
+transaction, so a publish that fails part way leaves the previous policy in force. Rollback never
+rewrites history: rolling back to version 2 from version 5 publishes version 6, a copy of 2, with
+`rolledBackTo: 2`.
+
+Each step is audited: `policy_draft_saved`, `policy_draft_discarded`, `policy_published`,
+`policy_rolled_back` and `policy_dry_run`.
+
+### Dry run
+
+`POST /system-config/policy/dry-run` evaluates `policy` from the request body, or the draft when the
+body has none (`400 policy_candidate_required` when there is neither), against the completed
+sign-ins of the last `days` days (default 7, at most 30).
+
+```json
+{ "policy": { "login_methods": ["passkey"], "passkey_login_fallback_enabled": false }, "days": 14 }
+```
+
+Sign-ins are read from the success events the coverage report reads, folded by attempt, so an email
+code verification written twice counts once. The code a new account verifies its address with
+during registration is left out, since every policy allows it. For each account that signed in, the
+report lists the sign-ins the candidate would refuse and why:
+
+| Reason                        | Meaning                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `method_disabled`             | The method is no longer in `login_methods`                                                      |
+| `phishing_resistant_required` | `phishing_resistant_only` is on and the sign-in was not a passkey                               |
+| `fallback_disabled`           | The account holds a passkey and `passkey_login_fallback_enabled` is off (OAuth is not affected) |
+| `authenticator_not_allowed`   | The account holds a passkey the AAGUID lists or `requireKnownAuthenticator` would not admit     |
+| `synced_passkey_blocked`      | The account holds a synced passkey and `syncedPasskeys` would be `block`                        |
+
+`lockedOut` is true when none of the account's enrolled factors would still sign it in: no passkey
+under a passkey-only policy, no usable address-based method, and no linked identity at an enabled
+OAuth provider. `usersLockedOut` counts them, and they are listed first.
+
+Authenticator rules (the AAGUID lists, `requireKnownAuthenticator` and `syncedPasskeys`) are applied
+when a passkey is registered, not when it signs in, so a passkey the candidate would not admit keeps
+working. The two authenticator reasons therefore count no refused sign-in (`signIns` can be `0`) and
+never make an account `lockedOut`: they say the user could not enroll that authenticator again,
+which matters when they replace a device. `attachment` is a hint to the browser and is not
+evaluated. The API does not record whether a past assertion performed user verification, so
+`userVerification: "required"` is not predicted.
+
+Accounts listed in `BREAK_GLASS_EMAILS` (comma separated) are exempt from policy. They are never
+evaluated or listed; `breakGlassAccounts` counts how many exist.
+
+A run is bounded. It reads `auth_events` through the `(type, created_at)` index for the window and
+evaluates at most 10,000 accounts, the first by id. A run that reaches the cap says so in its
+`policy_dry_run` event (`capped: true`) and in the API log.
+
 ## Audit Events
 
 Admin actions are recorded as auth events with redacted metadata. Do not store raw secrets, tokens, OTPs, magic-link URLs, PRF values, account keys, or provider tokens in admin metadata.

@@ -14,6 +14,8 @@ vi.unmock('../../../src/models/organizations.js');
 vi.unmock('../../../src/models/organizationMemberships.js');
 vi.unmock('../../../src/models/webauthnChallenges.js');
 vi.unmock('../../../src/models/userExternalIds.js');
+vi.unmock('../../../src/models/policyVersions.js');
+vi.unmock('../../../src/models/policyDrafts.js');
 
 // The predicate the loader filters on. It used to ask whether a file ended with its own
 // extension, which is always true, so everything but index was imported and required to

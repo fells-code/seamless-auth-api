@@ -495,6 +495,25 @@ Reads are cached in-process for five minutes. Both write paths already invalidat
 change through the admin endpoints takes effect immediately; a direct database edit does not, and
 is not visible until the entry expires. See [`getSystemConfig.ts`](../src/config/getSystemConfig.ts).
 
+### Policy versions
+
+The policy keys (`login_methods`, `passkey_login_fallback_enabled`, `phishing_resistant_only`,
+`prompt_passkey_enrollment`, `authenticator_policy`, `lockout_policy`, `recovery_codes` and
+`account_recovery`) are versioned in `policy_versions`, whichever way they change:
+
+- **`bootstrap`**: the first boot after upgrading records the policy in force as version 1. A later
+  boot records a new version only when an environment variable changed a policy key that no
+  administrator has taken over (see above).
+- **`config_patch`**: a whole-config `PATCH /system-config/admin` that changes a policy key, in the
+  same transaction as the write. A patch that names a policy key but leaves the policy as it was
+  records nothing.
+- **`publish`** and **`rollback`**: the staged draft routes. See
+  [Policy Changes](./admin-operations.md#policy-changes).
+
+Publish and rollback mark every policy row admin-managed (`updatedBy`), so the environment no longer
+overrides them on boot. A database edit to a policy row is not versioned until the next boot
+notices it.
+
 ## See also
 
 - [`.env.example`](../.env.example) - annotated template
