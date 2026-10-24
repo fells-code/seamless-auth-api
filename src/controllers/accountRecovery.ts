@@ -133,7 +133,9 @@ export const startAccountRecovery = async (req: Request, res: Response) => {
   } catch (error) {
     if (!(error instanceof DeliveryError)) throw error;
 
-    logger.error(`Account recovery code delivery failed on ${channel}`);
+    logger.error(
+      `Account recovery code delivery failed on ${channel === 'email' ? 'email' : 'phone'}`,
+    );
     await AuthEventService.log({
       userId: user.id,
       type: 'account_recovery_failed',
