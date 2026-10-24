@@ -417,6 +417,7 @@ describe('POST /system-config/policy/dry-run', () => {
 describe('PATCH /system-config/admin policy versioning', () => {
   beforeEach(() => {
     vi.mocked(User.findAll).mockResolvedValue([] as never);
+    freshStepUp();
   });
 
   it('records a config_patch version in the same transaction', async () => {
