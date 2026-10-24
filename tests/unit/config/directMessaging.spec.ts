@@ -75,6 +75,18 @@ describe('directMessaging config', () => {
     expect(result).toEqual({ name: 'messaging-service' });
   });
 
+  it('builds the email and SMS transports on their own for account notices', async () => {
+    process.env.AWS_REGION = 'us-east-1';
+    process.env.SES_EMAIL = 'noreply@example.com';
+
+    const { createDirectEmailTransport, createDirectSmsTransport } =
+      await import('../../../src/config/directMessaging.js');
+
+    expect(createDirectEmailTransport()).toEqual({ name: 'aws-email' });
+    expect(createDirectSmsTransport()).toEqual({ name: 'aws-sms' });
+    expect(createAuthMessagingServiceMock).not.toHaveBeenCalled();
+  });
+
   it('builds Twilio SMS transport when configured', async () => {
     process.env.MESSAGING_AWS_REGION = 'us-west-2';
     process.env.MESSAGING_EMAIL_FROM = 'alerts@example.com';

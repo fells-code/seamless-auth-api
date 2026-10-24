@@ -30,6 +30,7 @@ import {
   LoginMethod,
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
+import { hasUsableRecoveryCode } from '../services/recoveryCodeService.js';
 import { isRevokedByCutoff, revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
 import {
   claimSessionRotation,
@@ -340,7 +341,22 @@ export const login = async (req: Request, res: Response) => {
       ? availableMethods.filter((method) => method === 'passkey')
       : availableMethods;
 
-    if (lockout.locked && loginMethods.length === 0) {
+    // Recovery codes are not a login method, so an account left with nothing else, by a
+    // lock or by a policy its factors no longer meet, would be answered as a decoy or a
+    // lock. It continues with a real pre-auth token and the list a decoy would show, so
+    // the code can be redeemed and the answer still looks like any other account's.
+    const continueWithRecoveryCode =
+      loginMethods.length === 0 && (await hasUsableRecoveryCode(user.id));
+    const responseMethods = continueWithRecoveryCode
+      ? resolveAvailableLoginMethods({
+          policy: loginPolicy,
+          user,
+          hasPasskeyCredential: true,
+          passkeyAvailable,
+        }).filter((method) => !lockout.locked || method === 'passkey')
+      : loginMethods;
+
+    if (lockout.locked && loginMethods.length === 0 && !continueWithRecoveryCode) {
       await AuthEventService.log({
         userId: user.id,
         type: 'login_suspicious',
@@ -359,7 +375,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    if (loginMethods.length === 0) {
+    if (loginMethods.length === 0 && !continueWithRecoveryCode) {
       logger.error('Login attempt had no allowed continuation methods');
       return await respondWithDecoy({
         req,
@@ -392,7 +408,7 @@ export const login = async (req: Request, res: Response) => {
       subject: user.id,
       attemptId,
       identifierType: identifierType!,
-      loginMethods,
+      loginMethods: responseMethods,
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -624,6 +640,8 @@ export const refreshSession = async (req: Request, res: Response) => {
     expiresAt,
     idleExpiresAt,
     chainStartedAt,
+    // Refreshing does not lift the restriction; enrolling a new factor does.
+    recovery: session.recovery === true,
   });
 
   // The read, the reuse check and this link are separate statements, so two refreshes
@@ -675,7 +693,9 @@ export const refreshSession = async (req: Request, res: Response) => {
     return refuseRevokedRefresh(req, res, user.id, newSession);
   }
 
-  const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId);
+  const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId, {
+    recovery: session.recovery === true,
+  });
 
   if (token && newRefreshToken) {
     logger.info(
@@ -697,6 +717,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       // What is left of the chain, not a full lifetime, so a caller sizing a cookie or a
       // keychain entry from it does not outlive the session.
       refreshTtl: Math.floor((expiresAt.getTime() - now.getTime()) / 1000),
+      ...(session.recovery === true ? { recovery: true } : {}),
     });
   }
 

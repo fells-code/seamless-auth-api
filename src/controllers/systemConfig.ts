@@ -187,6 +187,7 @@ export const getAvailableRoles = async (_req: Request, res: Response) => {
  */
 export const getPublicSystemConfig = async (_req: Request, res: Response) => {
   const { loginMethods } = await getLoginPolicy();
+  const { recovery_codes } = await getSystemConfig();
 
-  return res.json({ loginMethods });
+  return res.json({ loginMethods, recoveryCodes: recovery_codes?.enabled !== false });
 };

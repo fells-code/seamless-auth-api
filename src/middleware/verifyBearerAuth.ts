@@ -54,6 +54,7 @@ export async function verifyBearerAuth(
   res: Response,
   next: NextFunction,
   authType: AuthTokenType = 'access',
+  { allowRecoverySession = false }: { allowRecoverySession?: boolean } = {},
 ) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) {
@@ -69,7 +70,16 @@ export async function verifyBearerAuth(
       await recordBearerMisuse(req, token, authType);
       return res.status(401).json({ error: 'unauthorized' });
     }
+    if (result.recovery && !allowRecoverySession) {
+      return res.status(403).json({
+        error: 'enrollment_required',
+        message: 'Enroll a passkey or authenticator app to finish recovering this account',
+      });
+    }
     (req as AuthenticatedRequest).user = result.user;
+    if (result.recovery) {
+      (req as AuthenticatedRequest).recoverySession = true;
+    }
     if (result.decoy) {
       (req as AuthenticatedRequest).decoy = true;
     }

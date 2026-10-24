@@ -36,6 +36,7 @@ totpRouter.get(
   '/status',
   {
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Get TOTP status for the current user',
     tags: ['TOTP'],
 
@@ -53,6 +54,7 @@ totpRouter.post(
   '/enroll/start',
   {
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Start TOTP enrollment',
     tags: ['TOTP'],
 
@@ -73,6 +75,7 @@ totpRouter.post(
   {
     middleware: [otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Verify TOTP enrollment',
     tags: ['TOTP'],
 

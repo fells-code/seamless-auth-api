@@ -4,9 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { AuthMessagingService } from '@seamless-auth/messaging';
+import type { AuthMessagingService, EmailTransport, SmsTransport } from '@seamless-auth/messaging';
 
-import { createDirectAuthMessagingService } from '../config/directMessaging.js';
+import {
+  createDirectAuthMessagingService,
+  createDirectEmailTransport,
+  createDirectSmsTransport,
+} from '../config/directMessaging.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import getLogger from '../utils/logger.js';
 import { normalizePhoneNumber } from '../utils/utils.js';
@@ -129,5 +133,50 @@ export const sendEnrollmentInviteEmail = async (to: string, signInUrl: string) =
   } catch (error) {
     logger.error(`Failed to send enrollment invite email ${error}`);
     throw new DeliveryError('Failed to send enrollment invite email', error);
+  }
+};
+
+// The messaging contract has templates only for sign-in messages, so account notices go
+// straight to the configured transport with text written here.
+let noticeEmailTransport: EmailTransport | null = null;
+let noticeSmsTransport: SmsTransport | null = null;
+
+export const sendNoticeEmail = async (to: string, subject: string, text: string) => {
+  logger.debug('Sending account notice email');
+
+  if (shouldBypassDirectMessaging()) {
+    logger.debug('Skipping direct notice email delivery in development');
+    return;
+  }
+
+  try {
+    noticeEmailTransport ??= createDirectEmailTransport();
+    await noticeEmailTransport.send({ to, subject, text });
+  } catch (error) {
+    logger.error(`Failed to send account notice email ${error}`);
+    throw new DeliveryError('Failed to send account notice email', error);
+  }
+};
+
+export const sendNoticeSms = async (to: string, body: string) => {
+  logger.debug('Sending account notice SMS');
+
+  if (shouldBypassDirectMessaging()) {
+    logger.debug('Skipping direct notice SMS delivery in development');
+    return;
+  }
+
+  try {
+    const normalizedPhone = normalizePhoneNumber(to);
+
+    if (!normalizedPhone) {
+      throw new Error('Invalid phone number for direct SMS delivery');
+    }
+
+    noticeSmsTransport ??= createDirectSmsTransport();
+    await noticeSmsTransport.send({ to: normalizedPhone, body });
+  } catch (error) {
+    logger.error(`Failed to send account notice SMS ${error}`);
+    throw new DeliveryError('Failed to send account notice SMS', error);
   }
 };

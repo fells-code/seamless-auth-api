@@ -52,6 +52,7 @@ authRouter.delete(
   {
     adapter: { clears: ['access', 'registration', 'refresh'] },
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Logout current session',
     tags: ['Authentication'],
 
@@ -70,6 +71,7 @@ authRouter.delete(
   {
     adapter: { clears: ['access', 'registration', 'refresh'] },
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Logout all sessions for the current user',
     tags: ['Authentication'],
 

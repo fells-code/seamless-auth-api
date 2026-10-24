@@ -3478,6 +3478,9 @@
                     "refresh_token_suspicious",
                     "registration_failed",
                     "registration_success",
+                    "recovery_code_failed",
+                    "recovery_code_used",
+                    "recovery_codes_generated",
                     "registration_suspicious",
                     "request_suspicious",
                     "service_token_failed",
@@ -3562,6 +3565,9 @@
                           "refresh_token_suspicious",
                           "registration_failed",
                           "registration_success",
+                          "recovery_code_failed",
+                          "recovery_code_used",
+                          "recovery_codes_generated",
                           "registration_suspicious",
                           "request_suspicious",
                           "service_token_failed",
@@ -4173,6 +4179,7 @@
     "/admin/users/{userId}": {
       "patch": {
         "summary": "Update user",
+        "description": "Changing `email` or `phone` revokes all of the user's sessions and sends a notice to the previous and the new address. With `x-seamless-auth-delivery-mode: external` no notice is sent.",
         "tags": ["Admin"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -11315,6 +11322,309 @@
           },
           "401": {
             "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-codes/": {
+      "get": {
+        "summary": "Recovery code status",
+        "description": "How many of the current set are unused, and when the set was made.",
+        "tags": ["Recovery"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "enabled": true, "remaining": 0, "total": 0, "createdAt": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "remaining": { "type": "integer", "minimum": 0 },
+                    "total": { "type": "integer", "minimum": 0 },
+                    "createdAt": { "type": "string", "nullable": true, "format": "date-time" }
+                  },
+                  "required": ["enabled", "remaining", "total", "createdAt"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Generate recovery codes",
+        "description": "Returns a new set of single-use codes, the only time they are shown, and invalidates the previous set. Replacing an existing set needs a fresh step-up.",
+        "tags": ["Recovery"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "201": {
+            "description": "HTTP 201",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "codes": [null], "createdAt": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "codes": {
+                      "type": "array",
+                      "items": { "type": "string", "pattern": "^[A-Za-z2-7]{5}-?[A-Za-z2-7]{5}$" },
+                      "minItems": 1
+                    },
+                    "createdAt": { "type": "string", "nullable": true, "format": "date-time" }
+                  },
+                  "required": ["message", "codes", "createdAt"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-codes/redeem": {
+      "post": {
+        "summary": "Sign in with a recovery code",
+        "description": "Spends one code and issues a recovery session (`recovery: true`), which can only enroll a new passkey or authenticator app, manage recovery codes, read the user and sign out until a factor is enrolled. Not subject to account lockout.",
+        "tags": ["Recovery"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string", "pattern": "^[A-Za-z2-7]{5}-?[A-Za-z2-7]{5}$" }
+                },
+                "required": ["code"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0,
+                  "recovery": null,
+                  "nextStep": null
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "refreshToken": { "type": "string" },
+                    "sub": { "type": "string" },
+                    "organizationId": { "type": "string", "nullable": true },
+                    "roles": { "type": "array", "items": { "type": "string" } },
+                    "email": { "type": "string" },
+                    "phone": { "type": "string", "nullable": true },
+                    "ttl": { "type": "number" },
+                    "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean", "enum": [true] },
+                    "nextStep": { "type": "string", "enum": ["enroll_passkey"] }
+                  },
+                  "required": ["message", "recovery", "nextStep"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

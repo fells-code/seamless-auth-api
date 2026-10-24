@@ -3170,6 +3170,9 @@ export interface paths {
                 | 'refresh_token_suspicious'
                 | 'registration_failed'
                 | 'registration_success'
+                | 'recovery_code_failed'
+                | 'recovery_code_used'
+                | 'recovery_codes_generated'
                 | 'registration_suspicious'
                 | 'request_suspicious'
                 | 'service_token_failed'
@@ -3248,6 +3251,9 @@ export interface paths {
                     | 'refresh_token_suspicious'
                     | 'registration_failed'
                     | 'registration_success'
+                    | 'recovery_code_failed'
+                    | 'recovery_code_used'
+                    | 'recovery_codes_generated'
                     | 'registration_suspicious'
                     | 'request_suspicious'
                     | 'service_token_failed'
@@ -4078,7 +4084,10 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Update user */
+    /**
+     * Update user
+     * @description Changing `email` or `phone` revokes all of the user's sessions and sends a notice to the previous and the new address. With `x-seamless-auth-delivery-mode: external` no notice is sent.
+     */
     patch: {
       parameters: {
         query?: never;
@@ -11394,6 +11403,402 @@ export interface paths {
         };
         /** @description HTTP 401 */
         401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/recovery-codes/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Recovery code status
+     * @description How many of the current set are unused, and when the set was made.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "enabled": true,
+             *       "remaining": 0,
+             *       "total": 0,
+             *       "createdAt": null
+             *     }
+             */
+            'application/json': {
+              enabled: boolean;
+              remaining: number;
+              total: number;
+              /** Format: date-time */
+              createdAt: string | null;
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Generate recovery codes
+     * @description Returns a new set of single-use codes, the only time they are shown, and invalidates the previous set. Replacing an existing set needs a fresh step-up.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "codes": [
+             *         null
+             *       ],
+             *       "createdAt": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              codes: string[];
+              /** Format: date-time */
+              createdAt: string | null;
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/recovery-codes/redeem': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sign in with a recovery code
+     * @description Spends one code and issues a recovery session (`recovery: true`), which can only enroll a new passkey or authenticator app, manage recovery codes, read the user and sign out until a factor is enrolled. Not subject to account lockout.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            code: string;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "refreshToken": "string",
+             *       "sub": "string",
+             *       "organizationId": "string",
+             *       "roles": [
+             *         null
+             *       ],
+             *       "email": "string",
+             *       "phone": "string",
+             *       "ttl": 0,
+             *       "refreshTtl": 0,
+             *       "recovery": null,
+             *       "nextStep": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              refreshToken?: string;
+              sub?: string;
+              organizationId?: string | null;
+              roles?: string[];
+              email?: string;
+              phone?: string | null;
+              ttl?: number;
+              refreshTtl?: number;
+              /** @enum {boolean} */
+              recovery: true;
+              /** @enum {string} */
+              nextStep: 'enroll_passkey';
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
           headers: {
             [name: string]: unknown;
           };

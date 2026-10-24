@@ -12,6 +12,7 @@ import { AuthEventService } from '../services/authEventService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
+import { liftRecoveryRestriction } from '../services/sessionService.js';
 import { recordStepUpVerification, serializeStepUpStatus } from '../services/stepUpService.js';
 import {
   disableTotp,
@@ -124,6 +125,11 @@ export const verifyCurrentTotpEnrollment = async (req: Request, res: Response) =
     type: 'totp_enrollment_success',
     req,
   });
+
+  const authReq = req as AuthenticatedRequest;
+  if (authReq.recoverySession) {
+    await liftRecoveryRestriction(authReq.sessionId);
+  }
 
   return res.json({ message: 'Success' });
 };
