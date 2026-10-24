@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { buildPrfAuthenticationExtensions } from '../lib/webauthnPrf.js';
+import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { decoyCredentialIdFor, decoyPrincipalForSubject } from '../services/decoyPrincipal.js';
 import {
@@ -334,9 +335,7 @@ export const decoyRedeemRecoveryCode = async (req: Request, res: Response) => {
 };
 
 async function rejectAccountRecoveryDisabled(res: Response) {
-  const { account_recovery } = await getSystemConfig();
-
-  if (account_recovery?.enabled === true) {
+  if (isAccountRecoveryAvailable(await getSystemConfig())) {
     return false;
   }
 

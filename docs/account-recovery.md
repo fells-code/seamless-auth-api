@@ -60,6 +60,10 @@ off, because enrolling a passkey is all it can do.
 
 ## Self-service recovery
 
+Off unless `account_recovery.enabled` is true, and always off in `phishing_resistant_only` mode, since it
+proves only an email address or phone number. Recovery codes are unaffected. Cancelling an open
+request keeps working either way, so turning the feature off never stops an owner stopping one.
+
 For a user with no codes, recovery through a verified email or phone. It cannot complete
 quietly: it waits out a delay, and every verified address on the account is told when it
 opens, with a link that cancels it.

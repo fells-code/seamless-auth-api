@@ -109,7 +109,6 @@ describe('while account recovery is disabled', () => {
     ['post', '/recovery/start', { channel: 'email' }],
     ['post', '/recovery/verify', { code: '123456' }],
     ['get', '/recovery/status', undefined],
-    ['post', '/recovery/cancel', { cancelToken: 'token' }],
     ['post', '/recovery/complete', undefined],
   ] as const)('refuses %s %s, for a real account and a decoy alike', async (method, path, body) => {
     (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
@@ -121,6 +120,38 @@ describe('while account recovery is disabled', () => {
       expect(res.status).toBe(403);
       expect(res.body).toEqual({ error: 'account_recovery_disabled' });
     }
+  });
+});
+
+describe('in phishing-resistant-only mode', () => {
+  it('refuses to start recovery, since it proves only an address', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({
+        account_recovery: { enabled: true, delay: '1h' },
+        phishing_resistant_only: true,
+      }),
+    );
+
+    for (const asDecoy of [false, true]) {
+      decoy = asDecoy;
+      const res = await request(app).post('/recovery/start').send({ channel: 'email' });
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'account_recovery_disabled' });
+    }
+  });
+
+  it('is reported unavailable to sign-in screens', async () => {
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({
+        account_recovery: { enabled: true, delay: '1h' },
+        phishing_resistant_only: true,
+      }),
+    );
+
+    const res = await request(app).get('/system-config/public');
+
+    expect(res.body.accountRecovery).toBe(false);
   });
 });
 
@@ -407,6 +438,18 @@ describe('POST /recovery/cancel', () => {
     expect((await request(app).get('/recovery/status')).body.state).toBe('cancelled');
     afterDelay();
     expect((await request(app).post('/recovery/complete')).status).toBe(404);
+  });
+
+  it('still cancels after recovery is switched off or phishing-resistant-only is turned on', async () => {
+    await startAndVerify();
+    enabled({ phishing_resistant_only: true });
+
+    const res = await request(app)
+      .post('/recovery/cancel')
+      .send({ cancelToken: cancelTokenFromNotice() });
+
+    expect(res.status).toBe(200);
+    expect(rows[0].state).toBe('cancelled');
   });
 
   it('answers the same whether or not the token matched', async () => {

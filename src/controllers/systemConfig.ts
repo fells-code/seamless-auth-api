@@ -14,6 +14,7 @@ import { SystemConfig } from '../models/systemConfig.js';
 import { User } from '../models/users.js';
 import { createPatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
+import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { getLoginPolicy } from '../services/loginPolicyService.js';
 import { ServiceRequest } from '../types/types.js';
@@ -171,11 +172,12 @@ export const getAvailableRoles = async (_req: Request, res: Response) => {
  */
 export const getPublicSystemConfig = async (_req: Request, res: Response) => {
   const { loginMethods } = await getLoginPolicy();
-  const { recovery_codes, account_recovery } = await getSystemConfig();
+  const config = await getSystemConfig();
+  const { recovery_codes } = config;
 
   return res.json({
     loginMethods,
     recoveryCodes: recovery_codes?.enabled !== false,
-    accountRecovery: account_recovery?.enabled === true,
+    accountRecovery: isAccountRecoveryAvailable(config),
   });
 };

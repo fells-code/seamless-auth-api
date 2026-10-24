@@ -14,6 +14,7 @@ import {
   cancelRecoveryByToken,
   completeRecovery,
   findRecoveryForAttempt,
+  isAccountRecoveryAvailable,
   RecoveryStatus,
   recoveryStatus,
   startRecovery,
@@ -35,10 +36,11 @@ export const RECOVERY_CANCEL_MESSAGE =
   'If the link was for an open recovery request, it has been cancelled.';
 
 export async function accountRecoveryPolicy() {
-  const { account_recovery } = await getSystemConfig();
+  const config = await getSystemConfig();
+  const { account_recovery } = config;
 
   return {
-    enabled: account_recovery?.enabled === true,
+    enabled: isAccountRecoveryAvailable(config),
     delaySeconds: parseDurationToSeconds(account_recovery?.delay ?? '24h'),
   };
 }
@@ -234,11 +236,9 @@ export const getAccountRecoveryStatus = async (req: Request, res: Response) => {
  * Public on purpose: the token is the credential, and the owner may be signed out
  * everywhere. Answers the same whether or not it matched, so it is not an oracle.
  */
+// Not gated on the feature being available: turning recovery off, or switching to
+// phishing-resistant-only mode, must not stop an owner cancelling a request already open.
 export const cancelAccountRecovery = async (req: Request, res: Response) => {
-  if (!(await accountRecoveryPolicy()).enabled) {
-    return refuseAccountRecoveryDisabled(res);
-  }
-
   const cancelToken = req.body?.cancelToken;
 
   if (typeof cancelToken !== 'string' || cancelToken.length === 0) {

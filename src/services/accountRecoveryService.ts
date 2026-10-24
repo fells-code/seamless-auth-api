@@ -250,3 +250,15 @@ export async function cancelRecoveryByToken(cancelToken: string) {
 
   return cancelled === 1 ? request : null;
 }
+
+/**
+ * Whether self-service recovery can be used. Off in phishing-resistant-only mode as well
+ * as when disabled: it proves an email address or phone number, which a deployment that
+ * only trusts passkeys has decided is not enough. Recovery codes are unaffected.
+ */
+export function isAccountRecoveryAvailable(config: {
+  account_recovery?: { enabled?: boolean } | null;
+  phishing_resistant_only?: boolean;
+}) {
+  return config.account_recovery?.enabled === true && config.phishing_resistant_only !== true;
+}

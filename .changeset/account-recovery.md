@@ -12,3 +12,5 @@ Self-service account recovery through a verified email or phone, with a delay an
 - Migration: new `account_recovery_requests` table.
 
 See docs/account-recovery.md.
+
+Self-service recovery is unavailable in `phishing_resistant_only` mode, since it proves only an address; `GET /system-config/public` reports `accountRecovery: false` there. Cancelling an open request always works.
