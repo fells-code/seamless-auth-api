@@ -222,6 +222,17 @@ identifier), so only someone who receives the code at the owner address can use 
 creates the account from a verified provider email. When `OWNER_EMAIL` is unset the grant is a
 no-op and the instance has no admin until one is assigned another way.
 
+### Break-glass admin
+
+| Variable             | Required | Default | Notes                                                                                                                                                                                       |
+| -------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BREAK_GLASS_EMAILS` | No       | -       | Comma separated admin emails, trimmed and matched case-insensitively. A listed account holding a role that satisfies `admin:write` is exempt from sign-in policy but needs a strong factor. |
+
+Only an existing, non-revoked account that holds `admin`, `admin:*` or `admin:write` is exempt; a
+listed address without the role gets nothing, and boot logs a warning with how many listed entries
+are not admin accounts (never the addresses). Kept out of `system_config` on purpose, so no policy
+edit can remove it. See [Break-glass admin](./admin-operations.md#break-glass-admin).
+
 ### Admin dashboard (optional)
 
 This API can serve the admin dashboard SPA ([`seamless-auth-admin-dashboard`](https://github.com/fells-code/seamless-auth-admin-dashboard))

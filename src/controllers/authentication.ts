@@ -7,6 +7,7 @@
 import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
 import {
@@ -19,6 +20,7 @@ import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { hasBreakGlassCodeFactor } from '../services/breakGlassService.js';
 import {
   DecoyIdentifierType,
   decoyPrincipalForSubject,
@@ -27,6 +29,7 @@ import {
 import { getUserLockoutStatus } from '../services/lockoutPolicyService.js';
 import {
   getLoginPolicy,
+  isLoginMethodEnabled,
   LoginMethod,
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
@@ -327,12 +330,20 @@ export const login = async (req: Request, res: Response) => {
       Credential.findOne({ where: { userId: user.id } }),
       getLoginPolicy(),
     ]);
-    const availableMethods = resolveAvailableLoginMethods({
+    const shapedMethods = resolveAvailableLoginMethods({
       policy: loginPolicy,
       user,
       hasPasskeyCredential: Boolean(credential),
       passkeyAvailable,
     });
+    // A break-glass admin is offered its passkey even when the method list leaves passkeys
+    // out. Otherwise its list is shaped like anyone's, so the answer does not single out a
+    // privileged account; the weak methods in it are refused at their endpoints.
+    const breakGlass = isBreakGlassAdmin(user);
+    const availableMethods: LoginMethod[] =
+      breakGlass && credential && !isLoginMethodEnabled(loginPolicy, 'passkey')
+        ? ['passkey', ...shapedMethods]
+        : shapedMethods;
 
     // A lock stops the code factors, which can be guessed. A passkey cannot, so a locked
     // account can still continue with one, which keeps a lock someone else triggered
@@ -344,10 +355,13 @@ export const login = async (req: Request, res: Response) => {
     // Recovery codes are not a login method, so an account left with nothing else, by a
     // lock or by a policy its factors no longer meet, would be answered as a decoy or a
     // lock. It continues with a real pre-auth token and the list a decoy would show, so
-    // the code can be redeemed and the answer still looks like any other account's.
-    const continueWithRecoveryCode =
-      loginMethods.length === 0 && (await hasUsableRecoveryCode(user.id));
-    const responseMethods = continueWithRecoveryCode
+    // the code can be redeemed and the answer still looks like any other account's. A
+    // break-glass admin also continues on its TOTP.
+    const continueWithCode =
+      loginMethods.length === 0 &&
+      ((await hasUsableRecoveryCode(user.id)) ||
+        (breakGlass && (await hasBreakGlassCodeFactor(user.id, lockout.locked))));
+    const responseMethods = continueWithCode
       ? resolveAvailableLoginMethods({
           policy: loginPolicy,
           user,
@@ -356,7 +370,7 @@ export const login = async (req: Request, res: Response) => {
         }).filter((method) => !lockout.locked || method === 'passkey')
       : loginMethods;
 
-    if (lockout.locked && loginMethods.length === 0 && !continueWithRecoveryCode) {
+    if (lockout.locked && loginMethods.length === 0 && !continueWithCode) {
       await AuthEventService.log({
         userId: user.id,
         type: 'login_suspicious',
@@ -375,7 +389,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    if (loginMethods.length === 0 && !continueWithRecoveryCode) {
+    if (loginMethods.length === 0 && !continueWithCode) {
       logger.error('Login attempt had no allowed continuation methods');
       return await respondWithDecoy({
         req,
