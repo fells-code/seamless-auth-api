@@ -117,6 +117,14 @@ vi.mock('../../src/models/recoveryCodes.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/accountRecoveryRequests.js', () => ({
+  AccountRecoveryRequest: {
+    create: vi.fn(),
+    findOne: vi.fn(async () => null),
+    update: vi.fn(async () => [0]),
+  },
+}));
+
 vi.mock('../../src/models/oauthIdentities.js', () => ({
   OAuthIdentity: {
     create: vi.fn(),
@@ -263,7 +271,9 @@ vi.mock('../../src/middleware/rateLimit.js', () => ({
   dynamicSlowDown: (_req: any, _res: any, next: any) => next(),
 }));
 
-vi.mock('../../src/utils/otp.js', () => ({
+vi.mock('../../src/utils/otp.js', async (importOriginal) => ({
+  // The pure code helpers stay real; only the functions that store or send are doubles.
+  ...(await importOriginal<typeof import('../../src/utils/otp.js')>()),
   generatePhoneOTP: vi.fn(),
   generateEmailOTP: vi.fn(),
   verifyPhoneOTP: vi.fn(),
@@ -307,6 +317,8 @@ vi.mock('../../src/models/magicLinks.js', () => ({
 vi.mock('../../src/services/messagingService.js', () => ({
   sendMagicLinkEmail: vi.fn(),
   sendEnrollmentInviteEmail: vi.fn(),
+  sendOTPEmail: vi.fn(),
+  sendOTPSMS: vi.fn(),
   sendNoticeEmail: vi.fn(),
   sendNoticeSms: vi.fn(),
 }));

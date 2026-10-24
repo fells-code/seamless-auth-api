@@ -55,6 +55,7 @@ import {
   PolicyVersionSchema,
   PolicyVersionsResponseSchema,
 } from '../schemas/policy.schema.js';
+import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 import { SystemConfigPatchSchema } from '../schemas/systemConfig.patch.schema.js';
 import {
   AvailableRolesResponseSchema,
@@ -130,7 +131,7 @@ systemConfigRouter.patch(
     summary: 'Update system configuration',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
 
     schemas: {
       body: SystemConfigPatchSchema,
@@ -138,6 +139,7 @@ systemConfigRouter.patch(
         200: UpdateSystemConfigResponseSchema,
         400: InvalidPayloadSchema,
         401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
         409: SecretRequiredSchema,
       },
     },
@@ -172,7 +174,7 @@ systemConfigRouter.post(
     summary: 'Add an OAuth provider',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
 
     schemas: {
       body: OAuthProviderCreateSchema,
@@ -180,6 +182,7 @@ systemConfigRouter.post(
         201: OAuthProviderResponseSchema,
         400: InvalidPayloadSchema,
         401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
         409: SecretRequiredSchema,
       },
     },
@@ -194,7 +197,7 @@ systemConfigRouter.patch(
     summary: 'Update an OAuth provider',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
 
     schemas: {
       params: OAuthProviderIdParamSchema,
@@ -203,6 +206,7 @@ systemConfigRouter.patch(
         200: OAuthProviderResponseSchema,
         400: InvalidPayloadSchema,
         401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: ErrorSchema,
       },
     },
@@ -217,13 +221,14 @@ systemConfigRouter.delete(
     summary: 'Remove an OAuth provider',
     tags: ['SystemConfig'],
 
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
 
     schemas: {
       params: OAuthProviderIdParamSchema,
       response: {
         200: OAuthProviderDeletedResponseSchema,
         401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: ErrorSchema,
       },
     },

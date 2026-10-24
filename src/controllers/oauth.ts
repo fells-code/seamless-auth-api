@@ -6,6 +6,7 @@
 
 import { Request, Response } from 'express';
 
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -152,6 +153,16 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
         metadata: { providerId: provider.id, reason: 'signup_disabled' },
       });
       return res.status(403).json({ error: 'OAuth signup is disabled' });
+    }
+
+    if (isBreakGlassAdmin(user)) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'oauth_login_failed',
+        req,
+        metadata: { providerId: provider.id, reason: 'break_glass_strong_factor_required' },
+      });
+      return res.status(403).json({ error: 'login_method_disabled' });
     }
 
     if (await isPasskeyRequiredForUser(user.id)) {

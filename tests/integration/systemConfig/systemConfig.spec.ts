@@ -9,6 +9,8 @@ import {
   getSystemConfig,
   invalidateSystemConfigCache,
 } from '../../../src/config/getSystemConfig.js';
+import { Session } from '../../../src/models/sessions.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 
 let app: Application;
@@ -20,6 +22,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
 
   (getSystemConfig as any).mockResolvedValue({
     available_roles: ['user', 'admin'],
@@ -260,7 +263,7 @@ describe('GET /system-config/public', () => {
     const res = await request(app).get('/system-config/public');
 
     expect(res.status).toBe(200);
-    expect(Object.keys(res.body)).toEqual(['loginMethods', 'recoveryCodes']);
+    expect(Object.keys(res.body)).toEqual(['loginMethods', 'recoveryCodes', 'accountRecovery']);
   });
 
   it('says whether recovery codes can be used', async () => {
@@ -271,5 +274,15 @@ describe('GET /system-config/public', () => {
     const res = await request(app).get('/system-config/public');
 
     expect(res.body.recoveryCodes).toBe(false);
+  });
+
+  it('says whether self-service account recovery is on, which it is not by default', async () => {
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
+    expect((await request(app).get('/system-config/public')).body.accountRecovery).toBe(false);
+
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ account_recovery: { enabled: true, delay: '24h' } }),
+    );
+    expect((await request(app).get('/system-config/public')).body.accountRecovery).toBe(true);
   });
 });

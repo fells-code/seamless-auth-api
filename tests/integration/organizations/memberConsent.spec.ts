@@ -11,6 +11,8 @@ import {
   buildOrganizationMembership,
   testOrganizationId,
 } from '../../factories/organizationFactory';
+import { Session } from '../../../src/models/sessions.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
 
 // Driven through the real bearer and admin checks, which the other organization specs stub out.
@@ -36,6 +38,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   (Organization.findByPk as any).mockResolvedValue(buildOrganization());
   (OrganizationMembership.findOne as any).mockResolvedValue(
     buildOrganizationMembership({ scopes: ['organization:read', 'members:read', 'members:write'] }),

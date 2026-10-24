@@ -16,6 +16,7 @@ import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
 import { TotpCredential } from './models/totpCredentials.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
+import { warnOnBreakGlassMisconfiguration } from './services/breakGlassService.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { warnIfUnboundOAuthStateSet } from './services/oauthService.js';
 import { recordBootstrapPolicyVersion } from './services/policyVersionService.js';
@@ -44,6 +45,7 @@ async function startServer() {
 
     // After bootstrap, since which secrets are needed depends on the stored config.
     assertAuthSecrets(await getSystemConfig(), (await TotpCredential.count()) > 0);
+    await warnOnBreakGlassMisconfiguration();
 
     // After config is bootstrapped, since it decides whether attestation is
     // requested at all. Never throws: a metadata blob that cannot be fetched is

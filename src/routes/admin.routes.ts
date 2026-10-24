@@ -100,6 +100,7 @@ import {
 } from '../schemas/reviewAccounts.js';
 import { SessionIdParamsSchema } from '../schemas/session.params.js';
 import { SessionListResponseSchema } from '../schemas/session.responses.js';
+import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 
 const adminRouter = createRouter('/admin');
 
@@ -128,11 +129,12 @@ adminRouter.post(
     auth: 'access',
     summary: 'Create organization',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       body: CreateOrganizationRequestSchema,
       response: {
         201: OrganizationEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
       },
     },
   },
@@ -163,12 +165,13 @@ adminRouter.patch(
     auth: 'access',
     summary: 'Update organization',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationIdParamSchema,
       body: UpdateOrganizationRequestSchema,
       response: {
         200: OrganizationEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -184,11 +187,12 @@ adminRouter.delete(
     description:
       'Deletes the organization and every membership in it. Members are not deleted, and sessions scoped to the organization stay active with no organization, though an access token already issued carries the old organization id until it expires.',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationIdParamSchema,
       response: {
         200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -220,12 +224,13 @@ adminRouter.post(
     auth: 'access',
     summary: 'Add organization member',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
       response: {
         201: OrganizationMembershipEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
         409: InternalErrorSchema,
       },
@@ -240,13 +245,14 @@ adminRouter.patch(
     auth: 'access',
     summary: 'Update organization member',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationMemberParamSchema,
       body: UpdateOrganizationMemberRequestSchema,
       response: {
         200: OrganizationMembershipEnvelopeResponseSchema,
         400: InternalErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -260,12 +266,13 @@ adminRouter.delete(
     auth: 'access',
     summary: 'Remove organization member',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationMemberParamSchema,
       response: {
         200: MessageSchema,
         400: InternalErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -281,11 +288,12 @@ adminRouter.put(
     description:
       'Members of the organization can no longer sign in through the provider. The callback answers 403 with `code: oauth_provider_retired`, before any account is linked. Retiring also revokes every live session of every member, whichever method started it, so they sign in again with a passkey or another method; the count is recorded on the `admin_oauth_provider_retired` auth event. Repeating the call for a provider already retired revokes nothing. Used to cut an organization over from a legacy identity provider.',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationOAuthProviderParamSchema,
       response: {
         200: OrganizationEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -301,11 +309,12 @@ adminRouter.delete(
     description:
       'Undoes a retirement, for rolling a cutover back. Idempotent, and accepts the id of a provider that no longer exists so it can be cleared.',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationOAuthProviderParamSchema,
       response: {
         200: OrganizationEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -443,6 +452,7 @@ adminRouter.get(
       query: AuthEventExportQuerySchema,
       response: {
         400: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
         500: InternalErrorSchema,
       },
     },
@@ -490,12 +500,13 @@ adminRouter.post(
   {
     auth: 'access',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       body: CreateUserSchema,
       response: {
         201: UserResponseSchema,
         400: AdminValidationErrorSchema,
+        403: StepUpRequiredErrorSchema,
         409: InternalErrorSchema,
       },
     },
@@ -511,11 +522,12 @@ adminRouter.post(
     description:
       'Creates or updates up to 200 users per request, matched on the source system id and then on email. Imports carry no credentials: an imported user signs in first by registering with the imported email. Roles and memberships are only ever added, never removed, and admin roles are refused. Each row is applied on its own, so one rejected row does not stop the batch. With `dryRun`, nothing is written and the response reports what would happen.',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       body: ImportUsersRequestSchema,
       response: {
         200: ImportUsersResponseSchema,
+        403: StepUpRequiredErrorSchema,
       },
     },
   },
@@ -528,11 +540,12 @@ adminRouter.delete(
     auth: 'access',
     summary: 'Delete user',
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
 
     schemas: {
       response: {
         200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
         409: ErrorSchema,
         500: InternalErrorSchema,
       },
@@ -549,7 +562,7 @@ adminRouter.patch(
     description:
       "Changing `email` or `phone` revokes all of the user's sessions and sends a notice to the previous and the new address. With `x-seamless-auth-delivery-mode: external` no notice is sent.",
     tags: ['Admin'],
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
 
     schemas: {
       body: UpdateUserSchema,
@@ -557,6 +570,7 @@ adminRouter.patch(
       response: {
         200: UserResponseSchema,
         400: AdminValidationErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
         409: ErrorSchema,
       },
@@ -580,7 +594,7 @@ adminRouter.post(
         200: DeviceReplacementRecoveryResponseSchema,
         400: InternalErrorSchema,
         401: InternalErrorSchema,
-        403: InternalErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
       },
     },
@@ -659,12 +673,13 @@ adminRouter.delete(
   '/sessions/by-id/:id',
   {
     auth: 'access',
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     tags: ['Admin'],
     schemas: {
       params: SessionIdParamsSchema,
       response: {
         200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
         500: InternalErrorSchema,
       },
@@ -677,12 +692,13 @@ adminRouter.delete(
   '/sessions/:userId/revoke-all',
   {
     auth: 'access',
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     tags: ['Admin'],
     schemas: {
       params: UserIdParamSchema,
       response: {
         200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
         500: InternalErrorSchema,
       },
     },

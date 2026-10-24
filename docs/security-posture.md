@@ -542,6 +542,21 @@ address lock its owner out of the one way back in that does not need an administ
 session a code issues is restricted to enrolling a new factor; see
 [docs/account-recovery.md](./account-recovery.md).
 
+## Break-glass admin
+
+Accounts in `BREAK_GLASS_EMAILS` that hold `admin:write` are exempt from sign-in policy, so no
+policy change can leave a deployment with nobody able to administer it. The exemption is set in
+the environment rather than in `system_config` for that reason. It is narrow by design: a
+break-glass account can only sign in with a passkey, TOTP or a recovery code, never with email OTP,
+SMS OTP, a magic link or OAuth, because those prove control of an address or an outside identity,
+which is what someone taking the account over would have. Session issuance enforces this as a
+backstop as well as each endpoint. TOTP stays subject to lockout. Every sign-in that relied on the
+exemption is a `break_glass_sign_in` event with `severity: "high"` and is emailed to every admin;
+see [Break-glass admin](./admin-operations.md#break-glass-admin).
+
+The cost is a standing exception to policy for a few named accounts, which is why each must hold
+the admin role to count, why their use is loud, and why their factors belong offline.
+
 ## Audit write failure
 
 **Posture: the trail may be lost, no security control may be.**
@@ -693,6 +708,31 @@ events are records for a public body, so `AUDIT_RETENTION_DAYS` should come from
 schedule that applies to the jurisdiction, and the archive directory is where the
 "retain, then dispose" part of that schedule happens. Nothing here maps a specific state
 schedule yet. That mapping belongs here once a jurisdiction's schedule has been read.
+
+## Step-up on admin writes
+
+**Posture: an admin access token alone cannot change who signs in.**
+
+An access token is a bearer credential, and the adapter turns a browser cookie into one. Whoever holds it, including someone who lifted it from a compromised
+browser or log, could previously edit system config, OAuth providers, roles, users,
+organizations and sessions with nothing more. The console asked for a step-up before those
+writes, but only in the browser, so any other client skipped it.
+
+`requireStepUp()` now sits behind `requireAdmin('write')` on every one of those routes, and on
+the audit export. It reads the step-up time from the session row the token is bound to, so a
+step-up has to happen on that same session within five minutes. The full route list and the
+`403 step_up_required` body are in
+[Admin Operations](./admin-operations.md#step-up-on-admin-writes).
+
+### What is still accepted
+
+- **A fresh step-up is a window, not a per-request proof.** For five minutes after a step-up,
+  the session's access token makes guarded writes on its own. Shortening the window is a
+  `requireStepUp({ maxAgeSeconds })` change per route.
+- **Self-service account deletion is not guarded.** `DELETE /users/delete` deletes the caller's
+  own account and is open to accounts with no passkey or TOTP, which could never step up.
+- **Enrollment invites are not guarded.** They email existing users a sign-in link and change
+  no account.
 
 ## Refusals at the auth gate
 

@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { buildPrfAuthenticationExtensions } from '../lib/webauthnPrf.js';
+import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { decoyCredentialIdFor, decoyPrincipalForSubject } from '../services/decoyPrincipal.js';
 import {
@@ -24,6 +25,7 @@ import {
 } from '../services/magicLinkRedirect.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import { hashDeviceFingerprint } from '../utils/utils.js';
+import { RECOVERY_STARTED_MESSAGE } from './accountRecovery.js';
 
 /**
  * How the thirteen ephemeral endpoints answer when the pre-auth subject is a decoy.
@@ -331,3 +333,50 @@ export const decoyRedeemRecoveryCode = async (req: Request, res: Response) => {
 
   return res.status(401).json({ error: 'invalid_recovery_code' });
 };
+
+async function rejectAccountRecoveryDisabled(res: Response) {
+  if (isAccountRecoveryAvailable(await getSystemConfig())) {
+    return false;
+  }
+
+  res.status(403).json({ error: 'account_recovery_disabled' });
+  return true;
+}
+
+/** A real account without a verified address on the channel answers exactly this. */
+export const decoyStartAccountRecovery = async (req: Request, res: Response) => {
+  if (await rejectAccountRecoveryDisabled(res)) {
+    return;
+  }
+
+  await logDecoy(req, 'recovery:start');
+
+  return res.status(200).json({ message: RECOVERY_STARTED_MESSAGE });
+};
+
+export const decoyVerifyAccountRecovery = async (req: Request, res: Response) => {
+  if (await rejectAccountRecoveryDisabled(res)) {
+    return;
+  }
+
+  await logDecoy(req, 'recovery:verify');
+
+  return res.status(401).json({ error: 'invalid_recovery_code' });
+};
+
+/** What an attempt that has opened no request gets, which a decoy's never has. */
+async function respondNoRecovery(req: Request, res: Response, endpoint: string) {
+  if (await rejectAccountRecoveryDisabled(res)) {
+    return;
+  }
+
+  await logDecoy(req, endpoint);
+
+  return res.status(404).json({ error: 'recovery_not_found' });
+}
+
+export const decoyAccountRecoveryStatus = (req: Request, res: Response) =>
+  respondNoRecovery(req, res, 'recovery:status');
+
+export const decoyCompleteAccountRecovery = (req: Request, res: Response) =>
+  respondNoRecovery(req, res, 'recovery:complete');

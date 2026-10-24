@@ -56,6 +56,57 @@ no one able to administer it.
 Instances whose `available_roles` predates scoped roles and lists only `admin` get `admin`
 instead, which is equivalent in power, so the grant never silently becomes a no-op.
 
+## Step-Up On Admin Writes
+
+Every admin write that changes who can sign in, or what an account can do, needs a fresh
+step-up on the calling session as well as the admin role. The session has to have passed a
+WebAuthn step-up (`/step-up/webauthn/start` and `/finish`) or a TOTP check
+(`POST /totp/verify-mfa`) in the last five minutes.
+
+Guarded routes:
+
+- `PATCH /system-config/admin`
+- `POST /system-config/oauth-providers`, `PATCH` and `DELETE /system-config/oauth-providers/:id`
+- `POST /admin/users`, `POST /admin/users/import`, `PATCH /admin/users/:userId`, `DELETE /admin/users`
+- `POST /admin/users/:userId/recovery/device-replacement`
+- `DELETE /admin/sessions/by-id/:id`, `DELETE /admin/sessions/:userId/revoke-all`
+- `POST /admin/organizations`, `PATCH` and `DELETE /admin/organizations/:organizationId`
+- `POST /admin/organizations/:organizationId/members`, `PATCH` and `DELETE` on
+  `/admin/organizations/:organizationId/members/:userId`
+- `PUT` and `DELETE /admin/organizations/:organizationId/oauth-providers/:providerId/retirement`
+- `POST /organizations/:organizationId/members` (the self-service route that requires `admin:write`)
+- `DELETE /users/delete`, a user deleting their own account: it cannot be undone, and an access
+  session alone may be someone else's. An account with no passkey or TOTP cannot step up, so it
+  cannot delete itself; an administrator can (`DELETE /admin/users`).
+- `GET /admin/auth-events/export`, which is a read but hands out the whole audit trail
+
+Admin reads stay on the admin role alone. `POST /admin/enrollment/invites` does too: it emails
+existing users a link to the sign-in page and changes nothing about their accounts.
+
+The role check runs first, so a caller without `admin:write` still gets `403 { "error": "Forbidden" }`.
+A caller with the role and no fresh step-up gets:
+
+```json
+{
+  "error": "step_up_required",
+  "message": "Recent step-up authentication is required",
+  "fresh": false,
+  "method": null,
+  "verifiedAt": null,
+  "expiresAt": null,
+  "maxAgeSeconds": 300
+}
+```
+
+Step-up, retry the call. `GET /step-up/status` reports the same fields when a client wants to
+check before it writes, which is what the admin console does.
+
+There is no exemption for a non-interactive caller. Admin routes only accept an access token
+bound to a session, never the internal service token, so a script or the CLI has to step up on
+its own session like the console does. With no passkey or TOTP enrolled, an admin cannot make
+these writes at all; enroll one first. A long run such as a user import in many batches has to
+step up again when the five-minute window lapses.
+
 ## Changing A User's Email Or Phone
 
 When `PATCH /admin/users/:userId` changes a user's email address or phone number, the API also:
@@ -104,6 +155,66 @@ The response returns counts only:
 ```
 
 It does not return credential private material, TOTP secrets, recovery codes, refresh tokens, or PRF output.
+
+## Break-glass Admin
+
+A bad policy change can lock every administrator out: phishing-resistant only with no enrolled
+keys, a passkey-only method list, or an authenticator allow list nobody's key is on. Accounts
+listed in `BREAK_GLASS_EMAILS` ([configuration](./configuration.md#break-glass-admin)) are the way
+back that policy cannot remove.
+
+What a break-glass account is exempt from, for its own sign-in:
+
+- `login_methods`: `/login` offers its passkey even when the list leaves passkeys out, and lets an
+  account holding only TOTP or recovery codes continue. The rest of its `loginMethods` is shaped
+  like any other account's, so the answer does not single out a privileged account, and may list
+  methods it is then refused.
+- `phishing_resistant_only` and `passkey_login_fallback_enabled: false`: it can still sign in with
+  TOTP.
+- `recovery_codes.enabled: false`: it can still make and redeem recovery codes. A code issues the
+  usual restricted recovery session, which can enroll a passkey or authenticator app.
+- `authenticator_policy` at enrollment: the pinned attachment, the synced-passkey setting, the
+  AAGUID allow and deny lists and `requireKnownAuthenticator`, so it can enroll the key it has.
+
+What still applies:
+
+- It needs a strong factor: a passkey, TOTP or a recovery code. Email OTP, SMS OTP, magic links and
+  OAuth never sign it in, even where they are enabled for everyone else, because each proves only
+  an address or an outside identity.
+- Lockout still applies to its TOTP. Passkeys and recovery codes are not subject to lockout for
+  anyone.
+- The exemption needs a role that satisfies `admin:write`. Removing the role, revoking the account
+  or removing the address from the variable each ends it.
+
+### When to use it
+
+Only to recover the deployment: sign in, correct the policy, sign out. Day to day administration
+belongs on an ordinary admin account. Enroll the break-glass account's passkey (ideally a hardware
+key kept offline) and generate its recovery codes while the policy still allows them, and keep
+both somewhere at least two people can reach.
+
+### Every use is audited and announced
+
+A sign-in that relied on the exemption, meaning the policy in force would otherwise have refused
+it, records a `break_glass_sign_in` auth event. The audit model has no severity column, so the
+event carries `severity: "high"` in its metadata, together with `factor` (`passkey`, `totp` or
+`recovery_code`), `waived` (the settings it went around) and `notices` (`sent`, `failed`). Every
+admin account with a verified email is sent a notice naming the account and the time. A notice that
+cannot be sent never fails the sign-in; the count is in the event. A sign-in the policy would have
+allowed anyway is ordinary and is not announced.
+
+An enrollment outside the authenticator policy is announced the same way: a
+`break_glass_enrollment` event (`severity: "high"`, `waived: ["authenticator_policy"]`, the
+refusal it went around, and `notices`), and a notice to every admin. Its `registration_success`
+event is also marked with `breakGlassWaived: ["authenticator_policy"]`. The passkey keeps working
+after the policy is put right, so review it then.
+
+### Rotating it
+
+To move break-glass to a different account, give the new account `admin:write`, enroll its factors,
+add its address to `BREAK_GLASS_EMAILS` and restart. Then remove the old address and restart again,
+and revoke the old account's sessions. After any use, regenerate the account's recovery codes and,
+if a key or authenticator app left the safe, re-enroll it.
 
 ## Session Hygiene
 
