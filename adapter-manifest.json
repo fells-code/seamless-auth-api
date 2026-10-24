@@ -185,6 +185,16 @@
       "credential": "preAuth",
       "issues": "session"
     },
+    { "method": "POST", "path": "/recovery/cancel", "credential": "none" },
+    {
+      "method": "POST",
+      "path": "/recovery/complete",
+      "credential": "preAuth",
+      "issues": "session"
+    },
+    { "method": "POST", "path": "/recovery/start", "credential": "preAuth", "delivery": true },
+    { "method": "GET", "path": "/recovery/status", "credential": "preAuth" },
+    { "method": "POST", "path": "/recovery/verify", "credential": "preAuth" },
     { "method": "POST", "path": "/refresh", "credential": "refresh", "issues": "session" },
     { "method": "POST", "path": "/registration/phone", "credential": "access", "delivery": true },
     { "method": "POST", "path": "/registration/phone/verify", "credential": "access" },

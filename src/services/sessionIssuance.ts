@@ -16,7 +16,14 @@ import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 /** The factor that proved the user, as far as session issuance needs to know it. */
 export type SessionMethod =
-  'passkey' | 'email_otp' | 'phone_otp' | 'magic_link' | 'totp' | 'oauth' | 'recovery_code';
+  | 'passkey'
+  | 'email_otp'
+  | 'phone_otp'
+  | 'magic_link'
+  | 'totp'
+  | 'oauth'
+  | 'recovery_code'
+  | 'account_recovery';
 
 export class PasskeyRequiredError extends Error {
   constructor(method: SessionMethod) {

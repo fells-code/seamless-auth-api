@@ -30,8 +30,10 @@ A user can generate a set of ten single-use codes, shown once as `XXXXX-XXXXX`.
   are turned off only by `recovery_codes.enabled` (`RECOVERY_CODES`), and
   `GET /system-config/public` reports `recoveryCodes` so sign-in screens offer them only
   where they work.
-- Audit events: `recovery_codes_generated`, `recovery_code_used` (with the number left) and
-  `recovery_code_failed`.
+- Using a code tells the account's verified email and phone, so a code used by someone else
+  does not go unnoticed.
+- Audit events: `recovery_codes_generated`, `recovery_code_used` (with the number left and
+  the outcome of each notice) and `recovery_code_failed`.
 
 ## Recovery sessions
 
@@ -55,3 +57,79 @@ half-recovered account as fully signed in.
 
 A recovery session is allowed in `phishing_resistant_only` mode and when passkey fallback is
 off, because enrolling a passkey is all it can do.
+
+## Self-service recovery
+
+Off unless `account_recovery.enabled` is true, and always off in `phishing_resistant_only` mode, since it
+proves only an email address or phone number. Recovery codes are unaffected. Cancelling an open
+request keeps working either way, so turning the feature off never stops an owner stopping one.
+
+For a user with no codes, recovery through a verified email or phone. It cannot complete
+quietly: it waits out a delay, and every verified address on the account is told when it
+opens, with a link that cancels it.
+
+Off by default. Turn it on with `ACCOUNT_RECOVERY` (`account_recovery`), whose `delay` is
+`24h` unless set (`1h` to `30d`). While it is off, every route below answers
+`403 { "error": "account_recovery_disabled" }`, and `GET /system-config/public` reports
+`accountRecovery` so sign-in screens offer it only where it works.
+
+| Route                     | Auth                         | What it does                                              |
+| ------------------------- | ---------------------------- | --------------------------------------------------------- |
+| `POST /recovery/start`    | pre-auth token from `/login` | `{ channel: "email" \| "phone" }`, sends a six-digit code |
+| `POST /recovery/verify`   | the same attempt             | `{ code }`, opens the request and starts the delay        |
+| `GET /recovery/status`    | the same attempt             | `{ state, requestedAt, completesAt }`                     |
+| `POST /recovery/cancel`   | none                         | `{ cancelToken }` from the notice                         |
+| `POST /recovery/complete` | the same attempt, once ready | Signs out every session and issues a recovery session     |
+
+### The flow
+
+1. **Start.** The code goes to the verified address on file for the channel, through the
+   same delivery as OTP codes (including external delivery, where the response carries
+   `delivery`). The answer is the same whether or not the account has a verified address
+   there, so it does not say which channels exist. The code lasts ten minutes and is stored
+   hashed.
+2. **Verify.** Five wrong codes void the request. The right one opens it: `state` is
+   `pending`, `completesAt` is now plus the delay, and a notice goes to the account's
+   verified email **and** phone saying recovery was requested, when it completes and how to
+   cancel it. The cancel link is `${FRONTEND_URL}/recovery/cancel#<token>`; the token is in
+   the fragment so it never reaches a server log, and the page posts it to
+   `/recovery/cancel`. Opening a request cancels any other open request for the account.
+3. **Wait.** `GET /recovery/status` reports `pending` until `completesAt`, then `ready`, or
+   `cancelled` or `completed`.
+4. **Complete.** On a `ready` request this revokes every session on the account, tells
+   both verified addresses, and issues a [recovery session](#recovery-sessions), so the
+   user's next step is enrolling a new passkey or authenticator app.
+
+### Coming back after the delay
+
+A pre-auth token lasts minutes and the delay lasts hours, so the user returns on a new
+attempt: they sign in with `/login` again, call `/recovery/start` on the **same channel**,
+and verify the new code. That resumes the open request on the new attempt with its clock
+unchanged and sends no new notice; status and complete then work on that attempt. A code
+for a different channel opens a new request instead, with its own delay and notices.
+
+Starting is not enough to disturb anything: anyone who knows an address can start, so only
+a verified code opens, resumes or cancels a request. Five wrong codes on a resume void
+that code and leave the open request as it was.
+
+### Cancelling
+
+`POST /recovery/cancel` with the token from the notice cancels the request whether it is
+`pending` or `ready`. It needs no session, because the owner may be signed out everywhere,
+and it answers the same `200` whether or not the token matched, so it is not an oracle.
+Cancelling from a signed-in session without the token is a follow-up.
+
+### Notes
+
+- Account lockout does not block recovery, since lockout is what someone recovering may be
+  locked out by. Wrong codes are limited per request as above, and every route sits behind
+  the OTP flow rate limits.
+- A pre-auth token for an identifier with no account gets the answers a real account with
+  no verified address gets, and nothing is stored or sent for it.
+- Notices are only skipped for a credentialed caller that owns delivery (external delivery
+  with a service token): the delivery contract has no kind for account notices yet, so the
+  audit event records `not_sent_external_delivery` instead. The delivery header alone does
+  not suppress them, so a stranger cannot recover an account silently.
+- Audit events: `account_recovery_started`, `account_recovery_verified` (with each notice's
+  outcome), `account_recovery_cancelled`, `account_recovery_completed` (with the number of
+  sessions revoked) and `account_recovery_failed` (a wrong code or a failed delivery).
