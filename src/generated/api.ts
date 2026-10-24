@@ -16593,7 +16593,10 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    /** Delete authenticated user */
+    /**
+     * Delete authenticated user
+     * @description Needs a fresh step-up: deleting an account cannot be undone, and an access session alone may be one someone else is holding. An account with no passkey or TOTP cannot step up, so it cannot delete itself; an administrator can.
+     */
     delete: {
       parameters: {
         query?: never;
@@ -16645,6 +16648,35 @@ export interface paths {
                     to: string;
                     signInUrl: string;
                   };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
             };
           };
         };
