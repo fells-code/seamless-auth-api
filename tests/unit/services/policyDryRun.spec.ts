@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { Credential } from '../../../src/models/credentials.js';
 import { getSequelize } from '../../../src/models/index.js';
 import { PolicyDocumentSchema } from '../../../src/schemas/policy.schema.js';
 import { normalizeLoginPolicy } from '../../../src/services/loginPolicyService.js';
@@ -36,6 +37,7 @@ const account = { email: 'a@example.com', phone: null, hasPasskey: false, oauthP
 
 beforeEach(() => {
   vi.mocked(getSequelize).mockReturnValue({ query } as never);
+  (Credential.findAll as any).mockResolvedValue([]);
   vi.mocked(getSystemConfig).mockResolvedValue(
     buildSystemConfig({
       oauth_providers: [
@@ -160,6 +162,63 @@ describe('runPolicyDryRun', () => {
     hasPasskey: false,
     oauthProviders: [],
     ...overrides,
+  });
+
+  it('reports a passkey the candidate policy would not admit at enrollment, without a refused sign-in', async () => {
+    query.mockResolvedValueOnce([
+      row({
+        userId: 'u-1',
+        email: 'b@example.com',
+        method: 'passkey',
+        signIns: 2,
+        hasPasskey: true,
+      }),
+    ]);
+    (Credential.findAll as any).mockResolvedValueOnce([
+      { userId: 'u-1', aaguid: null, deviceType: 'multiDevice', attestationType: 'none' },
+    ]);
+
+    const report = await runPolicyDryRun({
+      policy: policy({ authenticator_policy: { syncedPasskeys: 'block' } }),
+      days: 7,
+      now,
+    });
+
+    expect(report.wouldFail).toEqual([
+      {
+        userId: 'u-1',
+        email: 'b@example.com',
+        signIns: 0,
+        reasons: ['synced_passkey_blocked'],
+        lockedOut: false,
+      },
+    ]);
+    expect(Credential.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: ['u-1'] } }),
+    );
+  });
+
+  it('reports no authenticator reason for a passkey the policy admits', async () => {
+    query.mockResolvedValueOnce([
+      row({
+        userId: 'u-1',
+        email: 'b@example.com',
+        method: 'passkey',
+        signIns: 2,
+        hasPasskey: true,
+      }),
+    ]);
+    (Credential.findAll as any).mockResolvedValueOnce([
+      { userId: 'u-1', aaguid: null, deviceType: 'singleDevice', attestationType: 'none' },
+    ]);
+
+    const report = await runPolicyDryRun({
+      policy: policy({ authenticator_policy: { syncedPasskeys: 'block' } }),
+      days: 7,
+      now,
+    });
+
+    expect(report.wouldFail).toEqual([]);
   });
 
   it('reports refused sign-ins, lockouts first, over a bounded window', async () => {

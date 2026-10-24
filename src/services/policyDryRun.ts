@@ -7,6 +7,8 @@
 import { QueryTypes } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import type { AttestationType } from '../lib/attestationType.js';
+import { Credential } from '../models/credentials.js';
 import { getSequelize } from '../models/index.js';
 import type {
   PolicyDocument,
@@ -14,6 +16,7 @@ import type {
   PolicyDryRunResponse,
   PolicyDryRunUser,
 } from '../schemas/policy.schema.js';
+import { evaluateAuthenticatorPolicy } from './authenticatorPolicyService.js';
 import { SIGN_IN_EVENT_TYPES } from './coverageReport.js';
 import {
   isLoginMethodEnabled,
@@ -210,6 +213,51 @@ async function countBreakGlassAccounts(emails: ReadonlySet<string>) {
   return row?.count ?? 0;
 }
 
+const ATTESTATION_TYPES: ReadonlySet<string> = new Set(['none', 'self', 'basic']);
+
+/**
+ * Users holding a passkey the candidate authenticator policy would not admit if it were
+ * registered today. That passkey keeps signing in, since the policy applies at
+ * registration, so this is reported as a reason without counting a refused sign-in: it is
+ * what the user could not enroll again.
+ */
+async function authenticatorRefusals(
+  userIds: string[],
+  policy: PolicyDocument['authenticator_policy'],
+) {
+  const refusals = new Map<string, Set<PolicyDryRunReason>>();
+  if (userIds.length === 0) return refusals;
+
+  const credentials = await Credential.findAll({
+    where: { userId: userIds },
+    attributes: ['userId', 'aaguid', 'deviceType', 'attestationType'],
+  });
+
+  for (const credential of credentials) {
+    const attestationType: AttestationType = ATTESTATION_TYPES.has(credential.attestationType ?? '')
+      ? (credential.attestationType as AttestationType)
+      : 'none';
+    const verdict = evaluateAuthenticatorPolicy({
+      policy,
+      aaguid: credential.aaguid,
+      deviceType: credential.deviceType,
+      attestationType,
+    });
+
+    if (verdict.allowed) continue;
+
+    const reasons = refusals.get(credential.userId) ?? new Set<PolicyDryRunReason>();
+    reasons.add(
+      verdict.reason === 'synced_passkey_not_allowed'
+        ? 'synced_passkey_blocked'
+        : 'authenticator_not_allowed',
+    );
+    refusals.set(credential.userId, reasons);
+  }
+
+  return refusals;
+}
+
 function byAccount(rows: SignInRow[]) {
   const accounts = new Map<string, { account: DryRunAccount; email: string; rows: SignInRow[] }>();
 
@@ -259,13 +307,18 @@ export async function runPolicyDryRun(params: {
   let signInsEvaluated = 0;
   let usersEvaluated = 0;
   const wouldFail: PolicyDryRunUser[] = [];
+  const evaluated = accounts
+    .slice(0, cap)
+    .filter(([, { email }]) => !breakGlass.has(email.toLowerCase()));
+  const passkeyRefusals = await authenticatorRefusals(
+    evaluated.filter(([, { account }]) => account.hasPasskey).map(([userId]) => userId),
+    params.policy.authenticator_policy,
+  );
 
-  for (const [userId, { account, email, rows: signIns }] of accounts.slice(0, cap)) {
-    if (breakGlass.has(email.toLowerCase())) continue;
-
+  for (const [userId, { account, email, rows: signIns }] of evaluated) {
     usersEvaluated += 1;
 
-    const reasons = new Set<PolicyDryRunReason>();
+    const reasons = new Set<PolicyDryRunReason>(passkeyRefusals.get(userId));
     let refused = 0;
 
     for (const row of signIns) {
@@ -279,7 +332,7 @@ export async function runPolicyDryRun(params: {
       }
     }
 
-    if (refused > 0) {
+    if (reasons.size > 0) {
       wouldFail.push({
         userId,
         email,

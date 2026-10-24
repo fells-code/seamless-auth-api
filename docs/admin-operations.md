@@ -183,16 +183,20 @@ report lists the sign-ins the candidate would refuse and why:
 | `method_disabled`             | The method is no longer in `login_methods`                                                      |
 | `phishing_resistant_required` | `phishing_resistant_only` is on and the sign-in was not a passkey                               |
 | `fallback_disabled`           | The account holds a passkey and `passkey_login_fallback_enabled` is off (OAuth is not affected) |
+| `authenticator_not_allowed`   | The account holds a passkey the AAGUID lists or `requireKnownAuthenticator` would not admit     |
+| `synced_passkey_blocked`      | The account holds a synced passkey and `syncedPasskeys` would be `block`                        |
 
 `lockedOut` is true when none of the account's enrolled factors would still sign it in: no passkey
 under a passkey-only policy, no usable address-based method, and no linked identity at an enabled
 OAuth provider. `usersLockedOut` counts them, and they are listed first.
 
-Authenticator rules (`attachment`, the AAGUID lists, `requireKnownAuthenticator` and
-`syncedPasskeys`) are applied when a passkey is registered, not when it signs in, so tightening them
-leaves enrolled passkeys working and the dry run does not report them as refusals. The API does not
-record whether a past assertion performed user verification, so `userVerification: "required"` is
-not predicted either. Both reasons exist in the response contract for when that changes.
+Authenticator rules (the AAGUID lists, `requireKnownAuthenticator` and `syncedPasskeys`) are applied
+when a passkey is registered, not when it signs in, so a passkey the candidate would not admit keeps
+working. The two authenticator reasons therefore count no refused sign-in (`signIns` can be `0`) and
+never make an account `lockedOut`: they say the user could not enroll that authenticator again,
+which matters when they replace a device. `attachment` is a hint to the browser and is not
+evaluated. The API does not record whether a past assertion performed user verification, so
+`userVerification: "required"` is not predicted.
 
 Accounts listed in `BREAK_GLASS_EMAILS` (comma separated) are exempt from policy. They are never
 evaluated or listed; `breakGlassAccounts` counts how many exist.
