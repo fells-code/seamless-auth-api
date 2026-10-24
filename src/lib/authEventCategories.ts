@@ -52,6 +52,8 @@ const PREFIX_CATEGORIES: ReadonlyArray<[string, AuthEventCategory]> = [
 
 const EXACT_CATEGORIES: Readonly<Record<string, AuthEventCategory>> = {
   auth_action_incremented: 'system',
+  break_glass_enrollment: 'webauthn',
+  break_glass_sign_in: 'login',
   credentials_deleted: 'webauthn',
   informational: 'system',
   internal_user_updated_by_owner: 'system',
