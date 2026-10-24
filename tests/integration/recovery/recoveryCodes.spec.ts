@@ -15,6 +15,7 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { RecoveryCode } from '../../../src/models/recoveryCodes.js';
 import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
+import { sendNoticeEmail, sendNoticeSms } from '../../../src/services/messagingService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 
 let app: Application;
@@ -95,6 +96,29 @@ describe('POST /recovery-codes/redeem', () => {
     );
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'recovery_code_used' }),
+    );
+  });
+
+  it('tells the verified addresses that a code was used', async () => {
+    await request(app).post('/recovery-codes/redeem').send({ code: 'ABCDE-FGH23' });
+
+    // The shared test principal has both addresses verified.
+    expect(sendNoticeEmail).toHaveBeenCalledWith(
+      'test@example.com',
+      expect.stringContaining('recovery code was used'),
+      expect.any(String),
+    );
+    expect(sendNoticeSms).toHaveBeenCalledWith('+14155552671', expect.any(String));
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'recovery_code_used',
+        metadata: expect.objectContaining({
+          notices: [
+            { channel: 'email', status: 'sent' },
+            { channel: 'phone', status: 'sent' },
+          ],
+        }),
+      }),
     );
   });
 

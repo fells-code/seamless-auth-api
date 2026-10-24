@@ -59,6 +59,7 @@ describe('adapter manifest for the live routes', () => {
       'POST /otp/generate-login-email-otp',
       'POST /otp/generate-login-phone-otp',
       'POST /otp/generate-phone-otp',
+      'POST /recovery/start',
       'POST /registration/phone',
       'POST /registration/register',
     ]);
@@ -80,6 +81,7 @@ describe('adapter manifest for the live routes', () => {
       'POST /otp/verify-login-phone-otp preAuth -> session',
       'POST /otp/verify-phone-otp registration -> session',
       'POST /recovery-codes/redeem preAuth -> session',
+      'POST /recovery/complete preAuth -> session',
       'POST /refresh refresh -> session',
       'POST /registration/register none -> registration',
       'POST /totp/verify-login preAuth -> session',

@@ -44,6 +44,11 @@ export function hashOtpToken(token: string) {
   return `${OTP_HASH_PREFIX}${hashSha256(token)}`;
 }
 
+/** Compares a submitted code with a stored `hashOtpToken` value in constant time. */
+export function otpHashMatches(storedHash: string, code: string) {
+  return safeStringEqual(storedHash, hashOtpToken(code.trim()));
+}
+
 function otpMatchesStoredValue(
   storedToken: string,
   verificationToken: string,

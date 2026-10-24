@@ -7,7 +7,9 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
+import { sendAccountNotice } from '../services/accountNotices.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   generateRecoveryCodes,
@@ -90,12 +92,23 @@ export const redeemRecoveryCodeLogin = async (req: Request, res: Response) => {
   }
 
   const { remaining } = await getRecoveryCodeStatus(user.id);
+  const { app_name: name } = await getSystemConfig();
+  const notices = await sendAccountNotice(
+    user,
+    {
+      subject: `A recovery code was used on your ${name} account`,
+      text:
+        `A recovery code was used to sign in to your ${name} account (${remaining} left). ` +
+        'If this was not you, contact your administrator.',
+    },
+    { external: await canReturnExternalDelivery(req) },
+  );
 
   await AuthEventService.log({
     userId: user.id,
     type: 'recovery_code_used',
     req,
-    metadata: { remaining },
+    metadata: { remaining, notices },
   });
 
   await issueSessionAndRespond({
