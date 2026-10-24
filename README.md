@@ -456,7 +456,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 - [docs/oauth.md](./docs/oauth.md) for OAuth provider setup and security behavior
 - [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
 - [docs/fido-conformance.md](./docs/fido-conformance.md) for running the FIDO2 conformance tools locally
-- [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin and recovery operations
+- [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin, recovery operations and staged policy changes
 - [docs/production-operations.md](./docs/production-operations.md) for production deployment guidance
 - [docs/security-posture.md](./docs/security-posture.md) for deliberate security tradeoffs (enumeration, token replay, data at rest)
 
