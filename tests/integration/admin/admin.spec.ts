@@ -926,6 +926,83 @@ describe('PATCH /admin/users/:userId', () => {
     expect(User.findByPk).not.toHaveBeenCalled();
   });
 
+  it('revokes sessions, notifies both addresses and audits an email change', async () => {
+    const { sendNoticeEmail } = await import('../../../src/services/messagingService.js');
+    const user = buildUser({ email: 'old@example.com' });
+
+    (User.findByPk as any).mockResolvedValue(user);
+    (Session.update as any).mockResolvedValueOnce([2]);
+
+    const res = await request(app).patch('/admin/users/user-1').send({ email: 'new@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(User.sequelize!.transaction).toHaveBeenCalled();
+    expect(user.update).toHaveBeenCalledWith({ email: 'new@example.com' }, expect.anything());
+    expect(Session.update).toHaveBeenCalledWith(
+      { revokedAt: expect.any(Date), revokedReason: 'admin_identity_change' },
+      expect.objectContaining({ where: { userId: user.id, revokedAt: null } }),
+    );
+    // The cutoff, so a refresh racing the change cannot leave a session behind.
+    expect(User.update).toHaveBeenCalledWith(
+      { sessionsRevokedBefore: expect.any(Date) },
+      expect.objectContaining({ where: { id: user.id } }),
+    );
+    expect(sendNoticeEmail).toHaveBeenCalledWith(
+      'old@example.com',
+      expect.any(String),
+      expect.any(String),
+    );
+    expect(sendNoticeEmail).toHaveBeenCalledWith(
+      'new@example.com',
+      expect.any(String),
+      expect.any(String),
+    );
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'internal_user_updated_by_owner',
+        metadata: expect.objectContaining({
+          revokedSessions: 2,
+          identityChanges: [
+            expect.objectContaining({ field: 'email', previousSha256: expect.any(String) }),
+          ],
+          notices: [
+            { field: 'email', recipient: 'previous', status: 'sent' },
+            { field: 'email', recipient: 'new', status: 'sent' },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it('does not send notices itself when the caller owns delivery', async () => {
+    const { sendNoticeSms } = await import('../../../src/services/messagingService.js');
+    const user = buildUser({ phone: '+14155552671' });
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .send({ phone: '+14155552672' });
+
+    expect(res.status).toBe(200);
+    expect(Session.update).toHaveBeenCalled();
+    expect(sendNoticeSms).not.toHaveBeenCalled();
+  });
+
+  it('leaves sessions alone when no identifier changes', async () => {
+    const user = buildUser({ email: 'same@example.com' });
+
+    (User.findByPk as any).mockResolvedValue(user);
+
+    const res = await request(app)
+      .patch('/admin/users/user-1')
+      .send({ email: 'same@example.com', emailVerified: true });
+
+    expect(res.status).toBe(200);
+    expect(Session.update).not.toHaveBeenCalled();
+  });
+
   it('clears phone state when phone is removed', async () => {
     const user = buildUser({ phone: '+14155552671', phoneVerified: true });
 
@@ -934,12 +1011,15 @@ describe('PATCH /admin/users/:userId', () => {
     const res = await request(app).patch('/admin/users/user-1').send({ phone: null });
 
     expect(res.status).toBe(200);
-    expect(user.update).toHaveBeenCalledWith({
-      phone: null,
-      phoneVerified: false,
-      phoneVerificationToken: null,
-      phoneVerificationTokenExpiry: null,
-    });
+    expect(user.update).toHaveBeenCalledWith(
+      {
+        phone: null,
+        phoneVerified: false,
+        phoneVerificationToken: null,
+        phoneVerificationTokenExpiry: null,
+      },
+      expect.anything(),
+    );
   });
 
   it('rejects phoneVerified true without a phone number', async () => {
@@ -997,6 +1077,7 @@ describe('PATCH /admin/users/:userId', () => {
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalledWith(
       expect.objectContaining({ phone: '+14155552672', phoneVerified: false }),
+      expect.anything(),
     );
   });
 
@@ -1012,6 +1093,7 @@ describe('PATCH /admin/users/:userId', () => {
     expect(res.status).toBe(200);
     expect(user.update).toHaveBeenCalledWith(
       expect.objectContaining({ phone: '+14155552672', phoneVerified: true }),
+      expect.anything(),
     );
   });
 

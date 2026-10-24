@@ -19,6 +19,7 @@ usersRouter.get(
   {
     adapter: { clears: ['preAuth'] },
     auth: 'access',
+    allowRecoverySession: true,
     tags: ['Users'],
     summary: 'Get authenticated user',
     schemas: {

@@ -93,6 +93,38 @@ describe('verifyBearerAuth', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('refuses a recovery session on a route that does not allow one', async () => {
+    req.headers.authorization = 'Bearer token';
+    (validateBearerToken as any).mockResolvedValue({
+      user: { id: 'user-1' },
+      sessionId: 'session-1',
+      recovery: true,
+    });
+
+    await verifyBearerAuth(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'enrollment_required' }),
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(req.user).toBeUndefined();
+  });
+
+  it('lets a recovery session through where the route allows it, and marks the request', async () => {
+    req.headers.authorization = 'Bearer token';
+    (validateBearerToken as any).mockResolvedValue({
+      user: { id: 'user-1' },
+      sessionId: 'session-1',
+      recovery: true,
+    });
+
+    await verifyBearerAuth(req, res, next, 'access', { allowRecoverySession: true });
+
+    expect(next).toHaveBeenCalled();
+    expect(req.recoverySession).toBe(true);
+  });
+
   it('attaches the organization id when present on the validated result', async () => {
     req.headers.authorization = 'Bearer token';
 

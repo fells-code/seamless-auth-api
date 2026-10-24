@@ -23,7 +23,7 @@ describe('attachAuthMiddleware', () => {
 
     await middleware(req as any, res as any, next);
 
-    expect(verifyBearerAuth).toHaveBeenCalledWith(req, res, next, 'access');
+    expect(verifyBearerAuth).toHaveBeenCalledWith(req, res, next, 'access', {});
   });
 
   it('tracks ephemeral bearer auth for route metadata', async () => {
@@ -39,7 +39,7 @@ describe('attachAuthMiddleware', () => {
 
     await middleware(req as any, res as any, next);
 
-    expect(verifyBearerAuth).toHaveBeenCalledWith(req, res, next, 'ephemeral');
+    expect(verifyBearerAuth).toHaveBeenCalledWith(req, res, next, 'ephemeral', {});
   });
 
   it('always maps protected routes to bearer security', async () => {

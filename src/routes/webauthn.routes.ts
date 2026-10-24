@@ -40,6 +40,7 @@ webauthnRouter.get(
   '/register/start',
   {
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Start WebAuthn registration',
     tags: ['WebAuthn'],
 
@@ -62,6 +63,7 @@ webauthnRouter.post(
   '/register/finish',
   {
     auth: 'access',
+    allowRecoverySession: true,
     summary: 'Finish WebAuthn registration',
     tags: ['WebAuthn'],
 

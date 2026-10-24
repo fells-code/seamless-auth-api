@@ -104,6 +104,28 @@ its own session like the console does. With no passkey or TOTP enrolled, an admi
 these writes at all; enroll one first. A long run such as a user import in many batches has to
 step up again when the five-minute window lapses.
 
+## Changing A User's Email Or Phone
+
+When `PATCH /admin/users/:userId` changes a user's email address or phone number, the API also:
+
+- revokes every active session for that user, in the same transaction as the change, so the
+  user is signed out everywhere (access tokens already issued stay valid until they expire)
+- sends a notice to the previous address and to the new one, by email for an email change and
+  by SMS for a phone change
+- records the change on the `internal_user_updated_by_owner` audit event as `identityChanges`,
+  with a SHA-256 digest of the previous and new values (audit metadata never stores addresses),
+  plus `revokedSessions` and the outcome of each notice in `notices`
+
+An email that differs only in letter case is not treated as a change. Setting `emailVerified`,
+`phoneVerified` or roles on their own does not revoke sessions.
+
+Notices go through the configured direct email and SMS transports. The messaging contract has
+no template for account notices, so the text is fixed by the API. A notice that fails to send
+does not fail the request; it is recorded as `failed` in `notices`. A caller that sends
+`x-seamless-auth-delivery-mode: external` owns delivery, and the delivery payload has no kind
+for account notices yet, so in that mode no notice is sent and each is recorded as
+`not_sent_external_delivery`.
+
 ## Device Replacement Recovery
 
 Administrators with write access can prepare an account for device replacement:

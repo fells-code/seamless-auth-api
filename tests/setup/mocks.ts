@@ -83,6 +83,17 @@ vi.mock('../../src/models/totpCredentials.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/recoveryCodes.js', () => ({
+  RecoveryCode: {
+    count: vi.fn(async () => 0),
+    findAll: vi.fn(async () => []),
+    update: vi.fn(async () => [1]),
+    destroy: vi.fn(),
+    bulkCreate: vi.fn(),
+    sequelize: { transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({})) },
+  },
+}));
+
 vi.mock('../../src/models/oauthIdentities.js', () => ({
   OAuthIdentity: {
     create: vi.fn(),
@@ -169,6 +180,7 @@ vi.mock('../../src/services/sessionService.js', () => ({
   verifyJwtWithKid: vi.fn(),
   revokeSessionChain: vi.fn(),
   hardRevokeSession: vi.fn(),
+  liftRecoveryRestriction: vi.fn(async () => true),
 }));
 
 vi.mock('../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
@@ -272,6 +284,8 @@ vi.mock('../../src/models/magicLinks.js', () => ({
 vi.mock('../../src/services/messagingService.js', () => ({
   sendMagicLinkEmail: vi.fn(),
   sendEnrollmentInviteEmail: vi.fn(),
+  sendNoticeEmail: vi.fn(),
+  sendNoticeSms: vi.fn(),
 }));
 
 vi.mock('crypto', async () => {

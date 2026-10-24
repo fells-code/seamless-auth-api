@@ -533,6 +533,15 @@ What remains: a stranger with several network locations can still fill the per-a
 window, and the owner then waits it out, as with lockout. Wrong codes from every attempt still
 count toward lockout together, because lockout is per account (see [Account lockout](#account-lockout)).
 
+## Recovery codes and lockout
+
+Redeeming a recovery code (`POST /recovery-codes/redeem`) is rate limited like an OTP but is
+not subject to lockout and does not count towards it. Codes carry 50 bits, so guessing one
+under the flow limits is not practical, while counting failures would let anyone who knows an
+address lock its owner out of the one way back in that does not need an administrator. The
+session a code issues is restricted to enrolling a new factor; see
+[docs/account-recovery.md](./account-recovery.md).
+
 ## Audit write failure
 
 **Posture: the trail may be lost, no security control may be.**

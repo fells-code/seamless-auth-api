@@ -177,6 +177,14 @@
       "credential": "registration",
       "issues": "session"
     },
+    { "method": "GET", "path": "/recovery-codes", "credential": "access" },
+    { "method": "POST", "path": "/recovery-codes", "credential": "access" },
+    {
+      "method": "POST",
+      "path": "/recovery-codes/redeem",
+      "credential": "preAuth",
+      "issues": "session"
+    },
     { "method": "POST", "path": "/refresh", "credential": "refresh", "issues": "session" },
     { "method": "POST", "path": "/registration/phone", "credential": "access", "delivery": true },
     { "method": "POST", "path": "/registration/phone/verify", "credential": "access" },

@@ -559,6 +559,8 @@ adminRouter.patch(
   {
     auth: 'access',
     summary: 'Update user',
+    description:
+      "Changing `email` or `phone` revokes all of the user's sessions and sends a notice to the previous and the new address. With `x-seamless-auth-delivery-mode: external` no notice is sent.",
     tags: ['Admin'],
     middleware: [requireAdmin('write'), requireStepUp()],
 
