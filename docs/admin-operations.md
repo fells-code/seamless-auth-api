@@ -75,6 +75,9 @@ Guarded routes:
   `/admin/organizations/:organizationId/members/:userId`
 - `PUT` and `DELETE /admin/organizations/:organizationId/oauth-providers/:providerId/retirement`
 - `POST /organizations/:organizationId/members` (the self-service route that requires `admin:write`)
+- `DELETE /users/delete`, a user deleting their own account: it cannot be undone, and an access
+  session alone may be someone else's. An account with no passkey or TOTP cannot step up, so it
+  cannot delete itself; an administrator can (`DELETE /admin/users`).
 - `GET /admin/auth-events/export`, which is a read but hands out the whole audit trail
 
 Admin reads stay on the admin role alone. `POST /admin/enrollment/invites` does too: it emails

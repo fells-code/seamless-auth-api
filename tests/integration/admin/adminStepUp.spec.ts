@@ -37,6 +37,8 @@ const GUARDED = [
   'PATCH /system-config/oauth-providers/{id}',
   'DELETE /system-config/oauth-providers/{id}',
   'POST /organizations/{organizationId}/members',
+  // Self-service, but just as irreversible.
+  'DELETE /users/delete',
 ];
 
 let app: Application;
