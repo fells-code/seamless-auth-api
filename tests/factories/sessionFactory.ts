@@ -18,3 +18,8 @@ export function buildSession(overrides: any = {}) {
     ...overrides,
   };
 }
+
+/** The current session after a step-up, which every `requireStepUp()` route looks up first. */
+export function buildFreshStepUpSession(overrides: any = {}) {
+  return buildSession({ stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn', ...overrides });
+}

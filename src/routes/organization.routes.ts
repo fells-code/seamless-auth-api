@@ -17,6 +17,7 @@ import {
 } from '../controllers/organizations.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requireStepUp } from '../middleware/requireStepUp.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import {
   AddOrganizationMemberRequestSchema,
@@ -33,6 +34,7 @@ import {
   OrganizationMembersResponseSchema,
   OrganizationSwitchResponseSchema,
 } from '../schemas/organization.responses.js';
+import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 
 const organizationRouter = createRouter('/organizations');
 
@@ -148,13 +150,13 @@ organizationRouter.post(
       'Requires admin:write. Adding someone by email without their consent would let any ' +
       'account holder learn which addresses have accounts and attach strangers to an ' +
       'organization, so self-service adds wait for invitations.',
-    middleware: [requireAdmin('write')],
+    middleware: [requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
       response: {
         201: OrganizationMembershipEnvelopeResponseSchema,
-        403: InternalErrorSchema,
+        403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
         409: InternalErrorSchema,
       },

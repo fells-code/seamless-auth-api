@@ -694,6 +694,31 @@ schedule that applies to the jurisdiction, and the archive directory is where th
 "retain, then dispose" part of that schedule happens. Nothing here maps a specific state
 schedule yet. That mapping belongs here once a jurisdiction's schedule has been read.
 
+## Step-up on admin writes
+
+**Posture: an admin access token alone cannot change who signs in.**
+
+An access token is a bearer credential, and the adapter turns a browser cookie into one. Whoever holds it, including someone who lifted it from a compromised
+browser or log, could previously edit system config, OAuth providers, roles, users,
+organizations and sessions with nothing more. The console asked for a step-up before those
+writes, but only in the browser, so any other client skipped it.
+
+`requireStepUp()` now sits behind `requireAdmin('write')` on every one of those routes, and on
+the audit export. It reads the step-up time from the session row the token is bound to, so a
+step-up has to happen on that same session within five minutes. The full route list and the
+`403 step_up_required` body are in
+[Admin Operations](./admin-operations.md#step-up-on-admin-writes).
+
+### What is still accepted
+
+- **A fresh step-up is a window, not a per-request proof.** For five minutes after a step-up,
+  the session's access token makes guarded writes on its own. Shortening the window is a
+  `requireStepUp({ maxAgeSeconds })` change per route.
+- **Self-service account deletion is not guarded.** `DELETE /users/delete` deletes the caller's
+  own account and is open to accounts with no passkey or TOTP, which could never step up.
+- **Enrollment invites are not guarded.** They email existing users a sign-in link and change
+  no account.
+
 ## Refusals at the auth gate
 
 **Posture: only a credential this server issued is worth a row.**
