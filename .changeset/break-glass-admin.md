@@ -10,3 +10,5 @@ Break-glass admin accounts that no sign-in policy can lock out (#401).
 - Every sign-in that relied on the exemption records a new `break_glass_sign_in` auth event with `severity: "high"` in its metadata and emails a notice to every admin account with a verified email.
 
 See the Break-glass admin section of docs/admin-operations.md.
+
+A passkey a break-glass admin enrolls outside the authenticator policy is announced like a waived sign-in: a `break_glass_enrollment` event with `severity: 'high'` and a notice to every admin.

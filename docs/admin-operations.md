@@ -150,9 +150,13 @@ event carries `severity: "high"` in its metadata, together with `factor` (`passk
 `recovery_code`), `waived` (the settings it went around) and `notices` (`sent`, `failed`). Every
 admin account with a verified email is sent a notice naming the account and the time. A notice that
 cannot be sent never fails the sign-in; the count is in the event. A sign-in the policy would have
-allowed anyway is ordinary and is not announced. An enrollment outside the authenticator policy is
-marked on its `registration_success` event with `severity: "high"` and
-`breakGlassWaived: ["authenticator_policy"]`.
+allowed anyway is ordinary and is not announced.
+
+An enrollment outside the authenticator policy is announced the same way: a
+`break_glass_enrollment` event (`severity: "high"`, `waived: ["authenticator_policy"]`, the
+refusal it went around, and `notices`), and a notice to every admin. Its `registration_success`
+event is also marked with `breakGlassWaived: ["authenticator_policy"]`. The passkey keeps working
+after the policy is put right, so review it then.
 
 ### Rotating it
 

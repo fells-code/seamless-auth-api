@@ -122,17 +122,23 @@ async function adminRecipients() {
 
 async function noticeEveryAdmin(
   subjectEmail: string,
-  factor: BreakGlassFactor,
-  waived: BreakGlassWaiver[],
+  what: { kind: 'sign_in'; factor: BreakGlassFactor } | { kind: 'enrollment' },
+  waived: string[],
 ): Promise<BreakGlassNoticeSummary> {
   const summary = { sent: 0, failed: 0 };
 
   try {
     const appName = (await getSystemConfig())?.app_name ?? 'Seamless Auth';
-    const subject = `Break-glass sign-in on ${appName}`;
+    const subject =
+      what.kind === 'sign_in'
+        ? `Break-glass sign-in on ${appName}`
+        : `Break-glass passkey enrolled on ${appName}`;
+    const action =
+      what.kind === 'sign_in'
+        ? `signed in to ${appName} with ${what.factor.replace('_', ' ')}, bypassing sign-in policy`
+        : `enrolled a passkey on ${appName} that the authenticator policy would refuse`;
     const text =
-      `The break-glass admin account ${subjectEmail} signed in to ${appName} with ` +
-      `${factor.replace('_', ' ')}, bypassing sign-in policy (${waived.join(', ')}) at ` +
+      `The break-glass admin account ${subjectEmail} ${action} (${waived.join(', ')}) at ` +
       `${new Date().toISOString()}. If this was not a planned recovery, review the audit ` +
       'trail, revoke the sessions and rotate the break-glass credentials.';
 
@@ -167,13 +173,41 @@ export async function recordBreakGlassSignIn(params: {
 
   if (waived.length === 0) return;
 
-  const notices = await noticeEveryAdmin(user.email, factor, waived);
+  const notices = await noticeEveryAdmin(user.email, { kind: 'sign_in', factor }, waived);
 
   await AuthEventService.log({
     userId: user.id,
     type: 'break_glass_sign_in',
     req,
     metadata: { severity: 'high', factor, waived, notices },
+  });
+}
+
+/**
+ * A passkey the authenticator policy refused, admitted because the account is break-glass.
+ * Announced like a waived sign-in: it is a credential no one else could have added, and
+ * it keeps working after the policy is put right.
+ */
+export async function recordBreakGlassEnrollment(params: {
+  req: Request;
+  user: { id: string; email: string };
+  refusal: string;
+}) {
+  const { req, user, refusal } = params;
+  const notices = await noticeEveryAdmin(user.email, { kind: 'enrollment' }, [
+    'authenticator_policy',
+  ]);
+
+  await AuthEventService.log({
+    userId: user.id,
+    type: 'break_glass_enrollment',
+    req,
+    metadata: {
+      severity: 'high',
+      waived: ['authenticator_policy'],
+      authenticatorPolicyRefusal: refusal,
+      notices,
+    },
   });
 }
 

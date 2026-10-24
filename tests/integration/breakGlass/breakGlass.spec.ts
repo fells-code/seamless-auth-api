@@ -539,6 +539,22 @@ describe('passkey enrollment', () => {
         }),
       }),
     );
+    // Announced like a waived sign-in: it is a credential no ordinary account could add.
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'break_glass_enrollment',
+        metadata: expect.objectContaining({
+          severity: 'high',
+          waived: ['authenticator_policy'],
+          notices: { sent: 2, failed: 0 },
+        }),
+      }),
+    );
+    expect(sendNoticeEmail).toHaveBeenCalledWith(
+      'ops@example.com',
+      expect.stringContaining('Break-glass passkey enrolled'),
+      expect.stringContaining('would refuse'),
+    );
   });
 
   it('refuses the same passkey for an ordinary user', async () => {
@@ -549,6 +565,7 @@ describe('passkey enrollment', () => {
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'synced_passkey_not_allowed' });
     expect(Credential.create).not.toHaveBeenCalled();
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
   });
 
   it('lets a break-glass admin ask for an attachment the policy does not pin', async () => {

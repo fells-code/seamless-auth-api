@@ -30,7 +30,11 @@ import type { WebAuthnAuthenticatorAttachment } from '../schemas/webauthn.reques
 import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { evaluateAuthenticatorPolicy } from '../services/authenticatorPolicyService.js';
 import { AuthEventService } from '../services/authEventService.js';
-import { breakGlassWaivers, recordBreakGlassSignIn } from '../services/breakGlassService.js';
+import {
+  breakGlassWaivers,
+  recordBreakGlassEnrollment,
+  recordBreakGlassSignIn,
+} from '../services/breakGlassService.js';
 import {
   ensureMetadataServiceReady,
   hasMetadataStatement,
@@ -392,6 +396,14 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
           }
         : {},
     });
+
+    if (breakGlassOverride) {
+      await recordBreakGlassEnrollment({
+        req,
+        user: { id: user.id, email: user.email },
+        refusal: verdict.detail ?? 'authenticator policy',
+      });
+    }
 
     if (authReq.recoverySession) {
       await liftRecoveryRestriction(authReq.sessionId);
