@@ -37,6 +37,13 @@ its own channel. See [`src/lib/externalDelivery.ts`](../src/lib/externalDelivery
 - For local development without a service token, set `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS=true`.
   The flag is ignored when `NODE_ENV=production`.
 
+Kinds that older adapters do not know are only returned to a caller that names them in
+`x-seamless-auth-delivery-kinds` (a comma separated list of `kind` values). Today that covers
+the owner notices for account recovery (`account_notice_email`, `account_notice_sms`), which
+`POST /recovery/verify` returns as a `deliveries` array; routes that can do this are marked
+`notices: true` in the adapter manifest. A caller that does not name them gets direct
+delivery, or a refusal where a notice is required.
+
 This is how a server adapter integrates its own email/SMS stack without the API baking in a
 provider. See the delivery payload shapes in
 [`src/schemas/generic.responses.ts`](../src/schemas/generic.responses.ts) (`AuthDeliverySchema`)

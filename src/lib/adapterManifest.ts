@@ -211,6 +211,12 @@ export function registerAdapterRoute({
     );
   }
 
+  if (options.notices && !successFields(response, 'deliveries').length) {
+    throw new Error(
+      `${label} declares adapter \`notices\` but no success response has \`deliveries\`.`,
+    );
+  }
+
   if (options.body && !options.issues) {
     throw new Error(`${label} declares an adapter body \`pick\` but issues nothing.`);
   }
@@ -223,6 +229,7 @@ export function registerAdapterRoute({
     ...(options.clears ? { clears: options.clears } : {}),
     ...(options.body ? { body: options.body } : {}),
     ...(options.delivery ? { delivery: options.delivery } : {}),
+    ...(options.notices ? { notices: options.notices } : {}),
   });
 }
 

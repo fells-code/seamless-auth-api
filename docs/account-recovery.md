@@ -70,16 +70,19 @@ opens, with a link that cancels it.
 
 Off by default. Turn it on with `ACCOUNT_RECOVERY` (`account_recovery`), whose `delay` is
 `24h` unless set (`1h` to `30d`). While it is off, every route below answers
-`403 { "error": "account_recovery_disabled" }`, and `GET /system-config/public` reports
+`403 { "error": "account_recovery_disabled" }` (except cancelling, and the session routes for
+open requests), and `GET /system-config/public` reports
 `accountRecovery` so sign-in screens offer it only where it works.
 
-| Route                     | Auth                         | What it does                                              |
-| ------------------------- | ---------------------------- | --------------------------------------------------------- |
-| `POST /recovery/start`    | pre-auth token from `/login` | `{ channel: "email" \| "phone" }`, sends a six-digit code |
-| `POST /recovery/verify`   | the same attempt             | `{ code }`, opens the request and starts the delay        |
-| `GET /recovery/status`    | the same attempt             | `{ state, requestedAt, completesAt }`                     |
-| `POST /recovery/cancel`   | none                         | `{ cancelToken }` from the notice                         |
-| `POST /recovery/complete` | the same attempt, once ready | Signs out every session and issues a recovery session     |
+| Route                           | Auth                         | What it does                                                                      |
+| ------------------------------- | ---------------------------- | --------------------------------------------------------------------------------- |
+| `POST /recovery/start`          | pre-auth token from `/login` | `{ channel: "email" \| "phone" }`, sends a six-digit code                         |
+| `POST /recovery/verify`         | the same attempt             | `{ code }`, opens the request and starts the delay                                |
+| `GET /recovery/status`          | the same attempt             | `{ state, requestedAt, completesAt }`                                             |
+| `POST /recovery/cancel`         | none                         | `{ cancelToken }` from the notice                                                 |
+| `POST /recovery/complete`       | the same attempt, once ready | Signs out every session and issues a recovery session                             |
+| `GET /recovery/requests`        | access session               | `{ requests: [{ id, channel, state, requestedAt, completesAt }] }`, the open ones |
+| `DELETE /recovery/requests/:id` | access session               | Cancels one of them without the token                                             |
 
 ### The flow
 
@@ -120,7 +123,9 @@ that code and leave the open request as it was.
 `POST /recovery/cancel` with the token from the notice cancels the request whether it is
 `pending` or `ready`. It needs no session, because the owner may be signed out everywhere,
 and it answers the same `200` whether or not the token matched, so it is not an oracle.
-Cancelling from a signed-in session without the token is a follow-up.
+A signed-in owner can also see open requests with `GET /recovery/requests` and cancel one
+with `DELETE /recovery/requests/:id`, without the token. Both work while recovery is turned
+off, and a request id from another account answers `404`.
 
 ### Notes
 
@@ -129,14 +134,19 @@ Cancelling from a signed-in session without the token is a follow-up.
   the OTP flow rate limits.
 - A pre-auth token for an identifier with no account gets the answers a real account with
   no verified address gets, and nothing is stored or sent for it.
-- The opening notice needs direct delivery: the API's own email or SMS transport. The
-  delivery contract has no kind for account notices yet, so a credentialed caller that
-  owns delivery (external delivery with a service token) on `/recovery/verify` gets the
-  `503`, with each notice recorded as `not_sent_external_delivery`. A deployment that
-  delivers codes through its adapter can still offer recovery, as long as the API has a
-  working transport for the notice and the adapter does not ask for external delivery on
-  verify. The delivery header alone does not suppress notices, so a stranger cannot
-  recover an account silently.
+- Under external delivery the code arrives with `purpose: "account_recovery"`, so an
+  adapter can word it as a recovery warning rather than a sign-in code.
+- The opening notice goes out directly, through the API's own email or SMS transport,
+  unless the caller owns delivery. A credentialed caller that owns delivery (external
+  delivery with a service token) gets the notices back only if it lists their kinds in
+  `x-seamless-auth-delivery-kinds` (`account_notice_email`, `account_notice_sms`): they
+  arrive as `deliveries` on the `/recovery/verify` response, each with `notice:
+"account_recovery_opened"` and the `cancelUrl`, and count as notifying the owner. A
+  caller that owns delivery but lists neither kind gets the `503`, with each notice
+  recorded as `not_sent_external_delivery`, because an adapter that predates the kinds
+  would drop them. The adapter manifest marks the route `notices: true`. The delivery
+  header alone does not suppress notices, so a stranger cannot recover an account
+  silently, and the cancel link is never written to the audit event.
 - Audit events: `account_recovery_started`, `account_recovery_verified` (with each notice's
   outcome), `account_recovery_cancelled`, `account_recovery_completed` (with the number of
   sessions revoked) and `account_recovery_failed` (a wrong code, a failed delivery, or a request voided because the

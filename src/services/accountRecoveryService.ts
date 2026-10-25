@@ -270,6 +270,27 @@ export async function cancelRecoveryByToken(cancelToken: string) {
   return cancelled === 1 ? request : null;
 }
 
+/** The account's open requests, oldest first, for the owner to review from a session. */
+export async function listOpenRecoveries(userId: string) {
+  return AccountRecoveryRequest.findAll({
+    where: { userId, state: 'pending' },
+    order: [['requestedAt', 'ASC']],
+  });
+}
+
+/**
+ * Cancels one of the user's open requests from a signed-in session, without the token.
+ * Scoped to the user, so an id belonging to another account matches nothing.
+ */
+export async function cancelRecoveryForUser(userId: string, requestId: string) {
+  const [cancelled] = await AccountRecoveryRequest.update(
+    { state: 'cancelled', cancelledAt: new Date(), codeHash: null, codeAttemptId: null },
+    { where: { id: requestId, userId, state: 'pending' } },
+  );
+
+  return cancelled === 1;
+}
+
 /**
  * Whether self-service recovery can be used. Off in phishing-resistant-only mode as well
  * as when disabled: it proves an email address or phone number, which a deployment that

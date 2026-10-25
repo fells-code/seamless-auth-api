@@ -7,14 +7,20 @@
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
+import { acceptedDeliveryKinds, canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { RecoveryChannel } from '../models/accountRecoveryRequests.js';
-import { sendAccountNotice, verifiedAddresses } from '../services/accountNotices.js';
+import {
+  ownerWasNotified,
+  sendAccountNotice,
+  verifiedAddresses,
+} from '../services/accountNotices.js';
 import {
   cancelRecoveryByToken,
+  cancelRecoveryForUser,
   completeRecovery,
   findRecoveryForAttempt,
   isAccountRecoveryAvailable,
+  listOpenRecoveries,
   RecoveryStatus,
   recoveryStatus,
   startRecovery,
@@ -127,8 +133,8 @@ export const startAccountRecovery = async (req: Request, res: Response) => {
         ? {
             delivery:
               channel === 'email'
-                ? { kind: 'otp_email', to, token: code }
-                : { kind: 'otp_sms', to, token: code },
+                ? { kind: 'otp_email', to, token: code, purpose: 'account_recovery' }
+                : { kind: 'otp_sms', to, token: code, purpose: 'account_recovery' },
           }
         : {}),
     });
@@ -157,7 +163,12 @@ async function openedNotice(channel: RecoveryChannel, completesAt: Date, cancelT
     `cancelled, recovery completes at ${completesAt.toISOString()}, signs out every ` +
     `session and lets them enroll a new passkey. If this was not you, cancel it: ${link}`;
 
-  return { subject: `Account recovery requested for your ${name} account`, text };
+  return {
+    name: 'account_recovery_opened' as const,
+    subject: `Account recovery requested for your ${name} account`,
+    text,
+    cancelUrl: link,
+  };
 }
 
 /**
@@ -201,13 +212,15 @@ export const verifyAccountRecovery = async (req: Request, res: Response) => {
     return res.status(200).json(serializeRecoveryStatus(status));
   }
 
-  const notices = await sendAccountNotice(
+  const external = await canReturnExternalDelivery(req);
+  const outcome = await sendAccountNotice(
     user,
     await openedNotice(request.channel, status.completesAt, result.cancelToken),
-    { external: await canReturnExternalDelivery(req) },
+    { external, returnable: external ? acceptedDeliveryKinds(req) : undefined },
   );
+  const notices = outcome.results;
 
-  if (!notices.some((notice) => notice.status === 'sent')) {
+  if (!ownerWasNotified(outcome)) {
     await voidUnannouncedRecovery(request);
     await AuthEventService.log({
       userId: user.id,
@@ -237,7 +250,10 @@ export const verifyAccountRecovery = async (req: Request, res: Response) => {
     },
   });
 
-  return res.status(200).json(serializeRecoveryStatus(status));
+  return res.status(200).json({
+    ...serializeRecoveryStatus(status),
+    ...(outcome.deliveries.length > 0 ? { deliveries: outcome.deliveries } : {}),
+  });
 };
 
 export const getAccountRecoveryStatus = async (req: Request, res: Response) => {
@@ -283,6 +299,42 @@ export const cancelAccountRecovery = async (req: Request, res: Response) => {
 };
 
 /**
+ * The account's open recovery requests, for a signed-in owner. Not gated on the feature
+ * being available, for the same reason as cancelling.
+ */
+export const listAccountRecoveryRequests = async (req: Request, res: Response) => {
+  const { user } = req as AuthenticatedRequest;
+  const requests = await listOpenRecoveries(user.id);
+
+  return res.status(200).json({
+    requests: requests.map((request) => ({
+      id: request.id,
+      channel: request.channel,
+      ...serializeRecoveryStatus(recoveryStatus(request)),
+    })),
+  });
+};
+
+/** Lets a signed-in owner cancel a request without the token from the notice. */
+export const cancelAccountRecoveryRequest = async (req: Request, res: Response) => {
+  const { user } = req as AuthenticatedRequest;
+  const { id } = req.params as { id: string };
+
+  if (!(await cancelRecoveryForUser(user.id, id))) {
+    return res.status(404).json({ error: 'recovery_not_found' });
+  }
+
+  await AuthEventService.log({
+    userId: user.id,
+    type: 'account_recovery_cancelled',
+    req,
+    metadata: { requestId: id, via: 'session' },
+  });
+
+  return res.status(200).json({ message: 'Recovery request cancelled.' });
+};
+
+/**
  * Completes a request whose delay has passed: signs out every session, tells every
  * verified address, and issues a recovery session that can only enroll a new factor.
  */
@@ -306,9 +358,10 @@ export const completeAccountRecovery = async (req: Request, res: Response) => {
   }
 
   const name = await appName();
-  const notices = await sendAccountNotice(
+  const { results: notices } = await sendAccountNotice(
     user,
     {
+      name: 'account_recovery_completed',
       subject: `Your ${name} account was recovered`,
       text:
         `Your ${name} account was recovered and every session on it was signed out. ` +

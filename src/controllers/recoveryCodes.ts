@@ -104,9 +104,10 @@ export const redeemRecoveryCodeLogin = async (req: Request, res: Response) => {
 
   const { remaining } = await getRecoveryCodeStatus(user.id);
   const { app_name: name } = await getSystemConfig();
-  const notices = await sendAccountNotice(
+  const { results: notices } = await sendAccountNotice(
     user,
     {
+      name: 'recovery_code_used',
       subject: `A recovery code was used on your ${name} account`,
       text:
         `A recovery code was used to sign in to your ${name} account (${remaining} left). ` +

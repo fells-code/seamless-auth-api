@@ -13,6 +13,7 @@ const logger = getLogger('externalDelivery');
 
 const EXTERNAL_DELIVERY_HEADER = 'x-seamless-auth-delivery-mode';
 const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
+const DELIVERY_KINDS_HEADER = 'x-seamless-auth-delivery-kinds';
 const UNCREDENTIALED_OPT_IN = 'ALLOW_UNCREDENTIALED_DELIVERY_SECRETS';
 
 function extractBearerToken(headerValue: string | undefined): string | null {
@@ -25,6 +26,20 @@ function extractBearerToken(headerValue: string | undefined): string | null {
   }
 
   return headerValue.trim() || null;
+}
+
+/**
+ * The delivery kinds a caller says it can deliver, for kinds an older adapter would not
+ * know. A route only hands such a payload to a caller that named its kind, so an adapter
+ * that would drop it never receives it.
+ */
+export function acceptedDeliveryKinds(req: Request): ReadonlySet<string> {
+  return new Set(
+    (req.get(DELIVERY_KINDS_HEADER) ?? '')
+      .split(',')
+      .map((kind) => kind.trim())
+      .filter(Boolean),
+  );
 }
 
 export function wantsExternalDelivery(req: Request) {

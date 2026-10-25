@@ -209,6 +209,7 @@ describe('POST /recovery/start', () => {
       kind: 'otp_email',
       to: 'owner@example.com',
       token: expect.stringMatching(/^\d{6}$/),
+      purpose: 'account_recovery',
     });
     expect(sendOTPEmail).not.toHaveBeenCalled();
   });
@@ -220,7 +221,11 @@ describe('POST /recovery/start', () => {
       .set('x-seamless-service-token', await mintInternalServiceToken())
       .send({ channel: 'phone' });
 
-    expect(res.body.delivery).toMatchObject({ kind: 'otp_sms', to: '+14155552671' });
+    expect(res.body.delivery).toMatchObject({
+      kind: 'otp_sms',
+      to: '+14155552671',
+      purpose: 'account_recovery',
+    });
   });
 
   it('answers 500 when the code cannot be delivered', async () => {
@@ -301,6 +306,82 @@ describe('POST /recovery/verify', () => {
         }),
       }),
     );
+  });
+
+  it('returns the notices to a credentialed caller that delivers their kinds', async () => {
+    const token = await mintInternalServiceToken();
+    const started = await request(app)
+      .post('/recovery/start')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', token)
+      .send({ channel: 'email' });
+
+    const res = await request(app)
+      .post('/recovery/verify')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', token)
+      .set('x-seamless-auth-delivery-kinds', 'account_notice_email, account_notice_sms')
+      .send({ code: started.body.delivery.token });
+
+    expect(res.status).toBe(200);
+    expect(rows[0].state).toBe('pending');
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(res.body.deliveries).toEqual([
+      expect.objectContaining({
+        kind: 'account_notice_email',
+        notice: 'account_recovery_opened',
+        to: 'owner@example.com',
+        cancelUrl: expect.stringMatching(/^https:\/\/app\.example\.com\/recovery\/cancel#.+/),
+      }),
+      expect.objectContaining({
+        kind: 'account_notice_sms',
+        notice: 'account_recovery_opened',
+        to: '+14155552671',
+      }),
+    ]);
+
+    const logged = (AuthEventService.log as any).mock.calls.find(
+      ([event]: [{ type: string }]) => event.type === 'account_recovery_verified',
+    )[0];
+    expect(logged.metadata.notices).toEqual([
+      { channel: 'email', status: 'returned_for_external_delivery' },
+      { channel: 'phone', status: 'returned_for_external_delivery' },
+    ]);
+    expect(JSON.stringify(logged.metadata)).not.toContain('/recovery/cancel#');
+  });
+
+  it('still voids the request for a credentialed caller that lists no notice kind', async () => {
+    const token = await mintInternalServiceToken();
+    const started = await request(app)
+      .post('/recovery/start')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', token)
+      .send({ channel: 'email' });
+
+    const res = await request(app)
+      .post('/recovery/verify')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', token)
+      .set('x-seamless-auth-delivery-kinds', 'otp_email')
+      .send({ code: started.body.delivery.token });
+
+    expect(res.status).toBe(503);
+    expect(res.body.deliveries).toBeUndefined();
+    expect(rows[0].state).toBe('void');
+  });
+
+  it('sends directly, and returns nothing, when an uncredentialed caller lists the kinds', async () => {
+    await request(app).post('/recovery/start').send({ channel: 'email' });
+
+    const res = await request(app)
+      .post('/recovery/verify')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-auth-delivery-kinds', 'account_notice_email,account_notice_sms')
+      .send({ code: sentCode() });
+
+    expect(res.status).toBe(200);
+    expect(res.body.deliveries).toBeUndefined();
+    expect(sendNoticeEmail).toHaveBeenCalled();
   });
 
   it('voids the request when every notice fails to send', async () => {
@@ -548,5 +629,55 @@ describe('decoys', () => {
 
     expect(sendOTPEmail).not.toHaveBeenCalled();
     expect(sendNoticeEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('open requests from a signed-in session', () => {
+  it('lists the open requests and lets the owner cancel one without the token', async () => {
+    expect((await startAndVerify('email')).status).toBe(200);
+
+    const listed = await request(app).get('/recovery/requests');
+
+    expect(listed.status).toBe(200);
+    expect(listed.body.requests).toEqual([
+      expect.objectContaining({ id: rows[0].id, channel: 'email', state: 'pending' }),
+    ]);
+
+    const cancelled = await request(app).delete(`/recovery/requests/${rows[0].id}`);
+
+    expect(cancelled.status).toBe(200);
+    expect(rows[0].state).toBe('cancelled');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'account_recovery_cancelled',
+        metadata: { requestId: rows[0].id, via: 'session' },
+      }),
+    );
+    expect((await request(app).get('/recovery/requests')).body.requests).toEqual([]);
+  });
+
+  it("will not cancel another account's request", async () => {
+    expect((await startAndVerify('email')).status).toBe(200);
+    principal = realUser({ id: 'user-2' });
+
+    const res = await request(app).delete(`/recovery/requests/${rows[0].id}`);
+
+    expect(res.status).toBe(404);
+    expect(rows[0].state).toBe('pending');
+  });
+
+  it('answers 404 for a request that is no longer open', async () => {
+    expect((await startAndVerify('email')).status).toBe(200);
+    await request(app).delete(`/recovery/requests/${rows[0].id}`);
+
+    expect((await request(app).delete(`/recovery/requests/${rows[0].id}`)).status).toBe(404);
+  });
+
+  it('still works after account recovery is turned off', async () => {
+    expect((await startAndVerify('email')).status).toBe(200);
+    enabled({ account_recovery: { enabled: false, delay: '1h' } });
+
+    expect((await request(app).get('/recovery/requests')).body.requests).toHaveLength(1);
+    expect((await request(app).delete(`/recovery/requests/${rows[0].id}`)).status).toBe(200);
   });
 });

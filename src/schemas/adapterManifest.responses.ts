@@ -16,6 +16,9 @@ export const AdapterManifestRouteSchema = z.object({
   clears: z.array(AdapterHeldSchema).optional(),
   body: z.object({ pick: z.array(z.string()) }).optional(),
   delivery: z.literal(true).optional(),
+  // The route can hand owner notices back as `deliveries` to a caller that names their
+  // kinds in `x-seamless-auth-delivery-kinds`. Without that header they are sent directly.
+  notices: z.literal(true).optional(),
 });
 
 export const AdapterManifestSchema = z.object({
