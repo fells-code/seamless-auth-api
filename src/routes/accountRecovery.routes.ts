@@ -67,7 +67,8 @@ accountRecoveryRouter.post(
     description:
       'Opens the request started on this attempt, which completes after the configured ' +
       'delay, and tells every verified address how to cancel it. A code for a request ' +
-      'that is already open resumes it on this attempt. Five wrong codes void the code.',
+      'that is already open resumes it on this attempt. Five wrong codes void the code. ' +
+      'Answers 503 and voids the request when no verified address could be notified.',
     tags: ['Recovery'],
     schemas: {
       body: AccountRecoveryVerifyRequestSchema,
@@ -75,6 +76,7 @@ accountRecoveryRouter.post(
         200: AccountRecoveryStatusSchema,
         401: ErrorSchema,
         403: ErrorSchema,
+        503: ErrorSchema,
       },
     },
   },

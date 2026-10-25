@@ -271,7 +271,7 @@ describe('POST /recovery/verify', () => {
     );
   });
 
-  it('records the notices as not sent when a credentialed caller owns delivery', async () => {
+  it('voids the request when a credentialed caller owns delivery, since no notice is sent', async () => {
     const token = await mintInternalServiceToken();
     const started = await request(app)
       .post('/recovery/start')
@@ -285,12 +285,15 @@ describe('POST /recovery/verify', () => {
       .set('x-seamless-service-token', token)
       .send({ code: started.body.delivery.token });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('recovery_notice_failed');
     expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(rows[0]).toMatchObject({ state: 'void', cancelTokenHash: null });
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'account_recovery_verified',
+        type: 'account_recovery_failed',
         metadata: expect.objectContaining({
+          reason: 'Owner could not be notified',
           notices: [
             { channel: 'email', status: 'not_sent_external_delivery' },
             { channel: 'phone', status: 'not_sent_external_delivery' },
@@ -298,6 +301,42 @@ describe('POST /recovery/verify', () => {
         }),
       }),
     );
+  });
+
+  it('voids the request when every notice fails to send', async () => {
+    (sendNoticeEmail as any).mockRejectedValueOnce(new DeliveryError('down', new Error('down')));
+    (sendNoticeSms as any).mockRejectedValueOnce(new DeliveryError('down', new Error('down')));
+
+    const res = await startAndVerify('email');
+
+    expect(res.status).toBe(503);
+    expect(rows[0].state).toBe('void');
+
+    afterDelay();
+    const completed = await request(app).post('/recovery/complete').send();
+    expect(completed.status).toBe(404);
+  });
+
+  it('opens the request when at least one notice is sent', async () => {
+    (sendNoticeSms as any).mockRejectedValueOnce(new DeliveryError('down', new Error('down')));
+
+    const res = await startAndVerify('email');
+
+    expect(res.status).toBe(200);
+    expect(rows[0].state).toBe('pending');
+  });
+
+  it('does not cancel an open request when a new one could not be announced', async () => {
+    expect((await startAndVerify('email')).status).toBe(200);
+
+    attemptId = 'attempt-2';
+    (sendOTPEmail as any).mockClear();
+    (sendNoticeEmail as any).mockRejectedValueOnce(new DeliveryError('down', new Error('down')));
+    (sendNoticeSms as any).mockRejectedValueOnce(new DeliveryError('down', new Error('down')));
+    const res = await startAndVerify('phone');
+
+    expect(res.status).toBe(503);
+    expect(rows.map((row) => row.state)).toEqual(['pending', 'void']);
   });
 
   it('does not let a stranger suppress the notices with the delivery header alone', async () => {
