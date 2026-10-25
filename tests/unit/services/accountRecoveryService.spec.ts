@@ -10,7 +10,9 @@ import {
   MAX_RECOVERY_CODE_ATTEMPTS,
   recoveryStatus,
   startRecovery,
+  supersedeOtherRecoveries,
   verifyRecovery,
+  voidUnannouncedRecovery,
 } from '../../../src/services/accountRecoveryService.js';
 import { installAccountRecoveryStore } from '../../factories/accountRecoveryStore.js';
 
@@ -117,13 +119,26 @@ describe('verifyRecovery', () => {
     expect(rows[0].state).toBe('awaiting_code');
   });
 
-  it('cancels an earlier open request once a new one is verified', async () => {
+  it('leaves an earlier open request alone until the new one is announced', async () => {
     await open('attempt-1', 'email');
     const second = await open('attempt-2', 'phone');
 
-    expect(rows[0].state).toBe('cancelled');
-    expect(second.cancelled).toBe(1);
+    expect(rows[0].state).toBe('pending');
     expect(second.request.state).toBe('pending');
+
+    expect(await supersedeOtherRecoveries(second.request)).toBe(1);
+    expect(rows[0].state).toBe('cancelled');
+    expect(rows[1].state).toBe('pending');
+  });
+
+  it('voids a request that could not be announced, leaving earlier ones open', async () => {
+    await open('attempt-1', 'email');
+    const second = await open('attempt-2', 'phone');
+
+    await voidUnannouncedRecovery(second.request);
+
+    expect(rows[0].state).toBe('pending');
+    expect(rows[1]).toMatchObject({ state: 'void', cancelTokenHash: null });
   });
 
   it('resumes an open request on a new attempt through the same channel, keeping its clock', async () => {

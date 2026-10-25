@@ -183,7 +183,7 @@
     "/recovery/verify": {
       "post": {
         "summary": "Verify an account recovery code",
-        "description": "Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code.",
+        "description": "Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code. Answers 503 and voids the request when no verified address could be notified.",
         "tags": ["Recovery"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -300,6 +300,19 @@
           },
           "500": {
             "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

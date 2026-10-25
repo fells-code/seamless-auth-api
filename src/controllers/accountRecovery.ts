@@ -18,7 +18,9 @@ import {
   RecoveryStatus,
   recoveryStatus,
   startRecovery,
+  supersedeOtherRecoveries,
   verifyRecovery,
+  voidUnannouncedRecovery,
 } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { DeliveryError } from '../services/deliveryError.js';
@@ -161,7 +163,8 @@ async function openedNotice(channel: RecoveryChannel, completesAt: Date, cancelT
 /**
  * Opens the request with the code from `/recovery/start`, starting its delay and telling
  * every verified address how to cancel it. A code for an open request resumes it on this
- * attempt instead, with its clock unchanged.
+ * attempt instead, with its clock unchanged. Fails closed: if no notice is sent, the
+ * request is voided rather than left to complete unseen.
  */
 export const verifyAccountRecovery = async (req: Request, res: Response) => {
   const { enabled, delaySeconds } = await accountRecoveryPolicy();
@@ -204,6 +207,24 @@ export const verifyAccountRecovery = async (req: Request, res: Response) => {
     { external: await canReturnExternalDelivery(req) },
   );
 
+  if (!notices.some((notice) => notice.status === 'sent')) {
+    await voidUnannouncedRecovery(request);
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'account_recovery_failed',
+      req,
+      metadata: { channel: request.channel, reason: 'Owner could not be notified', notices },
+    });
+    return res.status(503).json({
+      error: 'recovery_notice_failed',
+      message:
+        'Account recovery was not started because the account owner could not be notified. ' +
+        'Try again later.',
+    });
+  }
+
+  const supersededRequests = await supersedeOtherRecoveries(request);
+
   await AuthEventService.log({
     userId: user.id,
     type: 'account_recovery_verified',
@@ -211,7 +232,7 @@ export const verifyAccountRecovery = async (req: Request, res: Response) => {
     metadata: {
       channel: request.channel,
       completesAt: status.completesAt.toISOString(),
-      supersededRequests: result.cancelled,
+      supersededRequests,
       notices,
     },
   });

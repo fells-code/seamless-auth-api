@@ -208,7 +208,7 @@ export interface paths {
     put?: never;
     /**
      * Verify an account recovery code
-     * @description Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code.
+     * @description Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code. Answers 503 and voids the request when no verified address could be notified.
      */
     post: {
       parameters: {
@@ -334,6 +334,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };

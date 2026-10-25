@@ -93,7 +93,10 @@ Off by default. Turn it on with `ACCOUNT_RECOVERY` (`account_recovery`), whose `
    verified email **and** phone saying recovery was requested, when it completes and how to
    cancel it. The cancel link is `${FRONTEND_URL}/recovery/cancel#<token>`; the token is in
    the fragment so it never reaches a server log, and the page posts it to
-   `/recovery/cancel`. Opening a request cancels any other open request for the account.
+   `/recovery/cancel`. If no notice is sent to any verified address, the request is voided
+   and verify answers `503` with `recovery_notice_failed`: the delay only protects an owner
+   who is told about it. Once a notice is sent, any other open request for the account is
+   cancelled.
 3. **Wait.** `GET /recovery/status` reports `pending` until `completesAt`, then `ready`, or
    `cancelled` or `completed`.
 4. **Complete.** On a `ready` request this revokes every session on the account, tells
@@ -126,10 +129,15 @@ Cancelling from a signed-in session without the token is a follow-up.
   the OTP flow rate limits.
 - A pre-auth token for an identifier with no account gets the answers a real account with
   no verified address gets, and nothing is stored or sent for it.
-- Notices are only skipped for a credentialed caller that owns delivery (external delivery
-  with a service token): the delivery contract has no kind for account notices yet, so the
-  audit event records `not_sent_external_delivery` instead. The delivery header alone does
-  not suppress them, so a stranger cannot recover an account silently.
+- The opening notice needs direct delivery: the API's own email or SMS transport. The
+  delivery contract has no kind for account notices yet, so a credentialed caller that
+  owns delivery (external delivery with a service token) on `/recovery/verify` gets the
+  `503`, with each notice recorded as `not_sent_external_delivery`. A deployment that
+  delivers codes through its adapter can still offer recovery, as long as the API has a
+  working transport for the notice and the adapter does not ask for external delivery on
+  verify. The delivery header alone does not suppress notices, so a stranger cannot
+  recover an account silently.
 - Audit events: `account_recovery_started`, `account_recovery_verified` (with each notice's
   outcome), `account_recovery_cancelled`, `account_recovery_completed` (with the number of
-  sessions revoked) and `account_recovery_failed` (a wrong code or a failed delivery).
+  sessions revoked) and `account_recovery_failed` (a wrong code, a failed delivery, or a request voided because the
+  owner could not be notified).

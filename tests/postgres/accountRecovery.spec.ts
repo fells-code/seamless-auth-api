@@ -8,7 +8,9 @@ import {
   completeRecovery,
   findRecoveryForAttempt,
   startRecovery,
+  supersedeOtherRecoveries,
   verifyRecovery,
+  voidUnannouncedRecovery,
 } from '../../src/services/accountRecoveryService.js';
 
 const userId = randomUUID();
@@ -48,6 +50,44 @@ describe('account recovery against Postgres', () => {
       replacements: { id: userId },
     });
     expect(await AccountRecoveryRequest.count({ where: { userId } })).toBe(0);
+  });
+
+  it('supersedes other open requests only when told to, and voids an unannounced one', async () => {
+    const owner = randomUUID();
+    await getSequelize().query(
+      `INSERT INTO users (id, email, roles, created_at, updated_at)
+       VALUES (:id, :email, '{user}', now(), now())`,
+      { replacements: { id: owner, email: `recovery-${owner}@example.com` } },
+    );
+    const first = await verifyRecovery(
+      owner,
+      'attempt-a',
+      await startRecovery(owner, 'email', 'attempt-a'),
+      3600,
+    );
+    const second = await verifyRecovery(
+      owner,
+      'attempt-b',
+      await startRecovery(owner, 'phone', 'attempt-b'),
+      3600,
+    );
+    if (first.outcome !== 'opened' || second.outcome !== 'opened') throw new Error('not opened');
+
+    await voidUnannouncedRecovery(second.request);
+    expect((await AccountRecoveryRequest.findByPk(second.request.id))?.state).toBe('void');
+    expect((await AccountRecoveryRequest.findByPk(first.request.id))?.state).toBe('pending');
+
+    const third = await verifyRecovery(
+      owner,
+      'attempt-c',
+      await startRecovery(owner, 'phone', 'attempt-c'),
+      3600,
+    );
+    if (third.outcome !== 'opened') throw new Error('not opened');
+
+    expect(await supersedeOtherRecoveries(third.request)).toBe(1);
+    expect((await AccountRecoveryRequest.findByPk(first.request.id))?.state).toBe('cancelled');
+    expect((await AccountRecoveryRequest.findByPk(third.request.id))?.state).toBe('pending');
   });
 
   it('completes once the delay has passed and revokes sessions', async () => {

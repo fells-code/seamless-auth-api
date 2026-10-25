@@ -82,7 +82,7 @@ export async function startRecovery(userId: string, channel: RecoveryChannel, at
 
 export type VerifyRecoveryResult =
   | { outcome: 'invalid' }
-  | { outcome: 'opened'; request: AccountRecoveryRequest; cancelToken: string; cancelled: number }
+  | { outcome: 'opened'; request: AccountRecoveryRequest; cancelToken: string }
   | { outcome: 'resumed'; request: AccountRecoveryRequest };
 
 function clearCode(request: AccountRecoveryRequest) {
@@ -167,14 +167,33 @@ export async function verifyRecovery(
     return { outcome: 'invalid' };
   }
 
-  const [cancelled] = await AccountRecoveryRequest.update(
-    { state: 'cancelled', cancelledAt: requestedAt, codeHash: null, codeAttemptId: null },
-    { where: { userId, id: { [Op.ne]: request.id }, state: 'pending' } },
-  );
-
   await request.reload();
 
-  return { outcome: 'opened', request, cancelToken, cancelled };
+  return { outcome: 'opened', request, cancelToken };
+}
+
+/**
+ * Cancels the account's other open requests once `request` has been announced. Not done
+ * when it opens: a request the owner was never told about must not cancel theirs.
+ */
+export async function supersedeOtherRecoveries(request: AccountRecoveryRequest) {
+  const [cancelled] = await AccountRecoveryRequest.update(
+    { state: 'cancelled', cancelledAt: new Date(), codeHash: null, codeAttemptId: null },
+    { where: { userId: request.userId, id: { [Op.ne]: request.id }, state: 'pending' } },
+  );
+
+  return cancelled;
+}
+
+/**
+ * Voids a request nobody could be told about. The delay only protects the owner if they
+ * learn of it, so a request that reached no verified address must not run.
+ */
+export async function voidUnannouncedRecovery(request: AccountRecoveryRequest) {
+  await AccountRecoveryRequest.update(
+    { state: 'void', cancelTokenHash: null, codeHash: null, codeAttemptId: null },
+    { where: { id: request.id, state: 'pending' } },
+  );
 }
 
 /** The request this attempt opened or resumed, if any. */
