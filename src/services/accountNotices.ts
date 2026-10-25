@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
+import type { AccountNoticeName, AuthDeliveryInstruction } from '@seamless-auth/types';
+
 import getLogger from '../utils/logger.js';
 import { DeliveryError } from './deliveryError.js';
 import type { IdentityNoticeStatus } from './identityChangeService.js';
@@ -19,13 +21,47 @@ export interface NoticeRecipient {
 }
 
 export interface AccountNotice {
+  name: AccountNoticeName;
   subject: string;
   text: string;
+  cancelUrl?: string;
 }
 
 export interface AccountNoticeResult {
   channel: 'email' | 'phone';
-  status: IdentityNoticeStatus;
+  status: IdentityNoticeStatus | 'returned_for_external_delivery';
+}
+
+export interface AccountNoticeOutcome {
+  results: AccountNoticeResult[];
+  /** For the caller to deliver; they can carry a credential, so never log them. */
+  deliveries: AuthDeliveryInstruction[];
+}
+
+/** Whether the owner was told, or the notice was handed to a caller that delivers it. */
+export function ownerWasNotified({ results }: AccountNoticeOutcome) {
+  return results.some(
+    ({ status }) => status === 'sent' || status === 'returned_for_external_delivery',
+  );
+}
+
+function asDelivery(
+  notice: AccountNotice,
+  channel: 'email' | 'phone',
+  to: string,
+): AuthDeliveryInstruction {
+  const cancelUrl = notice.cancelUrl ? { cancelUrl: notice.cancelUrl } : {};
+
+  return channel === 'email'
+    ? {
+        kind: 'account_notice_email',
+        notice: notice.name,
+        to,
+        subject: notice.subject,
+        text: notice.text,
+        ...cancelUrl,
+      }
+    : { kind: 'account_notice_sms', notice: notice.name, to, text: notice.text, ...cancelUrl };
 }
 
 /** The account's verified addresses only: an unverified one may not be the owner's. */
@@ -41,27 +77,35 @@ export function verifiedAddresses(user: NoticeRecipient) {
  * account. A notice that fails to send does not fail the request it reports on; the
  * outcome belongs in that request's audit event.
  *
- * `external` is for a credentialed caller that owns delivery. The delivery contract has
- * no kind for account notices, so such a caller cannot be handed one, and sending
- * directly would bypass it.
+ * `external` is for a credentialed caller that owns delivery, so the API does not send
+ * for it. A route that can return notices passes the kinds that caller accepts as
+ * `returnable`; a notice of any other kind is not sent at all.
  */
 export async function sendAccountNotice(
   user: NoticeRecipient,
   notice: AccountNotice,
-  { external }: { external: boolean },
-): Promise<AccountNoticeResult[]> {
+  { external, returnable }: { external: boolean; returnable?: ReadonlySet<string> },
+): Promise<AccountNoticeOutcome> {
   const { email, phone } = verifiedAddresses(user);
   const targets: Array<['email' | 'phone', string | null]> = [
     ['email', email],
     ['phone', phone],
   ];
   const results: AccountNoticeResult[] = [];
+  const deliveries: AuthDeliveryInstruction[] = [];
 
   for (const [channel, to] of targets) {
     if (!to) continue;
 
     if (external) {
-      results.push({ channel, status: 'not_sent_external_delivery' });
+      const delivery = asDelivery(notice, channel, to);
+
+      if (returnable?.has(delivery.kind)) {
+        deliveries.push(delivery);
+        results.push({ channel, status: 'returned_for_external_delivery' });
+      } else {
+        results.push({ channel, status: 'not_sent_external_delivery' });
+      }
       continue;
     }
 
@@ -79,5 +123,5 @@ export async function sendAccountNotice(
     }
   }
 
-  return results;
+  return { results, deliveries };
 }

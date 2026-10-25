@@ -5,8 +5,10 @@ import { AccountRecoveryRequest } from '../../src/models/accountRecoveryRequests
 import { getSequelize, initializeModels } from '../../src/models/index.js';
 import {
   cancelRecoveryByToken,
+  cancelRecoveryForUser,
   completeRecovery,
   findRecoveryForAttempt,
+  listOpenRecoveries,
   startRecovery,
   supersedeOtherRecoveries,
   verifyRecovery,
@@ -88,6 +90,33 @@ describe('account recovery against Postgres', () => {
     expect(await supersedeOtherRecoveries(third.request)).toBe(1);
     expect((await AccountRecoveryRequest.findByPk(first.request.id))?.state).toBe('cancelled');
     expect((await AccountRecoveryRequest.findByPk(third.request.id))?.state).toBe('pending');
+  });
+
+  it('lists and cancels open requests for their own account only', async () => {
+    const owner = randomUUID();
+    const other = randomUUID();
+    for (const id of [owner, other]) {
+      await getSequelize().query(
+        `INSERT INTO users (id, email, roles, created_at, updated_at)
+         VALUES (:id, :email, '{user}', now(), now())`,
+        { replacements: { id, email: `recovery-${id}@example.com` } },
+      );
+    }
+    const opened = await verifyRecovery(
+      owner,
+      'attempt-l',
+      await startRecovery(owner, 'email', 'attempt-l'),
+      3600,
+    );
+    if (opened.outcome !== 'opened') throw new Error('not opened');
+
+    expect((await listOpenRecoveries(owner)).map((row) => row.id)).toEqual([opened.request.id]);
+    expect(await listOpenRecoveries(other)).toEqual([]);
+
+    expect(await cancelRecoveryForUser(other, opened.request.id)).toBe(false);
+    expect(await cancelRecoveryForUser(owner, opened.request.id)).toBe(true);
+    expect(await cancelRecoveryForUser(owner, opened.request.id)).toBe(false);
+    expect(await listOpenRecoveries(owner)).toEqual([]);
   });
 
   it('completes once the delay has passed and revokes sessions', async () => {

@@ -64,12 +64,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -83,6 +87,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -208,7 +239,7 @@ export interface paths {
     put?: never;
     /**
      * Verify an account recovery code
-     * @description Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code. Answers 503 and voids the request when no verified address could be notified.
+     * @description Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code. Answers 503 and voids the request when no verified address could be notified. A credentialed caller that owns delivery and lists `account_notice_email` / `account_notice_sms` in `x-seamless-auth-delivery-kinds` gets the notices back as `deliveries` to send; one that does not list them gets the 503.
      */
     post: {
       parameters: {
@@ -235,7 +266,10 @@ export interface paths {
              * @example {
              *       "state": null,
              *       "requestedAt": null,
-             *       "completesAt": null
+             *       "completesAt": null,
+             *       "deliveries": [
+             *         null
+             *       ]
              *     }
              */
             'application/json': {
@@ -245,6 +279,64 @@ export interface paths {
               requestedAt: string | null;
               /** Format: date-time */
               completesAt: string | null;
+              deliveries?: (
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+              )[];
             };
           };
         };
@@ -569,12 +661,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -588,6 +684,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -864,6 +987,363 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/recovery/requests': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List open account recovery requests
+     * @description The signed-in account's pending recovery requests, so the owner can see one they did not start without waiting for the notice.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "requests": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              requests: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                channel: 'email' | 'phone';
+                /** @enum {string} */
+                state: 'pending' | 'ready' | 'cancelled' | 'completed';
+                requestedAt: string;
+                completesAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/recovery/requests/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Cancel an account recovery request from a session
+     * @description Cancels one of the signed-in account's pending recovery requests without the token from the notice. Answers 404 for a request that is not open or not this account's.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/.well-known/seamless-adapter.json': {
     parameters: {
       query?: never;
@@ -936,6 +1416,8 @@ export interface paths {
                 };
                 /** @enum {boolean} */
                 delivery?: true;
+                /** @enum {boolean} */
+                notices?: true;
               }[];
             };
           };
@@ -1560,12 +2042,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -1579,6 +2065,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -2323,12 +2836,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -2342,6 +2859,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -3306,12 +3850,16 @@ export interface paths {
                       kind: 'otp_email';
                       to: string;
                       token: string;
+                      /** @enum {string} */
+                      purpose?: 'account_recovery';
                     }
                   | {
                       /** @enum {string} */
                       kind: 'otp_sms';
                       to: string;
                       token: string | number;
+                      /** @enum {string} */
+                      purpose?: 'account_recovery';
                     }
                   | {
                       /** @enum {string} */
@@ -3325,6 +3873,33 @@ export interface paths {
                       kind: 'enrollment_invite_email';
                       to: string;
                       signInUrl: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'account_notice_email';
+                      /** @enum {string} */
+                      notice:
+                        | 'account_recovery_opened'
+                        | 'account_recovery_completed'
+                        | 'recovery_code_used'
+                        | 'identity_changed';
+                      to: string;
+                      subject: string;
+                      text: string;
+                      cancelUrl?: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'account_notice_sms';
+                      /** @enum {string} */
+                      notice:
+                        | 'account_recovery_opened'
+                        | 'account_recovery_completed'
+                        | 'recovery_code_used'
+                        | 'identity_changed';
+                      to: string;
+                      text: string;
+                      cancelUrl?: string;
                     };
               }[];
             };
@@ -4138,12 +4713,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -4157,6 +4736,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -6121,12 +6727,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -6140,6 +6750,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -6307,12 +6944,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -6326,6 +6967,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -6621,12 +7289,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -6640,6 +7312,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -6747,12 +7446,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -6766,6 +7469,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -8354,12 +9084,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -8373,6 +9107,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -8498,12 +9259,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -8517,6 +9282,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -8680,12 +9472,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -8699,6 +9495,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -8829,12 +9652,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -8848,6 +9675,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -9028,12 +9882,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -9047,6 +9905,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -10850,12 +11735,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -10869,6 +11758,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11165,12 +12081,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11184,6 +12104,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11295,12 +12242,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11314,6 +12265,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11441,12 +12419,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11460,6 +12442,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11553,12 +12562,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11572,6 +12585,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11681,12 +12721,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11700,6 +12744,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11793,12 +12864,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11812,6 +12887,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -11921,12 +13023,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -11940,6 +13046,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -12033,12 +13166,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -12052,6 +13189,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -13235,12 +14399,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -13254,6 +14422,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -13397,12 +14592,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -13416,6 +14615,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -13823,12 +15049,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -13842,6 +15072,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -13951,12 +15208,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -13970,6 +15231,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -18332,12 +19620,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -18351,6 +19643,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -19174,12 +20493,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -19193,6 +20516,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };
@@ -19315,12 +20665,16 @@ export interface paths {
                     kind: 'otp_email';
                     to: string;
                     token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
                     kind: 'otp_sms';
                     to: string;
                     token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
                   }
                 | {
                     /** @enum {string} */
@@ -19334,6 +20688,33 @@ export interface paths {
                     kind: 'enrollment_invite_email';
                     to: string;
                     signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
                   };
             };
           };

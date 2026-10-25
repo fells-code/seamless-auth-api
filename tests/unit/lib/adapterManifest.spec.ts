@@ -125,6 +125,24 @@ describe('registerAdapterRoute', () => {
     );
   });
 
+  it('refuses notices on a route whose response cannot carry deliveries', () => {
+    expect(() => register({ auth: 'access', adapter: { notices: true } })).toThrow(
+      /no success response has `deliveries`/,
+    );
+  });
+
+  it('records notices on a route whose response carries deliveries', () => {
+    register({
+      auth: 'access',
+      adapter: { notices: true },
+      response: { 200: Message.extend({ deliveries: z.array(z.unknown()).optional() }) },
+    });
+
+    expect(getAdapterManifest().routes).toEqual([
+      { method: 'POST', path: '/thing', credential: 'access', notices: true },
+    ]);
+  });
+
   it('refuses a body pick on a route that issues nothing', () => {
     expect(() => register({ adapter: { body: { pick: ['message'] } } })).toThrow(/issues nothing/);
   });

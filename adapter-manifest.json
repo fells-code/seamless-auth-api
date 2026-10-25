@@ -192,9 +192,11 @@
       "credential": "preAuth",
       "issues": "session"
     },
+    { "method": "GET", "path": "/recovery/requests", "credential": "access" },
+    { "method": "DELETE", "path": "/recovery/requests/{id}", "credential": "access" },
     { "method": "POST", "path": "/recovery/start", "credential": "preAuth", "delivery": true },
     { "method": "GET", "path": "/recovery/status", "credential": "preAuth" },
-    { "method": "POST", "path": "/recovery/verify", "credential": "preAuth" },
+    { "method": "POST", "path": "/recovery/verify", "credential": "preAuth", "notices": true },
     { "method": "POST", "path": "/refresh", "credential": "refresh", "issues": "session" },
     { "method": "POST", "path": "/registration/phone", "credential": "access", "delivery": true },
     { "method": "POST", "path": "/registration/phone/verify", "credential": "access" },

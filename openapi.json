@@ -44,7 +44,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -53,7 +54,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -75,6 +77,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -183,7 +224,7 @@
     "/recovery/verify": {
       "post": {
         "summary": "Verify an account recovery code",
-        "description": "Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code. Answers 503 and voids the request when no verified address could be notified.",
+        "description": "Opens the request started on this attempt, which completes after the configured delay, and tells every verified address how to cancel it. A code for a request that is already open resumes it on this attempt. Five wrong codes void the code. Answers 503 and voids the request when no verified address could be notified. A credentialed caller that owns delivery and lists `account_notice_email` / `account_notice_sms` in `x-seamless-auth-delivery-kinds` gets the notices back as `deliveries` to send; one that does not list them gets the 503.",
         "tags": ["Recovery"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -202,7 +243,12 @@
             "description": "HTTP 200",
             "content": {
               "application/json": {
-                "example": { "state": null, "requestedAt": null, "completesAt": null },
+                "example": {
+                  "state": null,
+                  "requestedAt": null,
+                  "completesAt": null,
+                  "deliveries": [null]
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -211,7 +257,92 @@
                       "enum": ["pending", "ready", "cancelled", "completed"]
                     },
                     "requestedAt": { "type": "string", "nullable": true, "format": "date-time" },
-                    "completesAt": { "type": "string", "nullable": true, "format": "date-time" }
+                    "completesAt": { "type": "string", "nullable": true, "format": "date-time" },
+                    "deliveries": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["otp_email"] },
+                              "to": { "type": "string" },
+                              "token": { "type": "string" },
+                              "purpose": { "type": "string", "enum": ["account_recovery"] }
+                            },
+                            "required": ["kind", "to", "token"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["otp_sms"] },
+                              "to": { "type": "string" },
+                              "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                              "purpose": { "type": "string", "enum": ["account_recovery"] }
+                            },
+                            "required": ["kind", "to", "token"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["magic_link_email"] },
+                              "to": { "type": "string" },
+                              "token": { "type": "string" },
+                              "magicLinkUrl": { "type": "string" }
+                            },
+                            "required": ["kind", "to", "magicLinkUrl"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                              "to": { "type": "string" },
+                              "signInUrl": { "type": "string" }
+                            },
+                            "required": ["kind", "to", "signInUrl"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["account_notice_email"] },
+                              "notice": {
+                                "type": "string",
+                                "enum": [
+                                  "account_recovery_opened",
+                                  "account_recovery_completed",
+                                  "recovery_code_used",
+                                  "identity_changed"
+                                ]
+                              },
+                              "to": { "type": "string" },
+                              "subject": { "type": "string" },
+                              "text": { "type": "string" },
+                              "cancelUrl": { "type": "string" }
+                            },
+                            "required": ["kind", "notice", "to", "subject", "text"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                              "notice": {
+                                "type": "string",
+                                "enum": [
+                                  "account_recovery_opened",
+                                  "account_recovery_completed",
+                                  "recovery_code_used",
+                                  "identity_changed"
+                                ]
+                              },
+                              "to": { "type": "string" },
+                              "text": { "type": "string" },
+                              "cancelUrl": { "type": "string" }
+                            },
+                            "required": ["kind", "notice", "to", "text"]
+                          }
+                        ]
+                      }
+                    }
                   },
                   "required": ["state", "requestedAt", "completesAt"]
                 }
@@ -455,7 +586,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -464,7 +596,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -486,6 +619,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -705,6 +877,321 @@
         }
       }
     },
+    "/recovery/requests": {
+      "get": {
+        "summary": "List open account recovery requests",
+        "description": "The signed-in account's pending recovery requests, so the owner can see one they did not start without waiting for the notice.",
+        "tags": ["Recovery"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "requests": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requests": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "format": "uuid" },
+                          "channel": { "type": "string", "enum": ["email", "phone"] },
+                          "state": {
+                            "type": "string",
+                            "enum": ["pending", "ready", "cancelled", "completed"]
+                          },
+                          "requestedAt": { "type": "string" },
+                          "completesAt": { "type": "string" }
+                        },
+                        "required": ["id", "channel", "state", "requestedAt", "completesAt"]
+                      }
+                    }
+                  },
+                  "required": ["requests"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery/requests/{id}": {
+      "delete": {
+        "summary": "Cancel an account recovery request from a session",
+        "description": "Cancels one of the signed-in account's pending recovery requests without the token from the notice. Answers 404 for a request that is not open or not this account's.",
+        "tags": ["Recovery"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/.well-known/seamless-adapter.json": {
       "get": {
         "summary": "Routes a server adapter exposes and what it does with each",
@@ -775,7 +1262,8 @@
                             },
                             "required": ["pick"]
                           },
-                          "delivery": { "type": "boolean", "enum": [true] }
+                          "delivery": { "type": "boolean", "enum": [true] },
+                          "notices": { "type": "boolean", "enum": [true] }
                         },
                         "required": ["method", "path", "credential"]
                       }
@@ -1736,7 +2224,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -1745,7 +2234,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -1767,6 +2257,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -2520,7 +3049,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2529,7 +3059,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -2551,6 +3082,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -3408,7 +3978,8 @@
                                 "properties": {
                                   "kind": { "type": "string", "enum": ["otp_email"] },
                                   "to": { "type": "string" },
-                                  "token": { "type": "string" }
+                                  "token": { "type": "string" },
+                                  "purpose": { "type": "string", "enum": ["account_recovery"] }
                                 },
                                 "required": ["kind", "to", "token"]
                               },
@@ -3417,7 +3988,10 @@
                                 "properties": {
                                   "kind": { "type": "string", "enum": ["otp_sms"] },
                                   "to": { "type": "string" },
-                                  "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                                  "token": {
+                                    "anyOf": [{ "type": "string" }, { "type": "number" }]
+                                  },
+                                  "purpose": { "type": "string", "enum": ["account_recovery"] }
                                 },
                                 "required": ["kind", "to", "token"]
                               },
@@ -3439,6 +4013,45 @@
                                   "signInUrl": { "type": "string" }
                                 },
                                 "required": ["kind", "to", "signInUrl"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["account_notice_email"] },
+                                  "notice": {
+                                    "type": "string",
+                                    "enum": [
+                                      "account_recovery_opened",
+                                      "account_recovery_completed",
+                                      "recovery_code_used",
+                                      "identity_changed"
+                                    ]
+                                  },
+                                  "to": { "type": "string" },
+                                  "subject": { "type": "string" },
+                                  "text": { "type": "string" },
+                                  "cancelUrl": { "type": "string" }
+                                },
+                                "required": ["kind", "notice", "to", "subject", "text"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                                  "notice": {
+                                    "type": "string",
+                                    "enum": [
+                                      "account_recovery_opened",
+                                      "account_recovery_completed",
+                                      "recovery_code_used",
+                                      "identity_changed"
+                                    ]
+                                  },
+                                  "to": { "type": "string" },
+                                  "text": { "type": "string" },
+                                  "cancelUrl": { "type": "string" }
+                                },
+                                "required": ["kind", "notice", "to", "text"]
                               }
                             ]
                           }
@@ -4314,7 +4927,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4323,7 +4937,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -4345,6 +4960,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -6296,7 +6950,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6305,7 +6960,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6327,6 +6983,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -6477,7 +7172,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6486,7 +7182,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6508,6 +7205,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -6778,7 +7514,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6787,7 +7524,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6809,6 +7547,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -6883,7 +7660,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6892,7 +7670,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -6914,6 +7693,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -8319,7 +9137,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8328,7 +9147,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8350,6 +9170,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -8473,7 +9332,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8482,7 +9342,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8504,6 +9365,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -8653,7 +9553,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8662,7 +9563,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8684,6 +9586,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -8774,7 +9715,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8783,7 +9725,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8805,6 +9748,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -8963,7 +9945,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8972,7 +9955,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -8994,6 +9978,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11036,7 +12059,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11045,7 +12069,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11067,6 +12092,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11182,7 +12246,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11191,7 +12256,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11213,6 +12279,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11300,7 +12405,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11309,7 +12415,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11331,6 +12438,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11418,7 +12564,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11427,7 +12574,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11449,6 +12597,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11523,7 +12710,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11532,7 +12720,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11554,6 +12743,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11628,7 +12856,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11637,7 +12866,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11659,6 +12889,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11733,7 +13002,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11742,7 +13012,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11764,6 +13035,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11838,7 +13148,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11847,7 +13158,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11869,6 +13181,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -11943,7 +13294,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11952,7 +13304,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -11974,6 +13327,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -12954,7 +14346,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -12963,7 +14356,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -12985,6 +14379,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -13111,7 +14544,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -13120,7 +14554,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -13142,6 +14577,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -13486,7 +14960,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -13495,7 +14970,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -13517,6 +14993,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -13594,7 +15109,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -13603,7 +15119,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -13625,6 +15142,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -17921,7 +19477,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -17930,7 +19487,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -17952,6 +19510,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -18818,7 +20415,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -18827,7 +20425,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -18849,6 +20448,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }
@@ -18952,7 +20590,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_email"] },
                             "to": { "type": "string" },
-                            "token": { "type": "string" }
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -18961,7 +20600,8 @@
                           "properties": {
                             "kind": { "type": "string", "enum": ["otp_sms"] },
                             "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
                           },
                           "required": ["kind", "to", "token"]
                         },
@@ -18983,6 +20623,45 @@
                             "signInUrl": { "type": "string" }
                           },
                           "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
                         }
                       ]
                     }

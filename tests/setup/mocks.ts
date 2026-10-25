@@ -121,6 +121,7 @@ vi.mock('../../src/models/accountRecoveryRequests.js', () => ({
   AccountRecoveryRequest: {
     create: vi.fn(),
     findOne: vi.fn(async () => null),
+    findAll: vi.fn(async () => []),
     update: vi.fn(async () => [0]),
   },
 }));

@@ -73,6 +73,18 @@ export function installAccountRecoveryStore() {
     },
   );
 
+  (AccountRecoveryRequest.findAll as any).mockImplementation(
+    async ({ where, order }: { where: Where; order?: [string, string][] }) => {
+      const found = rows.filter((row) => matches(row, where));
+      const [key, direction] = order?.[0] ?? [];
+      if (key) {
+        const sign = direction === 'ASC' ? 1 : -1;
+        found.sort((a, b) => sign * (+(a[key] ?? 0) - +(b[key] ?? 0)));
+      }
+      return found;
+    },
+  );
+
   (AccountRecoveryRequest.update as any).mockImplementation(
     async (fields: Row, { where }: { where: Where }) => {
       const found = rows.filter((row) => matches(row, where));

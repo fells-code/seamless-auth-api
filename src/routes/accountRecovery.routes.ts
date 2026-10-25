@@ -6,8 +6,10 @@
 
 import {
   cancelAccountRecovery,
+  cancelAccountRecoveryRequest,
   completeAccountRecovery,
   getAccountRecoveryStatus,
+  listAccountRecoveryRequests,
   startAccountRecovery,
   verifyAccountRecovery,
 } from '../controllers/accountRecovery.js';
@@ -21,10 +23,13 @@ import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
 import {
   AccountRecoveryCancelRequestSchema,
+  AccountRecoveryRequestIdParamSchema,
+  AccountRecoveryRequestsResponseSchema,
   AccountRecoveryStartRequestSchema,
   AccountRecoveryStartResponseSchema,
   AccountRecoveryStatusSchema,
   AccountRecoveryVerifyRequestSchema,
+  AccountRecoveryVerifyResponseSchema,
 } from '../schemas/accountRecovery.js';
 import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { RecoverySessionResponseSchema } from '../schemas/recoveryCodes.js';
@@ -59,7 +64,7 @@ accountRecoveryRouter.post(
 accountRecoveryRouter.post(
   '/verify',
   {
-    adapter: { credential: 'preAuth' },
+    adapter: { credential: 'preAuth', notices: true },
     auth: 'ephemeral',
     decoy: decoyVerifyAccountRecovery,
     middleware: [otpIpLimiter, otpIdentityLimiter],
@@ -68,12 +73,15 @@ accountRecoveryRouter.post(
       'Opens the request started on this attempt, which completes after the configured ' +
       'delay, and tells every verified address how to cancel it. A code for a request ' +
       'that is already open resumes it on this attempt. Five wrong codes void the code. ' +
-      'Answers 503 and voids the request when no verified address could be notified.',
+      'Answers 503 and voids the request when no verified address could be notified. A ' +
+      'credentialed caller that owns delivery and lists `account_notice_email` / ' +
+      '`account_notice_sms` in `x-seamless-auth-delivery-kinds` gets the notices back as ' +
+      '`deliveries` to send; one that does not list them gets the 503.',
     tags: ['Recovery'],
     schemas: {
       body: AccountRecoveryVerifyRequestSchema,
       response: {
-        200: AccountRecoveryStatusSchema,
+        200: AccountRecoveryVerifyResponseSchema,
         401: ErrorSchema,
         403: ErrorSchema,
         503: ErrorSchema,
@@ -151,6 +159,48 @@ accountRecoveryRouter.post(
     },
   },
   completeAccountRecovery,
+);
+
+accountRecoveryRouter.get(
+  '/requests',
+  {
+    auth: 'access',
+    summary: 'List open account recovery requests',
+    description:
+      "The signed-in account's pending recovery requests, so the owner can see one they " +
+      'did not start without waiting for the notice.',
+    tags: ['Recovery'],
+    schemas: {
+      response: {
+        200: AccountRecoveryRequestsResponseSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+      },
+    },
+  },
+  listAccountRecoveryRequests,
+);
+
+accountRecoveryRouter.delete(
+  '/requests/:id',
+  {
+    auth: 'access',
+    summary: 'Cancel an account recovery request from a session',
+    description:
+      "Cancels one of the signed-in account's pending recovery requests without the token " +
+      "from the notice. Answers 404 for a request that is not open or not this account's.",
+    tags: ['Recovery'],
+    schemas: {
+      params: AccountRecoveryRequestIdParamSchema,
+      response: {
+        200: MessageSchema,
+        401: ErrorSchema,
+        403: ErrorSchema,
+        404: ErrorSchema,
+      },
+    },
+  },
+  cancelAccountRecoveryRequest,
 );
 
 export default accountRecoveryRouter.router;
