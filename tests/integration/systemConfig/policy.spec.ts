@@ -351,7 +351,7 @@ describe('POST /system-config/policy/dry-run', () => {
       breakGlassAccounts: 0,
       wouldFail: [{ userId: 'u-1', signIns: 2, reasons: ['method_disabled'], lockedOut: true }],
     });
-    expect(res.body).not.toHaveProperty('capped');
+    expect(res.body.capped).toBe(false);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'policy_dry_run',
@@ -391,7 +391,7 @@ describe('POST /system-config/policy/dry-run', () => {
       .send({ policy: { login_methods: ['passkey'], passkey_login_fallback_enabled: true } });
 
     expect(res.status).toBe(200);
-    expect(res.body).not.toHaveProperty('capped');
+    expect(res.body.capped).toBe(true);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({ metadata: expect.objectContaining({ capped: true }) }),
     );

@@ -897,16 +897,24 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": { "type": "string", "format": "uuid" },
-                          "channel": { "type": "string", "enum": ["email", "phone"] },
                           "state": {
                             "type": "string",
                             "enum": ["pending", "ready", "cancelled", "completed"]
                           },
-                          "requestedAt": { "type": "string" },
-                          "completesAt": { "type": "string" }
+                          "requestedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "completesAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "id": { "type": "string", "format": "uuid" },
+                          "channel": { "type": "string", "enum": ["email", "phone"] }
                         },
-                        "required": ["id", "channel", "state", "requestedAt", "completesAt"]
+                        "required": ["state", "requestedAt", "completesAt", "id", "channel"]
                       }
                     }
                   },
@@ -19023,7 +19031,8 @@
                   "usersEvaluated": 0,
                   "wouldFail": [null],
                   "usersLockedOut": 0,
-                  "breakGlassAccounts": 0
+                  "breakGlassAccounts": 0,
+                  "capped": true
                 },
                 "schema": {
                   "type": "object",
@@ -19067,7 +19076,8 @@
                       }
                     },
                     "usersLockedOut": { "type": "integer", "minimum": 0 },
-                    "breakGlassAccounts": { "type": "integer", "minimum": 0 }
+                    "breakGlassAccounts": { "type": "integer", "minimum": 0 },
+                    "capped": { "type": "boolean" }
                   },
                   "required": [
                     "window",
@@ -19969,7 +19979,8 @@
                     },
                     "memberCount": 0,
                     "retiredOAuthProviders": [null]
-                  }
+                  },
+                  "recovery": true
                 },
                 "schema": {
                   "type": "object",
@@ -20189,7 +20200,8 @@
                         "createdAt",
                         "updatedAt"
                       ]
-                    }
+                    },
+                    "recovery": { "type": "boolean" }
                   },
                   "required": ["user", "credentials"]
                 }

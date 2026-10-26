@@ -148,7 +148,8 @@ export async function dryRunPolicyHandler(req: ServiceRequest, res: Response) {
     });
   }
 
-  const { capped, ...report } = await runPolicyDryRun({ policy: candidate, days });
+  const report = await runPolicyDryRun({ policy: candidate, days });
+  const { capped } = report;
 
   if (capped) {
     logger.warn(`Policy dry run evaluated only the first ${report.usersEvaluated} accounts`);

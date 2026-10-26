@@ -1022,14 +1022,16 @@ export interface paths {
              */
             'application/json': {
               requests: {
+                /** @enum {string} */
+                state: 'pending' | 'ready' | 'cancelled' | 'completed';
+                /** Format: date-time */
+                requestedAt: string | null;
+                /** Format: date-time */
+                completesAt: string | null;
                 /** Format: uuid */
                 id: string;
                 /** @enum {string} */
                 channel: 'email' | 'phone';
-                /** @enum {string} */
-                state: 'pending' | 'ready' | 'cancelled' | 'completed';
-                requestedAt: string;
-                completesAt: string;
               }[];
             };
           };
@@ -19086,7 +19088,8 @@ export interface paths {
              *         null
              *       ],
              *       "usersLockedOut": 0,
-             *       "breakGlassAccounts": 0
+             *       "breakGlassAccounts": 0,
+             *       "capped": true
              *     }
              */
             'application/json': {
@@ -19114,6 +19117,7 @@ export interface paths {
               }[];
               usersLockedOut: number;
               breakGlassAccounts: number;
+              capped?: boolean;
             };
           };
         };
@@ -20155,7 +20159,8 @@ export interface paths {
              *         "retiredOAuthProviders": [
              *           null
              *         ]
-             *       }
+             *       },
+             *       "recovery": true
              *     }
              */
             'application/json': {
@@ -20256,6 +20261,7 @@ export interface paths {
                 memberCount?: number;
                 retiredOAuthProviders?: string[];
               } | null;
+              recovery?: boolean;
             };
           };
         };

@@ -51,7 +51,9 @@ Until the user enrolls a new passkey or authenticator app, the API answers
 
 The restriction lives on the session row, so refreshing keeps it, and enrolling a factor
 lifts it on the very next request. The access token keeps its `recovery` claim until the
-client refreshes, so a client should refresh after enrollment. Server adapters refuse a
+client refreshes, so a client should refresh after enrollment. `GET /users/me` answers
+`recovery: true` while the session is restricted, which is how a cookie client, which cannot
+read its token, learns it after a reload. Server adapters refuse a
 `recovery: true` token in their `requireAuth` by default, so an application does not treat a
 half-recovered account as fully signed in.
 

@@ -29,6 +29,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
       }
 
       req.sessionId = 'session-1';
+      if (req.headers['x-recovery-session'] === 'true') req.recoverySession = true;
       next();
     },
   };
@@ -56,6 +57,17 @@ describe('GET /users/me', () => {
     expect(res.body.credentials[0]).not.toHaveProperty('publicKey');
     expect(res.body.credentials[0]).not.toHaveProperty('userId');
     expect(JSON.stringify(res.body.user)).not.toContain('challenge');
+  });
+
+  it('says whether the session is a recovery session', async () => {
+    (Credential.findAll as any).mockResolvedValue([]);
+
+    const normal = await request(app).get('/users/me');
+    const recovery = await request(app).get('/users/me').set('x-recovery-session', 'true');
+
+    expect(normal.body.recovery).toBe(false);
+    expect(recovery.status).toBe(200);
+    expect(recovery.body.recovery).toBe(true);
   });
 
   it('returns 404 when no user', async () => {
