@@ -313,8 +313,9 @@ Accounts listed in `BREAK_GLASS_EMAILS` (comma separated) are exempt from policy
 evaluated or listed; `breakGlassAccounts` counts how many exist.
 
 A run is bounded. It reads `auth_events` through the `(type, created_at)` index for the window and
-evaluates at most 10,000 accounts, the first by id. A run that reaches the cap says so in its
-`policy_dry_run` event (`capped: true`) and in the API log.
+evaluates at most 10,000 accounts, the first by id. A run that reaches the cap answers
+`capped: true`, so the counts are partial, and says so in its `policy_dry_run` event and in
+the API log.
 
 ## Audit Events
 

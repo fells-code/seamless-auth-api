@@ -59,6 +59,7 @@ export const getUser = async (req: Request, res: Response) => {
         organizations,
         activeOrganization:
           organizations.find((organization) => organization.id === activeOrganizationId) ?? null,
+        recovery: authReq.recoverySession === true,
       });
     } else {
       return res.status(404).json({ error: 'User not found' });
