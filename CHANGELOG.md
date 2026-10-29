@@ -1,5 +1,11 @@
 # seamless-auth-api
 
+## 0.19.5
+
+### Patch Changes
+
+- f8c1224: Send a User-Agent on OAuth provider requests in production. The guarded request path sent none, so GitHub answered the profile fetch with 403 and every GitHub sign-in failed.
+
 ## 0.19.4
 
 ### Patch Changes
