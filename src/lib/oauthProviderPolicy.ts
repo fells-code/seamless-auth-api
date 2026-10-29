@@ -274,9 +274,13 @@ export function guardedLookup(env: EnvSource = process.env): LookupFunction {
 
 const MAX_PROVIDER_RESPONSE_BYTES = 1024 * 1024;
 const PROVIDER_TIMEOUT_MS = 10_000;
+// node:https sends no User-Agent of its own, unlike fetch, and GitHub's API
+// answers any request without one with 403.
+const PROVIDER_USER_AGENT = 'seamless-auth-api';
 
 export function guardedRequest(url: URL, init: RequestInit, env: EnvSource): Promise<Response> {
   const headers = Object.fromEntries(new Headers(init.headers ?? {}).entries());
+  headers['user-agent'] ??= PROVIDER_USER_AGENT;
   const body = init.body == null ? undefined : String(init.body);
   if (body !== undefined) headers['content-length'] = String(Buffer.byteLength(body));
 
