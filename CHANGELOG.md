@@ -5,6 +5,7 @@
 ### Patch Changes
 
 - f8c1224: Send a User-Agent on OAuth provider requests in production. The guarded request path sent none, so GitHub answered the profile fetch with 403 and every GitHub sign-in failed.
+- Update body-parser to 2.4.0 (GHSA-27r3-jxmh-p828), ip-address to 10.7.5 (GHSA-rxp7-6hxx-x8q5) and qs to 6.17.1 (GHSA-6pq8-jhm2-2vcw) for audit advisories published after 0.19.4.
 
 ## 0.19.4
 
