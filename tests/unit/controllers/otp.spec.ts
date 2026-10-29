@@ -96,6 +96,11 @@ function buildUser(overrides: Partial<MockUser> = {}): MockUser {
   };
 }
 
+/** An account registration has created but not yet claimed. */
+function unclaimedUser(overrides: Partial<MockUser> = {}): MockUser {
+  return buildUser({ verified: false, emailVerified: false, phoneVerified: false, ...overrides });
+}
+
 function buildReq(user: MockUser, overrides: Record<string, unknown> = {}) {
   const headers: Record<string, string> = {
     ...(overrides.headers as Record<string, string> | undefined),
@@ -247,6 +252,7 @@ describe('otp controller', () => {
   it('returns 401 when phone verification data is missing', async () => {
     const { verifyPhoneNumber } = await loadOtpController();
     const user = buildUser({
+      verified: false,
       phoneVerificationToken: undefined,
       phoneVerificationTokenExpiry: null,
     });
@@ -268,7 +274,7 @@ describe('otp controller', () => {
       emailVerified: false,
       verified: false,
     });
-    const req = buildReq(buildUser(), {
+    const req = buildReq(buildUser({ verified: false, phoneVerified: false }), {
       body: { verificationToken: '123456' },
     });
     const res = buildRes();
@@ -627,6 +633,67 @@ describe('otp controller', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('answers a login phone OTP for an unverified phone as for no phone', async () => {
+    const { sendLoginPhoneOTP } = await loadOtpController();
+    const res = buildRes();
+
+    await sendLoginPhoneOTP(buildReq(buildUser({ phoneVerified: false })), res);
+
+    expect(generatePhoneOTPMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid data' });
+  });
+
+  it('refuses login phone verification for an unverified phone', async () => {
+    const { verifyLoginPhoneNumber } = await loadOtpController();
+    const res = buildRes();
+
+    await verifyLoginPhoneNumber(
+      buildReq(buildUser({ phoneVerified: false }), { body: { verificationToken: '123456' } }),
+      res,
+    );
+
+    expect(verifyPhoneOTPMock).not.toHaveBeenCalled();
+    expect(issueSessionAndRespondMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
+  });
+
+  it('sends the registration phone OTP for an account not yet claimed', async () => {
+    const { sendRegistrationPhoneOTP } = await loadOtpController();
+    const res = buildRes();
+
+    await sendRegistrationPhoneOTP(buildReq(unclaimedUser()), res);
+
+    expect(generatePhoneOTPMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('sends no registration phone OTP to a verified account', async () => {
+    const { sendRegistrationPhoneOTP } = await loadOtpController();
+    const res = buildRes();
+
+    await sendRegistrationPhoneOTP(buildReq(buildUser({ phoneVerified: false })), res);
+
+    expect(generatePhoneOTPMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ message: 'success', token: 'ephemeral-token' });
+  });
+
+  it('refuses registration phone verification on a verified account', async () => {
+    const { verifyPhoneNumber } = await loadOtpController();
+    const res = buildRes();
+
+    await verifyPhoneNumber(
+      buildReq(buildUser({ phoneVerified: false }), { body: { verificationToken: '123456' } }),
+      res,
+    );
+
+    expect(verifyPhoneOTPMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
+  });
+
   it('sends the login email OTP when email OTP login is enabled', async () => {
     const { sendLoginEmailOTP } = await loadOtpController();
     const res = buildRes();
@@ -666,7 +733,7 @@ describe('otp controller', () => {
     const { verifyPhoneNumber } = await loadOtpController();
     const res = buildRes();
 
-    await verifyPhoneNumber(buildReq(buildUser(), { body: {} }), res);
+    await verifyPhoneNumber(buildReq(unclaimedUser(), { body: {} }), res);
 
     expect(verifyPhoneOTPMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
@@ -678,7 +745,7 @@ describe('otp controller', () => {
     const res = buildRes();
 
     await verifyPhoneNumber(
-      buildReq(buildUser({ phone: null }), { body: { verificationToken: '123456' } }),
+      buildReq(unclaimedUser({ phone: null }), { body: { verificationToken: '123456' } }),
       res,
     );
 
@@ -692,7 +759,10 @@ describe('otp controller', () => {
     const verifiedUser = buildUser({ phoneVerified: true, emailVerified: true, verified: true });
     verifyPhoneOTPMock.mockResolvedValue({ user: verifiedUser, verified: true });
 
-    await verifyPhoneNumber(buildReq(buildUser(), { body: { verificationToken: '123456' } }), res);
+    await verifyPhoneNumber(
+      buildReq(unclaimedUser(), { body: { verificationToken: '123456' } }),
+      res,
+    );
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ message: 'Success' });
@@ -703,7 +773,10 @@ describe('otp controller', () => {
     const res = buildRes();
     verifyPhoneOTPMock.mockResolvedValue({ user: buildUser(), verified: false });
 
-    await verifyPhoneNumber(buildReq(buildUser(), { body: { verificationToken: 'wrong' } }), res);
+    await verifyPhoneNumber(
+      buildReq(unclaimedUser(), { body: { verificationToken: 'wrong' } }),
+      res,
+    );
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
@@ -714,7 +787,10 @@ describe('otp controller', () => {
     const res = buildRes();
     verifyPhoneOTPMock.mockRejectedValue(new Error('db down'));
 
-    await verifyPhoneNumber(buildReq(buildUser(), { body: { verificationToken: '123456' } }), res);
+    await verifyPhoneNumber(
+      buildReq(unclaimedUser(), { body: { verificationToken: '123456' } }),
+      res,
+    );
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });

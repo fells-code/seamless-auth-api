@@ -226,6 +226,43 @@ export const sendLoginPhoneOTP = async (req: Request, res: Response) => {
     return;
   }
 
+  const user = (req as AuthenticatedRequest).user;
+
+  // Answered as for an account with no phone, which is what `/login` offered it.
+  if (user.phone && !user.phoneVerified) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'otp_suspicious',
+      req,
+      metadata: { reason: 'Login phone OTP requested for an unverified phone.' },
+    });
+    return res.status(400).json({ error: 'Invalid data' });
+  }
+
+  return sendPhoneOTP(req, res);
+};
+
+/**
+ * Proving a phone on an account that already signs in changes what it can sign in with,
+ * which takes an access session (`/registration/phone`). The pre-auth token here can come
+ * from an email address alone, so for a verified account nothing is sent and the answer
+ * is the one a decoy gives.
+ */
+export const sendRegistrationPhoneOTP = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const user = authReq.user;
+
+  if (user.verified && user.phone) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'otp_suspicious',
+      req,
+      metadata: { reason: 'Registration phone OTP requested for a verified account.' },
+    });
+    const token = await signEphemeralToken(user.id, authReq.attemptId);
+    return res.status(200).json({ message: 'success', token });
+  }
+
   return sendPhoneOTP(req, res);
 };
 
@@ -255,6 +292,18 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
   const phone = user.phone;
 
   logger.info('Verifying phone number');
+
+  // See sendRegistrationPhoneOTP. A code sent before the account was claimed must not
+  // verify a phone on it afterwards.
+  if (user.verified) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'verify_otp_suspicious',
+      req,
+      metadata: { reason: 'Registration phone verification on a verified account.' },
+    });
+    return res.status(401).json({ error: 'Not allowed' });
+  }
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
     logger.warn('Failed to find a user for this phone verification token');
@@ -462,6 +511,18 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
   }
 
   logger.info('Verifying login phone number');
+
+  // A code sent to an unverified phone, through registration before the account was
+  // claimed, is not a sign-in.
+  if (!user.phoneVerified) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'verify_otp_suspicious',
+      req,
+      metadata: { reason: 'Login phone verification for an unverified phone.' },
+    });
+    return res.status(401).json({ error: 'Not allowed' });
+  }
 
   if (!user || !user.phoneVerificationTokenExpiry || !user.phoneVerificationToken) {
     logger.warn('Failed to find a user for this phone verification token');

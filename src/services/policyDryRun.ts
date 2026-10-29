@@ -109,7 +109,7 @@ export function hasUsableFactor(
 ) {
   const methods = resolveAvailableLoginMethods({
     policy,
-    user: { email: account.email, phone: account.phone },
+    user: { email: account.email, phone: account.phone, phoneVerified: account.phone !== null },
     hasPasskeyCredential: account.hasPasskey,
   });
 
@@ -158,7 +158,7 @@ async function signInsInWindow(from: Date, to: Date, cap: number) {
         )
     ),
     scoped AS (
-      SELECT u.id, u.email, u.phone
+      SELECT u.id, u.email, CASE WHEN u.phone_verified THEN u.phone END AS phone
       FROM users u
       WHERE u.revoked = false
         AND u.id IN (SELECT user_id FROM sign_ins)

@@ -49,11 +49,11 @@ beforeEach(() => {
 });
 
 describe('OTP - Generate', () => {
-  it('generates phone OTP', async () => {
+  it('sends no registration phone OTP to a verified account', async () => {
     const res = await request(app).get('/otp/generate-phone-otp');
 
     expect(res.status).toBe(200);
-    expect(generatePhoneOTP).toHaveBeenCalled();
+    expect(generatePhoneOTP).not.toHaveBeenCalled();
     expect(res.body.message).toBe('success');
   });
 
@@ -126,23 +126,13 @@ describe('OTP - Verify Phone', () => {
     expect(res.status).toBe(401);
   });
 
-  it('succeeds when OTP valid', async () => {
-    (verifyPhoneOTP as any).mockResolvedValue({
-      user: {
-        id: 'user-1',
-        emailVerified: true,
-        phoneVerified: true,
-        verified: true,
-        roles: ['user'],
-      },
-      verified: true,
-    });
-
+  it('refuses a registration phone code on a verified account', async () => {
     const res = await request(app)
       .post('/otp/verify-phone-otp')
       .send({ verificationToken: '123456' });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
+    expect(verifyPhoneOTP).not.toHaveBeenCalled();
   });
 });
 

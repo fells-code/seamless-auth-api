@@ -77,7 +77,7 @@ describe('loginPolicyService', () => {
     expect(
       resolveAvailableLoginMethods({
         policy,
-        user: { email: 'test@example.com', phone: '+14155552671' },
+        user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
         hasPasskeyCredential: true,
         passkeyAvailable: true,
       }),
@@ -94,13 +94,28 @@ describe('loginPolicyService', () => {
 
     const available = resolveAvailableLoginMethods({
       policy,
-      user: { email: 'test@example.com', phone: '+14155552671' },
+      user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
       hasPasskeyCredential: false,
       passkeyAvailable: true,
     });
 
     expect(available).toEqual(['magic_link', 'email_otp']);
     expect(available).not.toContain('oauth');
+  });
+
+  it('does not offer phone OTP for an unverified phone', () => {
+    const policy = normalizeLoginPolicy({
+      login_methods: ['magic_link', 'phone_otp'],
+      passkey_login_fallback_enabled: true,
+    });
+
+    expect(
+      resolveAvailableLoginMethods({
+        policy,
+        user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: false },
+        hasPasskeyCredential: false,
+      }),
+    ).toEqual(['magic_link']);
   });
 
   it('allows configured fallback methods when passkey is unavailable on the client', () => {
@@ -112,7 +127,7 @@ describe('loginPolicyService', () => {
     expect(
       resolveAvailableLoginMethods({
         policy,
-        user: { email: 'test@example.com', phone: '+14155552671' },
+        user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
         hasPasskeyCredential: true,
         passkeyAvailable: false,
       }),
@@ -130,7 +145,7 @@ describe('loginPolicyService', () => {
       expect(
         resolveAvailableLoginMethods({
           policy: passkeyOnly(),
-          user: { email: 'test@example.com', phone: '+14155552671' },
+          user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
           hasPasskeyCredential: true,
           passkeyAvailable: false,
         }),
@@ -141,7 +156,7 @@ describe('loginPolicyService', () => {
       expect(
         resolveAvailableLoginMethods({
           policy: passkeyOnly(),
-          user: { email: 'test@example.com', phone: '+14155552671' },
+          user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
           hasPasskeyCredential: true,
           passkeyAvailable: true,
         }),
@@ -152,7 +167,7 @@ describe('loginPolicyService', () => {
       expect(
         resolveAvailableLoginMethods({
           policy: passkeyOnly(),
-          user: { email: 'test@example.com', phone: '+14155552671' },
+          user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
           hasPasskeyCredential: true,
         }),
       ).toEqual(['passkey']);
@@ -164,7 +179,7 @@ describe('loginPolicyService', () => {
       expect(
         resolveAvailableLoginMethods({
           policy: passkeyOnly(),
-          user: { email: 'test@example.com', phone: '+14155552671' },
+          user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
           hasPasskeyCredential: false,
           passkeyAvailable: false,
         }),
@@ -178,7 +193,7 @@ describe('loginPolicyService', () => {
             login_methods: ['magic_link', 'phone_otp'],
             passkey_login_fallback_enabled: false,
           }),
-          user: { email: 'test@example.com', phone: '+14155552671' },
+          user: { email: 'test@example.com', phone: '+14155552671', phoneVerified: true },
           hasPasskeyCredential: true,
           passkeyAvailable: false,
         }),
@@ -219,7 +234,7 @@ describe('loginPolicyService', () => {
       expect(
         resolveAvailableLoginMethods({
           policy,
-          user: { email: 'a@example.com', phone: '+15555555555' },
+          user: { email: 'a@example.com', phone: '+15555555555', phoneVerified: true },
           hasPasskeyCredential: false,
         }),
       ).toEqual([]);

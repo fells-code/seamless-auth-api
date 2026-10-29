@@ -270,7 +270,7 @@ export const login = async (req: Request, res: Response) => {
   } else if (isValidPhoneNumber(identifier) && normalizedIdentifier) {
     try {
       user = await User.findOne({
-        where: { phone: normalizedIdentifier },
+        where: { phone: normalizedIdentifier, phoneVerified: true },
       });
       identifierType = 'phone';
       decoyIdentifier = normalizedIdentifier;
