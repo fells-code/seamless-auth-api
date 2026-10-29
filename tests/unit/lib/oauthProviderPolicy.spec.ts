@@ -318,7 +318,14 @@ describe('guardedRequest', () => {
         }
         res.setHeader('content-type', 'application/json');
         res.setHeader('set-cookie', ['a=1', 'b=2']);
-        res.end(JSON.stringify({ method: req.method, body, accept: req.headers.accept }));
+        res.end(
+          JSON.stringify({
+            method: req.method,
+            body,
+            accept: req.headers.accept,
+            userAgent: req.headers['user-agent'],
+          }),
+        );
       });
     });
     await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
@@ -349,7 +356,18 @@ describe('guardedRequest', () => {
       method: 'POST',
       body: 'a=b',
       accept: 'application/json',
+      userAgent: 'seamless-auth-api',
     });
+  });
+
+  it("keeps a caller's own User-Agent", async () => {
+    const response = await guardedRequest(
+      url('/userinfo'),
+      { headers: { 'User-Agent': 'custom-agent' } },
+      allowLocal,
+    );
+
+    expect((await response.json()).userAgent).toBe('custom-agent');
   });
 
   it('returns an empty body for 204', async () => {
