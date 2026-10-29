@@ -1,5 +1,144 @@
 # seamless-auth-api
 
+## 0.20.0
+
+### Minor Changes
+
+- baa7dbc: Self-service account recovery through a verified email or phone, with a delay and notices (#399).
+
+  - `POST /recovery/start` sends a six-digit code to the verified address on the chosen channel, answering the same whether or not the account has one. `POST /recovery/verify` opens the request, which completes only after `account_recovery.delay`, and tells the account's verified email and phone how to cancel it. `GET /recovery/status` reports `pending`, `ready`, `cancelled` or `completed`.
+  - `POST /recovery/cancel` takes the token from the notice's link and needs no session. `POST /recovery/complete` on a ready request signs out every session and issues a restricted recovery session.
+  - A user returning after the delay resumes the request on a new attempt by verifying a fresh code on the same channel.
+  - Off by default (`ACCOUNT_RECOVERY`). Not blocked by account lockout; five wrong codes void a request. `GET /system-config/public` reports `accountRecovery`.
+  - Using a recovery code now notifies the account's verified email and phone.
+  - Migration: new `account_recovery_requests` table.
+
+  See docs/account-recovery.md.
+
+  Self-service recovery is unavailable in `phishing_resistant_only` mode, since it proves only an address; `GET /system-config/public` reports `accountRecovery: false` there. Cancelling an open request always works.
+
+- c9f4a6c: Admin writes require a fresh step-up on the calling session (#437).
+
+  System config and OAuth provider writes, user create, import, update and delete, admin session revocation, organization admin writes and provider retirement, and `POST /organizations/{organizationId}/members` now run `requireStepUp()` after the admin role check, as device replacement and the audit export already did. Without a WebAuthn or TOTP step-up in the last five minutes they answer `403` with `error: "step_up_required"` and the session's step-up status. Each route documents that `403` in `openapi.json`. Admin reads and enrollment invites are unchanged.
+
+  Breaking for scripts and clients that call these routes with a plain admin access token: step up first (`POST /totp/verify-mfa` or `/step-up/webauthn/*` on the same session), then retry. The admin console already steps up before these writes, except organization create and update, which need a console update to prompt first. The CLI's admin write commands fail with a permission error until it learns to step up.
+
+  `DELETE /users/delete` (a user deleting their own account) needs a fresh step-up too. An account with no passkey or TOTP cannot step up, so it can only be deleted by an administrator.
+
+- 4256967: Break-glass admin accounts that no sign-in policy can lock out (#401).
+
+  - New `BREAK_GLASS_EMAILS` (comma separated, matched case-insensitively). A listed account that holds a role satisfying `admin:write` is exempt from `login_methods`, `phishing_resistant_only`, `passkey_login_fallback_enabled` and `recovery_codes.enabled` for its own sign-in, and from `authenticator_policy` when it enrolls a passkey. A listed address without the role gets no exemption, and boot logs how many listed entries are not admin accounts.
+  - A break-glass account still needs a strong factor: a passkey, TOTP or a recovery code. Email OTP, SMS OTP, magic links and OAuth are refused for it (`403 login_method_disabled`) even where they are enabled for everyone else, and session issuance refuses them as a backstop. Lockout still applies to its TOTP.
+  - `/login` adds a break-glass account's passkey when `login_methods` leaves passkeys out, and lets one holding only TOTP or recovery codes continue where it would otherwise be answered as a decoy. Its `loginMethods` is otherwise shaped like any account's, so it can list methods the account is then refused.
+  - Every sign-in that relied on the exemption records a new `break_glass_sign_in` auth event with `severity: "high"` in its metadata and emails a notice to every admin account with a verified email.
+
+  See the Break-glass admin section of docs/admin-operations.md.
+
+  A passkey a break-glass admin enrolls outside the authenticator policy is announced like a waived sign-in: a `break_glass_enrollment` event with `severity: 'high'` and a notice to every admin.
+
+- 7ae63d1: Recovery codes, and restricted recovery sessions (#398).
+
+  - `GET /recovery-codes` reports how many of the user's codes are left. `POST /recovery-codes` returns a new set of ten single-use codes (`XXXXX-XXXXX`), the only time they are shown, and invalidates the previous set; replacing a set needs a fresh step-up. Codes are stored as keyed hashes.
+  - `POST /recovery-codes/redeem`, with the pre-auth token from `/login`, signs in with a code. It is rate limited like an OTP, is not subject to account lockout, and works whatever `login_methods` or `phishing_resistant_only` say. Turned off with `recovery_codes.enabled`.
+  - The session a code issues is a recovery session: `recovery: true` and `nextStep: "enroll_passkey"` in the response, a `recovery: true` claim in the access token, and `403 enrollment_required` on every access route except passkey and TOTP enrollment, recovery codes, `GET /users/me` and logout, until a new factor is enrolled. Refreshing keeps the restriction; enrolling lifts it.
+  - `POST /login` lets an account continue to the code when it would otherwise be answered with a lock or a decoy (no passkey, locked or left with no allowed method) and holds an unused code.
+  - `GET /system-config/public` reports `recoveryCodes`.
+  - Migration: new `recovery_codes` table, and `sessions.recovery`.
+
+  See docs/account-recovery.md.
+
+- 5f41ee0: `OAUTH_ALLOW_UNBOUND_STATE` is removed. Every OAuth callback must carry the binding `/start` returned, as clients from `@seamless-auth/client` 0.7.1 (`@seamless-auth/react` 0.18.1, `@seamless-auth/react-native` 0.3.3) do. A callback without one is refused with `400 Invalid OAuth state` and audited as `state_binding_missing`, whatever the variable says. A deployment that still sets it gets a boot warning that it is ignored.
+
+  Breaking for any client older than those SDK versions that starts OAuth sign-in: upgrade it before this release.
+
+- 4205828: The server's own secrets no longer fall back to the service token (#447).
+
+  - In production, `REFRESH_TOKEN_LOOKUP_SECRET` and `DECOY_SUBJECT_SECRET` are always required, `TOTP_SECRET_ENCRYPTION_KEY` once any TOTP credential exists, and `OAUTH_STATE_SECRET` once an OAuth provider is configured. The server refuses to start without the ones it needs and names each one.
+  - Adding an OAuth provider (`POST /system-config/oauth-providers`, or `oauth_providers` in `PATCH /system-config/admin`) answers `409 { "error": "secret_required", "variable": "OAUTH_STATE_SECRET" }` while it is unset, and `POST /totp/enroll/start` answers the same for `TOTP_SECRET_ENCRYPTION_KEY`.
+  - Development keeps a fixed development-only value for each unset secret, with a warning.
+  - The boot warning about secrets sharing the service token is gone, since none do.
+
+  Breaking for a production deployment that relied on the fallback: before upgrading, set each missing variable to the current service token value, so existing sessions, TOTP enrollments and OAuth sign-ins in flight stay valid. See docs/production-operations.md.
+
+- 41071ea: Auth policy changes are versioned, can be staged as a draft, and can be dry-run and rolled back.
+
+  - New routes under `/system-config/policy`: read the published version and draft, save or discard the draft, publish it, roll back to an earlier version, list versions, and dry-run a policy against recent sign-ins. Publish and rollback need `admin:write` and a fresh step-up, take `expectedVersion`, and answer `409 policy_version_conflict` when another version was published since.
+  - Every policy change is recorded in the new `policy_versions` table, including a whole-config `PATCH /system-config/admin` that changes a policy key (source `config_patch`). The first boot after upgrading records the policy in force as version 1 (source `bootstrap`). Run the migration before starting this release.
+  - The dry run reports, per account that signed in during the window, the sign-ins a candidate policy would refuse and whether the account would be locked out. It evaluates at most 10,000 accounts. Accounts in `BREAK_GLASS_EMAILS` are counted, never listed.
+  - New auth event types: `policy_draft_saved`, `policy_draft_discarded`, `policy_published`, `policy_rolled_back` and `policy_dry_run`.
+
+  The dry run also reports `authenticator_not_allowed` and `synced_passkey_blocked` for an account holding a passkey the candidate authenticator policy would not admit at enrollment. Those passkeys keep signing in, so such an entry counts no refused sign-in and is never `lockedOut`.
+
+- 894a8bf: Moves to `@seamless-auth/types` 0.30.0.
+
+  - OAuth provider config is refused at request validation when `clientSecretEnv` does not end in `_CLIENT_SECRET` or a provider URL is not `http(s)`, the same rules 0.19.4 enforced after parsing. The production-only checks (https, public destinations) stay in the server.
+  - New system config keys `recovery_codes` (`RECOVERY_CODES`, default `{"enabled":true,"requireAtEnrollment":false}`) and `account_recovery` (`ACCOUNT_RECOVERY`, default `{"enabled":false,"delay":"24h"}`), seeded at boot and patchable. The recovery features that read them arrive in this release.
+
+### Patch Changes
+
+- ea27343: Changing a user's email or phone through `PATCH /admin/users/{userId}` now signs the user out and tells them (#475).
+
+  - Every active session for the user is revoked, in the same transaction as the change. Access tokens already issued stay valid until they expire.
+  - A notice goes to the previous address and to the new one, by email for an email change and by SMS for a phone change, through the configured direct transports. A failed notice does not fail the request.
+  - The `internal_user_updated_by_owner` audit event records `identityChanges` (SHA-256 digests of the previous and new values), `revokedSessions` and the outcome of each notice.
+  - With `x-seamless-auth-delivery-mode: external` no notice is sent, because the delivery payload has no kind for account notices yet. Each is recorded as `not_sent_external_delivery`.
+
+  The response shape is unchanged.
+
+- c1b2226: Consume one-time credentials atomically. Email and phone OTPs are now cleared with an update conditional on the issuance that was compared, and a TOTP code is only accepted while the stored counter is still older than it, so concurrent submissions of one valid code yield exactly one success. TOTP enrollment enables the pending credential the same way. The losing request gets the same response and audit event as an invalid code.
+- 7b5484c: OTP and magic link limits and links are scoped to the sign-in attempt, so a stranger who knows an address can no longer use up or void the owner's codes and links (#468).
+
+  - The OTP and magic link identity limiters key `flow_rate_limits.*.perIdentity` on the identifier plus the ephemeral token's attempt (`jti`), or the requester's IP when there is none. Another attempt for the same address keeps its own allowance.
+  - Every attempt for one identifier together is capped at four times `perIdentity` (20 per window by default), so minting fresh attempts still cannot message an address without bound.
+  - `POST /magic-link` expires only earlier links from the same attempt instead of every link for the account.
+  - `FLOW_RATE_LIMITS` / `flow_rate_limits` keep their shape and meaning. No new config key.
+
+- e46987a: Update body-parser to 2.4.0 and ip-address to 10.7.4 to pick up fixes for GHSA-27r3-jxmh-p828 and GHSA-rxp7-6hxx-x8q5.
+- 88ea07c: The bundled Docker Compose stack serves on loopback only and no longer grants admin to a fixed address (#473).
+
+  - `docker-compose.yml` publishes the API on `127.0.0.1:${API_PORT:-5312}` and no longer publishes Postgres. Docker's port publishing bypasses host firewalls such as ufw, so the old bare port exposed the development defaults to the network. `POSTGRES_PORT` no longer applies to this file; use `docker compose exec postgres psql -U seamless seamless_auth` for a shell.
+  - `docker-compose.dev.yml` publishes the API and Postgres on `127.0.0.1` only.
+  - Neither file defaults `OWNER_EMAIL` to `owner@example.com` any more. Pass your own, for example `OWNER_EMAIL=you@example.com docker compose up`; without it nobody is granted admin. An existing stack whose owner account was already created keeps its role.
+
+  The release image now builds the admin dashboard from a pinned commit (`SEAMLESS_ADMIN_DASHBOARD_REF`, dashboard v0.11.0) and refuses a build arg that is not a full commit SHA (#474). Overriding it with a tag or branch name fails the build.
+
+- d319607: `GET /users/me` answers `recovery: true` for a recovery session, so a cookie client can route the user back to enrollment after a reload, and `POST /system-config/policy/dry-run` answers `capped: true` when it evaluated only the first 10,000 accounts. The recovery request schemas now come from `@seamless-auth/types` 0.33.0.
+- 9f6ba6b: OAuth sign-in respects the per-account passkey requirement (#469).
+
+  - With `passkey_login_fallback_enabled` off, `POST /oauth/:providerId/callback` for an account that holds a passkey now answers `403 login_method_disabled` and issues no session, as the email code, phone code, magic link and TOTP continuations already did. The refusal is recorded as `oauth_login_failed` with reason `passkey_required`.
+  - Session issuance now applies the same rule as its backstop, not only phishing-resistant-only mode, so a sign-in path that misses the check fails closed instead of issuing a session.
+
+- ef62675: Send a User-Agent on OAuth provider requests in production. The guarded request path sent none, so GitHub answered the profile fetch with 403 and every GitHub sign-in failed.
+- bf48b20: Account recovery works with adapter-owned delivery, and a signed-in owner can cancel it.
+
+  - `POST /recovery/verify` returns the "recovery opened" notices as `deliveries` (`account_notice_email` / `account_notice_sms`, with the `cancelUrl`) to a credentialed caller that owns delivery and lists those kinds in the new `x-seamless-auth-delivery-kinds` header. A caller that owns delivery but does not list them still gets `503 recovery_notice_failed`, since an older adapter would drop a kind it does not know. The adapter manifest marks the route `notices: true`.
+  - The recovery code from `POST /recovery/start` carries `purpose: "account_recovery"` under external delivery.
+  - `GET /recovery/requests` and `DELETE /recovery/requests/:id` (access session) list and cancel the account's open recovery requests without the token from the notice.
+  - Updates `@seamless-auth/types` to 0.31.0.
+
+- 4d2bc08: Self-service account recovery fails closed when the owner cannot be told. `POST /recovery/verify` now voids the request and answers `503` with `recovery_notice_failed` unless the opening notice reached at least one verified address, and it cancels the account's other open requests only after that notice is sent. Before, a request opened even when every notice failed or was skipped for external delivery, so the delay ran without the owner ever getting a cancel link.
+- d83d2ac: The registration email OTP path honours `login_methods` for accounts that are already verified (#470).
+
+  - `POST /otp/verify-email-otp` signs an already verified account in only when `email_otp` is a login method (and the passkey rules allow it). Otherwise it answers `403 login_method_disabled` before checking the code, the same answer as `/otp/verify-login-email-otp`. Before, a deployment that removed `email_otp` from `login_methods` could still be signed in to with an email code through this endpoint.
+  - `POST /otp/generate-email-otp` (and its deprecated `GET`) refuses an already verified account the same way, and its OpenAPI responses now list `403`.
+  - An unverified account still receives and verifies its registration code whatever `login_methods` says.
+  - The session is marked as an account verification only when the code actually moved the account from unverified to verified, so the phishing-resistant-only backstop in session issuance stays in force for an existing account.
+  - Decoy continuations answer both endpoints the same way a verified account is answered.
+
+- ee9a575: Log out everywhere can no longer miss a session a concurrent refresh was creating (#471).
+
+  - `DELETE /logout/all`, `DELETE /sessions`, `DELETE /admin/sessions/:userId/revoke-all`, device-replacement recovery and OAuth provider retirement revoke with one bulk update instead of reading the sessions and revoking them one at a time.
+  - Each also records a per-user cutoff. A session created at or before it is refused on every authenticated request and on `POST /refresh`, which re-reads the cutoff after claiming the rotation, so a rotation that started before the revoke cannot produce a live session. The refusal is `401 invalid_refresh_token`, with `refusal: 'sessions_revoked'` on the `refresh_token_failed` auth event.
+  - Validating an access token now reads the cutoff from the session owner's row, one indexed lookup per authenticated request.
+  - Migration: `users` gains `sessions_revoked_before`.
+
+- 0eefd6d: Only a verified phone number signs in by phone OTP.
+
+  - `POST /login` finds an account by phone only when that phone is verified, and offers `phone_otp` only for a verified phone.
+  - `/otp/generate-login-phone-otp` answers an unverified phone as it answers an account with no phone (`400`), and `/otp/verify-login-phone-otp` refuses it (`401`).
+  - The registration phone OTP routes (`/otp/generate-phone-otp`, `/otp/verify-phone-otp`) no longer verify a phone on an account that is already verified. Sending answers `200` and sends nothing; verifying answers `401`. Add or verify a phone on a verified account with an access session through `/registration/phone`.
+  - The policy dry run counts an unverified phone as no phone.
+
 ## 0.19.4
 
 ### Patch Changes
