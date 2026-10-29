@@ -27,8 +27,8 @@ FROM node:24-slim AS admin-dashboard
 WORKDIR /dashboard
 
 ARG SEAMLESS_ADMIN_DASHBOARD_REPO=https://github.com/fells-code/seamless-auth-admin-dashboard.git
-# Dashboard release v0.10.1. The same-origin /console build has shipped since v0.2.0.
-ARG SEAMLESS_ADMIN_DASHBOARD_REF=e16c1e84e6a105fb7cadc328570a2fbc469f463d
+# Dashboard release v0.11.0. The same-origin /console build has shipped since v0.2.0.
+ARG SEAMLESS_ADMIN_DASHBOARD_REF=cd4467504fc3e2e4dbb09c13b6f3375101842512
 
 RUN apt-get update && \
   apt-get install -y git python3 make g++ && \
