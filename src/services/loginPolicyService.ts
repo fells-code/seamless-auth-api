@@ -20,6 +20,7 @@ export interface LoginPolicy {
 type LoginMethodUser = {
   email?: string | null;
   phone?: string | null;
+  phoneVerified?: boolean | null;
 };
 
 const LOGIN_METHOD_ORDER: LoginMethod[] = [
@@ -126,7 +127,9 @@ export function resolveAvailableLoginMethods({
       return false;
     }
 
-    return hasValue(user.phone);
+    // An unverified phone may have been planted by whoever registered the address
+    // first, so it is never a way in.
+    return hasValue(user.phone) && user.phoneVerified === true;
   });
 }
 

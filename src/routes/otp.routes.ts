@@ -17,8 +17,8 @@ import {
 import {
   sendLoginEmailOTP,
   sendLoginPhoneOTP,
-  sendPhoneOTP,
   sendRegistrationEmailOTP,
+  sendRegistrationPhoneOTP,
   verifyEmail,
   verifyLoginEmail,
   verifyLoginPhoneNumber,
@@ -97,7 +97,7 @@ otpRouter.post(
       },
     },
   },
-  sendPhoneOTP,
+  sendRegistrationPhoneOTP,
 );
 
 otpRouter.get(
@@ -121,7 +121,7 @@ otpRouter.get(
       },
     },
   },
-  sendPhoneOTP,
+  sendRegistrationPhoneOTP,
 );
 
 otpRouter.post(

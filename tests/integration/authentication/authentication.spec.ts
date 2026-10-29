@@ -216,7 +216,9 @@ describe('POST /login', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.identifierType).toBe('phone');
-    expect(User.findOne).toHaveBeenCalledWith({ where: { phone: expect.any(String) } });
+    expect(User.findOne).toHaveBeenCalledWith({
+      where: { phone: expect.any(String), phoneVerified: true },
+    });
   });
 
   it('reports a server error when the email lookup throws', async () => {
