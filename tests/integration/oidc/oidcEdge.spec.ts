@@ -7,9 +7,7 @@ vi.mock('../../../src/models/oidcPayloads.js', () => ({
 }));
 
 vi.mock('../../../src/services/oidcPayloadStore.js', async (importOriginal) => ({
-  InvalidSessionIdError: (
-    await importOriginal<typeof import('../../../src/services/oidcPayloadStore.js')>()
-  ).InvalidSessionIdError,
+  ...(await importOriginal<typeof import('../../../src/services/oidcPayloadStore.js')>()),
   upsertOidcPayload: vi.fn(),
   findOidcPayload: vi.fn(),
   findOidcPayloadByUid: vi.fn(),
@@ -55,6 +53,7 @@ import {
   destroyOidcPayload,
   findOidcPayload,
   findOidcPayloadByUid,
+  ExpiryTooLongError,
   findOidcPayloadByUserCode,
   InvalidSessionIdError,
   revokeOidcPayloadsByGrant,
@@ -68,6 +67,7 @@ import { mintInternalServiceToken } from '../../factories/serviceTokenFactory';
 
 const SESSION = '11111111-1111-4111-8111-111111111111';
 const ISSUER = 'https://login.example.com';
+const USER = '22222222-2222-4222-8222-222222222222';
 
 let app: Application;
 let token: string;
@@ -119,6 +119,16 @@ describe('the /oidc/* guard', () => {
       .set('x-seamless-service-token', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
+  });
+
+  it('answers 404 before checking the token while the provider is off', async () => {
+    vi.mocked(getSystemConfig).mockResolvedValue(
+      buildSystemConfig({ oidc_provider_enabled: false }),
+    );
+
+    const res = await request(app).get('/oidc/config');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Not Found' });
   });
 
   it('answers like an unknown route while the provider is off', async () => {
@@ -186,6 +196,14 @@ describe('/oidc/payloads', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_session_id');
+  });
+
+  it('answers 400 for too long an expiry', async () => {
+    vi.mocked(upsertOidcPayload).mockRejectedValue(new ExpiryTooLongError());
+
+    const res = await edge('put', '/oidc/payloads/Session/s1').send({ payload: {}, expiresIn: 60 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_expiry');
   });
 
   it('passes an unexpected store failure on', async () => {
@@ -393,12 +411,14 @@ describe('sessions', () => {
 
 describe('POST /oidc/events', () => {
   it('records the event under its auth event type', async () => {
+    vi.mocked(Session.findByPk).mockResolvedValue({ id: SESSION, userId: USER } as never);
+
     const res = await edge('post', '/oidc/events').send({
       type: 'refresh_token_suspicious',
       correlationId: 'c1',
       occurredAt: '2026-10-30T12:00:00.000Z',
       clientId: 'app',
-      userId: 'u1',
+      userId: USER,
       sessionId: SESSION,
       grantId: 'g1',
       metadata: { note: 'x' },
@@ -408,7 +428,7 @@ describe('POST /oidc/events', () => {
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'oidc_refresh_token_suspicious',
-        userId: 'u1',
+        userId: USER,
         sessionId: SESSION,
         metadata: {
           note: 'x',
@@ -418,6 +438,36 @@ describe('POST /oidc/events', () => {
           grantId: 'g1',
         },
       }),
+    );
+  });
+
+  it('refuses a user the session does not belong to, or a user without a session', async () => {
+    vi.mocked(Session.findByPk).mockResolvedValue({ id: SESSION, userId: 'someone-else' } as never);
+    const event = {
+      type: 'token_issued',
+      correlationId: 'c1',
+      occurredAt: '2026-10-30T12:00:00.000Z',
+      userId: USER,
+    };
+
+    expect((await edge('post', '/oidc/events').send({ ...event, sessionId: SESSION })).status).toBe(
+      400,
+    );
+    expect((await edge('post', '/oidc/events').send(event)).status).toBe(400);
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+  });
+
+  it('drops ids that are not ids rather than fail the audit write', async () => {
+    await edge('post', '/oidc/events').send({
+      type: 'edge_failed',
+      correlationId: 'c1',
+      occurredAt: '2026-10-30T12:00:00.000Z',
+      userId: 'u1',
+      sessionId: 'nope',
+    });
+
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, sessionId: null }),
     );
   });
 

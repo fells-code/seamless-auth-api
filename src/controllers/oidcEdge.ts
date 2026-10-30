@@ -36,6 +36,7 @@ import {
 import {
   consumeOidcPayload,
   destroyOidcPayload,
+  ExpiryTooLongError,
   findOidcPayload,
   findOidcPayloadByUid,
   findOidcPayloadByUserCode,
@@ -53,6 +54,12 @@ const logger = getLogger('oidcEdge');
 type Req<P = Record<string, string>, B = unknown> = Request<P, unknown, B>;
 
 const NOT_FOUND = { error: 'not_found' };
+
+// auth_events ids are UUID columns, and an edge-supplied id that is not one would fail the
+// audit write rather than the request.
+function uuidOrNull(value: string | undefined) {
+  return value && isUuid(value) ? value : null;
+}
 
 // Spelled out rather than built from a template, so adding an edge event type is a compile
 // error here until it has an auth event type of its own.
@@ -93,6 +100,9 @@ export async function putOidcPayload(
   } catch (error) {
     if (error instanceof InvalidSessionIdError) {
       return res.status(400).json({ error: 'invalid_session_id', message: error.message });
+    }
+    if (error instanceof ExpiryTooLongError) {
+      return res.status(400).json({ error: 'invalid_expiry', message: error.message });
     }
     throw error;
   }
@@ -140,7 +150,7 @@ export async function postOidcSign(
 
   await AuthEventService.log({
     userId: outcome.userId ?? null,
-    sessionId: req.body.sessionId ?? null,
+    sessionId: uuidOrNull(req.body.sessionId),
     type: 'oidc_sign_failed',
     req,
     metadata: { reason: outcome.code, kind: req.body.kind, clientId: req.body.clientId },
@@ -206,12 +216,22 @@ export async function postOidcEvent(
   req: Req<Record<string, string>, OidcEdgeEvent>,
   res: Response,
 ) {
-  const { type, correlationId, occurredAt, clientId, userId, sessionId, grantId, metadata } =
-    req.body;
+  const { type, correlationId, occurredAt, clientId, grantId, metadata } = req.body;
+  const userId = uuidOrNull(req.body.userId);
+  const sessionId = uuidOrNull(req.body.sessionId);
+
+  // An event names a user only through a session that belongs to them, so the edge cannot
+  // write audit history onto an account it has no sign-in for.
+  if (userId) {
+    const session = sessionId ? await Session.findByPk(sessionId) : null;
+    if (!session || session.userId !== userId) {
+      return res.status(400).json({ error: 'invalid_event_subject' });
+    }
+  }
 
   await AuthEventService.log({
-    userId: userId ?? null,
-    sessionId: sessionId ?? null,
+    userId,
+    sessionId,
     type: EDGE_EVENT_TYPES[type].type,
     req,
     metadata: {

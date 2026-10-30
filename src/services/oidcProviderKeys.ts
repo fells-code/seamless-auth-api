@@ -102,6 +102,37 @@ function getKeySet(env: Record<string, string | undefined> = process.env): Provi
   return cache;
 }
 
+function firstPartyModuli(env: Record<string, string | undefined>) {
+  try {
+    const parsed = JSON.parse(env.SEAMLESS_JWKS_PUBLIC_KEYS ?? '{"keys":[]}') as {
+      keys?: { pem?: string }[];
+    };
+    return new Set(
+      (parsed.keys ?? []).flatMap((key) =>
+        key.pem ? [createPublicKey(key.pem).export({ format: 'jwk' }).n] : [],
+      ),
+    );
+  } catch {
+    return new Set<string | undefined>();
+  }
+}
+
+/**
+ * Whether a provider key is also a first-party signing key. Shared key material would let a
+ * provider token verify against the first-party JWKS, which D11 rules out.
+ */
+export function sharesFirstPartyKey(env: Record<string, string | undefined> = process.env) {
+  const firstParty = firstPartyModuli(env);
+  const raw = env[OIDC_JWKS_KEYS_ENV];
+
+  try {
+    const keys = (JSON.parse(raw ?? '{"keys":[]}') as { keys?: { n?: string }[] }).keys ?? [];
+    return keys.some((key) => key.n !== undefined && firstParty.has(key.n));
+  } catch {
+    return false;
+  }
+}
+
 /** Whether a usable provider key set is configured. Never throws. */
 export function hasOidcProviderKeys(env: Record<string, string | undefined> = process.env) {
   try {

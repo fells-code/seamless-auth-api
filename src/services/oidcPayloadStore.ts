@@ -24,6 +24,17 @@ export class InvalidSessionIdError extends Error {
   }
 }
 
+// Longer than any provider session or refresh lifetime the admin routes allow, so a record
+// asking for more is not one the library produced, and the purge would never reach it.
+export const MAX_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 90;
+
+export class ExpiryTooLongError extends Error {
+  constructor() {
+    super(`expiresIn may be at most ${MAX_EXPIRES_IN_SECONDS} seconds`);
+    this.name = 'ExpiryTooLongError';
+  }
+}
+
 function stringField(payload: Record<string, unknown>, key: string) {
   const value = payload[key];
   return typeof value === 'string' && value ? value : null;
@@ -36,6 +47,10 @@ export async function upsertOidcPayload(
 ): Promise<{ created: boolean }> {
   if (sessionId !== undefined && !isUuid(sessionId)) {
     throw new InvalidSessionIdError();
+  }
+
+  if (expiresIn > MAX_EXPIRES_IN_SECONDS) {
+    throw new ExpiryTooLongError();
   }
 
   const now = new Date();
@@ -113,6 +128,21 @@ async function findOne(
     expiresAt: row.expiresAt.toISOString(),
     consumedAt: row.consumedAt ? row.consumedAt.toISOString() : null,
   };
+}
+
+/** Whether a live provider grant for this client was stored against the session. */
+export async function hasOidcGrantForSession(sessionId: string, clientId: string) {
+  if (!isUuid(sessionId)) return false;
+
+  const grant = await OidcPayload.findOne({
+    where: {
+      model: 'Grant',
+      sessionId,
+      expiresAt: { [Op.gt]: new Date() },
+    } as WhereOptions<OidcPayloadAttributes>,
+  });
+
+  return grant?.payload.clientId === clientId;
 }
 
 export function findOidcPayload(model: OidcPayloadModel, id: string) {

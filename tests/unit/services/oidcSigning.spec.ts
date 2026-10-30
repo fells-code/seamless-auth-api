@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/services/oidcClientRegistry', () => ({
   findActiveOidcClient: vi.fn(),
+  getOidcAccountClaims: vi.fn(),
   getOidcClientResourceScopes: vi.fn(),
+}));
+
+vi.mock('../../../src/services/oidcPayloadStore', () => ({
+  hasOidcGrantForSession: vi.fn(),
 }));
 
 vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
@@ -21,8 +26,10 @@ import { getSystemConfig } from '../../../src/config/getSystemConfig';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
   findActiveOidcClient,
+  getOidcAccountClaims,
   getOidcClientResourceScopes,
 } from '../../../src/services/oidcClientRegistry';
+import { hasOidcGrantForSession } from '../../../src/services/oidcPayloadStore';
 import {
   getActiveOidcSigningKey,
   OidcProviderKeysError,
@@ -136,6 +143,14 @@ describe('signForOidcEdge', () => {
     })) as never);
     vi.mocked(getOidcClientResourceScopes).mockResolvedValue(new Map([[API, new Set(['read'])]]));
     vi.mocked(resolveCurrentSession).mockResolvedValue(passkeySession as never);
+    vi.mocked(hasOidcGrantForSession).mockResolvedValue(true);
+    vi.mocked(getOidcAccountClaims).mockResolvedValue({
+      sub: 'user-1',
+      email: 'a@example.com',
+      email_verified: true,
+      roles: ['user'],
+      org_id: null,
+    });
   });
 
   it('signs an ID token whose claims match the session', async () => {
@@ -165,6 +180,24 @@ describe('signForOidcEdge', () => {
 
   it('accepts an audience array holding only the client', async () => {
     expect((await signForOidcEdge(idTokenRequest(idTokenClaims({ aud: ['app'] })))).ok).toBe(true);
+  });
+
+  it('falls back to the chain start, then createdAt, for auth_time', async () => {
+    const chainStartedAt = new Date('2026-10-30T11:00:00.000Z');
+    vi.mocked(resolveCurrentSession).mockResolvedValue({
+      ...passkeySession,
+      authTime: null,
+      authMethods: [],
+      chainStartedAt,
+      createdAt: new Date(),
+    } as never);
+
+    const chained = idTokenClaims({
+      acr: undefined,
+      amr: [],
+      auth_time: Math.floor(chainStartedAt.getTime() / 1000),
+    });
+    expect((await signForOidcEdge(idTokenRequest(chained))).ok).toBe(true);
   });
 
   it('falls back to createdAt for auth_time', async () => {
@@ -284,6 +317,74 @@ describe('signForOidcEdge', () => {
     expect(await signForOidcEdge(idTokenRequest({ ...base, ...claims }))).toMatchObject({
       code: 'auth_context_mismatch',
     });
+  });
+
+  it('signs identity claims that match the account', async () => {
+    const claims = idTokenClaims({
+      email: 'a@example.com',
+      email_verified: true,
+      roles: ['user'],
+      org_id: null,
+    });
+    expect((await signForOidcEdge(idTokenRequest(claims))).ok).toBe(true);
+  });
+
+  it.each([
+    ['another email', { email: 'victim@example.com' }],
+    ['a raised verification', { email_verified: false, phone_number: '+1' }],
+    ['other roles', { roles: ['admin'] }],
+  ])('refuses identity claims with %s', async (_label, identity) => {
+    expect(await signForOidcEdge(idTokenRequest(idTokenClaims(identity)))).toMatchObject({
+      code: 'subject_mismatch',
+    });
+  });
+
+  it('refuses identity claims for an account that no longer exists', async () => {
+    vi.mocked(getOidcAccountClaims).mockResolvedValue(null);
+    expect(
+      await signForOidcEdge(idTokenRequest(idTokenClaims({ email: 'a@example.com' }))),
+    ).toMatchObject({ code: 'subject_mismatch' });
+  });
+
+  it('refuses a claim the library does not put in that token', async () => {
+    expect(await signForOidcEdge(idTokenRequest(idTokenClaims({ is_admin: true })))).toEqual({
+      ok: false,
+      code: 'malformed_signing_input',
+    });
+    expect(await signForOidcEdge(clientCredentialsRequest({ email: 'a@example.com' }))).toEqual({
+      ok: false,
+      code: 'malformed_signing_input',
+    });
+  });
+
+  it('accepts an ID token typed JWT and refuses any other typ', async () => {
+    expect((await signForOidcEdge(idTokenRequest(idTokenClaims(), { typ: 'JWT' }))).ok).toBe(true);
+    expect(await signForOidcEdge(idTokenRequest(idTokenClaims(), { typ: 'logout+jwt' }))).toEqual({
+      ok: false,
+      code: 'malformed_signing_input',
+    });
+  });
+
+  it('refuses a session with no provider grant for this client', async () => {
+    vi.mocked(hasOidcGrantForSession).mockResolvedValue(false);
+    expect(await signForOidcEdge(idTokenRequest())).toMatchObject({ code: 'grant_not_allowed' });
+    expect(hasOidcGrantForSession).toHaveBeenCalledWith(SESSION, 'app');
+  });
+
+  it('refuses an access token whose audience is the provider or the API', async () => {
+    vi.stubEnv('ISSUER', 'https://auth.example.com');
+    vi.mocked(getOidcClientResourceScopes).mockResolvedValue(
+      new Map([
+        [ISSUER, new Set(['read'])],
+        ['https://auth.example.com', new Set(['read'])],
+      ]),
+    );
+
+    for (const aud of [ISSUER, `${ISSUER}/`, 'https://auth.example.com']) {
+      expect(await signForOidcEdge(accessTokenRequest({ aud }))).toMatchObject({
+        code: 'audience_mismatch',
+      });
+    }
   });
 
   it('refuses an ID token for another audience', async () => {

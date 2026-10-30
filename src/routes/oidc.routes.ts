@@ -48,7 +48,12 @@ import {
   putOidcPayload,
 } from '../controllers/oidcEdge.js';
 import { createRouter } from '../lib/createRouter.js';
-import { oidcPayloadWriteLimiter, requireOidcEdge } from '../middleware/requireOidcEdge.js';
+import {
+  oidcEventLimiter,
+  oidcPayloadWriteLimiter,
+  oidcSignLimiter,
+  requireOidcEdge,
+} from '../middleware/requireOidcEdge.js';
 import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 
 /**
@@ -163,6 +168,7 @@ oidcRouter.post(
   '/sign',
   {
     ...edge,
+    middleware: [requireOidcEdge, oidcSignLimiter],
     summary: 'Sign a provider token the API would issue itself',
     schemas: {
       body: OidcSignRequestSchema,
@@ -258,8 +264,12 @@ oidcRouter.post(
   '/events',
   {
     ...edge,
+    middleware: [requireOidcEdge, oidcEventLimiter],
     summary: 'Record a provider audit event',
-    schemas: { body: OidcEdgeEventSchema, response: { 202: MessageSchema, ...guarded } },
+    schemas: {
+      body: OidcEdgeEventSchema,
+      response: { 202: MessageSchema, 400: ErrorSchema, ...guarded },
+    },
   },
   postOidcEvent,
 );

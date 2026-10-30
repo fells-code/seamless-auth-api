@@ -6,7 +6,7 @@
 
 import type { SystemConfig } from '@seamless-auth/types';
 
-import { hasOidcProviderKeys } from '../services/oidcProviderKeys.js';
+import { hasOidcProviderKeys, sharesFirstPartyKey } from '../services/oidcProviderKeys.js';
 
 type ProviderConfig = Pick<SystemConfig, 'oidc_provider_enabled' | 'oidc_issuer' | 'rpid'>;
 
@@ -59,6 +59,8 @@ export function oidcProviderConfigProblems(
 
     if (!hasOidcProviderKeys(env)) {
       problems.push('oidc_provider_enabled needs OIDC_JWKS_ACTIVE_KID and OIDC_JWKS_KEYS');
+    } else if (sharesFirstPartyKey(env)) {
+      problems.push('OIDC_JWKS_KEYS must not reuse a SEAMLESS_JWKS signing key');
     }
   }
 

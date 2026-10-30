@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/services/oidcProviderKeys', () => ({
   hasOidcProviderKeys: vi.fn(),
+  sharesFirstPartyKey: vi.fn(() => false),
 }));
 
 import { oidcProviderConfigProblems } from '../../../src/lib/oidcProviderPolicy';
-import { hasOidcProviderKeys } from '../../../src/services/oidcProviderKeys';
+import { hasOidcProviderKeys, sharesFirstPartyKey } from '../../../src/services/oidcProviderKeys';
 
 const env = { NODE_ENV: 'production', ISSUER: 'https://auth.example.com' };
 
@@ -77,6 +78,15 @@ describe('oidcProviderConfigProblems', () => {
       'oidc_provider_enabled needs oidc_issuer',
       'oidc_provider_enabled needs OIDC_JWKS_ACTIVE_KID and OIDC_JWKS_KEYS',
     ]);
+  });
+
+  it('refuses provider keys that reuse a first-party key', () => {
+    vi.mocked(hasOidcProviderKeys).mockReturnValue(true);
+    vi.mocked(sharesFirstPartyKey).mockReturnValue(true);
+
+    expect(
+      problems({ oidc_provider_enabled: true, oidc_issuer: 'https://login.example.com' }),
+    ).toEqual(['OIDC_JWKS_KEYS must not reuse a SEAMLESS_JWKS signing key']);
   });
 
   it('reads the process environment by default', () => {

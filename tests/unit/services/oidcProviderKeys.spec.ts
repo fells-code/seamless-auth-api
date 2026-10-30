@@ -1,4 +1,4 @@
-import { generateKeyPairSync, KeyObject } from 'crypto';
+import { createPublicKey, generateKeyPairSync, KeyObject } from 'crypto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +8,7 @@ import {
   getOidcPublicJwks,
   hasOidcProviderKeys,
   OidcProviderKeysError,
+  sharesFirstPartyKey,
 } from '../../../src/services/oidcProviderKeys';
 
 function privateJwk(kid: string) {
@@ -95,5 +96,42 @@ describe('oidcProviderKeys', () => {
 
   it('reports a good set as usable', () => {
     expect(hasOidcProviderKeys(env('k1', { keys: [k1] }))).toBe(true);
+  });
+
+  describe('sharesFirstPartyKey', () => {
+    function pemOf(jwk: Record<string, unknown>) {
+      return createPublicKey({ key: jwk as never, format: 'jwk' })
+        .export({ type: 'spki', format: 'pem' })
+        .toString();
+    }
+
+    it('spots a provider key that is also a first-party key', () => {
+      expect(
+        sharesFirstPartyKey({
+          ...env('k1', { keys: [k1] }),
+          SEAMLESS_JWKS_PUBLIC_KEYS: JSON.stringify({ keys: [{ kid: 'fp', pem: pemOf(k1) }] }),
+        }),
+      ).toBe(true);
+    });
+
+    it('passes distinct keys, an absent or unreadable first-party set, and bad provider JSON', () => {
+      const firstParty = JSON.stringify({ keys: [{ kid: 'fp', pem: pemOf(k2) }, { kid: 'x' }] });
+
+      expect(
+        sharesFirstPartyKey({
+          ...env('k1', { keys: [k1] }),
+          SEAMLESS_JWKS_PUBLIC_KEYS: firstParty,
+        }),
+      ).toBe(false);
+      expect(sharesFirstPartyKey(env('k1', { keys: [k1] }))).toBe(false);
+      expect(
+        sharesFirstPartyKey({ ...env('k1', { keys: [k1] }), SEAMLESS_JWKS_PUBLIC_KEYS: '{' }),
+      ).toBe(false);
+      expect(
+        sharesFirstPartyKey({ ...env('k1', '{'), SEAMLESS_JWKS_PUBLIC_KEYS: firstParty }),
+      ).toBe(false);
+      expect(sharesFirstPartyKey({ OIDC_JWKS_KEYS: JSON.stringify({}) })).toBe(false);
+      expect(sharesFirstPartyKey({})).toBe(false);
+    });
   });
 });

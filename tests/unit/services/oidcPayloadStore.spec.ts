@@ -21,10 +21,13 @@ import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
   consumeOidcPayload,
   destroyOidcPayload,
+  ExpiryTooLongError,
   findOidcPayload,
   findOidcPayloadByUid,
   findOidcPayloadByUserCode,
+  hasOidcGrantForSession,
   InvalidSessionIdError,
+  MAX_EXPIRES_IN_SECONDS,
   purgeExpiredOidcPayloads,
   revokeOidcPayloadsByGrant,
   startOidcPayloadPurge,
@@ -68,6 +71,12 @@ describe('upsertOidcPayload', () => {
     await expect(
       upsertOidcPayload('Session', 's1', { payload: {}, expiresIn: 60, sessionId: 'nope' }),
     ).rejects.toBeInstanceOf(InvalidSessionIdError);
+  });
+
+  it('refuses an expiry longer than any provider record lives', async () => {
+    await expect(
+      upsertOidcPayload('Session', 's1', { payload: {}, expiresIn: MAX_EXPIRES_IN_SECONDS + 1 }),
+    ).rejects.toBeInstanceOf(ExpiryTooLongError);
   });
 
   it('inserts replay detection only if absent', async () => {
@@ -140,6 +149,29 @@ describe('finding records', () => {
   it('returns null for a missing record', async () => {
     vi.mocked(OidcPayload.findOne).mockResolvedValue(null);
     expect(await findOidcPayload('Grant', 'g1')).toBeNull();
+  });
+});
+
+describe('hasOidcGrantForSession', () => {
+  it('needs a live grant for this client stored against the session', async () => {
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({ payload: { clientId: 'app' } } as never);
+    expect(await hasOidcGrantForSession(SESSION, 'app')).toBe(true);
+    expect(vi.mocked(OidcPayload.findOne).mock.calls[0][0]).toMatchObject({
+      where: { model: 'Grant', sessionId: SESSION },
+    });
+
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({
+      payload: { clientId: 'other' },
+    } as never);
+    expect(await hasOidcGrantForSession(SESSION, 'app')).toBe(false);
+
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce(null);
+    expect(await hasOidcGrantForSession(SESSION, 'app')).toBe(false);
+  });
+
+  it('refuses a malformed session id without a query', async () => {
+    expect(await hasOidcGrantForSession('nope', 'app')).toBe(false);
+    expect(OidcPayload.findOne).not.toHaveBeenCalled();
   });
 });
 
