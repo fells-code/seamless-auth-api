@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: ['**']
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   schedule:
     # Catches newly published rules against code nobody has touched this week.
     - cron: '17 3 * * 1'
@@ -12,10 +17,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     permissions:
       contents: read
