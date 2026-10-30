@@ -63,7 +63,10 @@ import { getOidcPublicJwks } from '../../../src/services/oidcProviderKeys.js';
 import { signForOidcEdge } from '../../../src/services/oidcSigning.js';
 import { revokeSessionChain } from '../../../src/services/sessionService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory';
-import { mintInternalServiceToken } from '../../factories/serviceTokenFactory';
+import {
+  mintInternalServiceToken,
+  mintOidcEdgeServiceToken,
+} from '../../factories/serviceTokenFactory';
 
 const SESSION = '11111111-1111-4111-8111-111111111111';
 const ISSUER = 'https://login.example.com';
@@ -88,7 +91,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  token = await mintInternalServiceToken();
+  token = await mintOidcEdgeServiceToken();
   vi.mocked(getSystemConfig).mockResolvedValue(
     buildSystemConfig({
       oidc_provider_enabled: true,
@@ -109,7 +112,12 @@ describe('the /oidc/* guard', () => {
   });
 
   it('refuses a token from the wrong issuer', async () => {
-    token = await mintInternalServiceToken({ iss: 'someone-else' });
+    token = await mintOidcEdgeServiceToken({ iss: 'someone-else' });
+    expect((await edge('get', '/oidc/config')).status).toBe(401);
+  });
+
+  it('refuses an adapter service token', async () => {
+    token = await mintInternalServiceToken();
     expect((await edge('get', '/oidc/config')).status).toBe(401);
   });
 

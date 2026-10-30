@@ -25,3 +25,28 @@ export async function mintInternalServiceToken(claims: Record<string, unknown> =
 
   return TRUSTED_SERVICE_TOKEN;
 }
+
+export const TRUSTED_OIDC_SERVICE_TOKEN = 'trusted-oidc-provider-service-token';
+
+/** The provider service's token, accepted by the edge validator and nothing else. */
+export async function mintOidcEdgeServiceToken(claims: Record<string, unknown> = {}) {
+  const { validateOidcEdgeServiceToken } =
+    await import('../../src/middleware/authenticateServiceToken.js');
+
+  (
+    validateOidcEdgeServiceToken as unknown as {
+      mockImplementation: (fn: (token: string) => unknown) => void;
+    }
+  ).mockImplementation((token: string) =>
+    token === TRUSTED_OIDC_SERVICE_TOKEN
+      ? {
+          sub: 'seamless-oidc-provider',
+          iss: 'seamless-portal-api',
+          aud: 'seamless-auth',
+          ...claims,
+        }
+      : null,
+  );
+
+  return TRUSTED_OIDC_SERVICE_TOKEN;
+}

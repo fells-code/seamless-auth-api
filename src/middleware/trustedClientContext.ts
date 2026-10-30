@@ -8,7 +8,10 @@ import { isIP } from 'node:net';
 
 import { NextFunction, Request, Response } from 'express';
 
-import { validateInternalServiceToken } from './authenticateServiceToken.js';
+import {
+  validateInternalServiceToken,
+  validateOidcEdgeServiceToken,
+} from './authenticateServiceToken.js';
 
 const CLIENT_IP_HEADER = 'x-seamless-client-ip';
 const CLIENT_USER_AGENT_HEADER = 'x-seamless-client-user-agent';
@@ -80,7 +83,12 @@ export async function applyTrustedClientContext(req: Request, _res: Response, ne
     return;
   }
 
-  const decoded = await validateInternalServiceToken(serviceToken);
+  // The provider service signs users in through its own adapter, so it may say whose
+  // browser it speaks for too. That is all its token buys outside `/oidc/*`: external
+  // delivery still takes the adapter token alone.
+  const decoded =
+    (await validateInternalServiceToken(serviceToken)) ??
+    (await validateOidcEdgeServiceToken(serviceToken));
 
   if (!decoded?.sub || decoded.iss !== 'seamless-portal-api' || decoded.aud !== 'seamless-auth') {
     next();

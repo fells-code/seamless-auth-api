@@ -8,7 +8,7 @@ import { NextFunction, Request, RequestHandler, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { validateInternalServiceToken } from './authenticateServiceToken.js';
+import { validateOidcEdgeServiceToken } from './authenticateServiceToken.js';
 import { rateLimitsDisabled } from './rateLimitsDisabled.js';
 import { TOO_MANY_REQUESTS_BODY } from './tooManyRequests.js';
 import { extractServiceToken, SERVICE_TOKEN_HEADER } from './trustedClientContext.js';
@@ -26,7 +26,7 @@ async function oidcEdgeGuard(req: Request, res: Response, next: NextFunction) {
   }
 
   const token = extractServiceToken(req.get(SERVICE_TOKEN_HEADER) ?? undefined);
-  const decoded = token ? await validateInternalServiceToken(token, { logInvalid: true }) : null;
+  const decoded = token ? await validateOidcEdgeServiceToken(token, { logInvalid: true }) : null;
 
   if (!decoded?.sub || decoded.iss !== 'seamless-portal-api' || decoded.aud !== 'seamless-auth') {
     return res.status(401).json({ error: 'invalid_service_token' });
@@ -36,8 +36,9 @@ async function oidcEdgeGuard(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
- * The only way into `/oidc/*`: the internal service token, and the provider switched on.
- * These routes serve the OpenID Provider service and never a browser or an SDK.
+ * The only way into `/oidc/*`: the provider service's own token (`SEAMLESS_OIDC_SERVICE_TOKEN`),
+ * and the provider switched on. An adapter's token is refused, and these routes never serve
+ * a browser or an SDK.
  */
 export const requireOidcEdge = oidcEdgeGuard as SecuritySchemeAwareHandler;
 requireOidcEdge.seamlessSecurityScheme = OIDC_EDGE_SECURITY_SCHEME;

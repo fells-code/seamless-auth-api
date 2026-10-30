@@ -6,6 +6,7 @@
 
 import type { SystemConfig } from '@seamless-auth/types';
 
+import { getOidcServiceToken, OIDC_SERVICE_TOKEN_ENV } from '../config/serviceToken.js';
 import { hasOidcProviderKeys, sharesFirstPartyKey } from '../services/oidcProviderKeys.js';
 
 type ProviderConfig = Pick<SystemConfig, 'oidc_provider_enabled' | 'oidc_issuer' | 'rpid'>;
@@ -55,6 +56,10 @@ export function oidcProviderConfigProblems(
   if (config.oidc_provider_enabled) {
     if (!issuer) {
       problems.push('oidc_provider_enabled needs oidc_issuer');
+    }
+
+    if (!getOidcServiceToken(env)) {
+      problems.push(`oidc_provider_enabled needs ${OIDC_SERVICE_TOKEN_ENV}`);
     }
 
     if (!hasOidcProviderKeys(env)) {

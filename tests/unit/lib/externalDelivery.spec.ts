@@ -2,9 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/middleware/authenticateServiceToken.js', () => ({
   validateInternalServiceToken: vi.fn(),
+  validateOidcEdgeServiceToken: vi.fn(),
 }));
 
-import { validateInternalServiceToken } from '../../../src/middleware/authenticateServiceToken.js';
+import {
+  validateInternalServiceToken,
+  validateOidcEdgeServiceToken,
+} from '../../../src/middleware/authenticateServiceToken.js';
 import { canReturnExternalDelivery } from '../../../src/lib/externalDelivery.js';
 
 function req(headers: Record<string, string | undefined>) {
@@ -64,6 +68,26 @@ describe('external delivery gates', () => {
         }),
       ),
     ).resolves.toBe(true);
+  });
+
+  // The provider service may sign users in, but must never receive their codes or links,
+  // or a compromised provider could sign in as anyone (ADR 0001, D2).
+  it('refuses the OpenID Provider service token', async () => {
+    (validateInternalServiceToken as any).mockResolvedValue(null);
+    (validateOidcEdgeServiceToken as any).mockResolvedValue({
+      sub: 'seamless-oidc-provider',
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+    });
+
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'Bearer edge-token',
+        }),
+      ),
+    ).resolves.toBe(false);
   });
 
   it('rejects a token from an untrusted issuer or audience', async () => {

@@ -101,7 +101,9 @@ Production deployments should define:
 - `SEAMLESS_JWKS_ACTIVE_KID`
 - `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`
 - `SEAMLESS_JWKS_PUBLIC_KEYS`
-- `OIDC_JWKS_ACTIVE_KID` and `OIDC_JWKS_KEYS`, when the OpenID Provider is enabled
+- `SEAMLESS_OIDC_SERVICE_TOKEN`, `OIDC_JWKS_ACTIVE_KID` and `OIDC_JWKS_KEYS`, when the OpenID
+  Provider is enabled. Give the provider service `SEAMLESS_OIDC_SERVICE_TOKEN` only, never the
+  adapters' `SEAMLESS_SERVICE_TOKEN`.
 - OAuth client-secret environment variables referenced by provider `clientSecretEnv`
 - Messaging provider credentials when direct delivery is enabled
 

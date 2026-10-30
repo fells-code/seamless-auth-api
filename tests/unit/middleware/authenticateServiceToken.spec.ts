@@ -10,6 +10,7 @@ vi.mock('jsonwebtoken', () => ({
 
 vi.mock('../../../src/config/serviceToken', () => ({
   getServiceToken: vi.fn(() => 'secret'),
+  getOidcServiceToken: vi.fn(() => 'edge-secret'),
 }));
 
 // clearAllMocks() drops the default implementations, so each load reinstates the
@@ -191,5 +192,43 @@ describe('validateInternalServiceToken', () => {
     await validateInternalServiceToken('token');
 
     expect(getServiceToken).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('validateOidcEdgeServiceToken', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it('verifies with the provider service secret, not the adapter one', async () => {
+    const { getOidcServiceToken } = await import('../../../src/config/serviceToken');
+    const jwt = await import('jsonwebtoken');
+    (getOidcServiceToken as any).mockReturnValue('edge-secret');
+    (jwt.default.decode as any).mockReturnValue({ header: { alg: 'HS256' } });
+    (jwt.default.verify as any).mockReturnValue({
+      sub: 'seamless-oidc-provider',
+      exp: inOneMinute(),
+    });
+
+    const { validateOidcEdgeServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken');
+
+    await expect(validateOidcEdgeServiceToken('token')).resolves.toMatchObject({
+      sub: 'seamless-oidc-provider',
+    });
+    expect(jwt.default.verify).toHaveBeenCalledWith('token', 'edge-secret', expect.anything());
+  });
+
+  it('returns null when the provider service secret is unset', async () => {
+    const { getOidcServiceToken } = await import('../../../src/config/serviceToken');
+    const jwt = await import('jsonwebtoken');
+    (getOidcServiceToken as any).mockReturnValue(undefined);
+
+    const { validateOidcEdgeServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken');
+
+    await expect(validateOidcEdgeServiceToken('token')).resolves.toBeNull();
+    expect(jwt.default.verify).not.toHaveBeenCalled();
   });
 });

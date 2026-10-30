@@ -8,7 +8,11 @@ vi.mock('../../../src/services/oidcProviderKeys', () => ({
 import { oidcProviderConfigProblems } from '../../../src/lib/oidcProviderPolicy';
 import { hasOidcProviderKeys, sharesFirstPartyKey } from '../../../src/services/oidcProviderKeys';
 
-const env = { NODE_ENV: 'production', ISSUER: 'https://auth.example.com' };
+const env = {
+  NODE_ENV: 'production',
+  ISSUER: 'https://auth.example.com',
+  SEAMLESS_OIDC_SERVICE_TOKEN: 'edge-secret',
+};
 
 function problems(overrides: Record<string, unknown>, source: Record<string, string> = env) {
   return oidcProviderConfigProblems(
@@ -78,6 +82,17 @@ describe('oidcProviderConfigProblems', () => {
       'oidc_provider_enabled needs oidc_issuer',
       'oidc_provider_enabled needs OIDC_JWKS_ACTIVE_KID and OIDC_JWKS_KEYS',
     ]);
+  });
+
+  it('refuses to enable without the provider service token', () => {
+    vi.mocked(hasOidcProviderKeys).mockReturnValue(true);
+
+    expect(
+      problems(
+        { oidc_provider_enabled: true, oidc_issuer: 'https://login.example.com' },
+        { NODE_ENV: 'production' },
+      ),
+    ).toEqual(['oidc_provider_enabled needs SEAMLESS_OIDC_SERVICE_TOKEN']);
   });
 
   it('refuses provider keys that reuse a first-party key', () => {

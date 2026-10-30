@@ -111,8 +111,8 @@ Provider-agnostic email/SMS adapter contract. **Reverse coupling.**
 ### `seamless-auth-oidc-provider`, the OpenID Provider service
 
 The public login edge for apps that speak OpenID Connect ([ADR 0001](./adr/0001-openid-provider.md)).
-It builds on `@seamless-auth/express` for first-party sign-in and calls the service-token
-`/oidc/*` routes for provider storage, signing, client metadata, claims and auth context.
+It builds on `@seamless-auth/express` for first-party sign-in and calls the
+`/oidc/*` routes with its own service token (`SEAMLESS_OIDC_SERVICE_TOKEN`) for provider storage, signing, client metadata, claims and auth context.
 
 - Contract: the `oidcEdge` module of `@seamless-auth/types` (`OidcEdgeRoutes`,
   `OIDC_EDGE_CONTRACT_VERSION`). The edge refuses to start against an API on another contract

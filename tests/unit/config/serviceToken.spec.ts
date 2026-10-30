@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assertServiceTokenConfig,
+  getOidcServiceToken,
   getServiceToken,
+  OidcServiceTokenReuseError,
   resolveServiceToken,
   ServiceTokenConflictError,
 } from '../../../src/config/serviceToken.js';
@@ -99,5 +101,35 @@ describe('assertServiceTokenConfig', () => {
     ).toThrow(
       'SEAMLESS_SERVICE_TOKEN and API_SERVICE_TOKEN are both set to different values. Set only SEAMLESS_SERVICE_TOKEN, or set both to the same value.',
     );
+  });
+
+  it('accepts a provider service token distinct from the adapter one', () => {
+    expect(() =>
+      assertServiceTokenConfig({
+        SEAMLESS_SERVICE_TOKEN: 'adapter',
+        SEAMLESS_OIDC_SERVICE_TOKEN: 'edge',
+      }),
+    ).not.toThrow();
+  });
+
+  it('refuses a provider service token equal to either adapter name', () => {
+    expect(() =>
+      assertServiceTokenConfig({
+        SEAMLESS_SERVICE_TOKEN: 'same',
+        SEAMLESS_OIDC_SERVICE_TOKEN: 'same',
+      }),
+    ).toThrow(OidcServiceTokenReuseError);
+    expect(() =>
+      assertServiceTokenConfig({ API_SERVICE_TOKEN: 'same', SEAMLESS_OIDC_SERVICE_TOKEN: 'same' }),
+    ).toThrow(OidcServiceTokenReuseError);
+  });
+});
+
+describe('getOidcServiceToken', () => {
+  it('reads the provider service token and treats blank as unset', () => {
+    expect(getOidcServiceToken({ SEAMLESS_OIDC_SERVICE_TOKEN: ' edge ' })).toBe('edge');
+    expect(getOidcServiceToken({ SEAMLESS_OIDC_SERVICE_TOKEN: ' ' })).toBeUndefined();
+    vi.stubEnv('SEAMLESS_OIDC_SERVICE_TOKEN', 'from-env');
+    expect(getOidcServiceToken()).toBe('from-env');
   });
 });

@@ -6,7 +6,7 @@
 
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
-import { getServiceToken } from '../config/serviceToken.js';
+import { getOidcServiceToken, getServiceToken } from '../config/serviceToken.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('authenticateServiceToken');
@@ -48,14 +48,30 @@ function getInternalSecret() {
   return cachedSecret;
 }
 
-export async function validateInternalServiceToken(
+export function validateInternalServiceToken(
   token: string,
   options: InternalServiceTokenValidationOptions = {},
+): Promise<JwtPayload | null> {
+  return validateWithSecret(token, getInternalSecret, options);
+}
+
+/** The OpenID Provider service's token, signed with its own secret. Adapter tokens fail here. */
+export function validateOidcEdgeServiceToken(
+  token: string,
+  options: InternalServiceTokenValidationOptions = {},
+): Promise<JwtPayload | null> {
+  return validateWithSecret(token, () => getOidcServiceToken(), options);
+}
+
+async function validateWithSecret(
+  token: string,
+  resolveSecret: () => string | undefined,
+  options: InternalServiceTokenValidationOptions,
 ): Promise<JwtPayload | null> {
   try {
     // Inside the try: resolution throws on conflicting service token env vars, and a
     // misconfigured instance must answer "not a valid service token" rather than fault the request.
-    const internalSecret = getInternalSecret();
+    const internalSecret = resolveSecret();
 
     if (!token || !internalSecret) {
       return null;

@@ -64,8 +64,8 @@ flowchart LR
   api["This API<br/>(private, no cookies)"]
 
   rp --> edge
-  edge -- "first-party sign-in<br/>Bearer + service token" --> api
-  edge -- "/oidc/* provider storage and signing<br/>service token only" --> api
+  edge -- "first-party sign-in<br/>Bearer + its own service token" --> api
+  edge -- "/oidc/* provider storage and signing<br/>its own service token only" --> api
 ```
 
 - The edge signs users in through the same first-party routes every adapter uses, so a provider
@@ -76,8 +76,12 @@ flowchart LR
 - Provider signing keys (`OIDC_JWKS_*`) stay here. `POST /oidc/sign` signs only for a user with a
   live session, with the `acr`, `amr` and `auth_time` that session earned, for an audience the
   client may use, and only with the active key.
-- `/oidc/*` answers only the internal service token, and answers 404 while
-  `oidc_provider_enabled` is off. These routes are not the public OIDC endpoints.
+- The edge has its own service token, signed with `SEAMLESS_OIDC_SERVICE_TOKEN` rather than the
+  adapters' secret. `/oidc/*` accepts only that token. Elsewhere it is honoured only for the
+  trusted client context headers, and external delivery refuses it, so a compromised edge cannot
+  receive anyone's codes or magic links.
+- `/oidc/*` answers 404 while `oidc_provider_enabled` is off. These routes are not the public
+  OIDC endpoints.
 
 Provider tokens carry `iss` equal to `oidc_issuer`, never `ISSUER`, and are signed with provider
 keys, so the first-party verifier rejects them.
