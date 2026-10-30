@@ -224,7 +224,7 @@ Here, `release.yml` runs lint, format, tests, typecheck and build on `main` befo
 or tags anything, so a release cannot ship untested code even if this step is missed. The PR
 checks are still the only conformance run against the versioned tree.
 
-Release PRs in seamless-auth-types, seamless-auth-server, seamless-auth-react, seamless-cli,
+Release PRs in seamless-auth-types, seamless-auth-server, seamless-auth-js, seamless-cli,
 seamless-templates and seamless-auth-admin-dashboard are held the same way, so the same step
 applies there. In seamless-templates it matters most, because the per-template matrix in
 `validate.yml` only runs on the release PR.

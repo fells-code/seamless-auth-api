@@ -82,7 +82,7 @@ This API also **consumes** `@seamless-auth/types` (shared Zod schemas) and
 `@seamless-auth/messaging*` (email/SMS adapter contract), so changes in those repos ripple inward.
 
 **Direct dependents (Tier 1):** `seamless-auth-server` (server adapter — ~50 routes + JWKS +
-token claims), `seamless-auth-react` (client SDK — ~38 hardcoded routes, parses `message`/user
+token claims), `seamless-auth-js` (client SDK — ~38 hardcoded routes, parses `message`/user
 shape), `seamless-auth-types` (shared schemas — bidirectional), `seamless-messaging` (adapter
 contract — bidirectional).
 **Downstream (Tier 2):** `seamless-auth-admin-dashboard`, `seamless-templates`,
