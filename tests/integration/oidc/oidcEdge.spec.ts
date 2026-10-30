@@ -15,6 +15,7 @@ vi.mock('../../../src/services/oidcPayloadStore.js', async (importOriginal) => (
   consumeOidcPayload: vi.fn(),
   destroyOidcPayload: vi.fn(),
   revokeOidcPayloadsByGrant: vi.fn(),
+  findGrantBoundSession: vi.fn(),
 }));
 
 vi.mock('../../../src/services/oidcSigning.js', () => ({
@@ -54,6 +55,7 @@ import {
   findOidcPayload,
   findOidcPayloadByUid,
   ExpiryTooLongError,
+  findGrantBoundSession,
   findOidcPayloadByUserCode,
   InvalidSessionIdError,
   revokeOidcPayloadsByGrant,
@@ -352,18 +354,40 @@ describe('keys, clients and accounts', () => {
     expect(verifyOidcClientSecret).toHaveBeenCalledWith('app', 's');
   });
 
-  it('returns account claims, or 404', async () => {
-    const claims = { sub: 'u1', roles: [], org_id: null };
+  it('returns account claims only for the user behind a grant-bound session', async () => {
+    const claims = { sub: USER, roles: [], org_id: null };
+    const path = `/oidc/accounts/${USER}?clientId=app&sessionId=${SESSION}`;
+    vi.mocked(findGrantBoundSession).mockResolvedValue({ id: SESSION, userId: USER } as never);
     vi.mocked(getOidcAccountClaims).mockResolvedValueOnce(claims);
-    expect((await edge('get', '/oidc/accounts/u1')).body).toEqual(claims);
+
+    expect((await edge('get', path)).body).toEqual(claims);
+    expect(findGrantBoundSession).toHaveBeenCalledWith(SESSION, 'app');
 
     vi.mocked(getOidcAccountClaims).mockResolvedValueOnce(null);
-    expect((await edge('get', '/oidc/accounts/u1')).status).toBe(404);
+    expect((await edge('get', path)).status).toBe(404);
+  });
+
+  it('refuses claims for another user, a session without a grant, or no binding', async () => {
+    vi.mocked(findGrantBoundSession).mockResolvedValueOnce({
+      id: SESSION,
+      userId: 'other',
+    } as never);
+    expect(
+      (await edge('get', `/oidc/accounts/${USER}?clientId=app&sessionId=${SESSION}`)).status,
+    ).toBe(404);
+
+    vi.mocked(findGrantBoundSession).mockResolvedValueOnce(null);
+    expect(
+      (await edge('get', `/oidc/accounts/${USER}?clientId=app&sessionId=${SESSION}`)).status,
+    ).toBe(404);
+
+    expect((await edge('get', `/oidc/accounts/${USER}`)).status).toBe(400);
+    expect(getOidcAccountClaims).not.toHaveBeenCalled();
   });
 });
 
 describe('sessions', () => {
-  it('returns the auth context, or 404', async () => {
+  it('returns the auth context only for a grant-bound session', async () => {
     const context = {
       sessionId: SESSION,
       userId: 'u1',
@@ -374,11 +398,18 @@ describe('sessions', () => {
       acr: null,
       amr: [],
     };
+    const path = `/oidc/sessions/${SESSION}/auth-context?clientId=app`;
+    vi.mocked(findGrantBoundSession).mockResolvedValue({ id: SESSION } as never);
     vi.mocked(getOidcAuthContext).mockResolvedValueOnce(context);
-    expect((await edge('get', `/oidc/sessions/${SESSION}/auth-context`)).body).toEqual(context);
+    expect((await edge('get', path)).body).toEqual(context);
+    expect(findGrantBoundSession).toHaveBeenCalledWith(SESSION, 'app');
 
     vi.mocked(getOidcAuthContext).mockResolvedValueOnce(null);
-    expect((await edge('get', `/oidc/sessions/${SESSION}/auth-context`)).status).toBe(404);
+    expect((await edge('get', path)).status).toBe(404);
+
+    vi.mocked(findGrantBoundSession).mockResolvedValue(null);
+    expect((await edge('get', path)).status).toBe(404);
+    expect((await edge('get', `/oidc/sessions/${SESSION}/auth-context`)).status).toBe(400);
   });
 
   it('revokes the chain and the provider records behind it', async () => {

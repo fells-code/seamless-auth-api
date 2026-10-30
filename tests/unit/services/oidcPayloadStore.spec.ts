@@ -24,6 +24,7 @@ import {
   ExpiryTooLongError,
   findOidcPayload,
   findOidcPayloadByUid,
+  findGrantBoundSession,
   findOidcPayloadByUserCode,
   hasOidcGrantForSession,
   InvalidSessionIdError,
@@ -171,6 +172,23 @@ describe('hasOidcGrantForSession', () => {
 
   it('refuses a malformed session id without a query', async () => {
     expect(await hasOidcGrantForSession('nope', 'app')).toBe(false);
+    expect(OidcPayload.findOne).not.toHaveBeenCalled();
+  });
+});
+
+describe('findGrantBoundSession', () => {
+  it('returns the current session only when it holds a grant for the client', async () => {
+    vi.mocked(resolveCurrentSession).mockResolvedValue({ id: SESSION, userId: 'u1' } as never);
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({ payload: { clientId: 'app' } } as never);
+    expect(await findGrantBoundSession(SESSION, 'app')).toEqual({ id: SESSION, userId: 'u1' });
+
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce(null);
+    expect(await findGrantBoundSession(SESSION, 'app')).toBeNull();
+  });
+
+  it('returns null for a dead session without looking for a grant', async () => {
+    vi.mocked(resolveCurrentSession).mockResolvedValue(null);
+    expect(await findGrantBoundSession(SESSION, 'app')).toBeNull();
     expect(OidcPayload.findOne).not.toHaveBeenCalled();
   });
 });

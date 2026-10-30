@@ -7,6 +7,7 @@
 import {
   OIDC_EDGE_CONTRACT_VERSION,
   type OidcAccountIdParams,
+  type OidcAccountQuery,
   type OidcClientIdParams,
   type OidcEdgeEvent,
   type OidcEdgeEventType,
@@ -16,6 +17,7 @@ import {
   type OidcPayloadUpsertRequest,
   type OidcPayloadUserCodeParams,
   type OidcSessionIdParams,
+  type OidcSessionQuery,
   type OidcSessionRevokeRequest,
   type OidcSignRequest,
   type OidcVerifySecretRequest,
@@ -37,6 +39,7 @@ import {
   consumeOidcPayload,
   destroyOidcPayload,
   ExpiryTooLongError,
+  findGrantBoundSession,
   findOidcPayload,
   findOidcPayloadByUid,
   findOidcPayloadByUserCode,
@@ -178,11 +181,24 @@ export async function postOidcVerifySecret(
 }
 
 export async function getOidcAccount(req: Req<OidcAccountIdParams>, res: Response) {
+  const { clientId, sessionId } = req.query as unknown as OidcAccountQuery;
+  const session = await findGrantBoundSession(sessionId, clientId);
+
+  // Only the user behind a provider sign-in for this client, so a compromised edge cannot
+  // read the claims of anyone who is not signing in through it.
+  if (!session || session.userId !== req.params.id) return res.status(404).json(NOT_FOUND);
+
   const claims = await getOidcAccountClaims(req.params.id);
   return claims ? res.status(200).json(claims) : res.status(404).json(NOT_FOUND);
 }
 
 export async function getOidcSessionAuthContext(req: Req<OidcSessionIdParams>, res: Response) {
+  const { clientId } = req.query as unknown as OidcSessionQuery;
+
+  if (!(await findGrantBoundSession(req.params.id, clientId))) {
+    return res.status(404).json(NOT_FOUND);
+  }
+
   const context = await getOidcAuthContext(req.params.id);
   return context ? res.status(200).json(context) : res.status(404).json(NOT_FOUND);
 }

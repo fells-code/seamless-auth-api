@@ -8,6 +8,8 @@ import type { OidcSignRefusalCode, OidcSignRequest } from '@seamless-auth/types'
 import { constants, sign } from 'crypto';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { Session } from '../models/sessions.js';
+import { parseDurationToSeconds } from '../utils/utils.js';
 import { deriveAcrAmr, resolveCurrentSession } from './oidcAuthContext.js';
 import {
   findActiveOidcClient,
@@ -200,7 +202,32 @@ export async function signForOidcEdge(request: OidcSignRequest): Promise<OidcSig
     padding: constants.RSA_PKCS1_PADDING,
   }).toString('base64url');
 
+  if (request.kind !== 'client_credentials') {
+    await recordProviderActivity(request.sessionId as string);
+  }
+
   return { ok: true, kid: request.kid, signature };
+}
+
+/**
+ * An app refreshing its tokens is the user still using the session, so each provider token
+ * signed for it moves the idle expiry forward, never past the absolute lifetime.
+ */
+async function recordProviderActivity(sessionId: string) {
+  const session = await resolveCurrentSession(sessionId);
+  if (!session) return;
+
+  const { session_idle_ttl } = await getSystemConfig();
+  const now = new Date();
+  const idle = now.getTime() + parseDurationToSeconds(session_idle_ttl || '8h') * 1000;
+
+  await Session.update(
+    {
+      lastUsedAt: now,
+      idleExpiresAt: new Date(Math.min(idle, new Date(session.expiresAt).getTime())),
+    },
+    { where: { id: session.id } },
+  );
 }
 
 async function checkUserToken(
@@ -215,6 +242,7 @@ async function checkUserToken(
 
   const session = request.sessionId ? await resolveCurrentSession(request.sessionId) : null;
   if (!session) return refuse('session_revoked');
+  const sessionId = request.sessionId as string;
 
   if (claims.sub !== session.userId) return refuse('subject_mismatch', session.userId);
 
@@ -223,7 +251,7 @@ async function checkUserToken(
 
   // The session must be one a provider sign-in produced for this client, not any live
   // session the edge happens to know the id of.
-  if (!(await hasOidcGrantForSession(request.sessionId!, client.id))) {
+  if (!(await hasOidcGrantForSession(sessionId, client.id))) {
     return refuse('grant_not_allowed', session.userId);
   }
 

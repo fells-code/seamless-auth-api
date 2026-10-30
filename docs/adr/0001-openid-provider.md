@@ -46,7 +46,7 @@ This version moves the provider out of the API.
 
 ```
 any OIDC app ──► login edge (public: OIDC endpoints, hosted pages, cookies)
-                      │   bearer + its own service token
+                      │   bearer + service token, like any adapter
 SDK apps ─► adapter ──┤
                       ▼
                auth API (private, no cookies) ── Postgres
@@ -100,14 +100,9 @@ DPoP and PAR are available. The API's admin routes refuse client settings that w
 - **No public surface.** The API gains no public endpoint and no cookie. AGENTS.md, `docs/architecture.md` and `docs/api-contract.md` keep their bearer-only, no-cookies statements unchanged.
 - **New route groups.**
   - Admin routes for applications and resources (D12).
-  - Service-token routes for the edge under `/oidc/*` (provider storage, signing, auth context, events). Despite the name, these are not the public OIDC endpoints. Those are served by the edge, and `/oidc/*` on the API answers only the edge's service token.
+  - Service-token routes for the edge under `/oidc/*` (provider storage, signing, auth context, events). Despite the name, these are not the public OIDC endpoints. Those are served by the edge, and `/oidc/*` on the API answers only the service token.
   - The notices endpoint (D14).
-- **How the edge routes are declared.** They are `defineRoute` routes, authenticated with the edge's service token, declared `adapter: false` and documented in `openapi.json`.
-- **The edge has its own service token.** It is signed with `SEAMLESS_OIDC_SERVICE_TOKEN`, a secret separate from the adapters' `SEAMLESS_SERVICE_TOKEN`, and the API refuses to start if the two are equal. The edge never holds the adapter secret.
-  - `/oidc/*` accepts only the edge's token. An adapter's token gets 401 there.
-  - Outside `/oidc/*`, the edge's token is honoured only for the trusted client context headers (`x-seamless-client-ip`, `x-seamless-client-user-agent`), so its first-party sign-ins see real users.
-  - External delivery (`x-seamless-auth-delivery-mode: external`) refuses it. With the shared token, a compromised edge could ask for any user's OTP or magic link, complete a first-party sign-in as that user, and then have `/oidc/sign` sign for them, which defeats D4.
-  - `oidc_provider_enabled` cannot be turned on without `SEAMLESS_OIDC_SERVICE_TOKEN` (D13).
+- **How the edge routes are declared.** They are `defineRoute` routes, authenticated with the existing service token, declared `adapter: false` and documented in `openapi.json`.
 - **Docs.** `docs/architecture.md` gains the edge in its deployment topology and a provider token section. `docs/ecosystem.md` gains the edge repo as a Tier 1 dependent.
 
 ## D3. Sign-in goes through the first-party routes
@@ -293,7 +288,6 @@ A passkey resists phishing because it is bound to an origin. Two flows can still
 - **Adopter opt-in.** Adopters opt in by deploying the edge and setting the flag. The API refuses to turn the flag on unless all of these are true:
   - `oidc_issuer` is set and covered by `rpid` (D8).
   - The `OIDC_JWKS_*` secrets are present.
-  - `SEAMLESS_OIDC_SERVICE_TOKEN` is set (D2).
 - **Changing the default.** The default may change only when the whole epic is complete and #411 passes against the edge.
 - **Managed instances.** Portal and Terraform provisioning gain an edge per instance before the provider is offered there.
 
@@ -333,7 +327,7 @@ What this design guarantees, and which parts of it provide each guarantee:
 | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
 | The auth API is never internet facing                             | D2                                                               |
 | Hosted sign-in has every first-party protection                   | D3 (it is first-party sign-in)                                   |
-| Edge compromise cannot mint tokens for users not signing in       | D4, plus the edge's own service token (D2)                       |
+| Edge compromise cannot mint tokens for users not signing in       | D4                                                               |
 | Edge compromise cannot raise a session's assurance                | D4, D9                                                           |
 | No usable client secret is stored anywhere                        | D6                                                               |
 | Revoking a session ends provider access at once                   | D3, D5                                                           |

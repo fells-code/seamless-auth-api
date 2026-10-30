@@ -12352,10 +12352,13 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Claims for a user */
+    /** Claims for the user behind a provider sign-in */
     get: {
       parameters: {
-        query?: never;
+        query: {
+          clientId: string;
+          sessionId: string;
+        };
         header?: never;
         path: {
           id: string;
@@ -12516,7 +12519,9 @@ export interface paths {
     /** What a session proved, with the derived acr and amr */
     get: {
       parameters: {
-        query?: never;
+        query: {
+          clientId: string;
+        };
         header?: never;
         path: {
           id: string;

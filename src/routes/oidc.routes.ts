@@ -7,6 +7,7 @@
 import {
   OidcAccountClaimsSchema,
   OidcAccountIdParamsSchema,
+  OidcAccountQuerySchema,
   OidcAuthContextSchema,
   OidcClientIdParamsSchema,
   OidcClientMetadataSchema,
@@ -21,6 +22,7 @@ import {
   OidcPayloadUpsertResponseSchema,
   OidcPayloadUserCodeParamsSchema,
   OidcSessionIdParamsSchema,
+  OidcSessionQuerySchema,
   OidcSessionRevokeRequestSchema,
   OidcSignRefusalSchema,
   OidcSignRequestSchema,
@@ -224,9 +226,10 @@ oidcRouter.get(
   '/accounts/:id',
   {
     ...edge,
-    summary: 'Claims for a user',
+    summary: 'Claims for the user behind a provider sign-in',
     schemas: {
       params: OidcAccountIdParamsSchema,
+      query: OidcAccountQuerySchema,
       response: { 200: OidcAccountClaimsSchema, ...guarded },
     },
   },
@@ -240,6 +243,7 @@ oidcRouter.get(
     summary: 'What a session proved, with the derived acr and amr',
     schemas: {
       params: OidcSessionIdParamsSchema,
+      query: OidcSessionQuerySchema,
       response: { 200: OidcAuthContextSchema, ...guarded },
     },
   },

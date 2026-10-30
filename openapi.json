@@ -12202,7 +12202,7 @@
     },
     "/oidc/accounts/{id}": {
       "get": {
-        "summary": "Claims for a user",
+        "summary": "Claims for the user behind a provider sign-in",
         "tags": ["OpenID Provider service"],
         "security": [{ "serviceToken": [] }],
         "parameters": [
@@ -12211,6 +12211,18 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "clientId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "sessionId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -12350,6 +12362,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "clientId",
+            "in": "query"
           }
         ],
         "responses": {

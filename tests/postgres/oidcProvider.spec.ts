@@ -6,6 +6,7 @@ import { OidcClient } from '../../src/models/oidcClients.js';
 import { OidcPayload } from '../../src/models/oidcPayloads.js';
 import {
   consumeOidcPayload,
+  findGrantBoundSession,
   findOidcPayload,
   findOidcPayloadByUid,
   purgeExpiredOidcPayloads,
@@ -109,6 +110,31 @@ describe('oidc_payloads', () => {
     expect(await findOidcPayload('Grant', id)).toBeNull();
     expect(await purgeExpiredOidcPayloads()).toBeGreaterThanOrEqual(1);
     expect(await OidcPayload.findOne({ where: { model: 'Grant', id } })).toBeNull();
+  });
+});
+
+describe('grant binding', () => {
+  it('finds a session only through a grant for the same client', async () => {
+    const { User } = await import('../../src/models/users.js');
+    const { Session } = await import('../../src/models/sessions.js');
+    const user = await User.create({ email: `${randomUUID()}@example.com` } as never);
+    const session = await Session.create({
+      userId: user.id,
+      mode: 'server',
+      expiresAt: new Date(Date.now() + 3_600_000),
+      idleExpiresAt: new Date(Date.now() + 3_600_000),
+    });
+
+    expect(await findGrantBoundSession(session.id, 'app')).toBeNull();
+
+    await upsertOidcPayload('Grant', randomUUID(), {
+      payload: { clientId: 'app', accountId: user.id },
+      expiresIn: 600,
+      sessionId: session.id,
+    });
+
+    expect((await findGrantBoundSession(session.id, 'app'))?.id).toBe(session.id);
+    expect(await findGrantBoundSession(session.id, 'other')).toBeNull();
   });
 });
 

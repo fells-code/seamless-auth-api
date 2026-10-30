@@ -145,6 +145,19 @@ export async function hasOidcGrantForSession(sessionId: string, clientId: string
   return grant?.payload.clientId === clientId;
 }
 
+/**
+ * The current row of a session that holds a provider grant for the client, or null. What
+ * every user-facing lookup and signature is bound to, so the edge can reach only the users
+ * signing in through it, and only for the client asking.
+ */
+export async function findGrantBoundSession(sessionId: string, clientId: string) {
+  const session = await resolveCurrentSession(sessionId);
+
+  if (!session || !(await hasOidcGrantForSession(sessionId, clientId))) return null;
+
+  return session;
+}
+
 export function findOidcPayload(model: OidcPayloadModel, id: string) {
   return findOne({ model, id });
 }

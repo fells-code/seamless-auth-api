@@ -23,6 +23,7 @@ vi.mock('../../../src/services/oidcProviderKeys', async (importOriginal) => ({
 }));
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
+import { Session } from '../../../src/models/sessions';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
   findActiveOidcClient,
@@ -131,11 +132,15 @@ const passkeySession = {
   ],
   authTime: authTimeDate,
   createdAt: authTimeDate,
+  expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
 };
 
 describe('signForOidcEdge', () => {
   beforeEach(() => {
-    vi.mocked(getSystemConfig).mockResolvedValue({ oidc_issuer: ISSUER } as never);
+    vi.mocked(getSystemConfig).mockResolvedValue({
+      oidc_issuer: ISSUER,
+      session_idle_ttl: '8h',
+    } as never);
     vi.mocked(getActiveOidcSigningKey).mockReturnValue(privateKey);
     vi.mocked(findActiveOidcClient).mockImplementation((async (id: string) => ({
       id,
@@ -167,6 +172,42 @@ describe('signForOidcEdge', () => {
         Buffer.from(outcome.signature, 'base64url'),
       ),
     ).toBe(true);
+  });
+
+  it('counts a signed user token as activity, up to the absolute lifetime', async () => {
+    await signForOidcEdge(idTokenRequest());
+
+    const [values, options] = vi.mocked(Session.update).mock.calls[0] as unknown as [
+      { lastUsedAt: Date; idleExpiresAt: Date },
+      { where: { id: string } },
+    ];
+    expect(options).toEqual({ where: { id: SESSION } });
+    expect(values.idleExpiresAt.getTime()).toBeGreaterThan(Date.now() + 1000 * 60 * 60 * 7);
+
+    const endsSoon = new Date(Date.now() + 60_000);
+    vi.mocked(resolveCurrentSession).mockResolvedValue({
+      ...passkeySession,
+      expiresAt: endsSoon,
+    } as never);
+    vi.mocked(getSystemConfig).mockResolvedValue({ oidc_issuer: ISSUER } as never);
+    await signForOidcEdge(idTokenRequest());
+
+    const capped = vi.mocked(Session.update).mock.calls[1][0] as { idleExpiresAt: Date };
+    expect(capped.idleExpiresAt).toEqual(endsSoon);
+  });
+
+  it('skips the activity write when the session ended mid-request', async () => {
+    vi.mocked(resolveCurrentSession)
+      .mockResolvedValueOnce(passkeySession as never)
+      .mockResolvedValueOnce(null);
+
+    expect((await signForOidcEdge(idTokenRequest())).ok).toBe(true);
+    expect(Session.update).not.toHaveBeenCalled();
+  });
+
+  it('records no session activity for client credentials', async () => {
+    await signForOidcEdge(clientCredentialsRequest());
+    expect(Session.update).not.toHaveBeenCalled();
   });
 
   it('signs an ID token that leaves the auth context out', async () => {

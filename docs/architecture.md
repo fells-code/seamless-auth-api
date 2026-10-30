@@ -73,6 +73,10 @@ flowchart LR
 - Its `oidc-provider` storage lives here, in `oidc_payloads`, reached through
   `/oidc/payloads/*`. A record tied to a session that is no longer live reads as absent, so any
   revocation ends provider access at once.
+- Account claims and auth context answer only for a live session holding a provider grant for
+  the calling client, the same binding signing uses. Each provider token signed for a session
+  counts as activity on it, so an app refreshing its tokens keeps the session alive up to its
+  absolute lifetime.
 - Provider signing keys (`OIDC_JWKS_*`) stay here. `POST /oidc/sign` signs only for a user with a
   live session, with the `acr`, `amr` and `auth_time` that session earned, for an audience the
   client may use, and only with the active key.
