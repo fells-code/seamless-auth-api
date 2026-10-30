@@ -24,6 +24,10 @@ vi.mock('../../../src/schemas/systemConfig.schema', () => ({
   },
 }));
 
+vi.mock('../../../src/lib/oidcProviderPolicy', () => ({
+  oidcProviderConfigProblems: vi.fn(() => []),
+}));
+
 const { loggerWarn } = vi.hoisted(() => ({ loggerWarn: vi.fn() }));
 
 vi.mock('../../../src/utils/logger', () => ({
@@ -191,5 +195,35 @@ describe('bootstrapSystemConfig', () => {
     const { bootstrapSystemConfig } = await import('../../../src/config/bootstrapSystemConfig');
 
     await expect(bootstrapSystemConfig()).rejects.toThrow('Invalid system configuration');
+  });
+
+  describe('OpenID Provider configuration', () => {
+    async function bootWith(data: Record<string, unknown>, problems: string[]) {
+      const { SystemConfig } = await import('../../../src/models/systemConfig');
+      const { SystemConfigSchema } = await import('../../../src/schemas/systemConfig.schema');
+      const { oidcProviderConfigProblems } = await import('../../../src/lib/oidcProviderPolicy');
+
+      (SystemConfig.findByPk as any).mockResolvedValue({ value: 'existing' });
+      (SystemConfigSchema.safeParse as any).mockReturnValue({ success: true, data });
+      (oidcProviderConfigProblems as any).mockReturnValue(problems);
+
+      const { bootstrapSystemConfig } = await import('../../../src/config/bootstrapSystemConfig');
+      return bootstrapSystemConfig();
+    }
+
+    it('refuses to start with the provider enabled on a bad configuration', async () => {
+      await expect(
+        bootWith({ oidc_provider_enabled: true }, ['oidc_provider_enabled needs oidc_issuer']),
+      ).rejects.toThrow('Invalid OpenID Provider configuration');
+    });
+
+    it('starts with a warning when the provider is off', async () => {
+      await expect(
+        bootWith({ oidc_provider_enabled: false }, ['oidc_issuer must use https']),
+      ).resolves.toBeDefined();
+      expect(loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('oidc_issuer must use https'),
+      );
+    });
   });
 });

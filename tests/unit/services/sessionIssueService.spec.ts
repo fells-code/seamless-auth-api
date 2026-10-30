@@ -127,6 +127,48 @@ describe('issueSessionAndRespond', () => {
     });
   });
 
+  it('records the sign-in method and time for the provider auth context', async () => {
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res: mockRes(),
+      method: 'passkey',
+      passkey: { deviceBound: true, userVerified: true },
+    });
+
+    const created = (Session.create as any).mock.calls[0][0];
+    expect(created.authMethods).toEqual([
+      {
+        method: 'passkey',
+        at: created.authTime.toISOString(),
+        deviceBound: true,
+        userVerified: true,
+      },
+    ]);
+  });
+
+  it('records no passkey flags for another method, and nothing for account recovery', async () => {
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res: mockRes(),
+      method: 'email_otp',
+      passkey: { deviceBound: true, userVerified: true },
+    });
+    expect((Session.create as any).mock.calls[0][0].authMethods).toEqual([
+      { method: 'email_otp', at: expect.any(String) },
+    ]);
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res: mockRes(),
+      method: 'account_recovery',
+      recovery: true,
+    });
+    expect((Session.create as any).mock.calls[1][0].authMethods).toEqual([]);
+  });
+
   it('derives the session bounds from configured TTLs', async () => {
     await issueSessionAndRespond({ user: mockUser, req: mockReq(), res: mockRes() });
 

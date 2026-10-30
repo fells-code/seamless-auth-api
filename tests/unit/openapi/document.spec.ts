@@ -59,7 +59,7 @@ describe('getPackageVersion', () => {
 });
 
 describe('generateOpenApiDocument', () => {
-  it('exposes bearer auth only', async () => {
+  it('exposes bearer auth and the service token', async () => {
     const { generateOpenApiDocument } = await import('../../../src/openapi/document');
 
     const result = generateOpenApiDocument();
@@ -69,6 +69,11 @@ describe('generateOpenApiDocument', () => {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
+      },
+      serviceToken: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-seamless-service-token',
       },
     });
   });

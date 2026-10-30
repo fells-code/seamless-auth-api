@@ -656,6 +656,10 @@ export const refreshSession = async (req: Request, res: Response) => {
     chainStartedAt,
     // Refreshing does not lift the restriction; enrolling a new factor does.
     recovery: session.recovery === true,
+    // A refresh proves nothing new, so the provider's acr, amr and auth_time stay those of
+    // the sign-in.
+    authMethods: session.authMethods ?? [],
+    authTime: session.authTime ?? null,
   });
 
   // The read, the reuse check and this link are separate statements, so two refreshes

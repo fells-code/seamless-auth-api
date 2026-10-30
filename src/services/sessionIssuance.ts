@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from '../lib/token.js';
-import { Session } from '../models/sessions.js';
+import { Session, SessionAuthMethod } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
 import { isPasskeyRequiredForUser } from './loginPolicyService.js';
@@ -25,6 +25,17 @@ export type SessionMethod =
   | 'oauth'
   | 'recovery_code'
   | 'account_recovery';
+
+function recordAuthMethod(
+  method: SessionMethod,
+  at: Date,
+  passkey: IssueSessionParams['passkey'],
+): SessionAuthMethod[] {
+  // Account recovery proves an address, not a factor, so it earns no amr.
+  if (method === 'account_recovery') return [];
+
+  return [{ method, at: at.toISOString(), ...(method === 'passkey' ? passkey : {}) }];
+}
 
 export class PasskeyRequiredError extends Error {
   constructor(method: SessionMethod) {
@@ -60,6 +71,8 @@ type IssueSessionParams = {
    * methods does not apply: this is how they get one back.
    */
   recovery?: boolean;
+  /** What the authenticator reported, for a passkey sign-in. Feeds the provider's acr and amr. */
+  passkey?: { deviceBound: boolean; userVerified: boolean };
   user: {
     id: string;
     email: string;
@@ -80,7 +93,16 @@ type IssueSessionParams = {
 };
 
 export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
-  const { user, req, res, extraFields, method, accountVerification, recovery = false } = params;
+  const {
+    user,
+    req,
+    res,
+    extraFields,
+    method,
+    accountVerification,
+    recovery = false,
+    passkey,
+  } = params;
 
   // Every endpoint that reaches here with another factor refuses first, with a 403. This
   // is the backstop for one that does not, so it fails closed rather than trusting the
@@ -138,6 +160,8 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     chainStartedAt: now,
     lastUsedAt: undefined,
     recovery,
+    authMethods: recordAuthMethod(method, now, passkey),
+    authTime: now,
   });
 
   const token = await signAccessToken(session.id, user.id, user.roles, organizationId, {

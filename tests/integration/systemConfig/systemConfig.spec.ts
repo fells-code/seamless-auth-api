@@ -153,6 +153,32 @@ describe('PATCH /system-config/admin', () => {
     expect(res.body.success).toBe(true);
   });
 
+  it('refuses to enable the OpenID Provider without an issuer or keys', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig({ oidc_issuer: null }));
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ oidc_provider_enabled: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid OpenID Provider config');
+    expect(res.body.details).toContain('oidc_provider_enabled needs oidc_issuer');
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('accepts an issuer rpid covers while the provider stays off', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig({ rpid: 'example.com' }));
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ oidc_issuer: 'https://login.example.com' });
+
+    expect(res.status).toBe(200);
+  });
+
   it('rejects invalid payload', async () => {
     const res = await request(app).patch('/system-config/admin').send({ invalid: true });
 

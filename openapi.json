@@ -5,7 +5,8 @@
     "schemas": {},
     "parameters": {},
     "securitySchemes": {
-      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" },
+      "serviceToken": { "type": "apiKey", "in": "header", "name": "x-seamless-service-token" }
     }
   },
   "paths": {
@@ -5160,6 +5161,20 @@
                     "oauth_login_failed",
                     "oauth_login_started",
                     "oauth_login_success",
+                    "oidc_client_auth_failed",
+                    "oidc_consent_denied",
+                    "oidc_consent_granted",
+                    "oidc_device_code_approved",
+                    "oidc_device_code_denied",
+                    "oidc_edge_failed",
+                    "oidc_end_session",
+                    "oidc_interaction_completed",
+                    "oidc_refresh_token_suspicious",
+                    "oidc_session_revoked",
+                    "oidc_sign_failed",
+                    "oidc_token_issued",
+                    "oidc_token_refreshed",
+                    "oidc_token_revoked",
                     "otp_failed",
                     "otp_success",
                     "otp_suspicious",
@@ -5254,6 +5269,20 @@
                           "oauth_login_failed",
                           "oauth_login_started",
                           "oauth_login_success",
+                          "oidc_client_auth_failed",
+                          "oidc_consent_denied",
+                          "oidc_consent_granted",
+                          "oidc_device_code_approved",
+                          "oidc_device_code_denied",
+                          "oidc_edge_failed",
+                          "oidc_end_session",
+                          "oidc_interaction_completed",
+                          "oidc_refresh_token_suspicious",
+                          "oidc_session_revoked",
+                          "oidc_sign_failed",
+                          "oidc_token_issued",
+                          "oidc_token_refreshed",
+                          "oidc_token_revoked",
                           "otp_failed",
                           "otp_success",
                           "otp_suspicious",
@@ -10434,6 +10463,2377 @@
                       ]
                     }
                   },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/config": {
+      "get": {
+        "summary": "Provider settings and the contract version the API speaks",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "contractVersion": 0,
+                  "issuer": null,
+                  "appName": "string",
+                  "allowClientSecrets": true,
+                  "thirdPartyClientsEnabled": true
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contractVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "issuer": { "type": "string", "format": "uri" },
+                    "appName": { "type": "string" },
+                    "allowClientSecrets": { "type": "boolean" },
+                    "thirdPartyClientsEnabled": { "type": "boolean" }
+                  },
+                  "required": [
+                    "contractVersion",
+                    "issuer",
+                    "appName",
+                    "allowClientSecrets",
+                    "thirdPartyClientsEnabled"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/payloads/{model}/{id}": {
+      "put": {
+        "summary": "Store a provider record",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "payload": { "type": "object", "additionalProperties": { "nullable": true } },
+                  "expiresIn": { "type": "integer", "minimum": 0, "exclusiveMinimum": true },
+                  "sessionId": { "type": "string", "minLength": 1 }
+                },
+                "required": ["payload", "expiresIn"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "created": true },
+                "schema": {
+                  "type": "object",
+                  "properties": { "created": { "type": "boolean" } },
+                  "required": ["created"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Read a provider record",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": null,
+                  "sessionId": "string",
+                  "expiresAt": null,
+                  "consumedAt": null
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payload": { "type": "object", "additionalProperties": { "nullable": true } },
+                    "sessionId": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "format": "date-time" },
+                    "consumedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                  },
+                  "required": ["payload", "sessionId", "expiresAt", "consumedAt"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a provider record",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/payloads/{model}/by-user-code/{userCode}": {
+      "get": {
+        "summary": "Read a provider record by device user code",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "userCode",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": null,
+                  "sessionId": "string",
+                  "expiresAt": null,
+                  "consumedAt": null
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payload": { "type": "object", "additionalProperties": { "nullable": true } },
+                    "sessionId": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "format": "date-time" },
+                    "consumedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                  },
+                  "required": ["payload", "sessionId", "expiresAt", "consumedAt"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/payloads/{model}/by-uid/{uid}": {
+      "get": {
+        "summary": "Read a provider record by uid",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "uid",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "payload": null,
+                  "sessionId": "string",
+                  "expiresAt": null,
+                  "consumedAt": null
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payload": { "type": "object", "additionalProperties": { "nullable": true } },
+                    "sessionId": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "format": "date-time" },
+                    "consumedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                  },
+                  "required": ["payload", "sessionId", "expiresAt", "consumedAt"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/payloads/{model}/{id}/consume": {
+      "post": {
+        "summary": "Mark a provider record consumed",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/payloads/{model}/by-grant/{grantId}": {
+      "delete": {
+        "summary": "Delete every record of a model for a grant",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Session",
+                "Interaction",
+                "AuthorizationCode",
+                "AccessToken",
+                "RefreshToken",
+                "ClientCredentials",
+                "DeviceCode",
+                "Grant",
+                "PushedAuthorizationRequest",
+                "ReplayDetection"
+              ]
+            },
+            "required": true,
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "grantId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/sign": {
+      "post": {
+        "summary": "Sign a provider token the API would issue itself",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["id_token", "access_token", "client_credentials"]
+                  },
+                  "kid": { "type": "string", "minLength": 1 },
+                  "clientId": { "type": "string", "minLength": 1 },
+                  "sessionId": { "type": "string", "minLength": 1 },
+                  "signingInput": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+                  }
+                },
+                "required": ["kind", "kid", "clientId", "signingInput"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "kid": "string", "signature": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kid": { "type": "string" },
+                    "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" }
+                  },
+                  "required": ["kid", "signature"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "malformed_signing_input",
+                        "unknown_key",
+                        "session_revoked",
+                        "subject_mismatch",
+                        "auth_context_mismatch",
+                        "issuer_mismatch",
+                        "audience_mismatch",
+                        "client_inactive",
+                        "grant_not_allowed"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "malformed_signing_input",
+                        "unknown_key",
+                        "session_revoked",
+                        "subject_mismatch",
+                        "auth_context_mismatch",
+                        "issuer_mismatch",
+                        "audience_mismatch",
+                        "client_inactive",
+                        "grant_not_allowed"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/jwks": {
+      "get": {
+        "summary": "Provider public keys",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "activeKid": "string", "keys": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "activeKid": { "type": "string" },
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kty": { "type": "string" },
+                          "kid": { "type": "string" },
+                          "alg": { "type": "string" },
+                          "use": { "type": "string", "enum": ["sig"] }
+                        },
+                        "required": ["kty", "kid", "alg"],
+                        "additionalProperties": { "nullable": true }
+                      }
+                    }
+                  },
+                  "required": ["activeKid", "keys"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/clients/{id}": {
+      "get": {
+        "summary": "Provider client metadata",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "client_id": "string",
+                  "client_name": "string",
+                  "application_type": null,
+                  "token_endpoint_auth_method": null,
+                  "grant_types": [null],
+                  "response_types": [null],
+                  "redirect_uris": [null],
+                  "post_logout_redirect_uris": [null],
+                  "jwks": { "keys": [null] },
+                  "jwks_uri": null,
+                  "backchannel_logout_uri": null,
+                  "backchannel_logout_session_required": true,
+                  "urn:seamless:first_party": true
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "client_id": { "type": "string" },
+                    "client_name": { "type": "string" },
+                    "application_type": { "type": "string", "enum": ["web", "native"] },
+                    "token_endpoint_auth_method": {
+                      "type": "string",
+                      "enum": [
+                        "private_key_jwt",
+                        "none",
+                        "client_secret_basic",
+                        "client_secret_post"
+                      ]
+                    },
+                    "grant_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "authorization_code",
+                          "refresh_token",
+                          "client_credentials",
+                          "urn:ietf:params:oauth:grant-type:device_code"
+                        ]
+                      },
+                      "minItems": 1
+                    },
+                    "response_types": {
+                      "type": "array",
+                      "items": { "type": "string", "enum": ["code"] }
+                    },
+                    "redirect_uris": {
+                      "type": "array",
+                      "items": { "type": "string", "format": "uri" }
+                    },
+                    "post_logout_redirect_uris": {
+                      "type": "array",
+                      "items": { "type": "string", "format": "uri" }
+                    },
+                    "jwks": {
+                      "type": "object",
+                      "properties": {
+                        "keys": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kty": { "type": "string" },
+                              "kid": { "type": "string" },
+                              "alg": { "type": "string" },
+                              "use": { "type": "string", "enum": ["sig"] }
+                            },
+                            "required": ["kty", "kid", "alg"],
+                            "additionalProperties": { "nullable": true }
+                          }
+                        }
+                      },
+                      "required": ["keys"]
+                    },
+                    "jwks_uri": { "type": "string", "format": "uri" },
+                    "backchannel_logout_uri": { "type": "string", "format": "uri" },
+                    "backchannel_logout_session_required": { "type": "boolean" },
+                    "urn:seamless:first_party": { "type": "boolean" }
+                  },
+                  "required": [
+                    "client_id",
+                    "client_name",
+                    "application_type",
+                    "token_endpoint_auth_method",
+                    "grant_types",
+                    "response_types",
+                    "redirect_uris",
+                    "post_logout_redirect_uris",
+                    "urn:seamless:first_party"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/clients/{id}/verify-secret": {
+      "post": {
+        "summary": "Check a shared client secret",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "secret": { "type": "string", "minLength": 1, "maxLength": 512 } },
+                "required": ["secret"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "valid": true },
+                "schema": {
+                  "type": "object",
+                  "properties": { "valid": { "type": "boolean" } },
+                  "required": ["valid"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/accounts/{id}": {
+      "get": {
+        "summary": "Claims for a user",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sub": "string",
+                  "email": "string",
+                  "email_verified": true,
+                  "phone_number": "string",
+                  "phone_number_verified": true,
+                  "roles": [null],
+                  "org_id": "string"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sub": { "type": "string" },
+                    "email": { "type": "string" },
+                    "email_verified": { "type": "boolean" },
+                    "phone_number": { "type": "string" },
+                    "phone_number_verified": { "type": "boolean" },
+                    "roles": { "type": "array", "items": { "type": "string" } },
+                    "org_id": { "type": "string", "nullable": true }
+                  },
+                  "required": ["sub", "roles", "org_id"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/sessions/{id}/auth-context": {
+      "get": {
+        "summary": "What a session proved, with the derived acr and amr",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sessionId": "string",
+                  "userId": "string",
+                  "active": true,
+                  "recovery": true,
+                  "authMethods": [null],
+                  "authTime": 0,
+                  "acr": null,
+                  "amr": [null]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": { "type": "string" },
+                    "userId": { "type": "string" },
+                    "active": { "type": "boolean" },
+                    "recovery": { "type": "boolean" },
+                    "authMethods": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "passkey",
+                              "email_otp",
+                              "magic_link",
+                              "phone_otp",
+                              "totp",
+                              "recovery_code",
+                              "oauth"
+                            ]
+                          },
+                          "at": { "type": "string", "format": "date-time" },
+                          "deviceBound": { "type": "boolean" },
+                          "userVerified": { "type": "boolean" }
+                        },
+                        "required": ["method", "at"]
+                      }
+                    },
+                    "authTime": { "type": "integer", "minimum": 0 },
+                    "acr": { "type": "string", "nullable": true, "enum": ["phr", "phrh", null] },
+                    "amr": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["hwk", "swk", "user", "mfa", "otp", "sms"]
+                      }
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "userId",
+                    "active",
+                    "recovery",
+                    "authMethods",
+                    "authTime",
+                    "acr",
+                    "amr"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/sessions/{id}/revoke": {
+      "post": {
+        "summary": "Revoke the session behind a provider sign-in",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": ["refresh_token_reuse", "provider_logout"]
+                  },
+                  "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 }
+                },
+                "required": ["reason"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oidc/events": {
+      "post": {
+        "summary": "Record a provider audit event",
+        "tags": ["OpenID Provider service"],
+        "security": [{ "serviceToken": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "interaction_completed",
+                      "consent_granted",
+                      "consent_denied",
+                      "token_issued",
+                      "token_refreshed",
+                      "refresh_token_suspicious",
+                      "token_revoked",
+                      "client_auth_failed",
+                      "end_session",
+                      "device_code_approved",
+                      "device_code_denied",
+                      "edge_failed"
+                    ]
+                  },
+                  "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "occurredAt": { "type": "string", "format": "date-time" },
+                  "clientId": { "type": "string" },
+                  "userId": { "type": "string" },
+                  "sessionId": { "type": "string" },
+                  "grantId": { "type": "string" },
+                  "metadata": { "type": "object", "additionalProperties": { "nullable": true } }
+                },
+                "required": ["type", "correlationId", "occurredAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "HTTP 202",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
                 }
               }
@@ -15772,7 +18172,11 @@
                   "rpid": "string",
                   "origins": [null],
                   "frontend_url": null,
-                  "magic_link_redirect_uris": null
+                  "magic_link_redirect_uris": null,
+                  "oidc_provider_enabled": null,
+                  "oidc_issuer": null,
+                  "allow_client_secrets": null,
+                  "third_party_clients_enabled": null
                 },
                 "schema": {
                   "type": "object",
@@ -16058,7 +18462,16 @@
                       "type": "array",
                       "items": { "type": "string", "format": "uri" },
                       "default": []
-                    }
+                    },
+                    "oidc_provider_enabled": { "type": "boolean", "default": false },
+                    "oidc_issuer": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "uri",
+                      "default": null
+                    },
+                    "allow_client_secrets": { "type": "boolean", "default": false },
+                    "third_party_clients_enabled": { "type": "boolean", "default": false }
                   },
                   "required": [
                     "app_name",
@@ -16378,7 +18791,11 @@
                   "magic_link_redirect_uris": {
                     "type": "array",
                     "items": { "type": "string", "format": "uri" }
-                  }
+                  },
+                  "oidc_provider_enabled": { "type": "boolean" },
+                  "oidc_issuer": { "type": "string", "nullable": true, "format": "uri" },
+                  "allow_client_secrets": { "type": "boolean" },
+                  "third_party_clients_enabled": { "type": "boolean" }
                 },
                 "additionalProperties": false
               }

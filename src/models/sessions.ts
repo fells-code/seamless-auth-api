@@ -4,7 +4,10 @@
  * See LICENSE file in the project root for full license information
  */
 
+import type { OidcAuthMethodRecord } from '@seamless-auth/types';
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+
+export type SessionAuthMethod = OidcAuthMethodRecord;
 
 export interface SessionAttributes {
   id: string;
@@ -23,6 +26,8 @@ export interface SessionAttributes {
   stepUpVerifiedAt?: Date | null;
   stepUpMethod?: string | null;
   recovery?: boolean;
+  authMethods?: SessionAuthMethod[];
+  authTime?: Date | null;
   replacedBySessionId?: string | null;
   revokedAt?: Date | null;
   revokedReason?: string | null;
@@ -40,6 +45,8 @@ type SessionCreationAttributes = Optional<
   | 'lastUsedAt'
   | 'stepUpVerifiedAt'
   | 'stepUpMethod'
+  | 'authMethods'
+  | 'authTime'
 >;
 
 export class Session
@@ -62,6 +69,8 @@ export class Session
   declare stepUpVerifiedAt: Date | null;
   declare stepUpMethod: string | null;
   declare recovery: boolean;
+  declare authMethods: SessionAuthMethod[];
+  declare authTime: Date | null;
   declare replacedBySessionId: string | null;
   declare revokedAt: Date | null;
   declare revokedReason: string | null;
@@ -133,6 +142,16 @@ const initializeSessionModel = (sequelize: Sequelize) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
+      },
+      // What the sign-in and any step-ups proved, from which provider acr and amr are derived.
+      authMethods: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: [],
+      },
+      authTime: {
+        type: DataTypes.DATE,
+        allowNull: true,
       },
       replacedBySessionId: {
         type: DataTypes.UUID,

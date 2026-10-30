@@ -56,7 +56,13 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
     case 'passkey_login_fallback_enabled':
     case 'prompt_passkey_enrollment':
     case 'phishing_resistant_only':
+    case 'oidc_provider_enabled':
+    case 'allow_client_secrets':
+    case 'third_party_clients_enabled':
       return raw.trim().toLowerCase() === 'true';
+
+    case 'oidc_issuer':
+      return raw.trim();
 
     case 'access_token_ttl':
     case 'session_idle_ttl':

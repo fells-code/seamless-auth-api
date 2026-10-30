@@ -36,6 +36,10 @@ describe('SYSTEM_CONFIG_ENV_MAP', () => {
       frontend_url: 'FRONTEND_URL',
       magic_link_redirect_uris: 'MAGIC_LINK_REDIRECT_URIS',
       app_name: 'APP_NAME',
+      oidc_provider_enabled: 'OIDC_PROVIDER_ENABLED',
+      oidc_issuer: 'OIDC_ISSUER',
+      allow_client_secrets: 'OIDC_ALLOW_CLIENT_SECRETS',
+      third_party_clients_enabled: 'OIDC_THIRD_PARTY_CLIENTS_ENABLED',
     });
   });
 

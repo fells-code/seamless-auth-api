@@ -12,7 +12,7 @@ import { validateInternalServiceToken } from './authenticateServiceToken.js';
 
 const CLIENT_IP_HEADER = 'x-seamless-client-ip';
 const CLIENT_USER_AGENT_HEADER = 'x-seamless-client-user-agent';
-const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
+export const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
 
 // Bounds the audit row. Real user agents run to a few hundred characters.
 const MAX_USER_AGENT_LENGTH = 512;
@@ -40,7 +40,7 @@ function extractTrustedUserAgent(headerValue: string | undefined): string | null
   return candidate || null;
 }
 
-function extractServiceToken(headerValue: string | undefined): string | null {
+export function extractServiceToken(headerValue: string | undefined): string | null {
   if (!headerValue) {
     return null;
   }

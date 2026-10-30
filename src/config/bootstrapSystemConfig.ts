@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { oidcProviderConfigProblems } from '../lib/oidcProviderPolicy.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
@@ -104,6 +105,15 @@ export async function bootstrapSystemConfig() {
   const validated = SystemConfigSchema.safeParse(resolvedConfig);
   if (!validated.success) {
     throw new Error(`Invalid system configuration:\n${validated.error.toString()}`);
+  }
+
+  // The admin API refuses these too, but env-seeded config never passes through it.
+  const providerProblems = oidcProviderConfigProblems(validated.data);
+  if (providerProblems.length && validated.data.oidc_provider_enabled) {
+    throw new Error(`Invalid OpenID Provider configuration:\n${providerProblems.join('\n')}`);
+  }
+  if (providerProblems.length) {
+    logger.warn(`OpenID Provider configuration problems: ${providerProblems.join('; ')}`);
   }
 
   return validated.data;

@@ -45,4 +45,9 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   // The constants the flow limiters carried in code before the key existed, so an
   // instance that predates it keeps the limits it had.
   flow_rate_limits: DefaultFlowRateLimits,
+  // The provider is opt-in per deployment (ADR 0001, D13).
+  oidc_provider_enabled: false,
+  oidc_issuer: null,
+  allow_client_secrets: false,
+  third_party_clients_enabled: false,
 };

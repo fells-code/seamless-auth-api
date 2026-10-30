@@ -101,6 +101,7 @@ Production deployments should define:
 - `SEAMLESS_JWKS_ACTIVE_KID`
 - `SEAMLESS_JWKS_KEY_<kid>_PRIVATE`
 - `SEAMLESS_JWKS_PUBLIC_KEYS`
+- `OIDC_JWKS_ACTIVE_KID` and `OIDC_JWKS_KEYS`, when the OpenID Provider is enabled
 - OAuth client-secret environment variables referenced by provider `clientSecretEnv`
 - Messaging provider credentials when direct delivery is enabled
 
@@ -156,6 +157,19 @@ Terraform owns the document, signing keys are a set of labels with `jwks_active_
 selecting the signer, and the three steps above are three applies. See ADR 0011,
 `Terraform owns the JWKS document, and rotation overlaps`, and the procedure in that repo's
 `portal-auth/README.md`.
+
+### OpenID Provider keys
+
+The provider has its own key set, `OIDC_JWKS_KEYS`, so a provider token can never verify as a
+first-party one. Every key in the set is published at `/oidc/jwks`, which the provider service
+serves as its public `/jwks`, and only `OIDC_JWKS_ACTIVE_KID` signs. Rotation follows the same
+three steps:
+
+1. **Add.** Add the new private JWK to `OIDC_JWKS_KEYS` and deploy. It is published, and the
+   outgoing key still signs. Wait until relying parties have refreshed their cached JWKS.
+2. **Flip.** Point `OIDC_JWKS_ACTIVE_KID` at the new key and deploy.
+3. **Retire.** Once the longest provider token lifetime has passed, remove the outgoing key and
+   deploy.
 
 ## Secrets Separate From The Service Token
 

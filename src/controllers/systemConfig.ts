@@ -9,6 +9,10 @@ import { Request, Response } from 'express';
 import { productionSecretMissing } from '../config/authSecrets.js';
 import { getSystemConfig, invalidateSystemConfigCache } from '../config/getSystemConfig.js';
 import { oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
+import {
+  OIDC_PROVIDER_CONFIG_KEYS,
+  oidcProviderConfigProblems,
+} from '../lib/oidcProviderPolicy.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { User } from '../models/users.js';
@@ -66,6 +70,14 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 
   if (parsed.data.oauth_providers?.length && productionSecretMissing('OAUTH_STATE_SECRET')) {
     return res.status(409).json({ error: 'secret_required', variable: 'OAUTH_STATE_SECRET' });
+  }
+
+  if (OIDC_PROVIDER_CONFIG_KEYS.some((key) => key in parsed.data)) {
+    const problems = oidcProviderConfigProblems({ ...existing, ...parsed.data });
+
+    if (problems.length) {
+      return res.status(400).json({ error: 'Invalid OpenID Provider config', details: problems });
+    }
   }
 
   const rolesInUse = await getRolesInUse();
