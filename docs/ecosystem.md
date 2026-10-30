@@ -54,7 +54,7 @@ The server-side adapter SDK; a thin stateless proxy + cookie manager. **Highest 
   claim/field names (`sub`/`sid`/...), the `/refresh` response shape, or branch-significant
   status codes.
 
-### `seamless-auth-react` — `@seamless-auth/client`, `@seamless-auth/react` (v0.12.0), `@seamless-auth/react-native`
+### `seamless-auth-js` — `@seamless-auth/client`, `@seamless-auth/react` (v0.12.0), `@seamless-auth/react-native`
 
 One repository, three packages. `@seamless-auth/client` is the framework-agnostic core: the
 headless client, the session store, and the transport (cookie for browsers, bearer for native
