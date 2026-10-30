@@ -58,7 +58,7 @@ SDK apps ─► adapter ──┤
 
 ## D1. The login edge, built on `oidc-provider`
 
-The edge is a new Node service in a new repo, `fells-code/seamless-auth-edge`. It contains:
+The edge is a new Node service in a new repo, `fells-code/seamless-auth-oidc-provider`. It contains:
 
 - **`oidc-provider`** 9.x by Filip Skokan (panva), for the protocol.
 - **`@seamless-auth/express`**, for the browser session and the calls to the API.
@@ -100,7 +100,7 @@ DPoP and PAR are available. The API's admin routes refuse client settings that w
 - **No public surface.** The API gains no public endpoint and no cookie. AGENTS.md, `docs/architecture.md` and `docs/api-contract.md` keep their bearer-only, no-cookies statements unchanged.
 - **New route groups.**
   - Admin routes for applications and resources (D12).
-  - Service-token routes for the edge under `/edge/*` (provider storage, signing, auth context, events).
+  - Service-token routes for the edge under `/oidc/*` (provider storage, signing, auth context, events). Despite the name, these are not the public OIDC endpoints. Those are served by the edge, and `/oidc/*` on the API answers only the service token.
   - The notices endpoint (D14).
 - **How the edge routes are declared.** They are `defineRoute` routes, authenticated with the existing service token, declared `adapter: false` and documented in `openapi.json`.
 - **Docs.** `docs/architecture.md` gains the edge in its deployment topology and a provider token section. `docs/ecosystem.md` gains the edge repo as a Tier 1 dependent.
@@ -127,20 +127,20 @@ What follows from this:
 ## D4. Signing stays in the API
 
 - **The keys.** The provider has its own RS256 key set, separate from the first-party JWKS: `OIDC_JWKS_ACTIVE_KID` and a private JWK set in `OIDC_JWKS_KEYS`, in the API's secrets store. The edge never holds a private key.
-- **How the edge signs.** It uses `oidc-provider`'s external signing support and calls `POST /edge/sign`. The API signs only when all of these hold:
+- **How the edge signs.** It uses `oidc-provider`'s external signing support and calls `POST /oidc/sign`. The API signs only when all of these hold:
   - For ID tokens and user access tokens, `sub` has a live, unrevoked session matching the token's `session_id`.
   - `acr`, `amr` and `auth_time` equal what the API recorded for that session (D9). The edge cannot raise them.
   - `aud` is the requesting client (ID tokens) or a resource that client may use (access tokens). `iss` is `oidc_issuer`.
   - For client credentials tokens, the client is active and allowed that grant, resource and scope.
 - **What this buys.** If the edge is compromised, the attacker can only get tokens for users who are signing in at that moment, and only with the assurance they actually reached. They cannot mint tokens for anyone else, and cannot steal keys.
-- **Publishing.** The edge serves the public JWKS at `/jwks`, read from `GET /edge/jwks`.
+- **Publishing.** The edge serves the public JWKS at `/jwks`, read from `GET /oidc/jwks`.
 - **Rotation.** Add a key, which publishes it. Once RP JWKS caches refresh, make it active. Remove the old key after the longest provider token lifetime. `docs/production-operations.md` gains this runbook.
 - **Fallback.** External signing is marked experimental in `oidc-provider`. If it proves unreliable, the fallback is keys on the edge with short token lifetimes and alerting on unexpected `sub` values. That loses the protection above, so taking it needs an update to this ADR.
 - **Effect on #405.** It said "ID tokens signed with the existing JWKS". This ADR supersedes that.
 
 ## D5. Data model and storage
 
-Provider state lives in the API's Postgres. The edge's `oidc-provider` storage adapter calls `/edge/payloads/*`, so there is one database and the API owns it.
+Provider state lives in the API's Postgres. The edge's `oidc-provider` storage adapter calls `/oidc/payloads/*`, so there is one database and the API owns it.
 
 - **`oidc_payloads`.** Columns: `id`, `model`, `payload` (JSONB), `grant_id`, `user_code`, `uid`, `session_id`, `expires_at`, `consumed_at`. Unique on (`model`, `id`), with indexes for `grant_id`, `user_code`, `uid`, `session_id` and `expires_at`.
   - It holds Session, Interaction, AuthorizationCode, AccessToken (opaque), RefreshToken, ClientCredentials, DeviceCode, Grant (the consent record), PushedAuthorizationRequest and ReplayDetection.
@@ -153,7 +153,7 @@ Provider state lives in the API's Postgres. The edge's `oidc-provider` storage a
 - **Auth context on `sessions` (#510).** New columns `auth_methods` (the methods used, with passkey device-bound or synced) and `auth_time`. Sign-in and step-up update them, and D9 derives `acr` and `amr` from them.
 - **OAuth state replay cache (#414).** `consumedStateHashes` in `oauthService.ts` moves into `oidc_payloads` (`model: 'OAuthStateReplay'`), written only if absent. The table is migrated whether or not the provider is in use, so #414 does not wait for the edge.
 - **Hosted UI branding (#406).** A `hosted_ui` key in `system_config` holds the logo URL, colors, fonts and an app name override. It is managed through the existing system config routes.
-- **Abuse limits.** `/edge/payloads/*` is rate limited per model, so a misbehaving edge cannot flood the store.
+- **Abuse limits.** `/oidc/payloads/*` is rate limited per model, so a misbehaving edge cannot flood the store.
 
 ## D6. Client authentication
 
@@ -170,7 +170,7 @@ Provider state lives in the API's Postgres. The edge's `oidc-provider` storage a
 - An instance-wide `allow_client_secrets` flag, off by default, enables them.
 - An admin then opts each client in. The console and CLI label those clients as weaker.
 - A secret is 32 random bytes, shown once, and stored as an HMAC lookup with a server key, as refresh tokens are. It is never stored in usable form.
-- **Verification.** The edge checks a presented secret against the API before the library runs (`POST /edge/clients/:id/verify-secret`). It then hands the verified value to the library for that request only.
+- **Verification.** The edge checks a presented secret against the API before the library runs (`POST /oidc/clients/:id/verify-secret`). It then hands the verified value to the library for that request only.
 - **Fallback.** If that request-scoped handoff does not fit the library cleanly, the fallback is a secret derived from a server key, computed by the API and returned to the edge only over the service channel. That fallback means the API's key can recompute every secret, so taking it needs an update to this ADR.
 - **Disabled outright.** `client_secret_jwt` and HS\* ID token algorithms, which would turn a shared secret into a signing key.
 
@@ -185,7 +185,7 @@ Provider state lives in the API's Postgres. The edge's `oidc-provider` storage a
 - **Cookies.**
   - The provider session cookie and the adapter session cookie both use the `__Host-` prefix: host-only, `Secure`, `Path=/`. A sibling subdomain cannot plant or shadow them.
   - Both are `HttpOnly` and `SameSite=Lax`.
-  - The provider cookies are signed with an edge secret, `EDGE_COOKIE_KEYS`.
+  - The provider cookies are signed with an edge secret, `OIDC_COOKIE_KEYS`.
 - **CSRF.** RPs often sit on sibling subdomains, which count as same-site, so `SameSite` alone is not enough. Every state-changing route on the edge checks `Sec-Fetch-Site` and `Origin`. This is the guard `@seamless-auth/core` already implements.
 - **CSP.** Strict: scripts and styles only from self, `frame-ancestors 'none'`, and `form-action` limited to self and the client's redirect URIs.
 - **Pinning.** The edge image builds the SPA and records its checksum in the release.
@@ -200,7 +200,7 @@ Provider state lives in the API's Postgres. The edge's `oidc-provider` storage a
 
 ## D9. `acr` and `amr`
 
-The API derives both from the session's `auth_methods`. The edge only passes them through, and `/edge/sign` checks them.
+The API derives both from the session's `auth_methods`. The edge only passes them through, and `/oidc/sign` checks them.
 
 `amr` uses the RFC 8176 registry:
 
@@ -277,7 +277,7 @@ A passkey resists phishing because it is bound to an origin. Two flows can still
 
 ## D13. Rollout
 
-- **The API flag.** `oidc_provider_enabled` in `system_config` defaults to `false`. While it is off, `/edge/sign`, `/edge/payloads/*` and the other edge routes answer 404, so main stays releasable for 0.20.x patches while v0.21 lands piece by piece.
+- **The API flag.** `oidc_provider_enabled` in `system_config` defaults to `false`. While it is off, `/oidc/sign`, `/oidc/payloads/*` and the other edge routes answer 404, so main stays releasable for 0.20.x patches while v0.21 lands piece by piece.
 - **Always available:**
   - The admin routes for applications and resources.
   - `hosted_ui`.
@@ -386,18 +386,18 @@ What this design guarantees, and which parts of it provide each guarantee:
 | cli#276, cli#320 | CLI                                     | D5, D6, D12              |
 | cli#316          | CLI                                     | D1, D10                  |
 
-The edge repo needs its own tracking issues for the parts that move there, and the edge-to-API route contract (`/edge/*`) needs a types issue.
+The edge repo needs its own tracking issues for the parts that move there, and the edge-to-API route contract (`/oidc/*`) needs a types issue.
 
 ## Affected repos
 
 This is a contract-affecting design (new routes, a new token family, a new service). Using the map in `docs/ecosystem.md`:
 
-- **seamless-auth-edge (new, Tier 1).** The provider, the hosted UI, conformance and certification.
+- **seamless-auth-oidc-provider (new, Tier 1).** The provider, the hosted UI, conformance and certification.
 - **seamless-auth-types (Tier 1).**
   - types#97: applications and resources.
   - types#118: claims, discovery, token responses and the step-up challenge.
   - types#120: notices.
-  - A new issue for the `/edge/*` contract.
+  - A new issue for the `/oidc/*` contract.
 
   Published as 0.34.0 prereleases on `next` until the API settles.
 
