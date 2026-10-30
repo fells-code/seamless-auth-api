@@ -99,6 +99,12 @@ function sameSet(a: readonly unknown[], b: readonly unknown[]) {
   );
 }
 
+function trimTrailingSlashes(value: string) {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') end--;
+  return value.slice(0, end);
+}
+
 function scopesOf(claims: JsonObject) {
   return typeof claims.scope === 'string' ? claims.scope.split(' ').filter(Boolean) : [];
 }
@@ -107,8 +113,12 @@ async function checkResourceAudience(clientId: string, claims: JsonObject, issue
   if (typeof claims.aud !== 'string') return 'audience_mismatch' as const;
 
   // A resource is never the API or the provider itself (ADR 0001, D5), whatever is stored.
-  const aud = claims.aud.replace(/\/+$/, '');
-  if (aud === issuer.replace(/\/+$/, '') || aud === process.env.ISSUER?.replace(/\/+$/, '')) {
+  const aud = trimTrailingSlashes(claims.aud);
+  const firstParty = process.env.ISSUER;
+  if (
+    aud === trimTrailingSlashes(issuer) ||
+    (firstParty && aud === trimTrailingSlashes(firstParty))
+  ) {
     return 'audience_mismatch' as const;
   }
 

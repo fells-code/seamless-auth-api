@@ -224,7 +224,7 @@ export async function postOidcSessionRevoke(
     metadata: { reason: req.body.reason, correlationId: req.body.correlationId ?? null },
   });
 
-  logger.info(`Provider revoked session ${session.id} (${req.body.reason})`);
+  logger.info(`Provider revoked session ${session.id}`);
   return res.status(204).end();
 }
 
