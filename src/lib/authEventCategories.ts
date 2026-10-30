@@ -28,6 +28,8 @@ export type AuthEventOutcome = (typeof AUTH_EVENT_OUTCOMES)[number];
 const PREFIX_CATEGORIES: ReadonlyArray<[string, AuthEventCategory]> = [
   ['webauthn_', 'webauthn'],
   ['oauth_', 'oauth'],
+  // Events the OpenID Provider service reports, and the API's own for it, are token issuance.
+  ['oidc_', 'token'],
   ['magic_link', 'magicLink'],
   ['totp_', 'totp'],
   ['step_up_', 'stepUp'],

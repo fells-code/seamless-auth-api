@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/middleware/authenticateServiceToken.js', () => ({
   validateInternalServiceToken: vi.fn(),
+  validateOidcEdgeServiceToken: vi.fn(),
 }));
 
 describe('applyTrustedClientContext', () => {
@@ -322,5 +323,35 @@ describe('applyTrustedClientContext', () => {
     await applyTrustedClientContext(blank, {} as any, next);
 
     expect(blank.headers['user-agent']).toBe('node');
+  });
+
+  it('honours the OpenID Provider service token for the client context', async () => {
+    const { validateInternalServiceToken, validateOidcEdgeServiceToken } =
+      await import('../../../src/middleware/authenticateServiceToken.js');
+    const { applyTrustedClientContext } =
+      await import('../../../src/middleware/trustedClientContext.js');
+
+    (validateInternalServiceToken as any).mockResolvedValue(null);
+    (validateOidcEdgeServiceToken as any).mockResolvedValue({
+      sub: 'seamless-oidc-provider',
+      aud: 'seamless-auth',
+      iss: 'seamless-portal-api',
+    });
+
+    const req = {
+      ip: '10.0.1.25',
+      ips: ['10.0.1.25'],
+      headers: {},
+      get: vi.fn((header: string) => {
+        if (header === 'x-seamless-client-ip') return '203.0.113.44';
+        if (header === 'x-seamless-service-token') return 'edge-token';
+        return undefined;
+      }),
+    } as any;
+
+    await applyTrustedClientContext(req, {} as any, next);
+
+    expect(req.ip).toBe('203.0.113.44');
+    expect(validateOidcEdgeServiceToken).toHaveBeenCalledWith('edge-token');
   });
 });

@@ -673,9 +673,46 @@ describe('POST /refresh', () => {
       { recovery: false },
     );
     expect(Session.create).toHaveBeenCalledWith(
-      expect.objectContaining({ refreshTokenLookup: 'refresh-lookup' }),
+      expect.objectContaining({
+        refreshTokenLookup: 'refresh-lookup',
+        authMethods: [],
+        authTime: null,
+      }),
     );
     expect(res.body.refreshToken).toBe('refresh');
+  });
+
+  it('carries the sign-in auth context to the rotated session', async () => {
+    const authTime = new Date('2026-10-30T12:00:00.000Z');
+    const authMethods = [{ method: 'passkey', at: authTime.toISOString(), deviceBound: true }];
+
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      id: 'session-1',
+      replacedBySessionId: null,
+      revokedAt: null,
+      userId: 'user-1',
+      infraId: 'app',
+      mode: 'server',
+      userAgent: 'agent',
+      authMethods,
+      authTime,
+      save: vi.fn(),
+    });
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Session.create as any).mockResolvedValue({ id: 'new-session' });
+    (signAccessToken as any).mockResolvedValue('access');
+    (generateRefreshToken as any).mockReturnValue('refresh');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+    });
+
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+    expect(res.status).toBe(200);
+    expect(Session.create).toHaveBeenCalledWith(expect.objectContaining({ authMethods, authTime }));
   });
 
   // Two refreshes carrying the same token both pass the reuse check, because the check and

@@ -108,6 +108,18 @@ Provider-agnostic email/SMS adapter contract. **Reverse coupling.**
   `send()` signature, package renames, new required adapter config, or removing
   `MessagingConfigurationError`.
 
+### `seamless-auth-oidc-provider`, the OpenID Provider service
+
+The public login edge for apps that speak OpenID Connect ([ADR 0001](./adr/0001-openid-provider.md)).
+It builds on `@seamless-auth/express` for first-party sign-in and calls the
+`/oidc/*` routes with its own service token (`SEAMLESS_OIDC_SERVICE_TOKEN`) for provider storage, signing, client metadata, claims and auth context.
+
+- Contract: the `oidcEdge` module of `@seamless-auth/types` (`OidcEdgeRoutes`,
+  `OIDC_EDGE_CONTRACT_VERSION`). The edge refuses to start against an API on another contract
+  version, or one that answers 404 because `oidc_provider_enabled` is off.
+- **Breaks if changed here:** any `/oidc/*` route, request or response shape, the `/oidc/sign`
+  refusal codes, the `acr`/`amr` derivation, or the service-token check.
+
 ## Tier 2 — downstream consumers (transitively affected)
 
 | Repo                               | What it is                                                | Coupling                                                                                         |

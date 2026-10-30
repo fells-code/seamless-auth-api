@@ -643,6 +643,10 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
       await issueSessionAndRespond({
         method: 'passkey',
+        passkey: {
+          deviceBound: verification.authenticationInfo.credentialDeviceType === 'singleDevice',
+          userVerified: verification.authenticationInfo.userVerified,
+        },
         user: {
           id: user.id,
           email: user.email,

@@ -57,6 +57,11 @@ export function generateOpenApiDocument() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
       },
+      serviceToken: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-seamless-service-token',
+      },
     },
   };
 

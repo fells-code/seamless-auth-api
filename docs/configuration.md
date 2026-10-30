@@ -359,6 +359,26 @@ Required when `NODE_ENV=production`. In development, signing keys are generated 
 
 See [docs/production-operations.md](./production-operations.md) for key rotation.
 
+### OpenID Provider
+
+The API's side of the OpenID Provider service ([ADR 0001](./adr/0001-openid-provider.md)). All of
+it is off until a deployment runs the provider service and turns it on.
+
+| Variable                           | Required     | Default | Notes                                                                                                                                                                                      |
+| ---------------------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OIDC_PROVIDER_ENABLED`            | No           | `false` | Seeds `oidc_provider_enabled`. While off, every `/oidc/*` route answers 404. The server refuses to start with it on unless the checks below pass.                                          |
+| `OIDC_ISSUER`                      | When enabled | -       | Seeds `oidc_issuer`, the provider service's public URL. Must be https, must differ from `ISSUER`, and its host must be `rpid` or a subdomain of it.                                        |
+| `OIDC_ALLOW_CLIENT_SECRETS`        | No           | `false` | Seeds `allow_client_secrets`. Lets an admin opt individual provider clients in to shared secrets. `private_key_jwt` is the default without it.                                             |
+| `OIDC_THIRD_PARTY_CLIENTS_ENABLED` | No           | `false` | Seeds `third_party_clients_enabled`. Third-party clients always show a consent page.                                                                                                       |
+| `SEAMLESS_OIDC_SERVICE_TOKEN`      | When enabled | -       | The provider service's own service token secret. Must differ from `SEAMLESS_SERVICE_TOKEN`, or the server refuses to start. `/oidc/*` accepts only this, and external delivery refuses it. |
+| `OIDC_JWKS_ACTIVE_KID`             | When enabled | -       | Key ID of the provider signing key. Only this key signs.                                                                                                                                   |
+| `OIDC_JWKS_KEYS`                   | When enabled | -       | JSON JWK set of private RS256 keys, each with a unique `kid`. Separate from the `SEAMLESS_JWKS_*` keys. Every key in it is published at `/oidc/jwks`.                                      |
+
+The issuer has to sit under `rpid` because the hosted sign-in pages run on it and passkeys are
+bound to `rpid`. Changing `rpid` to fit a new hostname orphans every existing passkey, so pick
+the provider hostname to fit the `rpid` you have (for example `login.example.com` under
+`example.com`).
+
 ### Development signing keys
 
 Outside production the server creates an RSA key pair at startup, before it starts listening, so

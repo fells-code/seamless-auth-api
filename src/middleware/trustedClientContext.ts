@@ -8,11 +8,14 @@ import { isIP } from 'node:net';
 
 import { NextFunction, Request, Response } from 'express';
 
-import { validateInternalServiceToken } from './authenticateServiceToken.js';
+import {
+  validateInternalServiceToken,
+  validateOidcEdgeServiceToken,
+} from './authenticateServiceToken.js';
 
 const CLIENT_IP_HEADER = 'x-seamless-client-ip';
 const CLIENT_USER_AGENT_HEADER = 'x-seamless-client-user-agent';
-const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
+export const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
 
 // Bounds the audit row. Real user agents run to a few hundred characters.
 const MAX_USER_AGENT_LENGTH = 512;
@@ -40,7 +43,7 @@ function extractTrustedUserAgent(headerValue: string | undefined): string | null
   return candidate || null;
 }
 
-function extractServiceToken(headerValue: string | undefined): string | null {
+export function extractServiceToken(headerValue: string | undefined): string | null {
   if (!headerValue) {
     return null;
   }
@@ -80,7 +83,12 @@ export async function applyTrustedClientContext(req: Request, _res: Response, ne
     return;
   }
 
-  const decoded = await validateInternalServiceToken(serviceToken);
+  // The provider service signs users in through its own adapter, so it may say whose
+  // browser it speaks for too. That is all its token buys outside `/oidc/*`: external
+  // delivery still takes the adapter token alone.
+  const decoded =
+    (await validateInternalServiceToken(serviceToken)) ??
+    (await validateOidcEdgeServiceToken(serviceToken));
 
   if (!decoded?.sub || decoded.iss !== 'seamless-portal-api' || decoded.aud !== 'seamless-auth') {
     next();

@@ -12,6 +12,7 @@ import {
   AuthAwareRequestHandler,
   getSecuritySchemeName,
 } from '../middleware/attachAuthMiddleware.js';
+import type { SecuritySchemeAwareHandler } from '../middleware/requireOidcEdge.js';
 import { registry } from '../openapi/registry.js';
 import { ErrorSchema, ValidationErrorSchema } from '../schemas/generic.responses.js';
 import { AuthTokenType } from '../services/sessionService.js';
@@ -236,6 +237,15 @@ function resolveAuthType(
   return undefined;
 }
 
+/** A route guarded by middleware other than a user token, such as the service token. */
+function middlewareSecurity(middleware: RequestHandler[] | undefined) {
+  const scheme = middleware
+    ?.map((handler) => (handler as SecuritySchemeAwareHandler).seamlessSecurityScheme)
+    .find(Boolean);
+
+  return scheme ? [{ [scheme]: [] }] : undefined;
+}
+
 /**
  * Express 5 exposes `req.query` as a getter with no setter, and one that re-parses the
  * URL on every read, so a plain assignment throws and would discard the coercions the
@@ -290,7 +300,9 @@ export function defineRoute<S extends RouteSchemas>(
     description,
     tags,
     deprecated,
-    security: authType ? [{ [getSecuritySchemeName(authType)]: [] }] : undefined,
+    security: authType
+      ? [{ [getSecuritySchemeName(authType)]: [] }]
+      : middlewareSecurity(options.middleware),
     request: {
       params,
       query,

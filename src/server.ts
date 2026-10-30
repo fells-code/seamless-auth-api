@@ -19,6 +19,7 @@ import { startAuditMaintenance } from './services/auditRetention.js';
 import { warnOnBreakGlassMisconfiguration } from './services/breakGlassService.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { warnIfUnboundOAuthStateSet } from './services/oauthService.js';
+import { startOidcPayloadPurge } from './services/oidcPayloadStore.js';
 import { recordBootstrapPolicyVersion } from './services/policyVersionService.js';
 import { assertSchemaCurrent } from './services/schemaGuard.js';
 import getLogger from './utils/logger.js';
@@ -63,6 +64,7 @@ async function startServer() {
     });
 
     startAuditMaintenance();
+    startOidcPayloadPurge();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

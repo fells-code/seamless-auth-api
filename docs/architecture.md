@@ -51,6 +51,45 @@ README) but unsupported for cookie-based browser sessions, because this API issu
 JSON bodies and expects the caller to hold them securely. Keeping token custody in the adapter is
 the recommended path.
 
+### OpenID Provider service
+
+Apps that speak OpenID Connect sign users in through a separate public service,
+[seamless-auth-oidc-provider](https://github.com/fells-code/seamless-auth-oidc-provider) (the
+"login edge"), not through this API. The design is [ADR 0001](./adr/0001-openid-provider.md).
+
+```mermaid
+flowchart LR
+  rp["Any OIDC app"]
+  edge["OpenID Provider service<br/>(public: OIDC endpoints, hosted pages, cookies)"]
+  api["This API<br/>(private, no cookies)"]
+
+  rp --> edge
+  edge -- "first-party sign-in<br/>Bearer + its own service token" --> api
+  edge -- "/oidc/* provider storage and signing<br/>its own service token only" --> api
+```
+
+- The edge signs users in through the same first-party routes every adapter uses, so a provider
+  sign-in is an ordinary `sessions` row with every first-party protection applied.
+- Its `oidc-provider` storage lives here, in `oidc_payloads`, reached through
+  `/oidc/payloads/*`. A record tied to a session that is no longer live reads as absent, so any
+  revocation ends provider access at once.
+- Account claims and auth context answer only for a live session holding a provider grant for
+  the calling client, the same binding signing uses. Each provider token signed for a session
+  counts as activity on it, so an app refreshing its tokens keeps the session alive up to its
+  absolute lifetime.
+- Provider signing keys (`OIDC_JWKS_*`) stay here. `POST /oidc/sign` signs only for a user with a
+  live session, with the `acr`, `amr` and `auth_time` that session earned, for an audience the
+  client may use, and only with the active key.
+- The edge has its own service token, signed with `SEAMLESS_OIDC_SERVICE_TOKEN` rather than the
+  adapters' secret. `/oidc/*` accepts only that token. Elsewhere it is honoured only for the
+  trusted client context headers, and external delivery refuses it, so a compromised edge cannot
+  receive anyone's codes or magic links.
+- `/oidc/*` answers 404 while `oidc_provider_enabled` is off. These routes are not the public
+  OIDC endpoints.
+
+Provider tokens carry `iss` equal to `oidc_issuer`, never `ISSUER`, and are signed with provider
+keys, so the first-party verifier rejects them.
+
 For the full dependency and contract-coupling map across sibling repositories, see
 [ecosystem.md](./ecosystem.md).
 
