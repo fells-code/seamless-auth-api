@@ -46,7 +46,7 @@ This version moves the provider out of the API.
 
 ```
 any OIDC app ──► login edge (public: OIDC endpoints, hosted pages, cookies)
-                      │   bearer + service token, like any adapter
+                      │   bearer + its own service token
 SDK apps ─► adapter ──┤
                       ▼
                auth API (private, no cookies) ── Postgres
@@ -100,9 +100,14 @@ DPoP and PAR are available. The API's admin routes refuse client settings that w
 - **No public surface.** The API gains no public endpoint and no cookie. AGENTS.md, `docs/architecture.md` and `docs/api-contract.md` keep their bearer-only, no-cookies statements unchanged.
 - **New route groups.**
   - Admin routes for applications and resources (D12).
-  - Service-token routes for the edge under `/oidc/*` (provider storage, signing, auth context, events). Despite the name, these are not the public OIDC endpoints. Those are served by the edge, and `/oidc/*` on the API answers only the service token.
+  - Service-token routes for the edge under `/oidc/*` (provider storage, signing, auth context, events). Despite the name, these are not the public OIDC endpoints. Those are served by the edge, and `/oidc/*` on the API answers only the edge's service token.
   - The notices endpoint (D14).
-- **How the edge routes are declared.** They are `defineRoute` routes, authenticated with the existing service token, declared `adapter: false` and documented in `openapi.json`.
+- **How the edge routes are declared.** They are `defineRoute` routes, authenticated with the edge's service token, declared `adapter: false` and documented in `openapi.json`.
+- **The edge has its own service token.** It is signed with `SEAMLESS_OIDC_SERVICE_TOKEN`, a secret separate from the adapters' `SEAMLESS_SERVICE_TOKEN`, and the API refuses to start if the two are equal. The edge never holds the adapter secret.
+  - `/oidc/*` accepts only the edge's token. An adapter's token gets 401 there.
+  - Outside `/oidc/*`, the edge's token is honoured only for the trusted client context headers (`x-seamless-client-ip`, `x-seamless-client-user-agent`), so its first-party sign-ins see real users.
+  - External delivery (`x-seamless-auth-delivery-mode: external`) refuses it. With the shared token, a compromised edge could ask for any user's OTP or magic link, complete a first-party sign-in as that user, and then have `/oidc/sign` sign for them, which defeats D4.
+  - `oidc_provider_enabled` cannot be turned on without `SEAMLESS_OIDC_SERVICE_TOKEN` (D13).
 - **Docs.** `docs/architecture.md` gains the edge in its deployment topology and a provider token section. `docs/ecosystem.md` gains the edge repo as a Tier 1 dependent.
 
 ## D3. Sign-in goes through the first-party routes
@@ -115,6 +120,7 @@ What follows from this:
 - **No copied protections.** Decoys, lockout, flow rate limits, `phishing_resistant_only` and the login policy all apply to hosted sign-in, because hosted sign-in is first-party sign-in. The edge forwards the browser's IP and user agent through the trusted client context headers, so the limits see real users.
 - **The ephemeral-token rule carries over.** Proving an address unlocks nothing. Passkey and TOTP enrollment need an access session, as they do today.
 - **Linked sessions need no new mode.** Every provider sign-in is an ordinary `sessions` row. The provider's Session, Grants and tokens carry that row's id in `session_id` (D5).
+- **App refreshes keep the session alive.** Each provider token the API signs for the session counts as activity on it, so an app that refreshes its tokens moves the session's idle expiry forward. The session's absolute lifetime (`refresh_token_ttl`) still bounds it, so provider access never outlives the first-party session.
 - **What revoking the row does.** Logout, admin revoke, user sign-out everywhere, `sessionsRevokedBefore`, concurrent session eviction and chain revocation all end the provider session too:
   - The API deletes the provider rows for that session.
   - It refuses to sign further for it.
@@ -128,11 +134,14 @@ What follows from this:
 
 - **The keys.** The provider has its own RS256 key set, separate from the first-party JWKS: `OIDC_JWKS_ACTIVE_KID` and a private JWK set in `OIDC_JWKS_KEYS`, in the API's secrets store. The edge never holds a private key.
 - **How the edge signs.** It uses `oidc-provider`'s external signing support and calls `POST /oidc/sign`. The API signs only when all of these hold:
-  - For ID tokens and user access tokens, `sub` has a live, unrevoked session matching the token's `session_id`.
+  - The request carries the edge's own service token (D2). The adapters' shared token is refused.
+  - For ID tokens and user access tokens, `sub` has a live, unrevoked session matching the token's `session_id`, and that session holds a provider grant for the requesting client. Any other live session the edge learns of does not qualify.
+  - Identity claims (`email`, `phone_number`, `roles`, `org_id` and the `_verified` flags) equal the account's own, and the token carries no claim outside what the library issues for its kind.
   - `acr`, `amr` and `auth_time` equal what the API recorded for that session (D9). The edge cannot raise them.
   - `aud` is the requesting client (ID tokens) or a resource that client may use (access tokens). `iss` is `oidc_issuer`.
   - For client credentials tokens, the client is active and allowed that grant, resource and scope.
-- **What this buys.** If the edge is compromised, the attacker can only get tokens for users who are signing in at that moment, and only with the assurance they actually reached. They cannot mint tokens for anyone else, and cannot steal keys.
+- **The same binding for lookups.** `GET /oidc/accounts/:id` and `GET /oidc/sessions/:id/auth-context` answer only for a live session holding a provider grant for the calling client, which the edge names in the query. So the edge saves the Grant when the user signs in, before it reads the auth context to finish the login.
+- **What this buys.** If the edge is compromised, the attacker can only get tokens for users who are signing in at that moment, and only with the assurance they actually reached. They cannot mint tokens for anyone else, cannot read other users' claims, cannot receive anyone's codes or magic links (D2), and cannot steal keys.
 - **Publishing.** The edge serves the public JWKS at `/jwks`, read from `GET /oidc/jwks`.
 - **Rotation.** Add a key, which publishes it. Once RP JWKS caches refresh, make it active. Remove the old key after the longest provider token lifetime. `docs/production-operations.md` gains this runbook.
 - **Fallback.** External signing is marked experimental in `oidc-provider`. If it proves unreliable, the fallback is keys on the edge with short token lifetimes and alerting on unexpected `sub` values. That loses the protection above, so taking it needs an update to this ADR.
@@ -288,6 +297,7 @@ A passkey resists phishing because it is bound to an origin. Two flows can still
 - **Adopter opt-in.** Adopters opt in by deploying the edge and setting the flag. The API refuses to turn the flag on unless all of these are true:
   - `oidc_issuer` is set and covered by `rpid` (D8).
   - The `OIDC_JWKS_*` secrets are present.
+  - `SEAMLESS_OIDC_SERVICE_TOKEN` is set (D2).
 - **Changing the default.** The default may change only when the whole epic is complete and #411 passes against the edge.
 - **Managed instances.** Portal and Terraform provisioning gain an edge per instance before the provider is offered there.
 
@@ -327,7 +337,7 @@ What this design guarantees, and which parts of it provide each guarantee:
 | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
 | The auth API is never internet facing                             | D2                                                               |
 | Hosted sign-in has every first-party protection                   | D3 (it is first-party sign-in)                                   |
-| Edge compromise cannot mint tokens for users not signing in       | D4                                                               |
+| Edge compromise cannot mint tokens for users not signing in       | D4, plus the edge's own service token (D2)                       |
 | Edge compromise cannot raise a session's assurance                | D4, D9                                                           |
 | No usable client secret is stored anywhere                        | D6                                                               |
 | Revoking a session ends provider access at once                   | D3, D5                                                           |
