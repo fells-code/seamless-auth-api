@@ -27,6 +27,7 @@ env:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     env:
       # On a tag push this is the ref (e.g. v1.2.3); when called from the

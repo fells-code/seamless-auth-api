@@ -19,6 +19,7 @@ jobs:
     if: github.repository == 'fells-code/seamless-auth-api'
     name: Create Version and Changelog PR
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       HUSKY: 0
     outputs:
