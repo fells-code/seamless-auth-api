@@ -105,7 +105,12 @@
     "vitest": "^5.0.0"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.3",
+    "@redocly/openapi-core": {
+      "minimatch": "5.1.9"
+    }
   },
   "allowScripts": {
     "@scarf/scarf@1.4.0": true,
