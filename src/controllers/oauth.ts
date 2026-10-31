@@ -98,9 +98,7 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
         ...(codeChallenge ? { codeChallenge } : {}),
       }),
     });
-  } catch (error) {
-    logger.warn(`OAuth start failed for provider ${provider.id}: ${error}`);
-
+  } catch {
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,
