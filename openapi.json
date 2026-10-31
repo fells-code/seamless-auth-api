@@ -12385,6 +12385,10 @@
                   "kid": { "type": "string", "minLength": 1 },
                   "clientId": { "type": "string", "minLength": 1 },
                   "sessionId": { "type": "string", "minLength": 1 },
+                  "grantType": {
+                    "type": "string",
+                    "enum": ["authorization_code", "urn:ietf:params:oauth:grant-type:device_code"]
+                  },
                   "signingInput": {
                     "type": "string",
                     "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
@@ -12646,7 +12650,10 @@
                   "jwks_uri": null,
                   "backchannel_logout_uri": null,
                   "backchannel_logout_session_required": true,
-                  "urn:seamless:first_party": true
+                  "urn:seamless:first_party": true,
+                  "urn:seamless:access_token_ttl": 0,
+                  "urn:seamless:id_token_ttl": 0,
+                  "urn:seamless:refresh_token_ttl": 0
                 },
                 "schema": {
                   "type": "object",
@@ -12711,7 +12718,22 @@
                     "jwks_uri": { "type": "string", "format": "uri" },
                     "backchannel_logout_uri": { "type": "string", "format": "uri" },
                     "backchannel_logout_session_required": { "type": "boolean" },
-                    "urn:seamless:first_party": { "type": "boolean" }
+                    "urn:seamless:first_party": { "type": "boolean" },
+                    "urn:seamless:access_token_ttl": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "urn:seamless:id_token_ttl": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "urn:seamless:refresh_token_ttl": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    }
                   },
                   "required": [
                     "client_id",

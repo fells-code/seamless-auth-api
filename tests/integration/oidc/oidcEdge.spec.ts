@@ -173,7 +173,7 @@ describe('GET /oidc/config', () => {
     const res = await edge('get', '/oidc/config');
 
     expect(res.body).toEqual({
-      contractVersion: 1,
+      contractVersion: 2,
       issuer: ISSUER,
       appName: 'SeamlessAuth',
       allowClientSecrets: false,
@@ -283,6 +283,7 @@ describe('/oidc/payloads', () => {
 describe('POST /oidc/sign', () => {
   const body = {
     kind: 'id_token',
+    grantType: 'authorization_code',
     kid: 'k1',
     clientId: 'app',
     sessionId: SESSION,
@@ -326,6 +327,7 @@ describe('POST /oidc/sign', () => {
       ...body,
       kind: 'client_credentials',
       sessionId: undefined,
+      grantType: undefined,
     });
 
     expect(res.status).toBe(400);
