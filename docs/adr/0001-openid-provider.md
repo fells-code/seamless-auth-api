@@ -85,13 +85,15 @@ Writing our own provider was rejected. Each RFC above, and keeping a certified r
 **Locked configuration (#410).**
 
 - Only the `code` response type: no implicit or hybrid.
-- PKCE required for every client.
+- PKCE required by default for every client, with a per-client opt-out for confidential clients only (amended 2026-10-31, below).
 - Exact redirect URI matching, except the RFC 8252 loopback port rule.
 - Refresh tokens always rotated.
 - `devInteractions` and dynamic registration off.
 - HTTP POST to the authorization and logout endpoints off.
 
 DPoP and PAR are available. The API's admin routes refuse client settings that would loosen this list (D12).
+
+**Amendment, 2026-10-31: per-client PKCE opt-out.** PKCE stays required by default. An admin can set `pkceRequired: false` on a confidential client (`private_key_jwt` or a shared secret), as RFC 9700 section 2.1.1 allows when the client authenticates and binds the code to the transaction another way. The API and the edge both refuse the opt-out on a public client. An opted-out client must send `nonce` on every authorization request that asks for an ID token, which binds the code to the RP's transaction in place of PKCE. The reason is OpenID certification: the conformance suite's Basic OP and Config OP test plans send code requests without PKCE. The change is recorded as `admin_oidc_application_pkce_updated`.
 
 **Issuer.** The edge's public URL, for example `https://login.example.com`, is stored in `system_config` as `oidc_issuer`. Discovery is at `/.well-known/openid-configuration` on the edge, and the provider JWKS is at `/jwks`. The API refuses an `oidc_issuer` equal to `ISSUER`.
 

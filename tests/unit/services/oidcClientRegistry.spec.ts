@@ -91,6 +91,29 @@ describe('getOidcClientMetadata', () => {
     });
   });
 
+  it('sends a PKCE opt-out only for a confidential client', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: false }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).toMatchObject({
+      'urn:seamless:pkce_required': false,
+    });
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({
+        clientType: 'public',
+        tokenEndpointAuthMethod: 'none',
+        pkceRequired: false,
+      }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:pkce_required');
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: true }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:pkce_required');
+  });
+
   it('lists the device grant only for a first-party client with the flag on', async () => {
     const device = 'urn:ietf:params:oauth:grant-type:device_code';
     const grantTypes = [device, 'refresh_token'];

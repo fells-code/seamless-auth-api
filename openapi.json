@@ -5281,6 +5281,7 @@
                     "admin_oidc_application_created",
                     "admin_oidc_application_deleted",
                     "admin_oidc_application_keys_updated",
+                    "admin_oidc_application_pkce_updated",
                     "admin_oidc_application_resources_updated",
                     "admin_oidc_application_secret_rotated",
                     "admin_oidc_application_updated",
@@ -5402,6 +5403,7 @@
                           "admin_oidc_application_created",
                           "admin_oidc_application_deleted",
                           "admin_oidc_application_keys_updated",
+                          "admin_oidc_application_pkce_updated",
                           "admin_oidc_application_resources_updated",
                           "admin_oidc_application_secret_rotated",
                           "admin_oidc_application_updated",
@@ -12666,7 +12668,8 @@
                   "urn:seamless:first_party": true,
                   "urn:seamless:access_token_ttl": 0,
                   "urn:seamless:id_token_ttl": 0,
-                  "urn:seamless:refresh_token_ttl": 0
+                  "urn:seamless:refresh_token_ttl": 0,
+                  "urn:seamless:pkce_required": true
                 },
                 "schema": {
                   "type": "object",
@@ -12746,7 +12749,8 @@
                       "type": "integer",
                       "minimum": 0,
                       "exclusiveMinimum": true
-                    }
+                    },
+                    "urn:seamless:pkce_required": { "type": "boolean" }
                   },
                   "required": [
                     "client_id",
@@ -13901,6 +13905,7 @@
                           },
                           "deviceFlowEnabled": { "type": "boolean" },
                           "noticesEnabled": { "type": "boolean" },
+                          "pkceRequired": { "type": "boolean" },
                           "jwks": {
                             "type": "object",
                             "nullable": true,
@@ -13946,6 +13951,7 @@
                           "grantTypes",
                           "deviceFlowEnabled",
                           "noticesEnabled",
+                          "pkceRequired",
                           "jwks",
                           "jwksUri",
                           "hasSecret",
@@ -14034,6 +14040,7 @@
                   },
                   "deviceFlowEnabled": { "type": "boolean", "default": false },
                   "noticesEnabled": { "type": "boolean", "default": false },
+                  "pkceRequired": { "type": "boolean", "default": true },
                   "backchannelLogoutUri": {
                     "type": "string",
                     "nullable": true,
@@ -14106,6 +14113,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "pkceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -14153,6 +14161,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "pkceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -14198,6 +14207,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "pkceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -14351,6 +14361,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "pkceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -14397,6 +14408,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "pkceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -14442,6 +14454,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "pkceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -14587,6 +14600,7 @@
                   },
                   "deviceFlowEnabled": { "type": "boolean" },
                   "noticesEnabled": { "type": "boolean" },
+                  "pkceRequired": { "type": "boolean" },
                   "backchannelLogoutUri": {
                     "type": "string",
                     "nullable": true,
@@ -14636,6 +14650,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "pkceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -14682,6 +14697,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "pkceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -14727,6 +14743,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "pkceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -15138,6 +15155,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "pkceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -15185,6 +15203,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "pkceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -15230,6 +15249,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "pkceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -15444,6 +15464,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "pkceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -15490,6 +15511,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "pkceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -15535,6 +15557,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "pkceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",

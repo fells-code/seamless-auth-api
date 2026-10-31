@@ -30,6 +30,7 @@ export interface OidcClientAttributes {
   refreshTokenTtlSeconds?: number | null;
   deviceFlowEnabled: boolean;
   noticesEnabled: boolean;
+  pkceRequired: boolean;
   disabledAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -50,6 +51,7 @@ type OidcClientCreationAttributes = Optional<
   | 'refreshTokenTtlSeconds'
   | 'deviceFlowEnabled'
   | 'noticesEnabled'
+  | 'pkceRequired'
   | 'disabledAt'
 >;
 
@@ -74,6 +76,7 @@ export class OidcClient
   declare refreshTokenTtlSeconds: number | null;
   declare deviceFlowEnabled: boolean;
   declare noticesEnabled: boolean;
+  declare pkceRequired: boolean;
   declare disabledAt: Date | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -103,6 +106,7 @@ const initializeOidcClientModel = (sequelize: Sequelize) => {
       refreshTokenTtlSeconds: { type: DataTypes.INTEGER, allowNull: true },
       deviceFlowEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       noticesEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      pkceRequired: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       disabledAt: { type: DataTypes.DATE, allowNull: true },
     },
     {

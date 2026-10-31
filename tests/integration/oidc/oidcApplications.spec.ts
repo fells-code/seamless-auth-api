@@ -58,6 +58,7 @@ function row(overrides: Record<string, unknown> = {}): Row {
     refreshTokenTtlSeconds: null,
     deviceFlowEnabled: false,
     noticesEnabled: false,
+    pkceRequired: true,
     disabledAt: null,
     createdAt: new Date('2026-10-30T12:00:00.000Z'),
     updatedAt: new Date('2026-10-30T12:00:00.000Z'),
@@ -183,6 +184,49 @@ describe('POST /admin/applications', () => {
     expect(res.status).toBe(201);
     expect(res.body.application.tokenEndpointAuthMethod).toBe('private_key_jwt');
     expect(res.body.application.jwks).toEqual({ keys: [jwk] });
+  });
+
+  it('lets a confidential client opt out of PKCE, and audits the opt-out', async () => {
+    const res = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Grafana',
+        clientType: 'confidential',
+        firstParty: true,
+        redirectUris: ['https://grafana.example.com/cb'],
+        jwks: { keys: [jwk] },
+        pkceRequired: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.application.pkceRequired).toBe(false);
+    expect(OidcClient.create).toHaveBeenCalledWith(
+      expect.objectContaining({ pkceRequired: false }),
+    );
+    expect(loggedTypes()).toEqual([
+      'admin_oidc_application_created',
+      'admin_oidc_application_pkce_updated',
+    ]);
+    expect(vi.mocked(AuthEventService.log).mock.calls[1][0].metadata).toEqual({
+      clientId: vi.mocked(OidcClient.create).mock.calls[0][0].id,
+      pkceRequired: false,
+    });
+  });
+
+  it('refuses a PKCE opt-out on a public client', async () => {
+    const res = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Desktop',
+        clientType: 'public',
+        firstParty: true,
+        redirectUris: ['http://127.0.0.1/callback'],
+        pkceRequired: false,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details.issues[0].path).toEqual(['pkceRequired']);
+    expect(OidcClient.create).not.toHaveBeenCalled();
   });
 
   it('stores the device grant for a first-party device client', async () => {
@@ -312,6 +356,47 @@ describe('PATCH /admin/applications/:id', () => {
       type: 'admin_oidc_application_updated',
       metadata: { clientId: 'app-1', changed: ['name'], name: 'Renamed' },
     });
+  });
+
+  it('audits a PKCE change on its own, and not a patch that leaves it alone', async () => {
+    const existing = row();
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(existing as never);
+
+    const off = await request(app).patch('/admin/applications/app-1').send({ pkceRequired: false });
+    expect(off.status).toBe(200);
+    expect(off.body.application.pkceRequired).toBe(false);
+    expect(existing.update).toHaveBeenCalledWith(expect.objectContaining({ pkceRequired: false }));
+    expect(loggedTypes()).toEqual([
+      'admin_oidc_application_pkce_updated',
+      'admin_oidc_application_updated',
+    ]);
+
+    vi.mocked(AuthEventService.log).mockClear();
+    await request(app).patch('/admin/applications/app-1').send({ pkceRequired: false });
+    expect(loggedTypes()).toEqual(['admin_oidc_application_updated']);
+
+    vi.mocked(AuthEventService.log).mockClear();
+    await request(app).patch('/admin/applications/app-1').send({ pkceRequired: true });
+    expect(vi.mocked(AuthEventService.log).mock.calls[0][0]).toMatchObject({
+      type: 'admin_oidc_application_pkce_updated',
+      metadata: { clientId: 'app-1', pkceRequired: true },
+    });
+  });
+
+  it('refuses a PKCE opt-out on a public client', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      row({
+        clientType: 'public',
+        tokenEndpointAuthMethod: 'none',
+        jwksUri: null,
+        redirectUris: ['http://127.0.0.1/callback'],
+      }) as never,
+    );
+
+    const res = await request(app).patch('/admin/applications/app-1').send({ pkceRequired: false });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details.issues[0].path).toEqual(['pkceRequired']);
   });
 
   it('re-checks the merged result', async () => {

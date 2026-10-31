@@ -61,6 +61,7 @@ export function serializeOidcApplication(client: OidcClient): OidcApplication {
     ),
     deviceFlowEnabled: client.deviceFlowEnabled,
     noticesEnabled: client.noticesEnabled,
+    pkceRequired: client.pkceRequired,
     jwks: (client.jwks as OidcApplication['jwks']) ?? null,
     jwksUri: client.jwksUri ?? null,
     hasSecret: Boolean(client.secretLookup),
@@ -151,6 +152,7 @@ export async function createOidcApplication(input: OidcApplicationCreateRequest)
     refreshTokenTtlSeconds: input.refreshTokenTtlSeconds ?? null,
     deviceFlowEnabled: input.deviceFlowEnabled,
     noticesEnabled: input.noticesEnabled,
+    pkceRequired: input.pkceRequired,
   });
 
   return { client, clientSecret: issued?.secret };
@@ -181,6 +183,7 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
     grantTypes: current.grantTypes,
     deviceFlowEnabled: current.deviceFlowEnabled,
     noticesEnabled: current.noticesEnabled,
+    pkceRequired: current.pkceRequired,
     backchannelLogoutUri: current.backchannelLogoutUri,
     accessTokenTtlSeconds: current.accessTokenTtlSeconds,
     idTokenTtlSeconds: current.idTokenTtlSeconds,
@@ -204,6 +207,7 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
     grantTypes: storedGrantTypes(next.grantTypes, next.deviceFlowEnabled),
     deviceFlowEnabled: next.deviceFlowEnabled,
     noticesEnabled: next.noticesEnabled,
+    pkceRequired: next.pkceRequired,
     backchannelLogoutUri: next.backchannelLogoutUri ?? null,
     accessTokenTtlSeconds: next.accessTokenTtlSeconds ?? null,
     idTokenTtlSeconds: next.idTokenTtlSeconds ?? null,

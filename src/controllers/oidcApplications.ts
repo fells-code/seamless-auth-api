@@ -76,9 +76,17 @@ export async function createApplication(req: Request, res: Response) {
         tokenEndpointAuthMethod: application.tokenEndpointAuthMethod,
         grantTypes: application.grantTypes,
         deviceFlowEnabled: application.deviceFlowEnabled,
+        pkceRequired: application.pkceRequired,
         redirectUris: application.redirectUris,
       },
     });
+
+    if (!application.pkceRequired) {
+      await audit(req, {
+        type: 'admin_oidc_application_pkce_updated',
+        metadata: { clientId: client.id, pkceRequired: false },
+      });
+    }
 
     return res.status(201).json({ application, ...(clientSecret ? { clientSecret } : {}) });
   } catch (error) {
@@ -88,7 +96,15 @@ export async function createApplication(req: Request, res: Response) {
 
 export async function updateApplication(req: Request, res: Response) {
   try {
+    const pkceBefore = (await findOidcApplication(req.params.id as string)).pkceRequired;
     const client = await updateOidcApplication(req.params.id as string, req.body);
+
+    if (client.pkceRequired !== pkceBefore) {
+      await audit(req, {
+        type: 'admin_oidc_application_pkce_updated',
+        metadata: { clientId: client.id, pkceRequired: client.pkceRequired },
+      });
+    }
 
     await audit(req, {
       type: 'admin_oidc_application_updated',
