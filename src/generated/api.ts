@@ -12238,6 +12238,8 @@ export interface paths {
             kid: string;
             clientId: string;
             sessionId?: string;
+            /** @enum {string} */
+            grantType?: 'authorization_code' | 'urn:ietf:params:oauth:grant-type:device_code';
             signingInput: string;
           };
         };
@@ -12575,7 +12577,10 @@ export interface paths {
              *       "jwks_uri": null,
              *       "backchannel_logout_uri": null,
              *       "backchannel_logout_session_required": true,
-             *       "urn:seamless:first_party": true
+             *       "urn:seamless:first_party": true,
+             *       "urn:seamless:access_token_ttl": 0,
+             *       "urn:seamless:id_token_ttl": 0,
+             *       "urn:seamless:refresh_token_ttl": 0
              *     }
              */
             'application/json': {
@@ -12612,6 +12617,9 @@ export interface paths {
               backchannel_logout_uri?: string;
               backchannel_logout_session_required?: boolean;
               'urn:seamless:first_party': boolean;
+              'urn:seamless:access_token_ttl'?: number;
+              'urn:seamless:id_token_ttl'?: number;
+              'urn:seamless:refresh_token_ttl'?: number;
             };
           };
         };

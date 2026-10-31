@@ -33,7 +33,7 @@ const ALLOWED_HEADER_MEMBERS = new Set(['alg', 'kid', 'typ']);
 // asking for more is not one the library produced.
 const MAX_TOKEN_LIFETIME_SECONDS = 60 * 60 * 24;
 
-const USER_CODE_GRANTS = ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code'];
+const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 
 const PROTOCOL_CLAIMS = [
   'iss',
@@ -243,10 +243,15 @@ async function recordProviderActivity(sessionId: string) {
 async function checkUserToken(
   request: OidcSignRequest,
   claims: JsonObject,
-  client: { id: string; grantTypes: string[] },
+  client: { id: string; grantTypes: string[]; firstParty: boolean; deviceFlowEnabled: boolean },
   issuer: string,
 ): Promise<OidcSignOutcome | null> {
-  if (!client.grantTypes.some((grant) => USER_CODE_GRANTS.includes(grant))) {
+  const device = request.grantType === DEVICE_CODE_GRANT;
+  if (
+    !request.grantType ||
+    !client.grantTypes.includes(request.grantType) ||
+    (device && !(client.firstParty && client.deviceFlowEnabled))
+  ) {
     return refuse('grant_not_allowed');
   }
 
@@ -267,6 +272,12 @@ async function checkUserToken(
 
   const { acr, amr } = deriveAcrAmr(session.authMethods ?? []);
   const authTime = sessionAuthTime(session);
+
+  // ADR 0001, D10. The passkey proves who approved the device, not who holds its tokens, so
+  // a device-flow token never states the assurance the approving session earned.
+  if (device && claims.acr !== undefined) {
+    return refuse('auth_context_mismatch', session.userId);
+  }
 
   // Omitting a claim only understates assurance. Stating one the session did not earn is
   // what the edge must never be able to do.
