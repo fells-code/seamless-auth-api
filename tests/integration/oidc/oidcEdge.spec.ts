@@ -270,7 +270,13 @@ describe('/oidc/payloads', () => {
   });
 
   it('consumes, destroys and revokes by grant', async () => {
-    expect((await edge('post', '/oidc/payloads/AuthorizationCode/c1/consume')).status).toBe(204);
+    vi.mocked(consumeOidcPayload).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const won = await edge('post', '/oidc/payloads/AuthorizationCode/c1/consume');
+    expect(won.status).toBe(200);
+    expect(won.body).toEqual({ consumed: true });
+    expect((await edge('post', '/oidc/payloads/AuthorizationCode/c1/consume')).body).toEqual({
+      consumed: false,
+    });
     expect((await edge('delete', '/oidc/payloads/Session/s1')).status).toBe(204);
     expect((await edge('delete', '/oidc/payloads/RefreshToken/by-grant/g1')).status).toBe(204);
 
