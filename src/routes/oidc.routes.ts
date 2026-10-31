@@ -11,6 +11,7 @@ import {
   OidcAuthContextSchema,
   OidcClientIdParamsSchema,
   OidcClientMetadataSchema,
+  OidcClientResourcesResponseSchema,
   OidcEdgeConfigResponseSchema,
   OidcEdgeEventSchema,
   OidcJwksResponseSchema,
@@ -36,6 +37,7 @@ import {
   deleteOidcPayloadsByGrant,
   getOidcAccount,
   getOidcClient,
+  getOidcClientResourceList,
   getOidcEdgeConfig,
   getOidcJwks,
   getOidcPayload,
@@ -206,6 +208,19 @@ oidcRouter.get(
     },
   },
   getOidcClient,
+);
+
+oidcRouter.get(
+  '/clients/:id/resources',
+  {
+    ...edge,
+    summary: 'Resources a provider client may get access tokens for',
+    schemas: {
+      params: OidcClientIdParamsSchema,
+      response: { 200: OidcClientResourcesResponseSchema, ...guarded },
+    },
+  },
+  getOidcClientResourceList,
 );
 
 oidcRouter.post(

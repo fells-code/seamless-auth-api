@@ -93,41 +93,50 @@ export async function verifyOidcClientSecret(id: string, secret: string) {
 }
 
 /**
- * The scopes a client may request at each resource it is linked to, keyed by identifier.
- * The built-in `<oidc_issuer>/seamless` resource is never stored: an admin turning notices
- * on for the client is what links it (ADR 0001, D14).
+ * The resources a client may ask an access token for, each with the scopes it is allowed
+ * there. A link may only narrow what the resource defines, whatever was stored on it. The
+ * built-in `<oidc_issuer>/seamless` resource is never stored: an admin turning notices on
+ * for the client is what links it (ADR 0001, D14).
  */
-export async function getOidcClientResourceScopes(clientId: string) {
-  const scopes = new Map<string, Set<string>>();
+export async function getOidcClientResources(clientId: string) {
   const client = await findActiveOidcClient(clientId);
   const { oidc_issuer } = await getSystemConfig();
   const builtIn = oidc_issuer ? seamlessBuiltInResource(oidc_issuer) : null;
-
-  if (builtIn && client?.noticesEnabled) {
-    scopes.set(builtIn, new Set([APPLICATION_NOTICE_SCOPE]));
-  }
+  const resources: {
+    identifier: string;
+    scopes: string[];
+    accessTokenTtlSeconds: number | null;
+  }[] =
+    builtIn && client?.noticesEnabled
+      ? [{ identifier: builtIn, scopes: [APPLICATION_NOTICE_SCOPE], accessTokenTtlSeconds: null }]
+      : [];
 
   const links = await OidcClientResource.findAll({ where: { clientId } });
 
-  if (links.length === 0) return scopes;
+  if (links.length === 0) return resources;
 
-  const resources = await OidcResource.findAll({
+  const stored = await OidcResource.findAll({
     where: { id: { [Op.in]: links.map((link) => link.resourceId) } },
   });
-  const byId = new Map(resources.map((resource) => [resource.id, resource]));
+  const byId = new Map(stored.map((resource) => [resource.id, resource]));
 
   for (const link of links) {
     const resource = byId.get(link.resourceId);
     if (!resource || resource.identifier === builtIn) continue;
-
-    // A link may only narrow what the resource defines, whatever was stored on it.
-    scopes.set(
-      resource.identifier,
-      new Set(link.scopes.filter((scope) => resource.scopes.includes(scope))),
-    );
+    resources.push({
+      identifier: resource.identifier,
+      scopes: link.scopes.filter((scope) => resource.scopes.includes(scope)),
+      accessTokenTtlSeconds: resource.accessTokenTtlSeconds ?? null,
+    });
   }
 
-  return scopes;
+  return resources;
+}
+
+/** The scopes a client may request at each resource it is linked to, keyed by identifier. */
+export async function getOidcClientResourceScopes(clientId: string) {
+  const resources = await getOidcClientResources(clientId);
+  return new Map(resources.map((resource) => [resource.identifier, new Set(resource.scopes)]));
 }
 
 export async function getOidcAccountClaims(userId: string): Promise<OidcAccountClaims | null> {

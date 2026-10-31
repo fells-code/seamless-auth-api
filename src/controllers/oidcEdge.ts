@@ -31,8 +31,10 @@ import type { AuthEventType } from '../schemas/authEvent.types.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { getOidcAuthContext, isUuid } from '../services/oidcAuthContext.js';
 import {
+  findActiveOidcClient,
   getOidcAccountClaims,
   getOidcClientMetadata,
+  getOidcClientResources,
   verifyOidcClientSecret,
 } from '../services/oidcClientRegistry.js';
 import {
@@ -171,6 +173,11 @@ export async function getOidcJwks(_req: Request, res: Response) {
 export async function getOidcClient(req: Req<OidcClientIdParams>, res: Response) {
   const metadata = await getOidcClientMetadata(req.params.id);
   return metadata ? res.status(200).json(metadata) : res.status(404).json(NOT_FOUND);
+}
+
+export async function getOidcClientResourceList(req: Req<OidcClientIdParams>, res: Response) {
+  if (!(await findActiveOidcClient(req.params.id))) return res.status(404).json(NOT_FOUND);
+  return res.status(200).json({ resources: await getOidcClientResources(req.params.id) });
 }
 
 export async function postOidcVerifySecret(
