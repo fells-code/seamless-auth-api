@@ -179,6 +179,37 @@ describe('PATCH /system-config/admin', () => {
     expect(res.status).toBe(200);
   });
 
+  it('stores hosted page branding and refreshes the cached config', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+    const hosted_ui = {
+      logoUrl: 'https://cdn.example.com/logo.svg',
+      colors: { primary: '#1a73e8' },
+    };
+
+    const res = await request(app).patch('/system-config/admin').send({ hosted_ui });
+
+    expect(res.status).toBe(200);
+    expect(SystemConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'hosted_ui', value: hosted_ui }),
+      expect.anything(),
+    );
+    expect(invalidateSystemConfigCache).toHaveBeenCalled();
+  });
+
+  it.each([
+    { colors: { primary: 'red;} body{display:none' } },
+    { logoUrl: 'http://cdn.example.com/logo.svg' },
+    { logoUrl: "https://cdn.example.com/logo.svg')" },
+    { fontFamily: "'Inter" },
+    { script: '<script>' },
+  ])('refuses hosted page branding %j', async (hosted_ui) => {
+    const res = await request(app).patch('/system-config/admin').send({ hosted_ui });
+
+    expect(res.status).toBe(400);
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid payload', async () => {
     const res = await request(app).patch('/system-config/admin').send({ invalid: true });
 

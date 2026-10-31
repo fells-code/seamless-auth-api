@@ -10535,7 +10535,20 @@ export interface paths {
              *       "issuer": null,
              *       "appName": "string",
              *       "allowClientSecrets": true,
-             *       "thirdPartyClientsEnabled": true
+             *       "thirdPartyClientsEnabled": true,
+             *       "hostedUi": {
+             *         "appName": "string",
+             *         "logoUrl": null,
+             *         "colors": {
+             *           "primary": "string",
+             *           "onPrimary": "string",
+             *           "background": "string",
+             *           "surface": "string",
+             *           "text": "string",
+             *           "muted": "string"
+             *         },
+             *         "fontFamily": "string"
+             *       }
              *     }
              */
             'application/json': {
@@ -10545,6 +10558,19 @@ export interface paths {
               appName: string;
               allowClientSecrets: boolean;
               thirdPartyClientsEnabled: boolean;
+              hostedUi?: {
+                appName?: string;
+                logoUrl?: string;
+                colors?: {
+                  primary?: string;
+                  onPrimary?: string;
+                  background?: string;
+                  surface?: string;
+                  text?: string;
+                  muted?: string;
+                };
+                fontFamily?: string;
+              };
             };
           };
         };
@@ -21393,7 +21419,6 @@ export interface paths {
               /** @default null */
               hosted_ui: {
                 appName?: string;
-                /** Format: uri */
                 logoUrl?: string;
                 colors?: {
                   primary?: string;
@@ -21401,6 +21426,7 @@ export interface paths {
                   background?: string;
                   surface?: string;
                   text?: string;
+                  muted?: string;
                 };
                 fontFamily?: string;
               } | null;
@@ -21637,7 +21663,6 @@ export interface paths {
             third_party_clients_enabled?: boolean;
             hosted_ui?: {
               appName?: string;
-              /** Format: uri */
               logoUrl?: string;
               colors?: {
                 primary?: string;
@@ -21645,6 +21670,7 @@ export interface paths {
                 background?: string;
                 surface?: string;
                 text?: string;
+                muted?: string;
               };
               fontFamily?: string;
             } | null;
