@@ -87,6 +87,17 @@ export async function resolveCurrentSession(sessionId: string): Promise<Session 
   return validateSessionRecord(current.id);
 }
 
+/**
+ * When the session last authenticated, as epoch seconds. Rows from before the auth context
+ * columns fall back to the start of the chain, so a refresh cannot make the sign-in look
+ * more recent than it was.
+ */
+export function sessionAuthTime(session: Session) {
+  return Math.floor(
+    new Date(session.authTime ?? session.chainStartedAt ?? session.createdAt).getTime() / 1000,
+  );
+}
+
 export async function getOidcAuthContext(sessionId: string): Promise<OidcAuthContext | null> {
   if (!isUuid(sessionId)) return null;
 
@@ -95,17 +106,20 @@ export async function getOidcAuthContext(sessionId: string): Promise<OidcAuthCon
   if (!recorded) return null;
 
   const current = await resolveCurrentSession(sessionId);
-  const authMethods = recorded.authMethods ?? [];
-  const authTime = recorded.authTime ?? recorded.createdAt;
+  // Step-up writes to the row the access token names, which after a refresh is a later
+  // row than the one the provider recorded. Reading the current row is also what
+  // /oidc/sign checks against, so the context the edge copies is the one it will accept.
+  const source = current ?? recorded;
+  const authMethods = source.authMethods ?? [];
   const { acr, amr } = deriveAcrAmr(authMethods);
 
   return {
     sessionId: recorded.id,
     userId: recorded.userId,
     active: current !== null,
-    recovery: (current ?? recorded).recovery === true,
+    recovery: source.recovery === true,
     authMethods,
-    authTime: Math.floor(new Date(authTime).getTime() / 1000),
+    authTime: sessionAuthTime(source),
     acr,
     amr,
   };

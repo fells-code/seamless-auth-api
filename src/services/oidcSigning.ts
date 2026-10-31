@@ -10,7 +10,7 @@ import { constants, sign } from 'crypto';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { Session } from '../models/sessions.js';
 import { parseDurationToSeconds } from '../utils/utils.js';
-import { deriveAcrAmr, resolveCurrentSession } from './oidcAuthContext.js';
+import { deriveAcrAmr, resolveCurrentSession, sessionAuthTime } from './oidcAuthContext.js';
 import {
   findActiveOidcClient,
   getOidcAccountClaims,
@@ -266,11 +266,7 @@ async function checkUserToken(
   }
 
   const { acr, amr } = deriveAcrAmr(session.authMethods ?? []);
-  // Sessions from before the auth context columns fall back to the start of the chain, so
-  // a refresh cannot make the sign-in look more recent than it was.
-  const authTime = Math.floor(
-    new Date(session.authTime ?? session.chainStartedAt ?? session.createdAt).getTime() / 1000,
-  );
+  const authTime = sessionAuthTime(session);
 
   // Omitting a claim only understates assurance. Stating one the session did not earn is
   // what the edge must never be able to do.

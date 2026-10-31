@@ -138,6 +138,45 @@ describe('grant binding', () => {
   });
 });
 
+describe('step-up auth context', () => {
+  it('reports a step-up on the refreshed row for the session the provider recorded', async () => {
+    const { User } = await import('../../src/models/users.js');
+    const { Session } = await import('../../src/models/sessions.js');
+    const { recordStepUpVerification } = await import('../../src/services/stepUpService.js');
+    const { getOidcAuthContext } = await import('../../src/services/oidcAuthContext.js');
+    const user = await User.create({ email: `${randomUUID()}@example.com` } as never);
+    const signedInAt = new Date(Date.now() - 600_000);
+    const times = {
+      userId: user.id,
+      mode: 'server' as const,
+      expiresAt: new Date(Date.now() + 3_600_000),
+      idleExpiresAt: new Date(Date.now() + 3_600_000),
+      authMethods: [{ method: 'email_otp' as const, at: signedInAt.toISOString() }],
+      authTime: signedInAt,
+    };
+    const recorded = await Session.create(times);
+    const current = await Session.create(times);
+    await recorded.update({ replacedBySessionId: current.id });
+
+    const verifiedAt = new Date(Math.floor(Date.now() / 1000) * 1000);
+    await recordStepUpVerification({
+      sessionId: current.id,
+      userId: user.id,
+      method: 'webauthn',
+      passkey: { deviceBound: false, userVerified: true },
+      verifiedAt,
+    });
+
+    expect(await getOidcAuthContext(recorded.id)).toMatchObject({
+      sessionId: recorded.id,
+      active: true,
+      authTime: verifiedAt.getTime() / 1000,
+      acr: 'phr',
+      amr: ['swk', 'user', 'otp', 'mfa'],
+    });
+  });
+});
+
 describe('oidc_clients', () => {
   it('refuses a public client with a token endpoint auth method', async () => {
     await expect(

@@ -237,6 +237,10 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
       sessionId: authReq.sessionId,
       userId: user.id,
       method: 'webauthn',
+      passkey: {
+        deviceBound: verification.authenticationInfo.credentialDeviceType === 'singleDevice',
+        userVerified: verification.authenticationInfo.userVerified,
+      },
     });
 
     if (!status) {

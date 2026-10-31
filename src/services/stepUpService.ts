@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Session } from '../models/sessions.js';
+import { Session, SessionAuthMethod } from '../models/sessions.js';
 
 export const DEFAULT_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 
@@ -85,16 +85,54 @@ export async function getSessionStepUpStatus({
   return getStepUpStatusFromSession(session, maxAgeSeconds);
 }
 
+function stepUpAuthMethod(
+  method: StepUpMethod,
+  at: Date,
+  passkey: { deviceBound: boolean; userVerified: boolean } | undefined,
+): SessionAuthMethod {
+  return method === 'webauthn'
+    ? {
+        method: 'passkey',
+        at: at.toISOString(),
+        deviceBound: passkey?.deviceBound === true,
+        userVerified: passkey?.userVerified === true,
+      }
+    : { method: 'totp', at: at.toISOString() };
+}
+
+/**
+ * A repeat of a method the session already holds replaces that record with the newer time,
+ * so the list stays bounded by the distinct ways a user can authenticate.
+ */
+export function mergeAuthMethod(
+  existing: readonly SessionAuthMethod[],
+  record: SessionAuthMethod,
+): SessionAuthMethod[] {
+  const sameKind = (other: SessionAuthMethod) =>
+    other.method === record.method &&
+    other.deviceBound === record.deviceBound &&
+    other.userVerified === record.userVerified;
+
+  return [...existing.filter((other) => !sameKind(other)), record];
+}
+
+/**
+ * Step-up is an authentication, so besides the first-party freshness window it adds the
+ * method to the session's auth context and moves `authTime`, which is what the provider's
+ * `amr`, `acr` and `auth_time` are derived from.
+ */
 export async function recordStepUpVerification({
   sessionId,
   userId,
   method,
+  passkey,
   verifiedAt = new Date(),
   maxAgeSeconds = DEFAULT_STEP_UP_MAX_AGE_SECONDS,
 }: {
   sessionId: string;
   userId: string;
   method: StepUpMethod;
+  passkey?: { deviceBound: boolean; userVerified: boolean };
   verifiedAt?: Date;
   maxAgeSeconds?: number;
 }) {
@@ -106,6 +144,11 @@ export async function recordStepUpVerification({
 
   session.stepUpVerifiedAt = verifiedAt;
   session.stepUpMethod = method;
+  session.authMethods = mergeAuthMethod(
+    session.authMethods ?? [],
+    stepUpAuthMethod(method, verifiedAt, passkey),
+  );
+  session.authTime = verifiedAt;
   await session.save();
 
   return getStepUpStatusFromSession(session, maxAgeSeconds, verifiedAt);
