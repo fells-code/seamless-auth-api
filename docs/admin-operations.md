@@ -317,6 +317,41 @@ evaluates at most 10,000 accounts, the first by id. A run that reaches the cap a
 `capped: true`, so the counts are partial, and says so in its `policy_dry_run` event and in
 the API log.
 
+## OpenID Provider Applications
+
+The applications (clients) of the OpenID Provider service ([ADR 0001](./adr/0001-openid-provider.md), D12) are managed under `/admin/applications`. Reads need `admin:read`. Every write needs `admin:write` and a fresh step-up, and writes an `admin_oidc_application_*` auth event. The routes work whether or not `oidc_provider_enabled` is on, so applications can be set up before the provider service is deployed.
+
+| Route                                 | What it does                                                               |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `GET /admin/applications`             | List applications.                                                         |
+| `POST /admin/applications`            | Create one. A shared-secret client gets its secret in this response, once. |
+| `GET /admin/applications/:id`         | Get one.                                                                   |
+| `PATCH /admin/applications/:id`       | Change settings, or disable it with `disabled: true`.                      |
+| `DELETE /admin/applications/:id`      | Delete it, with every provider grant, code and token issued to it.         |
+| `POST /admin/applications/:id/secret` | Issue or rotate a shared secret. The previous one stops working at once.   |
+| `PUT /admin/applications/:id/keys`    | Register the JWKS or JWKS URI of a `private_key_jwt` client.               |
+
+Only an HMAC of a shared secret is stored, so a lost secret is rotated, never recovered.
+
+### Settings that cannot be created
+
+The API refuses these on create and on the merged result of every update (#410):
+
+| Rule                                                                                         | Where                    |
+| -------------------------------------------------------------------------------------------- | ------------------------ |
+| Only the `authorization_code`, `refresh_token`, `client_credentials` and device grants exist | Schema                   |
+| Public clients authenticate with PKCE alone: no secret, no keys, no `client_credentials`     | Schema                   |
+| `client_secret_jwt` cannot be chosen                                                         | Schema                   |
+| Redirects are exact, except the RFC 8252 loopback port (`127.0.0.1`, `[::1]`)                | Schema, provider service |
+| `localhost`, fragments and embedded credentials are refused as redirects                     | Schema                   |
+| Plain `http` redirects are only allowed on the loopback IPs                                  | Schema                   |
+| Private-use schemes must be in reverse domain form (`com.example.app:/callback`)             | Schema                   |
+| The device grant is first-party only                                                         | Schema                   |
+| Shared secrets need `allow_client_secrets`                                                   | API, provider service    |
+| Third-party clients need `third_party_clients_enabled`                                       | API, provider service    |
+
+PKCE with `S256` for every client, `code` as the only response type, and refresh token rotation are fixed in the provider service's configuration and cannot be changed per client.
+
 ## Audit Events
 
 Admin actions are recorded as auth events with redacted metadata. Do not store raw secrets, tokens, OTPs, magic-link URLs, PRF values, account keys, or provider tokens in admin metadata.

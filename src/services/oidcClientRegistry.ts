@@ -4,7 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { OidcAccountClaims, OidcClientMetadata, OidcPublicJwk } from '@seamless-auth/types';
+import {
+  type OidcAccountClaims,
+  type OidcClientMetadata,
+  type OidcPublicJwk,
+  oidcRedirectUriKind,
+} from '@seamless-auth/types';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Op } from 'sequelize';
 
@@ -35,15 +40,10 @@ export async function findActiveOidcClient(id: string) {
   return client && !client.disabledAt ? client : null;
 }
 
-function isNativeRedirect(uri: string) {
-  const { protocol, hostname } = new URL(uri);
-
-  return (
-    (protocol !== 'https:' && protocol !== 'http:') ||
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '[::1]'
-  );
+/** A loopback or private-use redirect (RFC 8252) makes the client a native one. */
+export function isNativeRedirectUri(uri: string) {
+  const kind = oidcRedirectUriKind(uri);
+  return kind === 'loopback' || kind === 'private_use';
 }
 
 export async function getOidcClientMetadata(id: string): Promise<OidcClientMetadata | null> {
@@ -54,7 +54,7 @@ export async function getOidcClientMetadata(id: string): Promise<OidcClientMetad
   return {
     client_id: client.id,
     client_name: client.name,
-    application_type: client.redirectUris.some(isNativeRedirect) ? 'native' : 'web',
+    application_type: client.redirectUris.some(isNativeRedirectUri) ? 'native' : 'web',
     token_endpoint_auth_method: client.tokenEndpointAuthMethod,
     grant_types: client.grantTypes as OidcClientMetadata['grant_types'],
     response_types: client.grantTypes.includes('authorization_code') ? ['code'] : [],

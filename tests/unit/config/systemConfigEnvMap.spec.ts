@@ -40,6 +40,7 @@ describe('SYSTEM_CONFIG_ENV_MAP', () => {
       oidc_issuer: 'OIDC_ISSUER',
       allow_client_secrets: 'OIDC_ALLOW_CLIENT_SECRETS',
       third_party_clients_enabled: 'OIDC_THIRD_PARTY_CLIENTS_ENABLED',
+      hosted_ui: 'OIDC_HOSTED_UI',
     });
   });
 

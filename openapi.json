@@ -5134,6 +5134,11 @@
                     "admin_last_admin_change_refused",
                     "admin_oauth_provider_restored",
                     "admin_oauth_provider_retired",
+                    "admin_oidc_application_created",
+                    "admin_oidc_application_deleted",
+                    "admin_oidc_application_keys_updated",
+                    "admin_oidc_application_secret_rotated",
+                    "admin_oidc_application_updated",
                     "admin_session_revoked",
                     "admin_user_import_completed",
                     "admin_user_imported",
@@ -5242,6 +5247,11 @@
                           "admin_last_admin_change_refused",
                           "admin_oauth_provider_restored",
                           "admin_oauth_provider_retired",
+                          "admin_oidc_application_created",
+                          "admin_oidc_application_deleted",
+                          "admin_oidc_application_keys_updated",
+                          "admin_oidc_application_secret_rotated",
+                          "admin_oidc_application_updated",
                           "admin_session_revoked",
                           "admin_user_import_completed",
                           "admin_user_imported",
@@ -12899,6 +12909,1803 @@
         }
       }
     },
+    "/admin/applications": {
+      "get": {
+        "summary": "List OpenID Provider applications",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "applications": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applications": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                          "applicationType": { "type": "string", "enum": ["web", "native"] },
+                          "firstParty": { "type": "boolean" },
+                          "tokenEndpointAuthMethod": {
+                            "type": "string",
+                            "enum": [
+                              "private_key_jwt",
+                              "none",
+                              "client_secret_basic",
+                              "client_secret_post"
+                            ]
+                          },
+                          "redirectUris": { "type": "array", "items": { "type": "string" } },
+                          "postLogoutRedirectUris": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          "grantTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                            }
+                          },
+                          "deviceFlowEnabled": { "type": "boolean" },
+                          "noticesEnabled": { "type": "boolean" },
+                          "jwks": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "keys": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kty": { "type": "string" },
+                                    "kid": { "type": "string" },
+                                    "alg": { "type": "string" },
+                                    "use": { "type": "string", "enum": ["sig"] }
+                                  },
+                                  "required": ["kty", "kid", "alg"],
+                                  "additionalProperties": { "nullable": true }
+                                },
+                                "minItems": 1,
+                                "maxItems": 20
+                              }
+                            },
+                            "required": ["keys"]
+                          },
+                          "jwksUri": { "type": "string", "nullable": true },
+                          "hasSecret": { "type": "boolean" },
+                          "backchannelLogoutUri": { "type": "string", "nullable": true },
+                          "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                          "idTokenTtlSeconds": { "type": "integer", "nullable": true },
+                          "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
+                          "disabled": { "type": "boolean" },
+                          "createdAt": { "type": "string" },
+                          "updatedAt": { "type": "string" }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "clientType",
+                          "applicationType",
+                          "firstParty",
+                          "tokenEndpointAuthMethod",
+                          "redirectUris",
+                          "postLogoutRedirectUris",
+                          "grantTypes",
+                          "deviceFlowEnabled",
+                          "noticesEnabled",
+                          "jwks",
+                          "jwksUri",
+                          "hasSecret",
+                          "backchannelLogoutUri",
+                          "accessTokenTtlSeconds",
+                          "idTokenTtlSeconds",
+                          "refreshTokenTtlSeconds",
+                          "disabled",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["applications"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an OpenID Provider application",
+        "description": "Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+                  "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                  "firstParty": { "type": "boolean", "default": false },
+                  "tokenEndpointAuthMethod": {
+                    "type": "string",
+                    "enum": ["private_key_jwt", "none", "client_secret_basic", "client_secret_post"]
+                  },
+                  "redirectUris": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "postLogoutRedirectUris": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "grantTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                    },
+                    "maxItems": 3,
+                    "default": ["authorization_code", "refresh_token"]
+                  },
+                  "deviceFlowEnabled": { "type": "boolean", "default": false },
+                  "noticesEnabled": { "type": "boolean", "default": false },
+                  "backchannelLogoutUri": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "accessTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 60,
+                    "maximum": 86400
+                  },
+                  "idTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 60,
+                    "maximum": 86400
+                  },
+                  "refreshTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 300,
+                    "maximum": 7776000
+                  },
+                  "jwks": {
+                    "type": "object",
+                    "properties": {
+                      "keys": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kty": { "type": "string" },
+                            "kid": { "type": "string" },
+                            "alg": { "type": "string" },
+                            "use": { "type": "string", "enum": ["sig"] }
+                          },
+                          "required": ["kty", "kid", "alg"],
+                          "additionalProperties": { "nullable": true }
+                        },
+                        "minItems": 1,
+                        "maxItems": 20
+                      }
+                    },
+                    "required": ["keys"]
+                  },
+                  "jwksUri": { "type": "string", "maxLength": 2048, "format": "uri" }
+                },
+                "required": ["name", "clientType"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HTTP 201",
+            "content": {
+              "application/json": {
+                "example": {
+                  "application": {
+                    "id": "string",
+                    "name": "string",
+                    "clientType": null,
+                    "applicationType": null,
+                    "firstParty": true,
+                    "tokenEndpointAuthMethod": null,
+                    "redirectUris": [null],
+                    "postLogoutRedirectUris": [null],
+                    "grantTypes": [null],
+                    "deviceFlowEnabled": true,
+                    "noticesEnabled": true,
+                    "jwks": { "keys": [null] },
+                    "jwksUri": "string",
+                    "hasSecret": true,
+                    "backchannelLogoutUri": "string",
+                    "accessTokenTtlSeconds": 0,
+                    "idTokenTtlSeconds": 0,
+                    "refreshTokenTtlSeconds": 0,
+                    "disabled": true,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  },
+                  "clientSecret": "string"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                        "applicationType": { "type": "string", "enum": ["web", "native"] },
+                        "firstParty": { "type": "boolean" },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "private_key_jwt",
+                            "none",
+                            "client_secret_basic",
+                            "client_secret_post"
+                          ]
+                        },
+                        "redirectUris": { "type": "array", "items": { "type": "string" } },
+                        "postLogoutRedirectUris": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "grantTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                          }
+                        },
+                        "deviceFlowEnabled": { "type": "boolean" },
+                        "noticesEnabled": { "type": "boolean" },
+                        "jwks": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "keys": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kty": { "type": "string" },
+                                  "kid": { "type": "string" },
+                                  "alg": { "type": "string" },
+                                  "use": { "type": "string", "enum": ["sig"] }
+                                },
+                                "required": ["kty", "kid", "alg"],
+                                "additionalProperties": { "nullable": true }
+                              },
+                              "minItems": 1,
+                              "maxItems": 20
+                            }
+                          },
+                          "required": ["keys"]
+                        },
+                        "jwksUri": { "type": "string", "nullable": true },
+                        "hasSecret": { "type": "boolean" },
+                        "backchannelLogoutUri": { "type": "string", "nullable": true },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "idTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "disabled": { "type": "boolean" },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "clientType",
+                        "applicationType",
+                        "firstParty",
+                        "tokenEndpointAuthMethod",
+                        "redirectUris",
+                        "postLogoutRedirectUris",
+                        "grantTypes",
+                        "deviceFlowEnabled",
+                        "noticesEnabled",
+                        "jwks",
+                        "jwksUri",
+                        "hasSecret",
+                        "backchannelLogoutUri",
+                        "accessTokenTtlSeconds",
+                        "idTokenTtlSeconds",
+                        "refreshTokenTtlSeconds",
+                        "disabled",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "clientSecret": { "type": "string" }
+                  },
+                  "required": ["application"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}": {
+      "get": {
+        "summary": "Get an OpenID Provider application",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "application": {
+                    "id": "string",
+                    "name": "string",
+                    "clientType": null,
+                    "applicationType": null,
+                    "firstParty": true,
+                    "tokenEndpointAuthMethod": null,
+                    "redirectUris": [null],
+                    "postLogoutRedirectUris": [null],
+                    "grantTypes": [null],
+                    "deviceFlowEnabled": true,
+                    "noticesEnabled": true,
+                    "jwks": { "keys": [null] },
+                    "jwksUri": "string",
+                    "hasSecret": true,
+                    "backchannelLogoutUri": "string",
+                    "accessTokenTtlSeconds": 0,
+                    "idTokenTtlSeconds": 0,
+                    "refreshTokenTtlSeconds": 0,
+                    "disabled": true,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                        "applicationType": { "type": "string", "enum": ["web", "native"] },
+                        "firstParty": { "type": "boolean" },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "private_key_jwt",
+                            "none",
+                            "client_secret_basic",
+                            "client_secret_post"
+                          ]
+                        },
+                        "redirectUris": { "type": "array", "items": { "type": "string" } },
+                        "postLogoutRedirectUris": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "grantTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                          }
+                        },
+                        "deviceFlowEnabled": { "type": "boolean" },
+                        "noticesEnabled": { "type": "boolean" },
+                        "jwks": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "keys": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kty": { "type": "string" },
+                                  "kid": { "type": "string" },
+                                  "alg": { "type": "string" },
+                                  "use": { "type": "string", "enum": ["sig"] }
+                                },
+                                "required": ["kty", "kid", "alg"],
+                                "additionalProperties": { "nullable": true }
+                              },
+                              "minItems": 1,
+                              "maxItems": 20
+                            }
+                          },
+                          "required": ["keys"]
+                        },
+                        "jwksUri": { "type": "string", "nullable": true },
+                        "hasSecret": { "type": "boolean" },
+                        "backchannelLogoutUri": { "type": "string", "nullable": true },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "idTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "disabled": { "type": "boolean" },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "clientType",
+                        "applicationType",
+                        "firstParty",
+                        "tokenEndpointAuthMethod",
+                        "redirectUris",
+                        "postLogoutRedirectUris",
+                        "grantTypes",
+                        "deviceFlowEnabled",
+                        "noticesEnabled",
+                        "jwks",
+                        "jwksUri",
+                        "hasSecret",
+                        "backchannelLogoutUri",
+                        "accessTokenTtlSeconds",
+                        "idTokenTtlSeconds",
+                        "refreshTokenTtlSeconds",
+                        "disabled",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["application"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update an OpenID Provider application",
+        "description": "Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+                  "firstParty": { "type": "boolean" },
+                  "tokenEndpointAuthMethod": {
+                    "type": "string",
+                    "enum": ["private_key_jwt", "none", "client_secret_basic", "client_secret_post"]
+                  },
+                  "redirectUris": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 50
+                  },
+                  "postLogoutRedirectUris": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 50
+                  },
+                  "grantTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                    },
+                    "maxItems": 3
+                  },
+                  "deviceFlowEnabled": { "type": "boolean" },
+                  "noticesEnabled": { "type": "boolean" },
+                  "backchannelLogoutUri": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "accessTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 60,
+                    "maximum": 86400
+                  },
+                  "idTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 60,
+                    "maximum": 86400
+                  },
+                  "refreshTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 300,
+                    "maximum": 7776000
+                  },
+                  "disabled": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "application": {
+                    "id": "string",
+                    "name": "string",
+                    "clientType": null,
+                    "applicationType": null,
+                    "firstParty": true,
+                    "tokenEndpointAuthMethod": null,
+                    "redirectUris": [null],
+                    "postLogoutRedirectUris": [null],
+                    "grantTypes": [null],
+                    "deviceFlowEnabled": true,
+                    "noticesEnabled": true,
+                    "jwks": { "keys": [null] },
+                    "jwksUri": "string",
+                    "hasSecret": true,
+                    "backchannelLogoutUri": "string",
+                    "accessTokenTtlSeconds": 0,
+                    "idTokenTtlSeconds": 0,
+                    "refreshTokenTtlSeconds": 0,
+                    "disabled": true,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                        "applicationType": { "type": "string", "enum": ["web", "native"] },
+                        "firstParty": { "type": "boolean" },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "private_key_jwt",
+                            "none",
+                            "client_secret_basic",
+                            "client_secret_post"
+                          ]
+                        },
+                        "redirectUris": { "type": "array", "items": { "type": "string" } },
+                        "postLogoutRedirectUris": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "grantTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                          }
+                        },
+                        "deviceFlowEnabled": { "type": "boolean" },
+                        "noticesEnabled": { "type": "boolean" },
+                        "jwks": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "keys": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kty": { "type": "string" },
+                                  "kid": { "type": "string" },
+                                  "alg": { "type": "string" },
+                                  "use": { "type": "string", "enum": ["sig"] }
+                                },
+                                "required": ["kty", "kid", "alg"],
+                                "additionalProperties": { "nullable": true }
+                              },
+                              "minItems": 1,
+                              "maxItems": 20
+                            }
+                          },
+                          "required": ["keys"]
+                        },
+                        "jwksUri": { "type": "string", "nullable": true },
+                        "hasSecret": { "type": "boolean" },
+                        "backchannelLogoutUri": { "type": "string", "nullable": true },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "idTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "disabled": { "type": "boolean" },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "clientType",
+                        "applicationType",
+                        "firstParty",
+                        "tokenEndpointAuthMethod",
+                        "redirectUris",
+                        "postLogoutRedirectUris",
+                        "grantTypes",
+                        "deviceFlowEnabled",
+                        "noticesEnabled",
+                        "jwks",
+                        "jwksUri",
+                        "hasSecret",
+                        "backchannelLogoutUri",
+                        "accessTokenTtlSeconds",
+                        "idTokenTtlSeconds",
+                        "refreshTokenTtlSeconds",
+                        "disabled",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["application"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an OpenID Provider application",
+        "description": "Also deletes its resource grants and every provider grant, code and token issued to it.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/secret": {
+      "post": {
+        "summary": "Issue or rotate an application secret",
+        "description": "Only for `client_secret_basic` and `client_secret_post` applications, on an instance with `allow_client_secrets`. The previous secret stops working at once. The secret is returned here only; the API keeps an HMAC of it.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "application": {
+                    "id": "string",
+                    "name": "string",
+                    "clientType": null,
+                    "applicationType": null,
+                    "firstParty": true,
+                    "tokenEndpointAuthMethod": null,
+                    "redirectUris": [null],
+                    "postLogoutRedirectUris": [null],
+                    "grantTypes": [null],
+                    "deviceFlowEnabled": true,
+                    "noticesEnabled": true,
+                    "jwks": { "keys": [null] },
+                    "jwksUri": "string",
+                    "hasSecret": true,
+                    "backchannelLogoutUri": "string",
+                    "accessTokenTtlSeconds": 0,
+                    "idTokenTtlSeconds": 0,
+                    "refreshTokenTtlSeconds": 0,
+                    "disabled": true,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  },
+                  "clientSecret": "string"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                        "applicationType": { "type": "string", "enum": ["web", "native"] },
+                        "firstParty": { "type": "boolean" },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "private_key_jwt",
+                            "none",
+                            "client_secret_basic",
+                            "client_secret_post"
+                          ]
+                        },
+                        "redirectUris": { "type": "array", "items": { "type": "string" } },
+                        "postLogoutRedirectUris": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "grantTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                          }
+                        },
+                        "deviceFlowEnabled": { "type": "boolean" },
+                        "noticesEnabled": { "type": "boolean" },
+                        "jwks": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "keys": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kty": { "type": "string" },
+                                  "kid": { "type": "string" },
+                                  "alg": { "type": "string" },
+                                  "use": { "type": "string", "enum": ["sig"] }
+                                },
+                                "required": ["kty", "kid", "alg"],
+                                "additionalProperties": { "nullable": true }
+                              },
+                              "minItems": 1,
+                              "maxItems": 20
+                            }
+                          },
+                          "required": ["keys"]
+                        },
+                        "jwksUri": { "type": "string", "nullable": true },
+                        "hasSecret": { "type": "boolean" },
+                        "backchannelLogoutUri": { "type": "string", "nullable": true },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "idTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "disabled": { "type": "boolean" },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "clientType",
+                        "applicationType",
+                        "firstParty",
+                        "tokenEndpointAuthMethod",
+                        "redirectUris",
+                        "postLogoutRedirectUris",
+                        "grantTypes",
+                        "deviceFlowEnabled",
+                        "noticesEnabled",
+                        "jwks",
+                        "jwksUri",
+                        "hasSecret",
+                        "backchannelLogoutUri",
+                        "accessTokenTtlSeconds",
+                        "idTokenTtlSeconds",
+                        "refreshTokenTtlSeconds",
+                        "disabled",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "clientSecret": { "type": "string" }
+                  },
+                  "required": ["application", "clientSecret"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/keys": {
+      "put": {
+        "summary": "Register application keys",
+        "description": "Replaces the JWKS or JWKS URI a `private_key_jwt` application signs its client assertions with. Private key members are refused.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "jwks": {
+                        "type": "object",
+                        "properties": {
+                          "keys": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kty": { "type": "string" },
+                                "kid": { "type": "string" },
+                                "alg": { "type": "string" },
+                                "use": { "type": "string", "enum": ["sig"] }
+                              },
+                              "required": ["kty", "kid", "alg"],
+                              "additionalProperties": { "nullable": true }
+                            },
+                            "minItems": 1,
+                            "maxItems": 20
+                          }
+                        },
+                        "required": ["keys"]
+                      }
+                    },
+                    "required": ["jwks"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "jwksUri": { "type": "string", "maxLength": 2048, "format": "uri" }
+                    },
+                    "required": ["jwksUri"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "application": {
+                    "id": "string",
+                    "name": "string",
+                    "clientType": null,
+                    "applicationType": null,
+                    "firstParty": true,
+                    "tokenEndpointAuthMethod": null,
+                    "redirectUris": [null],
+                    "postLogoutRedirectUris": [null],
+                    "grantTypes": [null],
+                    "deviceFlowEnabled": true,
+                    "noticesEnabled": true,
+                    "jwks": { "keys": [null] },
+                    "jwksUri": "string",
+                    "hasSecret": true,
+                    "backchannelLogoutUri": "string",
+                    "accessTokenTtlSeconds": 0,
+                    "idTokenTtlSeconds": 0,
+                    "refreshTokenTtlSeconds": 0,
+                    "disabled": true,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "application": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "clientType": { "type": "string", "enum": ["public", "confidential"] },
+                        "applicationType": { "type": "string", "enum": ["web", "native"] },
+                        "firstParty": { "type": "boolean" },
+                        "tokenEndpointAuthMethod": {
+                          "type": "string",
+                          "enum": [
+                            "private_key_jwt",
+                            "none",
+                            "client_secret_basic",
+                            "client_secret_post"
+                          ]
+                        },
+                        "redirectUris": { "type": "array", "items": { "type": "string" } },
+                        "postLogoutRedirectUris": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "grantTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["authorization_code", "refresh_token", "client_credentials"]
+                          }
+                        },
+                        "deviceFlowEnabled": { "type": "boolean" },
+                        "noticesEnabled": { "type": "boolean" },
+                        "jwks": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "keys": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kty": { "type": "string" },
+                                  "kid": { "type": "string" },
+                                  "alg": { "type": "string" },
+                                  "use": { "type": "string", "enum": ["sig"] }
+                                },
+                                "required": ["kty", "kid", "alg"],
+                                "additionalProperties": { "nullable": true }
+                              },
+                              "minItems": 1,
+                              "maxItems": 20
+                            }
+                          },
+                          "required": ["keys"]
+                        },
+                        "jwksUri": { "type": "string", "nullable": true },
+                        "hasSecret": { "type": "boolean" },
+                        "backchannelLogoutUri": { "type": "string", "nullable": true },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "idTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "disabled": { "type": "boolean" },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "clientType",
+                        "applicationType",
+                        "firstParty",
+                        "tokenEndpointAuthMethod",
+                        "redirectUris",
+                        "postLogoutRedirectUris",
+                        "grantTypes",
+                        "deviceFlowEnabled",
+                        "noticesEnabled",
+                        "jwks",
+                        "jwksUri",
+                        "hasSecret",
+                        "backchannelLogoutUri",
+                        "accessTokenTtlSeconds",
+                        "idTokenTtlSeconds",
+                        "refreshTokenTtlSeconds",
+                        "disabled",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["application"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizations/": {
       "get": {
         "summary": "List organizations for the authenticated user",
@@ -18194,7 +20001,8 @@
                   "oidc_provider_enabled": null,
                   "oidc_issuer": null,
                   "allow_client_secrets": null,
-                  "third_party_clients_enabled": null
+                  "third_party_clients_enabled": null,
+                  "hosted_ui": null
                 },
                 "schema": {
                   "type": "object",
@@ -18489,7 +20297,48 @@
                       "default": null
                     },
                     "allow_client_secrets": { "type": "boolean", "default": false },
-                    "third_party_clients_enabled": { "type": "boolean", "default": false }
+                    "third_party_clients_enabled": { "type": "boolean", "default": false },
+                    "hosted_ui": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "appName": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "logoUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                        "colors": {
+                          "type": "object",
+                          "properties": {
+                            "primary": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "onPrimary": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "background": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "surface": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "fontFamily": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9 ,'-]+$"
+                        }
+                      },
+                      "default": null,
+                      "additionalProperties": false
+                    }
                   },
                   "required": [
                     "app_name",
@@ -18813,7 +20662,47 @@
                   "oidc_provider_enabled": { "type": "boolean" },
                   "oidc_issuer": { "type": "string", "nullable": true, "format": "uri" },
                   "allow_client_secrets": { "type": "boolean" },
-                  "third_party_clients_enabled": { "type": "boolean" }
+                  "third_party_clients_enabled": { "type": "boolean" },
+                  "hosted_ui": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "appName": { "type": "string", "minLength": 1, "maxLength": 100 },
+                      "logoUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                      "colors": {
+                        "type": "object",
+                        "properties": {
+                          "primary": {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                          },
+                          "onPrimary": {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                          },
+                          "background": {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                          },
+                          "surface": {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                          },
+                          "text": {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "fontFamily": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9 ,'-]+$"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
                 },
                 "additionalProperties": false
               }

@@ -50,4 +50,5 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   oidc_issuer: null,
   allow_client_secrets: false,
   third_party_clients_enabled: false,
+  hosted_ui: null,
 };
