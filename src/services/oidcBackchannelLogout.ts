@@ -168,35 +168,41 @@ async function post(uri: string, logoutToken: string) {
 
 async function deliver(issuer: string, sessionId: string, userId: string, target: Target) {
   const client = await findActiveOidcClient(target.clientId);
-  if (!client?.backchannelLogoutUri) return;
+  const uri = client?.backchannelLogoutUri;
+  if (!client || !uri) return;
 
-  for (const sid of target.sids) {
-    let outcome: { status?: number; error?: string };
-    try {
-      const token = signLogoutToken(issuer, client.id, userId, sid);
-      outcome = { status: await post(client.backchannelLogoutUri, token) };
-    } catch (error) {
-      outcome = { error: (error as Error).name };
-    }
+  // In parallel, so a slow endpoint holds an RP-initiated logout for one timeout at most.
+  await Promise.all(
+    target.sids.map(async (sid) => {
+      let outcome: { status?: number; error?: string };
+      try {
+        const token = signLogoutToken(issuer, client.id, userId, sid);
+        outcome = { status: await post(uri, token) };
+      } catch (error) {
+        outcome = { error: (error as Error).name };
+      }
 
-    const metadata = { clientId: client.id, ...outcome };
-    if (outcome.status === 200 || outcome.status === 204) {
-      await AuthEventService.logContext({
-        userId,
-        sessionId,
-        type: 'oidc_backchannel_logout_sent',
-        metadata,
-      });
-    } else {
-      logger.warn(`Back-channel logout to ${client.id} failed: ${outcome.status ?? outcome.error}`);
-      await AuthEventService.logContext({
-        userId,
-        sessionId,
-        type: 'oidc_backchannel_logout_failed',
-        metadata,
-      });
-    }
-  }
+      const metadata = { clientId: client.id, ...outcome };
+      if (outcome.status === 200 || outcome.status === 204) {
+        await AuthEventService.logContext({
+          userId,
+          sessionId,
+          type: 'oidc_backchannel_logout_sent',
+          metadata,
+        });
+      } else {
+        logger.warn(
+          `Back-channel logout to ${client.id} failed: ${outcome.status ?? outcome.error}`,
+        );
+        await AuthEventService.logContext({
+          userId,
+          sessionId,
+          type: 'oidc_backchannel_logout_failed',
+          metadata,
+        });
+      }
+    }),
+  );
 }
 
 /**
@@ -205,11 +211,12 @@ async function deliver(issuer: string, sessionId: string, userId: string, target
  */
 export async function sendBackchannelLogout(sessionIds: string[]) {
   const ids = sessionIds.filter(isUuid);
+  const { oidc_issuer } = await getSystemConfig();
+  // Checked before claiming, so rows are never taken without a token being sent for them.
+  if (ids.length === 0 || !oidc_issuer) return 0;
+
   const claimed = await claimTargets(ids);
   if (claimed.length === 0) return 0;
-
-  const { oidc_issuer } = await getSystemConfig();
-  if (!oidc_issuer) return 0;
 
   const owners = new Map(
     (await Session.findAll({ where: { id: { [Op.in]: ids } } })).map((row) => [row.id, row.userId]),
@@ -263,10 +270,17 @@ export async function sweepBackchannelLogout() {
   return sendBackchannelLogout(ended);
 }
 
+let sweeping = false;
+
+// One sweep at a time per process, so repeated logouts cannot stack them up.
 export function sweepBackchannelLogoutInBackground() {
-  sweepBackchannelLogout().catch((error) =>
-    logger.error(`Back-channel logout sweep failed: ${error}`),
-  );
+  if (sweeping) return;
+  sweeping = true;
+  sweepBackchannelLogout()
+    .catch((error) => logger.error(`Back-channel logout sweep failed: ${error}`))
+    .finally(() => {
+      sweeping = false;
+    });
 }
 
 export function startBackchannelLogoutSweep() {

@@ -291,14 +291,18 @@ describe('sendBackchannelLogout', () => {
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
-  it('does nothing when nothing is claimed or no issuer is set', async () => {
+  it('does nothing when nothing is claimed', async () => {
     expect(await sendBackchannelLogout([])).toBe(0);
     expect(OidcPayload.sequelize!.query).not.toHaveBeenCalled();
 
-    claimed([{ payload: { clientId: 'app', sids: ['a1'] }, sessionId: SESSION }]);
-    vi.mocked(getSystemConfig).mockResolvedValue(buildSystemConfig({ oidc_issuer: '' }));
     expect(await sendBackchannelLogout([SESSION])).toBe(0);
     expect(findActiveOidcClient).not.toHaveBeenCalled();
+  });
+
+  it('leaves the rows in place while no issuer is set', async () => {
+    vi.mocked(getSystemConfig).mockResolvedValue(buildSystemConfig({ oidc_issuer: '' }));
+    expect(await sendBackchannelLogout([SESSION])).toBe(0);
+    expect(OidcPayload.sequelize!.query).not.toHaveBeenCalled();
   });
 });
 
@@ -340,6 +344,21 @@ describe('sweepBackchannelLogout', () => {
       .mocked(OidcPayload.findAll)
       .mock.calls.map(([options]) => (options!.where as { id: Record<symbol, string> }).id[Op.gt]);
     expect(cursors).toEqual(['', 'row-499', '']);
+  });
+
+  it('runs one background sweep at a time', async () => {
+    let release!: (rows: never[]) => void;
+    vi.mocked(OidcPayload.findAll).mockReturnValueOnce(
+      new Promise((resolve) => (release = resolve)) as never,
+    );
+    sweepBackchannelLogoutInBackground();
+    sweepBackchannelLogoutInBackground();
+    expect(OidcPayload.findAll).toHaveBeenCalledTimes(1);
+    release([]);
+    await new Promise((resolve) => setImmediate(resolve));
+    sweepBackchannelLogoutInBackground();
+    expect(OidcPayload.findAll).toHaveBeenCalledTimes(2);
+    await new Promise((resolve) => setImmediate(resolve));
   });
 
   it('logs a sweep that fails rather than throwing', async () => {
