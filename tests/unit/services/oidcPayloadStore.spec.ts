@@ -19,6 +19,7 @@ vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
 import { OidcPayload } from '../../../src/models/oidcPayloads';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
+  claimOAuthStateUse,
   consumeOidcPayload,
   destroyOidcPayload,
   ExpiryTooLongError,
@@ -93,6 +94,27 @@ describe('upsertOidcPayload', () => {
 
     expect(OidcPayload.upsert).not.toHaveBeenCalled();
     expect(vi.mocked(OidcPayload.sequelize!.query).mock.calls[0][0]).toMatch(/ON CONFLICT/);
+  });
+});
+
+describe('claimOAuthStateUse', () => {
+  it('records the state under its own model only if absent', async () => {
+    vi.mocked(OidcPayload.sequelize!.query).mockResolvedValueOnce([{ id: 'h1' }] as never);
+    expect(await claimOAuthStateUse('h1', expiresAt)).toBe(true);
+
+    vi.mocked(OidcPayload.sequelize!.query).mockResolvedValueOnce([] as never);
+    expect(await claimOAuthStateUse('h1', expiresAt)).toBe(false);
+
+    expect(vi.mocked(OidcPayload.sequelize!.query).mock.calls[0][1]).toEqual(
+      expect.objectContaining({
+        replacements: expect.objectContaining({
+          id: 'h1',
+          model: 'OAuthStateReplay',
+          payload: '{}',
+          expiresAt,
+        }),
+      }),
+    );
   });
 });
 

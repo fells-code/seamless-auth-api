@@ -22,12 +22,12 @@ import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
 import { normalizeLoginPolicy } from './loginPolicyService.js';
+import { claimOAuthStateUse } from './oidcPayloadStore.js';
 import { findOrganizationsRetiringOAuthProvider } from './organizationService.js';
 
 const logger = getLogger('oauthService');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
-const consumedStateHashes = new Map<string, number>();
 
 export type PublicOAuthProvider = {
   id: string;
@@ -117,18 +117,6 @@ function base64UrlDecode(value: string) {
 
 function signPayload(payload: string) {
   return createHmac('sha256', stateSecret()).update(payload).digest('base64url');
-}
-
-function hashStateForReplayCache(state: string) {
-  return createHmac('sha256', stateSecret()).update(`oauth-state:${state}`).digest('base64url');
-}
-
-function purgeConsumedStates(now = Date.now()) {
-  for (const [stateHash, expiresAt] of consumedStateHashes.entries()) {
-    if (expiresAt <= now) {
-      consumedStateHashes.delete(stateHash);
-    }
-  }
 }
 
 /**
@@ -271,7 +259,13 @@ export function createOAuthState(
 }
 
 export function verifyOAuthState(state: string, providerId: string): OAuthStatePayload | null {
-  const [encodedPayload, signature] = state.split('.');
+  const segments = state.split('.');
+
+  // Anything after a second dot would ride along unverified and make one signed state look
+  // like many to the replay check.
+  if (segments.length !== 2) return null;
+
+  const [encodedPayload, signature] = segments;
 
   if (!encodedPayload || !signature) return null;
   if (!safeEqual(signPayload(encodedPayload), signature)) return null;
@@ -307,11 +301,11 @@ function checkOAuthStateBinding(
  * Checked before the replay cache records the state, so a callback presenting the
  * wrong binding cannot use up a state its rightful client has yet to finish.
  */
-export function consumeOAuthState(
+export async function consumeOAuthState(
   state: string,
   providerId: string,
   binding?: string,
-): ConsumedOAuthState {
+): Promise<ConsumedOAuthState> {
   const payload = verifyOAuthState(state, providerId);
 
   if (!payload) return { ok: false, reason: 'invalid_state' };
@@ -320,21 +314,14 @@ export function consumeOAuthState(
 
   if (refusal) return { ok: false, reason: refusal };
 
-  purgeConsumedStates();
+  // The signature already identifies the state: it covers the payload's random nonce, and
+  // verification accepted only its canonical form, so it serves as the replay key as is.
+  const signature = state.split('.')[1];
+  const firstUse = await claimOAuthStateUse(signature, new Date(payload.createdAt + STATE_TTL_MS));
 
-  const stateHash = hashStateForReplayCache(state);
-
-  if (consumedStateHashes.has(stateHash)) {
-    return { ok: false, reason: 'invalid_state' };
-  }
-
-  consumedStateHashes.set(stateHash, payload.createdAt + STATE_TTL_MS);
+  if (!firstUse) return { ok: false, reason: 'invalid_state' };
 
   return { ok: true, payload };
-}
-
-export function clearOAuthStateReplayCache() {
-  consumedStateHashes.clear();
 }
 
 export function createOAuthPkceCodeVerifier(
