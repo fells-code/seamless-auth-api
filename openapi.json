@@ -11214,7 +11214,20 @@
                   "issuer": null,
                   "appName": "string",
                   "allowClientSecrets": true,
-                  "thirdPartyClientsEnabled": true
+                  "thirdPartyClientsEnabled": true,
+                  "hostedUi": {
+                    "appName": "string",
+                    "logoUrl": null,
+                    "colors": {
+                      "primary": "string",
+                      "onPrimary": "string",
+                      "background": "string",
+                      "surface": "string",
+                      "text": "string",
+                      "muted": "string"
+                    },
+                    "fontFamily": "string"
+                  }
                 },
                 "schema": {
                   "type": "object",
@@ -11227,7 +11240,59 @@
                     "issuer": { "type": "string", "format": "uri" },
                     "appName": { "type": "string" },
                     "allowClientSecrets": { "type": "boolean" },
-                    "thirdPartyClientsEnabled": { "type": "boolean" }
+                    "thirdPartyClientsEnabled": { "type": "boolean" },
+                    "hostedUi": {
+                      "type": "object",
+                      "properties": {
+                        "appName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100,
+                          "pattern": "^[^\\p{Cc}]+$/u"
+                        },
+                        "logoUrl": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https:\\/\\/[A-Za-z0-9._~:/?#[\\]@!$&*+,=%-]+$"
+                        },
+                        "colors": {
+                          "type": "object",
+                          "properties": {
+                            "primary": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "onPrimary": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "background": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "surface": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "muted": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "fontFamily": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "pattern": "^(?:[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*|'[A-Za-z0-9][A-Za-z0-9 -]*')(?:, ?(?:[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*|'[A-Za-z0-9][A-Za-z0-9 -]*'))*$"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
                   },
                   "required": [
                     "contractVersion",
@@ -22421,8 +22486,17 @@
                       "type": "object",
                       "nullable": true,
                       "properties": {
-                        "appName": { "type": "string", "minLength": 1, "maxLength": 100 },
-                        "logoUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                        "appName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100,
+                          "pattern": "^[^\\p{Cc}]+$/u"
+                        },
+                        "logoUrl": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https:\\/\\/[A-Za-z0-9._~:/?#[\\]@!$&*+,=%-]+$"
+                        },
                         "colors": {
                           "type": "object",
                           "properties": {
@@ -22445,6 +22519,10 @@
                             "text": {
                               "type": "string",
                               "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                            },
+                            "muted": {
+                              "type": "string",
+                              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
                             }
                           },
                           "additionalProperties": false
@@ -22452,7 +22530,7 @@
                         "fontFamily": {
                           "type": "string",
                           "maxLength": 200,
-                          "pattern": "^[A-Za-z0-9 ,'-]+$"
+                          "pattern": "^(?:[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*|'[A-Za-z0-9][A-Za-z0-9 -]*')(?:, ?(?:[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*|'[A-Za-z0-9][A-Za-z0-9 -]*'))*$"
                         }
                       },
                       "default": null,
@@ -22786,8 +22864,17 @@
                     "type": "object",
                     "nullable": true,
                     "properties": {
-                      "appName": { "type": "string", "minLength": 1, "maxLength": 100 },
-                      "logoUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                      "appName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100,
+                        "pattern": "^[^\\p{Cc}]+$/u"
+                      },
+                      "logoUrl": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "pattern": "^https:\\/\\/[A-Za-z0-9._~:/?#[\\]@!$&*+,=%-]+$"
+                      },
                       "colors": {
                         "type": "object",
                         "properties": {
@@ -22810,6 +22897,10 @@
                           "text": {
                             "type": "string",
                             "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                          },
+                          "muted": {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
                           }
                         },
                         "additionalProperties": false
@@ -22817,7 +22908,7 @@
                       "fontFamily": {
                         "type": "string",
                         "maxLength": 200,
-                        "pattern": "^[A-Za-z0-9 ,'-]+$"
+                        "pattern": "^(?:[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*|'[A-Za-z0-9][A-Za-z0-9 -]*')(?:, ?(?:[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*|'[A-Za-z0-9][A-Za-z0-9 -]*'))*$"
                       }
                     },
                     "additionalProperties": false
