@@ -90,30 +90,37 @@ export async function verifyOidcClientSecret(id: string, secret: string) {
   return presented.length === stored.length && timingSafeEqual(presented, stored);
 }
 
-/** The scopes a client may request at each resource it is linked to, keyed by identifier. */
-export async function getOidcClientResourceScopes(clientId: string) {
+/**
+ * The resources a client may ask an access token for, each with the scopes it is allowed
+ * there. A link may only narrow what the resource defines, whatever was stored on it.
+ */
+export async function getOidcClientResources(clientId: string) {
   const links = await OidcClientResource.findAll({ where: { clientId } });
 
-  if (links.length === 0) return new Map<string, Set<string>>();
+  if (links.length === 0) return [];
 
   const resources = await OidcResource.findAll({
     where: { id: { [Op.in]: links.map((link) => link.resourceId) } },
   });
   const byId = new Map(resources.map((resource) => [resource.id, resource]));
-  const scopes = new Map<string, Set<string>>();
 
-  for (const link of links) {
+  return links.flatMap((link) => {
     const resource = byId.get(link.resourceId);
-    if (!resource) continue;
+    if (!resource) return [];
+    return [
+      {
+        identifier: resource.identifier,
+        scopes: link.scopes.filter((scope) => resource.scopes.includes(scope)),
+        accessTokenTtlSeconds: resource.accessTokenTtlSeconds ?? null,
+      },
+    ];
+  });
+}
 
-    // A link may only narrow what the resource defines, whatever was stored on it.
-    scopes.set(
-      resource.identifier,
-      new Set(link.scopes.filter((scope) => resource.scopes.includes(scope))),
-    );
-  }
-
-  return scopes;
+/** The scopes a client may request at each resource it is linked to, keyed by identifier. */
+export async function getOidcClientResourceScopes(clientId: string) {
+  const resources = await getOidcClientResources(clientId);
+  return new Map(resources.map((resource) => [resource.identifier, new Set(resource.scopes)]));
 }
 
 export async function getOidcAccountClaims(userId: string): Promise<OidcAccountClaims | null> {

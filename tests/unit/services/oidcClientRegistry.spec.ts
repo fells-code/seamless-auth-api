@@ -26,6 +26,7 @@ import {
   findActiveOidcClient,
   getOidcAccountClaims,
   getOidcClientMetadata,
+  getOidcClientResources,
   getOidcClientResourceScopes,
   verifyOidcClientSecret,
 } from '../../../src/services/oidcClientRegistry';
@@ -198,6 +199,35 @@ describe('getOidcClientResourceScopes', () => {
 
     expect((await getOidcClientResourceScopes('app')).size).toBe(0);
     expect(OidcResource.findAll).not.toHaveBeenCalled();
+  });
+});
+
+describe('getOidcClientResources', () => {
+  it('lists each linked resource with its narrowed scopes and token lifetime', async () => {
+    vi.mocked(OidcClientResource.findAll).mockResolvedValue([
+      { resourceId: 'r1', scopes: ['read', 'admin'] },
+      { resourceId: 'r2', scopes: ['x'] },
+      { resourceId: 'gone', scopes: ['y'] },
+    ] as never);
+    vi.mocked(OidcResource.findAll).mockResolvedValue([
+      {
+        id: 'r1',
+        identifier: 'https://api.example.com',
+        scopes: ['read'],
+        accessTokenTtlSeconds: 300,
+      },
+      {
+        id: 'r2',
+        identifier: 'https://other.example.com',
+        scopes: ['x'],
+        accessTokenTtlSeconds: null,
+      },
+    ] as never);
+
+    expect(await getOidcClientResources('app')).toEqual([
+      { identifier: 'https://api.example.com', scopes: ['read'], accessTokenTtlSeconds: 300 },
+      { identifier: 'https://other.example.com', scopes: ['x'], accessTokenTtlSeconds: null },
+    ]);
   });
 });
 

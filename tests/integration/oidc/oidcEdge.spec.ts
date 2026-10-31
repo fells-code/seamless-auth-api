@@ -28,6 +28,8 @@ vi.mock('../../../src/services/oidcProviderKeys.js', () => ({
 }));
 
 vi.mock('../../../src/services/oidcClientRegistry.js', () => ({
+  findActiveOidcClient: vi.fn(),
+  getOidcClientResources: vi.fn(),
   getOidcClientMetadata: vi.fn(),
   verifyOidcClientSecret: vi.fn(),
   getOidcAccountClaims: vi.fn(),
@@ -45,8 +47,10 @@ import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { getOidcAuthContext } from '../../../src/services/oidcAuthContext.js';
 import {
+  findActiveOidcClient,
   getOidcAccountClaims,
   getOidcClientMetadata,
+  getOidcClientResources,
   verifyOidcClientSecret,
 } from '../../../src/services/oidcClientRegistry.js';
 import {
@@ -343,6 +347,18 @@ describe('keys, clients and accounts', () => {
 
     vi.mocked(getOidcClientMetadata).mockResolvedValueOnce(null);
     expect((await edge('get', '/oidc/clients/app')).status).toBe(404);
+  });
+
+  it('lists the resources an active client may get access tokens for', async () => {
+    const resources = [
+      { identifier: 'https://api.example.com', scopes: ['read'], accessTokenTtlSeconds: null },
+    ];
+    vi.mocked(findActiveOidcClient).mockResolvedValueOnce({ id: 'app' } as never);
+    vi.mocked(getOidcClientResources).mockResolvedValueOnce(resources);
+    expect((await edge('get', '/oidc/clients/app/resources')).body).toEqual({ resources });
+
+    vi.mocked(findActiveOidcClient).mockResolvedValueOnce(null);
+    expect((await edge('get', '/oidc/clients/app/resources')).status).toBe(404);
   });
 
   it('verifies a client secret', async () => {
