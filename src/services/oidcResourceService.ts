@@ -11,6 +11,7 @@ import type {
   OidcResourceCreateRequest,
   OidcResourceUpdateRequest,
 } from '@seamless-auth/types';
+import { seamlessBuiltInResource } from '@seamless-auth/types';
 import { Op, UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -52,12 +53,19 @@ export function serializeOidcResource(resource: OidcResource): OidcResourceView 
  */
 async function assertIdentifierAllowed(identifier: string) {
   const { oidc_issuer } = await getSystemConfig();
-  const reserved = [process.env.ISSUER, oidc_issuer]
+  const reserved = [
+    process.env.ISSUER,
+    oidc_issuer,
+    oidc_issuer && seamlessBuiltInResource(oidc_issuer),
+  ]
     .filter((value): value is string => Boolean(value))
     .map(withoutTrailingSlashes);
 
   if (reserved.includes(withoutTrailingSlashes(identifier))) {
-    throw new OidcResourceError(400, 'A resource cannot use the API or provider issuer');
+    throw new OidcResourceError(
+      400,
+      'A resource cannot use the API or provider issuer, or the built-in Seamless resource',
+    );
   }
 }
 

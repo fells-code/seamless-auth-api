@@ -132,7 +132,7 @@ describe('resources', () => {
     });
   });
 
-  it.each([ISSUER, `${ISSUER}/`, 'http://localhost:3000'])(
+  it.each([ISSUER, `${ISSUER}/`, 'http://localhost:3000', `${ISSUER}/seamless`])(
     'refuses an issuer as the identifier (%s)',
     async (identifier) => {
       vi.stubEnv('ISSUER', 'http://localhost:3000');

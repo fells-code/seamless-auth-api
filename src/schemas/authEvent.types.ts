@@ -55,6 +55,8 @@ export const AUTH_EVENT_TYPES = [
   'oauth_login_failed',
   'oauth_login_started',
   'oauth_login_success',
+  'oidc_account_notice_failed',
+  'oidc_account_notice_sent',
   'oidc_client_auth_failed',
   'oidc_consent_denied',
   'oidc_consent_granted',

@@ -5003,6 +5003,8 @@ export interface paths {
                 | 'oauth_login_failed'
                 | 'oauth_login_started'
                 | 'oauth_login_success'
+                | 'oidc_account_notice_failed'
+                | 'oidc_account_notice_sent'
                 | 'oidc_client_auth_failed'
                 | 'oidc_consent_denied'
                 | 'oidc_consent_granted'
@@ -5114,6 +5116,8 @@ export interface paths {
                     | 'oauth_login_failed'
                     | 'oauth_login_started'
                     | 'oauth_login_success'
+                    | 'oidc_account_notice_failed'
+                    | 'oidc_account_notice_sent'
                     | 'oidc_client_auth_failed'
                     | 'oidc_consent_denied'
                     | 'oidc_consent_granted'
@@ -7243,6 +7247,319 @@ export interface paths {
         };
       };
     };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/applications/account-notices': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send a user an account notice on a registered application's behalf
+     * @description For an application backend, with a client credentials token for the built-in `<oidc_issuer>/seamless` resource and scope `notices:send`, on a client an admin has enabled notices for. Sends to every verified channel of a user who holds a grant with the application, or to the channels named, inside a fixed template naming the application and the instance. The response lists channels, never addresses. A caller that owns delivery gets `deliveries` back instead, as on the account recovery routes.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            /** Format: uuid */
+            userId: string;
+            channels?: ('email' | 'sms')[];
+            subject: string;
+            text: string;
+            /** Format: uri */
+            actionUrl?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "channels": [
+             *         null
+             *       ],
+             *       "deliveries": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              channels: {
+                /** @enum {string} */
+                channel: 'email' | 'sms';
+                /** @enum {string} */
+                status:
+                  | 'sent'
+                  | 'failed'
+                  | 'returned_for_external_delivery'
+                  | 'not_sent_external_delivery';
+              }[];
+              deliveries?: (
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+              )[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 401 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "message": "string"
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error:
+                | 'notice_invalid_token'
+                | 'notice_not_enabled'
+                | 'notice_unknown_user'
+                | 'notice_no_channel'
+                | 'notice_action_url_not_allowed'
+                | 'notice_rate_limited';
+              message?: string;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "message": "string"
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error:
+                | 'notice_invalid_token'
+                | 'notice_not_enabled'
+                | 'notice_unknown_user'
+                | 'notice_no_channel'
+                | 'notice_action_url_not_allowed'
+                | 'notice_rate_limited';
+              message?: string;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "message": "string"
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error:
+                | 'notice_invalid_token'
+                | 'notice_not_enabled'
+                | 'notice_unknown_user'
+                | 'notice_no_channel'
+                | 'notice_action_url_not_allowed'
+                | 'notice_rate_limited';
+              message?: string;
+            };
+          };
+        };
+        /** @description HTTP 422 */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "message": "string"
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error:
+                | 'notice_invalid_token'
+                | 'notice_not_enabled'
+                | 'notice_unknown_user'
+                | 'notice_no_channel'
+                | 'notice_action_url_not_allowed'
+                | 'notice_rate_limited';
+              message?: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "message": "string"
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error:
+                | 'notice_invalid_token'
+                | 'notice_not_enabled'
+                | 'notice_unknown_user'
+                | 'notice_no_channel'
+                | 'notice_action_url_not_allowed'
+                | 'notice_rate_limited';
+              message?: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
