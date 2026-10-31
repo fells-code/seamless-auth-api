@@ -76,6 +76,21 @@ describe('getOidcClientMetadata', () => {
     });
   });
 
+  it("carries the application's token lifetimes when they are set", async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({
+        accessTokenTtlSeconds: 120,
+        idTokenTtlSeconds: 90,
+        refreshTokenTtlSeconds: 3600,
+      }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).toMatchObject({
+      'urn:seamless:access_token_ttl': 120,
+      'urn:seamless:id_token_ttl': 90,
+      'urn:seamless:refresh_token_ttl': 3600,
+    });
+  });
+
   it('lists the device grant only for a first-party client with the flag on', async () => {
     const device = 'urn:ietf:params:oauth:grant-type:device_code';
     const grantTypes = [device, 'refresh_token'];
