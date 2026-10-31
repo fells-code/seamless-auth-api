@@ -22415,15 +22415,7 @@
                           "externalIdJsonPath": { "type": "string", "minLength": 1 },
                           "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "clientId",
-                          "clientSecretEnv",
-                          "authorizationUrl",
-                          "tokenUrl",
-                          "userInfoUrl"
-                        ]
+                        "required": ["id", "name", "clientId", "clientSecretEnv"]
                       },
                       "default": []
                     },
@@ -22829,15 +22821,7 @@
                         "externalIdJsonPath": { "type": "string", "minLength": 1 },
                         "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                       },
-                      "required": [
-                        "id",
-                        "name",
-                        "clientId",
-                        "clientSecretEnv",
-                        "authorizationUrl",
-                        "tokenUrl",
-                        "userInfoUrl"
-                      ]
+                      "required": ["id", "name", "clientId", "clientSecretEnv"]
                     }
                   },
                   "lockout_policy": {
@@ -23247,15 +23231,7 @@
                           "externalIdJsonPath": { "type": "string", "minLength": 1 },
                           "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "clientId",
-                          "clientSecretEnv",
-                          "authorizationUrl",
-                          "tokenUrl",
-                          "userInfoUrl"
-                        ]
+                        "required": ["id", "name", "clientId", "clientSecretEnv"]
                       }
                     }
                   },
@@ -23359,15 +23335,7 @@
                   "externalIdJsonPath": { "type": "string", "minLength": 1 },
                   "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                 },
-                "required": [
-                  "id",
-                  "name",
-                  "clientId",
-                  "clientSecretEnv",
-                  "authorizationUrl",
-                  "tokenUrl",
-                  "userInfoUrl"
-                ]
+                "required": ["id", "name", "clientId", "clientSecretEnv"]
               }
             }
           }
@@ -23458,15 +23426,7 @@
                         "externalIdJsonPath": { "type": "string", "minLength": 1 },
                         "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                       },
-                      "required": [
-                        "id",
-                        "name",
-                        "clientId",
-                        "clientSecretEnv",
-                        "authorizationUrl",
-                        "tokenUrl",
-                        "userInfoUrl"
-                      ]
+                      "required": ["id", "name", "clientId", "clientSecretEnv"]
                     }
                   },
                   "required": ["provider"]
@@ -23561,6 +23521,228 @@
           },
           "500": {
             "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system-config/oauth-providers/{id}/discovery": {
+      "post": {
+        "summary": "Refresh an OAuth provider's endpoints and keys from its issuer",
+        "description": "A provider with an `issuer` reads any endpoint it does not configure from the issuer's `/.well-known/openid-configuration`, cached for an hour. This reads the document again now, checks the issuer it names, and drops the cached signing keys so the next sign-in fetches them. Nothing is stored; the answer is the provider as sign-in will use it. Answers 502 when the document cannot be read or is refused.",
+        "tags": ["SystemConfig"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "provider": {
+                    "id": "string",
+                    "name": "string",
+                    "enabled": null,
+                    "clientId": "string",
+                    "clientSecretEnv": "string",
+                    "authorizationUrl": null,
+                    "tokenUrl": null,
+                    "userInfoUrl": null,
+                    "scopes": null,
+                    "redirectUri": null,
+                    "redirectUris": null,
+                    "subjectJsonPath": null,
+                    "emailJsonPath": null,
+                    "emailVerifiedJsonPath": null,
+                    "nameJsonPath": "string",
+                    "allowSignup": null,
+                    "accountLinking": null,
+                    "requireEmailVerified": null,
+                    "pkce": true,
+                    "issuer": null,
+                    "jwksUri": null,
+                    "externalIdSource": "string",
+                    "externalIdJsonPath": "string",
+                    "promptPasskeyEnrollment": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "pattern": "^[a-z0-9-]{2,40}$" },
+                        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                        "enabled": { "type": "boolean", "default": true },
+                        "clientId": { "type": "string", "minLength": 1 },
+                        "clientSecretEnv": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Z0-9_]{0,59}_CLIENT_SECRET$"
+                        },
+                        "authorizationUrl": { "type": "string", "format": "uri" },
+                        "tokenUrl": { "type": "string", "format": "uri" },
+                        "userInfoUrl": { "type": "string", "format": "uri" },
+                        "scopes": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 },
+                          "default": []
+                        },
+                        "redirectUri": { "type": "string", "format": "uri" },
+                        "redirectUris": {
+                          "type": "array",
+                          "items": { "type": "string", "format": "uri" },
+                          "default": []
+                        },
+                        "subjectJsonPath": { "type": "string", "minLength": 1, "default": "sub" },
+                        "emailJsonPath": { "type": "string", "minLength": 1, "default": "email" },
+                        "emailVerifiedJsonPath": {
+                          "type": "string",
+                          "minLength": 1,
+                          "default": "email_verified"
+                        },
+                        "nameJsonPath": { "type": "string", "minLength": 1 },
+                        "allowSignup": { "type": "boolean", "default": true },
+                        "accountLinking": {
+                          "type": "string",
+                          "enum": ["email", "disabled"],
+                          "default": "email"
+                        },
+                        "requireEmailVerified": { "type": "boolean", "default": false },
+                        "pkce": { "type": "boolean" },
+                        "issuer": { "type": "string", "format": "uri" },
+                        "jwksUri": { "type": "string", "format": "uri" },
+                        "externalIdSource": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+                        },
+                        "externalIdJsonPath": { "type": "string", "minLength": 1 },
+                        "promptPasskeyEnrollment": { "type": "boolean", "default": false }
+                      },
+                      "required": ["id", "name", "clientId", "clientSecretEnv"]
+                    }
+                  },
+                  "required": ["provider"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "details": null },
+                "schema": {
+                  "type": "object",
+                  "properties": { "error": { "type": "string" }, "details": { "nullable": true } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "HTTP 502",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },
@@ -23715,15 +23897,7 @@
                         "externalIdJsonPath": { "type": "string", "minLength": 1 },
                         "promptPasskeyEnrollment": { "type": "boolean", "default": false }
                       },
-                      "required": [
-                        "id",
-                        "name",
-                        "clientId",
-                        "clientSecretEnv",
-                        "authorizationUrl",
-                        "tokenUrl",
-                        "userInfoUrl"
-                      ]
+                      "required": ["id", "name", "clientId", "clientSecretEnv"]
                     }
                   },
                   "required": ["provider"]

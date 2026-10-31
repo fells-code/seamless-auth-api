@@ -25,6 +25,7 @@ import {
   OAuthProfileError,
   oauthProfileFromIdToken,
   OAuthProviderRetiredError,
+  resolveOAuthProvider,
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
@@ -64,6 +65,7 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
   }
 
   try {
+    const resolved = await resolveOAuthProvider(provider);
     const config = await getSystemConfig();
     const redirectUri = await resolveOAuthRedirectUri(provider, req.body.redirectUri);
     const returnTo = allowedReturnTo(req.body.returnTo, config.origins);
@@ -89,7 +91,7 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
       state,
       binding,
       authorizationUrl: buildOAuthAuthorizationUrl({
-        provider,
+        provider: resolved,
         redirectUri,
         state,
         ...(statePayload.nonce ? { nonce: statePayload.nonce } : {}),
@@ -132,18 +134,19 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
   const statePayload = consumed.payload;
 
   try {
+    const resolved = await resolveOAuthProvider(provider);
     const { accessToken, idToken } = await exchangeOAuthTokens({
-      provider,
+      provider: resolved,
       code,
       redirectUri: statePayload.redirectUri,
       codeVerifier: createOAuthPkceCodeVerifier(provider, statePayload),
     });
-    const profile = isOidcProvider(provider)
+    const profile = isOidcProvider(resolved)
       ? oauthProfileFromIdToken(
-          provider,
-          await verifyOAuthIdToken(provider, idToken, statePayload.nonce),
+          resolved,
+          await verifyOAuthIdToken(resolved, idToken, statePayload.nonce),
         )
-      : await fetchOAuthProfile(provider, accessToken);
+      : await fetchOAuthProfile(resolved, accessToken);
     const user = await resolveOAuthUser(provider, profile);
 
     if (!user) {

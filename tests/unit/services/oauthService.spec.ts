@@ -14,6 +14,7 @@ import {
   fetchOAuthProfile,
   getEnabledOAuthProviders,
   getOAuthProvider,
+  resolveOAuthProvider,
   resolveOAuthRedirectUri,
   resolveOAuthUser,
   serializeOAuthProvider,
@@ -1251,5 +1252,31 @@ describe('oauthService', () => {
         }),
       }),
     );
+  });
+});
+
+describe('resolveOAuthProvider', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns a provider that names every endpoint without a request', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(resolveOAuthProvider(provider)).resolves.toBe(provider);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a provider with neither an issuer nor its endpoints', async () => {
+    await expect(resolveOAuthProvider({ ...provider, tokenUrl: undefined })).rejects.toThrow(
+      /tokenUrl is required/,
+    );
+  });
+
+  it('refuses a profile fetch for a provider without a userinfo endpoint', async () => {
+    await expect(
+      fetchOAuthProfile({ ...provider, userInfoUrl: undefined }, 'token'),
+    ).rejects.toThrow(/no userinfo endpoint/);
   });
 });

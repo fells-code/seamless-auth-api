@@ -43,6 +43,7 @@ const GUARDED = [
   'DELETE /admin/sessions/{userId}/revoke-all',
   'PATCH /system-config/admin',
   'POST /system-config/oauth-providers',
+  'POST /system-config/oauth-providers/{id}/discovery',
   'PATCH /system-config/oauth-providers/{id}',
   'DELETE /system-config/oauth-providers/{id}',
   'POST /organizations/{organizationId}/members',

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { Application } from 'express';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getSystemConfig,
@@ -8,6 +8,7 @@ import {
 } from '../../../src/config/getSystemConfig.js';
 import { SystemConfig } from '../../../src/models/systemConfig.js';
 import { createApp } from '../../../src/app';
+import { clearOAuthDiscoveryCache } from '../../../src/services/oauthDiscovery.js';
 import { Session } from '../../../src/models/sessions.js';
 import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
@@ -277,5 +278,146 @@ describe('DELETE /system-config/oauth-providers/:id', () => {
 
     expect(res.status).toBe(404);
     expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('OpenID discovery', () => {
+  const issuer = 'https://idp.example.com';
+  const document = {
+    issuer,
+    authorization_endpoint: 'https://idp.example.com/authorize',
+    token_endpoint: 'https://idp.example.com/token',
+    userinfo_endpoint: 'https://idp.example.com/userinfo',
+    jwks_uri: 'https://idp.example.com/jwks',
+  };
+  const issuerOnly = {
+    id: 'acme',
+    name: 'Acme',
+    issuer,
+    clientId: 'acme-client',
+    clientSecretEnv: 'ACME_CLIENT_SECRET',
+    scopes: ['openid', 'email'],
+  };
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    clearOAuthDiscoveryCache();
+    fetchMock = vi.fn(async () => new Response(JSON.stringify(document), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('POST /system-config/oauth-providers', () => {
+    it('adds a provider from an issuer, client id and secret env without fetching anything', async () => {
+      mockConfigWithProviders([]);
+
+      const res = await request(app).post('/system-config/oauth-providers').send(issuerOnly);
+
+      expect(res.status).toBe(201);
+      expect(res.body.provider).toMatchObject({ id: 'acme', issuer });
+      expect(res.body.provider.tokenUrl).toBeUndefined();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses a provider with neither an issuer nor its endpoints', async () => {
+      mockConfigWithProviders([]);
+      const { issuer: _issuer, ...noIssuer } = issuerOnly;
+
+      const res = await request(app).post('/system-config/oauth-providers').send(noIssuer);
+
+      expect(res.status).toBe(400);
+      expect(SystemConfig.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /system-config/oauth-providers/:id/discovery', () => {
+    it('answers with the endpoints sign-in will use and stores nothing', async () => {
+      mockConfigWithProviders([issuerOnly]);
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.status).toBe(200);
+      expect(res.body.provider).toMatchObject({
+        issuer,
+        authorizationUrl: document.authorization_endpoint,
+        tokenUrl: document.token_endpoint,
+        userInfoUrl: document.userinfo_endpoint,
+        jwksUri: document.jwks_uri,
+      });
+      expect(fetchMock.mock.calls[0][0]).toBe(`${issuer}/.well-known/openid-configuration`);
+      expect(SystemConfig.upsert).not.toHaveBeenCalled();
+    });
+
+    it('keeps the endpoints the provider configures over the discovered ones', async () => {
+      mockConfigWithProviders([{ ...issuerOnly, userInfoUrl: 'https://profile.example.com/me' }]);
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.body.provider.userInfoUrl).toBe('https://profile.example.com/me');
+      expect(res.body.provider.tokenUrl).toBe(document.token_endpoint);
+    });
+
+    it('bypasses the discovery cache', async () => {
+      mockConfigWithProviders([issuerOnly]);
+
+      await request(app).post('/system-config/oauth-providers/acme/discovery');
+      await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns 404 for an unknown provider', async () => {
+      mockConfigWithProviders([]);
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.status).toBe(404);
+    });
+
+    it('refuses a provider configured without an issuer', async () => {
+      mockConfigWithProviders([buildProvider({ id: 'acme' })]);
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('answers 502 when the document names another issuer', async () => {
+      mockConfigWithProviders([issuerOnly]);
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ ...document, issuer: 'https://other.example.com' })),
+      );
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.status).toBe(502);
+      expect(res.body.error).toBe('oauth_discovery_failed');
+    });
+
+    it('answers 502 without detail when the request itself fails', async () => {
+      mockConfigWithProviders([issuerOnly]);
+      fetchMock.mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.5:443'));
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.status).toBe(502);
+      expect(res.body.message).toBe('OpenID discovery request failed');
+    });
+
+    it('refuses a discovered endpoint the provider policy does not allow', async () => {
+      mockConfigWithProviders([issuerOnly]);
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ ...document, authorization_endpoint: 'ftp://idp/x' })),
+      );
+
+      const res = await request(app).post('/system-config/oauth-providers/acme/discovery');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid OAuth provider');
+    });
   });
 });

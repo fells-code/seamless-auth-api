@@ -8,6 +8,7 @@ import {
   createOAuthProvider,
   deleteOAuthProvider,
   listOAuthProviders,
+  refreshOAuthProviderDiscovery,
   updateOAuthProvider,
 } from '../controllers/oauthProviders.js';
 import {
@@ -188,6 +189,32 @@ systemConfigRouter.post(
     },
   },
   createOAuthProvider,
+);
+
+systemConfigRouter.post(
+  '/oauth-providers/:id/discovery',
+  {
+    auth: 'access',
+    summary: "Refresh an OAuth provider's endpoints and keys from its issuer",
+    description:
+      "A provider with an `issuer` reads any endpoint it does not configure from the issuer's `/.well-known/openid-configuration`, cached for an hour. This reads the document again now, checks the issuer it names, and drops the cached signing keys so the next sign-in fetches them. Nothing is stored; the answer is the provider as sign-in will use it. Answers 502 when the document cannot be read or is refused.",
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write'), requireStepUp()],
+
+    schemas: {
+      params: OAuthProviderIdParamSchema,
+      response: {
+        200: OAuthProviderResponseSchema,
+        400: InvalidPayloadSchema,
+        401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        404: ErrorSchema,
+        502: ErrorSchema,
+      },
+    },
+  },
+  refreshOAuthProviderDiscovery,
 );
 
 systemConfigRouter.patch(

@@ -91,6 +91,26 @@ describe('oauthProviderProblems', () => {
     expect(oauthProviderProblems(provider(), production)).toEqual([]);
   });
 
+  it('needs the endpoints of a provider without an issuer', () => {
+    expect(oauthProviderProblems(provider({ tokenUrl: undefined }), {})).toEqual([
+      'tokenUrl is required unless the provider has an issuer to discover it from',
+    ]);
+  });
+
+  it('leaves the endpoints of a provider with an issuer to discovery', () => {
+    expect(
+      oauthProviderProblems(
+        provider({
+          issuer: 'https://idp.example.com',
+          authorizationUrl: undefined,
+          tokenUrl: undefined,
+          userInfoUrl: undefined,
+        }),
+        production,
+      ),
+    ).toEqual([]);
+  });
+
   it('refuses a scheme other than http(s) in every mode', () => {
     expect(
       oauthProviderProblems(provider({ authorizationUrl: 'javascript:alert(1)//' }), {}),

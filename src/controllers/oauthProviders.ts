@@ -8,11 +8,13 @@ import { Response } from 'express';
 
 import { productionSecretMissing } from '../config/authSecrets.js';
 import { invalidateSystemConfigCache } from '../config/getSystemConfig.js';
-import { oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
+import { OAuthProviderPolicyError, oauthProviderProblems } from '../lib/oauthProviderPolicy.js';
 import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { OAuthProviderConfig, OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { OAuthDiscoveryError } from '../services/oauthDiscovery.js';
+import { forgetOAuthProviderKeys, resolveOAuthProvider } from '../services/oauthService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -204,6 +206,63 @@ export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
   }
 
   return res.status(200).json({ provider: updated });
+}
+
+function discoveryRefusal(error: unknown): ProviderRefusal {
+  if (error instanceof OAuthProviderPolicyError) {
+    return { status: 400, body: { error: 'Invalid OAuth provider', details: [error.message] } };
+  }
+
+  if (error instanceof OAuthDiscoveryError) {
+    return { status: 502, body: { error: 'oauth_discovery_failed', message: error.message } };
+  }
+
+  logger.warn(`OpenID discovery failed: ${error}`);
+  return {
+    status: 502,
+    body: { error: 'oauth_discovery_failed', message: 'OpenID discovery request failed' },
+  };
+}
+
+/**
+ * Reads the stored issuer's discovery document again and drops the provider's cached
+ * signing keys, so a moved endpoint or a rotated key set is picked up now rather than when
+ * the caches expire. Nothing is stored: the answer is the provider as sign-in will use it.
+ */
+export async function refreshOAuthProviderDiscovery(req: ServiceRequest, res: Response) {
+  const { id } = req.params;
+
+  const row = await SystemConfig.findByPk(OAUTH_PROVIDERS_KEY);
+  const stored = ((row?.value as OAuthProviderConfig[] | undefined) ?? []).find(
+    (existing) => existing.id === id,
+  );
+
+  if (!stored) {
+    return res.status(404).json({ error: `OAuth provider "${id}" not found` });
+  }
+
+  if (!stored.issuer) {
+    return res.status(400).json({ error: `OAuth provider "${id}" has no issuer to discover` });
+  }
+
+  let provider: OAuthProviderConfig;
+  try {
+    provider = await resolveOAuthProvider(stored, { refresh: true });
+  } catch (error) {
+    const refusal = discoveryRefusal(error);
+    return res.status(refusal.status).json(refusal.body);
+  }
+
+  if (stored.jwksUri) forgetOAuthProviderKeys(stored.jwksUri);
+  if (provider.jwksUri) forgetOAuthProviderKeys(provider.jwksUri);
+
+  await AuthEventService.log({
+    type: 'system_config_updated',
+    req,
+    metadata: { resource: 'oauth_provider', action: 'discovery_refreshed', providerId: id },
+  });
+
+  return res.status(200).json({ provider });
 }
 
 export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {
