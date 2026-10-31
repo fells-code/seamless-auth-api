@@ -134,10 +134,13 @@ async function findOne(
 export async function hasOidcGrantForSession(sessionId: string, clientId: string) {
   if (!isUuid(sessionId)) return false;
 
+  // One first-party session can sign in to several clients, so the client is part of the
+  // query rather than checked on whichever grant comes back first.
   const grant = await OidcPayload.findOne({
     where: {
       model: 'Grant',
       sessionId,
+      payload: { clientId },
       expiresAt: { [Op.gt]: new Date() },
     } as WhereOptions<OidcPayloadAttributes>,
   });
