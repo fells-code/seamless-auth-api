@@ -131,6 +131,46 @@ describe('stepUpService', () => {
     expect(session.authTime).toBe(verifiedAt);
   });
 
+  it('keeps the auth time of a passkey sign-in when a weaker method steps up', async () => {
+    const signedInAt = new Date('2026-05-15T11:00:00.000Z');
+    const passkey = {
+      method: 'passkey' as const,
+      at: signedInAt.toISOString(),
+      deviceBound: true,
+      userVerified: true,
+    };
+    const session = buildSession({ authMethods: [passkey], authTime: signedInAt });
+    (Session.findOne as any).mockResolvedValue(session);
+    const verifiedAt = new Date('2026-05-15T12:00:00.000Z');
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'totp',
+      verifiedAt,
+    });
+    expect(session.authMethods).toHaveLength(2);
+    expect(session.authTime).toBe(signedInAt);
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'webauthn',
+      passkey: { deviceBound: false, userVerified: true },
+      verifiedAt,
+    });
+    expect(session.authTime).toBe(signedInAt);
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'webauthn',
+      passkey: { deviceBound: true, userVerified: true },
+      verifiedAt,
+    });
+    expect(session.authTime).toBe(verifiedAt);
+  });
+
   it('replaces a repeated method instead of growing the list', () => {
     const older = { method: 'passkey' as const, at: 'a', deviceBound: true, userVerified: true };
     const synced = { method: 'passkey' as const, at: 'b', deviceBound: false, userVerified: true };

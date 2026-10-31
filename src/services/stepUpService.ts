@@ -5,6 +5,7 @@
  */
 
 import { Session, SessionAuthMethod } from '../models/sessions.js';
+import { deriveAcrAmr } from './oidcAuthContext.js';
 
 export const DEFAULT_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 
@@ -116,10 +117,19 @@ export function mergeAuthMethod(
   return [...existing.filter((other) => !sameKind(other)), record];
 }
 
+const ACR_RANK = { phr: 1, phrh: 2 } as const;
+
+function acrRank(authMethods: readonly SessionAuthMethod[]) {
+  const { acr } = deriveAcrAmr(authMethods);
+  return acr ? ACR_RANK[acr] : 0;
+}
+
 /**
  * Step-up is an authentication, so besides the first-party freshness window it adds the
- * method to the session's auth context and moves `authTime`, which is what the provider's
- * `amr`, `acr` and `auth_time` are derived from.
+ * method to the session's auth context, which the provider's `amr` and `acr` are derived
+ * from. `authTime` moves only when the step-up alone earns at least the session's `acr`:
+ * `auth_time` is read as when the authentication `acr` describes happened, so a fresh TOTP
+ * must not make an hours-old passkey look recent.
  */
 export async function recordStepUpVerification({
   sessionId,
@@ -142,13 +152,15 @@ export async function recordStepUpVerification({
     return null;
   }
 
+  const record = stepUpAuthMethod(method, verifiedAt, passkey);
+  const before = session.authMethods ?? [];
+
   session.stepUpVerifiedAt = verifiedAt;
   session.stepUpMethod = method;
-  session.authMethods = mergeAuthMethod(
-    session.authMethods ?? [],
-    stepUpAuthMethod(method, verifiedAt, passkey),
-  );
-  session.authTime = verifiedAt;
+  if (acrRank([record]) >= acrRank(before)) {
+    session.authTime = verifiedAt;
+  }
+  session.authMethods = mergeAuthMethod(before, record);
   await session.save();
 
   return getStepUpStatusFromSession(session, maxAgeSeconds, verifiedAt);
