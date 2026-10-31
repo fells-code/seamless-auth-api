@@ -133,26 +133,39 @@ describe('getOidcAuthContext', () => {
     expect(await getOidcAuthContext(S1)).toBeNull();
   });
 
-  it('reports the recorded methods and whether the chain is live', async () => {
+  it('reports the current row of the chain, where step-up records', async () => {
     const authTime = new Date('2026-10-30T12:30:00.000Z');
+    const steppedUp = [
+      { method: 'email_otp', at },
+      { method: 'passkey', at: authTime.toISOString(), deviceBound: true, userVerified: true },
+    ];
     vi.mocked(Session.findByPk).mockResolvedValue(
-      row({
-        authMethods: [{ method: 'passkey', at, deviceBound: true, userVerified: true }],
-        authTime,
-      }) as never,
+      row({ authMethods: [{ method: 'email_otp', at }], authTime: new Date(at) }) as never,
     );
-    vi.mocked(validateSessionRecord).mockResolvedValue(row({ recovery: true }) as never);
+    vi.mocked(validateSessionRecord).mockResolvedValue(
+      row({ id: S2, recovery: true, authMethods: steppedUp, authTime }) as never,
+    );
 
     expect(await getOidcAuthContext(S1)).toEqual({
       sessionId: S1,
       userId: 'user-1',
       active: true,
       recovery: true,
-      authMethods: [{ method: 'passkey', at, deviceBound: true, userVerified: true }],
+      authMethods: steppedUp,
       authTime: Math.floor(authTime.getTime() / 1000),
       acr: 'phrh',
-      amr: ['hwk', 'user', 'mfa'],
+      amr: ['hwk', 'user', 'otp', 'mfa'],
     });
+  });
+
+  it('falls back to the start of the chain for rows without an auth time', async () => {
+    const chainStartedAt = new Date('2026-10-30T11:00:00.000Z');
+    vi.mocked(Session.findByPk).mockResolvedValue(row() as never);
+    vi.mocked(validateSessionRecord).mockResolvedValue(row({ chainStartedAt }) as never);
+
+    expect((await getOidcAuthContext(S1))?.authTime).toBe(
+      Math.floor(chainStartedAt.getTime() / 1000),
+    );
   });
 
   it('falls back to createdAt and reports a dead chain', async () => {

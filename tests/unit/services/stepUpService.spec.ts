@@ -5,6 +5,7 @@ import {
   DEFAULT_STEP_UP_MAX_AGE_SECONDS,
   getSessionStepUpStatus,
   getStepUpStatusFromSession,
+  mergeAuthMethod,
   recordStepUpVerification,
   serializeStepUpStatus,
 } from '../../../src/services/stepUpService.js';
@@ -69,6 +70,113 @@ describe('stepUpService', () => {
     expect(session.stepUpMethod).toBe('webauthn');
     expect(session.save).toHaveBeenCalled();
     expect(status?.fresh).toBe(true);
+  });
+
+  it('adds a passkey step-up to the auth context and moves the auth time', async () => {
+    const signIn = { method: 'email_otp' as const, at: '2026-05-15T11:00:00.000Z' };
+    const session = buildSession({ authMethods: [signIn], authTime: new Date(signIn.at) });
+    (Session.findOne as any).mockResolvedValue(session);
+    const verifiedAt = new Date('2026-05-15T12:00:00.000Z');
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'webauthn',
+      passkey: { deviceBound: true, userVerified: true },
+      verifiedAt,
+    });
+
+    expect(session.authMethods).toEqual([
+      signIn,
+      {
+        method: 'passkey',
+        at: verifiedAt.toISOString(),
+        deviceBound: true,
+        userVerified: true,
+      },
+    ]);
+    expect(session.authTime).toBe(verifiedAt);
+  });
+
+  it('records a passkey step-up without its flags as synced and unverified', async () => {
+    const session = buildSession({ authMethods: undefined });
+    (Session.findOne as any).mockResolvedValue(session);
+    const verifiedAt = new Date('2026-05-15T12:00:00.000Z');
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'webauthn',
+      verifiedAt,
+    });
+
+    expect(session.authMethods).toEqual([
+      { method: 'passkey', at: verifiedAt.toISOString(), deviceBound: false, userVerified: false },
+    ]);
+  });
+
+  it('records a TOTP step-up as totp', async () => {
+    const session = buildSession({ authMethods: [] });
+    (Session.findOne as any).mockResolvedValue(session);
+    const verifiedAt = new Date('2026-05-15T12:00:00.000Z');
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'totp',
+      verifiedAt,
+    });
+
+    expect(session.authMethods).toEqual([{ method: 'totp', at: verifiedAt.toISOString() }]);
+    expect(session.authTime).toBe(verifiedAt);
+  });
+
+  it('keeps the auth time of a passkey sign-in when a weaker method steps up', async () => {
+    const signedInAt = new Date('2026-05-15T11:00:00.000Z');
+    const passkey = {
+      method: 'passkey' as const,
+      at: signedInAt.toISOString(),
+      deviceBound: true,
+      userVerified: true,
+    };
+    const session = buildSession({ authMethods: [passkey], authTime: signedInAt });
+    (Session.findOne as any).mockResolvedValue(session);
+    const verifiedAt = new Date('2026-05-15T12:00:00.000Z');
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'totp',
+      verifiedAt,
+    });
+    expect(session.authMethods).toHaveLength(2);
+    expect(session.authTime).toBe(signedInAt);
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'webauthn',
+      passkey: { deviceBound: false, userVerified: true },
+      verifiedAt,
+    });
+    expect(session.authTime).toBe(signedInAt);
+
+    await recordStepUpVerification({
+      sessionId: 'session-1',
+      userId: 'user-1',
+      method: 'webauthn',
+      passkey: { deviceBound: true, userVerified: true },
+      verifiedAt,
+    });
+    expect(session.authTime).toBe(verifiedAt);
+  });
+
+  it('replaces a repeated method instead of growing the list', () => {
+    const older = { method: 'passkey' as const, at: 'a', deviceBound: true, userVerified: true };
+    const synced = { method: 'passkey' as const, at: 'b', deviceBound: false, userVerified: true };
+    const newer = { ...older, at: 'c' };
+
+    expect(mergeAuthMethod([older, synced], newer)).toEqual([synced, newer]);
   });
 
   it('returns a missing status when the current session is not found', async () => {

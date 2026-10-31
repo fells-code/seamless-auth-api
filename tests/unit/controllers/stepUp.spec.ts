@@ -153,6 +153,39 @@ describe('step-up controller', () => {
     );
   });
 
+  it('records the passkey step-up in the session auth context with its device binding', async () => {
+    const user = buildUser();
+    const credential = buildCredential({ id: 'cred-1', userId: user.id });
+    const session = buildSession({ authMethods: [] });
+
+    (Credential.findOne as any).mockResolvedValue(credential);
+    (Session.findOne as any).mockResolvedValue(session);
+    (getSystemConfig as any).mockResolvedValue({
+      origins: ['http://localhost:5137'],
+      rpid: 'localhost',
+    });
+
+    const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+    (verifyAuthenticationResponse as any).mockResolvedValue({
+      verified: true,
+      authenticationInfo: {
+        newCounter: 2,
+        credentialDeviceType: 'singleDevice',
+        userVerified: true,
+      },
+    });
+
+    await finishWebAuthnStepUp(
+      buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } }),
+      buildRes(),
+    );
+
+    expect(session.authMethods).toEqual([
+      expect.objectContaining({ method: 'passkey', deviceBound: true, userVerified: true }),
+    ]);
+    expect(session.authTime).toBe(session.stepUpVerifiedAt);
+  });
+
   it('does not update session freshness when verification fails', async () => {
     const user = buildUser();
     const credential = buildCredential({ id: 'cred-1', userId: user.id });
