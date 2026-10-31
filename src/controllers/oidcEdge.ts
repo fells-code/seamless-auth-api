@@ -131,8 +131,8 @@ export async function getOidcPayloadByUid(req: Req<OidcPayloadUidParams>, res: R
 }
 
 export async function postOidcPayloadConsume(req: Req<OidcPayloadParams>, res: Response) {
-  await consumeOidcPayload(req.params.model, req.params.id);
-  return res.status(204).end();
+  const consumed = await consumeOidcPayload(req.params.model, req.params.id);
+  return res.status(200).json({ consumed });
 }
 
 export async function deleteOidcPayload(req: Req<OidcPayloadParams>, res: Response) {

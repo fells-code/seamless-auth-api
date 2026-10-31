@@ -204,11 +204,24 @@ export function findOidcPayloadByUid(model: OidcPayloadModel, uid: string) {
   return findOne({ model, uid });
 }
 
+/**
+ * True only for the caller whose update set `consumedAt`. The condition is in the one
+ * statement, so of two refreshes racing with the same token exactly one wins, and the edge
+ * treats the other as reuse rather than issuing a second rotation.
+ */
 export async function consumeOidcPayload(model: OidcPayloadModel, id: string) {
-  await OidcPayload.update(
+  const [affected] = await OidcPayload.update(
     { consumedAt: new Date() },
-    { where: { model, id, consumedAt: { [Op.is]: null } } as WhereOptions<OidcPayloadAttributes> },
+    {
+      where: {
+        model,
+        id,
+        consumedAt: { [Op.is]: null },
+        expiresAt: { [Op.gt]: new Date() },
+      } as WhereOptions<OidcPayloadAttributes>,
+    },
   );
+  return affected > 0;
 }
 
 export async function destroyOidcPayload(model: OidcPayloadModel, id: string) {
