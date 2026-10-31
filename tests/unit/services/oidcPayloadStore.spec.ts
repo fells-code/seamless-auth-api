@@ -267,12 +267,24 @@ describe('findGrantBoundSession', () => {
 });
 
 describe('changing records', () => {
-  it('consumes once', async () => {
-    await consumeOidcPayload('AuthorizationCode', 'c1');
+  it('consumes once, in one conditional statement, and says whether this call did', async () => {
+    vi.mocked(OidcPayload.update).mockResolvedValueOnce([1] as never);
+    expect(await consumeOidcPayload('RefreshToken', 'r1')).toBe(true);
     expect(OidcPayload.update).toHaveBeenCalledWith(
       { consumedAt: expect.any(Date) },
-      { where: { model: 'AuthorizationCode', id: 'c1', consumedAt: { [Op.is]: null } } },
+      {
+        where: {
+          model: 'RefreshToken',
+          id: 'r1',
+          consumedAt: { [Op.is]: null },
+          expiresAt: { [Op.gt]: expect.any(Date) },
+        },
+      },
     );
+
+    // The second of two racing refreshes: the row already had consumedAt.
+    vi.mocked(OidcPayload.update).mockResolvedValueOnce([0] as never);
+    expect(await consumeOidcPayload('RefreshToken', 'r1')).toBe(false);
   });
 
   it('destroys one record, or every record of a grant', async () => {

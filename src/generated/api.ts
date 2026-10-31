@@ -11938,7 +11938,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Mark a provider record consumed */
+    /** Mark a provider record consumed, and say whether this call did */
     post: {
       parameters: {
         query?: never;
@@ -11961,6 +11961,22 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "consumed": true
+             *     }
+             */
+            'application/json': {
+              consumed: boolean;
+            };
+          };
+        };
         /** @description HTTP 400 */
         400: {
           headers: {
