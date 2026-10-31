@@ -118,7 +118,7 @@ export async function finishOAuthLogin(req: RouteRequest, res: Response) {
     return res.status(404).json({ error: 'OAuth provider not found' });
   }
 
-  const consumed = consumeOAuthState(state, provider.id, binding);
+  const consumed = await consumeOAuthState(state, provider.id, binding);
 
   if (!consumed.ok) {
     await AuthEventService.log({

@@ -66,7 +66,7 @@ export async function upsertOidcPayload(
   };
 
   if (model === 'ReplayDetection') {
-    return insertReplayDetection(row, now);
+    return { created: await insertIfAbsent(model, id, payload, row.expiresAt, now) };
   }
 
   await OidcPayload.upsert(row);
@@ -74,14 +74,17 @@ export async function upsertOidcPayload(
 }
 
 /**
- * Insert only if absent, in one statement, so two requests replaying the same assertion
- * cannot both see "absent" and both succeed. An expired row may be taken over, since the
- * value it guarded can no longer be presented.
+ * Insert only if absent, in one statement, so two requests replaying the same value cannot
+ * both see "absent" and both succeed. An expired row may be taken over, since the value it
+ * guarded can no longer be presented.
  */
-async function insertReplayDetection(
-  row: Omit<OidcPayloadAttributes, 'consumedAt' | 'createdAt' | 'updatedAt'>,
+async function insertIfAbsent(
+  model: string,
+  id: string,
+  payload: Record<string, unknown>,
+  expiresAt: Date,
   now: Date,
-): Promise<{ created: boolean }> {
+): Promise<boolean> {
   const inserted = await OidcPayload.sequelize!.query<{ id: string }>(
     `INSERT INTO public.oidc_payloads
        (id, model, payload, "expiresAt", "createdAt", "updatedAt")
@@ -92,18 +95,20 @@ async function insertReplayDetection(
        WHERE oidc_payloads."expiresAt" <= :now
      RETURNING id`,
     {
-      replacements: {
-        id: row.id,
-        model: row.model,
-        payload: JSON.stringify(row.payload),
-        expiresAt: row.expiresAt,
-        now,
-      },
+      replacements: { id, model, payload: JSON.stringify(payload), expiresAt, now },
       type: QueryTypes.SELECT,
     },
   );
 
-  return { created: inserted.length > 0 };
+  return inserted.length > 0;
+}
+
+/**
+ * Records an inbound OAuth state as used, true only the first time. Kept under a model the
+ * edge's payload routes cannot name, so the edge can neither read nor pre-claim states.
+ */
+export function claimOAuthStateUse(stateHash: string, expiresAt: Date) {
+  return insertIfAbsent('OAuthStateReplay', stateHash, {}, expiresAt, new Date());
 }
 
 async function findOne(

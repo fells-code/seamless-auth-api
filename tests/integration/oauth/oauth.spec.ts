@@ -19,13 +19,23 @@ import { UserExternalId } from '../../../src/models/userExternalIds.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
-import { clearOAuthStateReplayCache } from '../../../src/services/oauthService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 import {
   buildOrganization,
   buildOrganizationMembership,
 } from '../../factories/organizationFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
+
+const claimedStates = new Set<string>();
+
+vi.mock('../../../src/services/oidcPayloadStore.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/services/oidcPayloadStore.js')>()),
+  claimOAuthStateUse: vi.fn(async (stateHash: string) => {
+    if (claimedStates.has(stateHash)) return false;
+    claimedStates.add(stateHash);
+    return true;
+  }),
+}));
 
 let app: Application;
 
@@ -56,7 +66,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  clearOAuthStateReplayCache();
+  claimedStates.clear();
   vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret');
   (getSystemConfig as any).mockResolvedValue(
     buildSystemConfig({

@@ -6,7 +6,6 @@ import { OAuthIdentity } from '../../../src/models/oauthIdentities.js';
 import { User } from '../../../src/models/users.js';
 import {
   buildOAuthAuthorizationUrl,
-  clearOAuthStateReplayCache,
   consumeOAuthState,
   createOAuthPkceCodeChallenge,
   createOAuthPkceCodeVerifier,
@@ -21,7 +20,19 @@ import {
   verifyOAuthState,
   warnIfUnboundOAuthStateSet,
 } from '../../../src/services/oauthService.js';
+import { claimOAuthStateUse } from '../../../src/services/oidcPayloadStore.js';
 import getLogger from '../../../src/utils/logger.js';
+
+const claimedStates = new Map<string, Date>();
+
+vi.mock('../../../src/services/oidcPayloadStore.js', () => ({
+  claimOAuthStateUse: vi.fn(async (stateHash: string, expiresAt: Date) => {
+    const existing = claimedStates.get(stateHash);
+    if (existing && existing > new Date()) return false;
+    claimedStates.set(stateHash, expiresAt);
+    return true;
+  }),
+}));
 
 function signState(payload: Record<string, unknown>, secret: string) {
   const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
@@ -71,7 +82,7 @@ const provider = {
 describe('oauthService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    clearOAuthStateReplayCache();
+    claimedStates.clear();
     vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret');
     (getSystemConfig as any).mockResolvedValue(
       buildSystemConfig({
@@ -102,17 +113,17 @@ describe('oauthService', () => {
     expect(verifyOAuthState(state, 'github')).toBeNull();
   });
 
-  it('consumes OAuth state only once per process', () => {
+  it('consumes OAuth state only once', async () => {
     const { state, binding } = createOAuthState({
       providerId: 'google',
       redirectUri: 'https://app.example.com/oauth/callback',
     });
 
-    expect(consumeOAuthState(state, 'google', binding)).toEqual({
+    expect(await consumeOAuthState(state, 'google', binding)).toEqual({
       ok: true,
       payload: expect.objectContaining({ providerId: 'google' }),
     });
-    expect(consumeOAuthState(state, 'google', binding)).toEqual({
+    expect(await consumeOAuthState(state, 'google', binding)).toEqual({
       ok: false,
       reason: 'invalid_state',
     });
@@ -138,55 +149,54 @@ describe('oauthService', () => {
       expect(payload.bindingHash).not.toBe(binding);
     });
 
-    it('refuses a callback without the binding', () => {
+    it('refuses a callback without the binding', async () => {
       const { state } = start();
 
-      expect(consumeOAuthState(state, 'google')).toEqual({
+      expect(await consumeOAuthState(state, 'google')).toEqual({
         ok: false,
         reason: 'state_binding_missing',
       });
     });
 
-    it('refuses a callback with another sign-in binding', () => {
+    it('refuses a callback with another sign-in binding', async () => {
       const { state } = start();
 
-      expect(consumeOAuthState(state, 'google', 'A'.repeat(43))).toEqual({
+      expect(await consumeOAuthState(state, 'google', 'A'.repeat(43))).toEqual({
         ok: false,
         reason: 'state_binding_mismatch',
       });
     });
 
-    it('leaves the state usable by its own client after a refused binding', () => {
+    it('leaves the state usable by its own client after a refused binding', async () => {
       const { state, binding } = start();
 
-      expect(consumeOAuthState(state, 'google', 'not-the-binding').ok).toBe(false);
-      expect(consumeOAuthState(state, 'google', binding).ok).toBe(true);
+      expect((await consumeOAuthState(state, 'google', 'not-the-binding')).ok).toBe(false);
+      expect((await consumeOAuthState(state, 'google', binding)).ok).toBe(true);
     });
 
-    it('refuses a binding for a state signed without one', () => {
-      withEnv({ OAUTH_STATE_SECRET: 'explicit-secret' }, () => {
-        const state = signState(
-          {
-            providerId: 'google',
-            redirectUri: 'https://app.example.com/oauth/callback',
-            nonce: 'nonce',
-            createdAt: Date.now(),
-          },
-          'explicit-secret',
-        );
+    it('refuses a binding for a state signed without one', async () => {
+      vi.stubEnv('OAUTH_STATE_SECRET', 'explicit-secret');
+      const state = signState(
+        {
+          providerId: 'google',
+          redirectUri: 'https://app.example.com/oauth/callback',
+          nonce: 'nonce',
+          createdAt: Date.now(),
+        },
+        'explicit-secret',
+      );
 
-        expect(consumeOAuthState(state, 'google', 'anything')).toEqual({
-          ok: false,
-          reason: 'state_binding_mismatch',
-        });
+      expect(await consumeOAuthState(state, 'google', 'anything')).toEqual({
+        ok: false,
+        reason: 'state_binding_mismatch',
       });
     });
 
-    it('refuses a callback without the binding even when the old escape hatch is set', () => {
+    it('refuses a callback without the binding even when the old escape hatch is set', async () => {
       vi.stubEnv('OAUTH_ALLOW_UNBOUND_STATE', 'true');
       const { state } = start();
 
-      expect(consumeOAuthState(state, 'google')).toEqual({
+      expect(await consumeOAuthState(state, 'google')).toEqual({
         ok: false,
         reason: 'state_binding_missing',
       });
@@ -728,35 +738,60 @@ describe('oauthService', () => {
     });
   });
 
-  it('returns null when consuming an invalid state value', () => {
-    expect(consumeOAuthState('invalid', 'google')).toEqual({
+  it('returns null when consuming an invalid state value', async () => {
+    expect(await consumeOAuthState('invalid', 'google')).toEqual({
       ok: false,
       reason: 'invalid_state',
     });
   });
 
-  it('purges expired replay-cache entries when consuming state', () => {
-    vi.useFakeTimers();
-    try {
-      const base = new Date('2026-06-01T00:00:00.000Z');
-      vi.setSystemTime(base);
+  it('records the state hash, not the state, until the state itself expires', async () => {
+    const { state, binding, payload } = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
 
-      const { state: first, binding: firstBinding } = createOAuthState({
-        providerId: 'google',
-        redirectUri: 'https://app.example.com/oauth/callback',
-      });
-      expect(consumeOAuthState(first, 'google', firstBinding).ok).toBe(true);
+    await consumeOAuthState(state, 'google', binding);
 
-      vi.setSystemTime(new Date(base.getTime() + 11 * 60 * 1000));
+    const [stateHash, expiresAt] = vi.mocked(claimOAuthStateUse).mock.calls[0];
+    expect(stateHash).not.toContain(state);
+    expect(stateHash).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(expiresAt).toEqual(new Date(payload.createdAt + 10 * 60 * 1000));
+  });
 
-      const { state: second, binding: secondBinding } = createOAuthState({
-        providerId: 'google',
-        redirectUri: 'https://app.example.com/oauth/callback',
-      });
-      expect(consumeOAuthState(second, 'google', secondBinding).ok).toBe(true);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('refuses a state another instance already used', async () => {
+    const { state, binding } = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
+    vi.mocked(claimOAuthStateUse).mockResolvedValueOnce(false);
+
+    expect(await consumeOAuthState(state, 'google', binding)).toEqual({
+      ok: false,
+      reason: 'invalid_state',
+    });
+  });
+
+  it('fails closed when the replay store is unavailable', async () => {
+    const { state, binding } = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
+    vi.mocked(claimOAuthStateUse).mockRejectedValueOnce(new Error('db down'));
+
+    await expect(consumeOAuthState(state, 'google', binding)).rejects.toThrow('db down');
+  });
+
+  it('does not record a state that fails verification or binding', async () => {
+    const { state } = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
+
+    await consumeOAuthState(state, 'google', 'wrong');
+    await consumeOAuthState('invalid', 'google');
+
+    expect(claimOAuthStateUse).not.toHaveBeenCalled();
   });
 
   it('rejects requested redirect URIs that cannot be parsed', async () => {

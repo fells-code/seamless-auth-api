@@ -5,6 +5,7 @@ import { getSequelize, initializeModels } from '../../src/models/index.js';
 import { OidcClient } from '../../src/models/oidcClients.js';
 import { OidcPayload } from '../../src/models/oidcPayloads.js';
 import {
+  claimOAuthStateUse,
   consumeOidcPayload,
   findGrantBoundSession,
   findOidcPayload,
@@ -70,6 +71,30 @@ describe('oidc_payloads', () => {
 
     expect((await findOidcPayload('Grant', id))?.payload).toEqual({ m: 'grant' });
     expect((await findOidcPayload('Session', id))?.payload).toEqual({ m: 'session' });
+  });
+
+  it('claims an OAuth state once across concurrent callers, apart from the edge models', async () => {
+    const hash = randomUUID();
+    const expiresAt = new Date(Date.now() + 600_000);
+
+    const results = await Promise.all([
+      claimOAuthStateUse(hash, expiresAt),
+      claimOAuthStateUse(hash, expiresAt),
+      claimOAuthStateUse(hash, expiresAt),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await claimOAuthStateUse(hash, expiresAt)).toBe(false);
+    expect(await findOidcPayload('ReplayDetection', hash)).toBeNull();
+    expect(await OidcPayload.count({ where: { model: 'OAuthStateReplay', id: hash } })).toBe(1);
+  });
+
+  it('lets an expired OAuth state row be claimed again', async () => {
+    const hash = randomUUID();
+
+    expect(await claimOAuthStateUse(hash, new Date(Date.now() - 1000))).toBe(true);
+    expect(await claimOAuthStateUse(hash, new Date(Date.now() + 600_000))).toBe(true);
+    expect(await claimOAuthStateUse(hash, new Date(Date.now() + 600_000))).toBe(false);
   });
 
   it('inserts replay detection only once, in one statement', async () => {

@@ -96,9 +96,10 @@ start also includes PKCE challenge parameters by default, and the callback deriv
 verifier server-side from the signed state. Set `pkce: false` only for providers that cannot accept
 PKCE parameters.
 
-Callback state is consumed in-process after first use and expires after a short window. In a
-multi-instance deployment, keep OAuth callback traffic sticky to the same API instance or add shared
-state storage before relying on replay detection across instances.
+Callback state is single use. The first callback records a hash of the state in Postgres
+(`oidc_payloads`, model `OAuthStateReplay`) until the state itself expires ten minutes after it was
+issued, so a replayed state is refused by every instance. Callback traffic does not need to be
+sticky.
 
 OAuth callback responses return the normal Seamless Auth JSON token payload. Provider tokens remain
 server-side and must not be forwarded to browser clients.

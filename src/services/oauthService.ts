@@ -22,12 +22,12 @@ import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
 import { normalizeLoginPolicy } from './loginPolicyService.js';
+import { claimOAuthStateUse } from './oidcPayloadStore.js';
 import { findOrganizationsRetiringOAuthProvider } from './organizationService.js';
 
 const logger = getLogger('oauthService');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
-const consumedStateHashes = new Map<string, number>();
 
 export type PublicOAuthProvider = {
   id: string;
@@ -121,14 +121,6 @@ function signPayload(payload: string) {
 
 function hashStateForReplayCache(state: string) {
   return createHmac('sha256', stateSecret()).update(`oauth-state:${state}`).digest('base64url');
-}
-
-function purgeConsumedStates(now = Date.now()) {
-  for (const [stateHash, expiresAt] of consumedStateHashes.entries()) {
-    if (expiresAt <= now) {
-      consumedStateHashes.delete(stateHash);
-    }
-  }
 }
 
 /**
@@ -307,11 +299,11 @@ function checkOAuthStateBinding(
  * Checked before the replay cache records the state, so a callback presenting the
  * wrong binding cannot use up a state its rightful client has yet to finish.
  */
-export function consumeOAuthState(
+export async function consumeOAuthState(
   state: string,
   providerId: string,
   binding?: string,
-): ConsumedOAuthState {
+): Promise<ConsumedOAuthState> {
   const payload = verifyOAuthState(state, providerId);
 
   if (!payload) return { ok: false, reason: 'invalid_state' };
@@ -320,21 +312,14 @@ export function consumeOAuthState(
 
   if (refusal) return { ok: false, reason: refusal };
 
-  purgeConsumedStates();
+  const firstUse = await claimOAuthStateUse(
+    hashStateForReplayCache(state),
+    new Date(payload.createdAt + STATE_TTL_MS),
+  );
 
-  const stateHash = hashStateForReplayCache(state);
-
-  if (consumedStateHashes.has(stateHash)) {
-    return { ok: false, reason: 'invalid_state' };
-  }
-
-  consumedStateHashes.set(stateHash, payload.createdAt + STATE_TTL_MS);
+  if (!firstUse) return { ok: false, reason: 'invalid_state' };
 
   return { ok: true, payload };
-}
-
-export function clearOAuthStateReplayCache() {
-  consumedStateHashes.clear();
 }
 
 export function createOAuthPkceCodeVerifier(
