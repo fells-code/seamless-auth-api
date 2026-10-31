@@ -333,6 +333,22 @@ The applications (clients) of the OpenID Provider service ([ADR 0001](./adr/0001
 
 Only an HMAC of a shared secret is stored, so a lost secret is rotated, never recovered.
 
+### Resources and scopes
+
+A resource is an API that applications request access tokens for (RFC 8707). Its identifier, an absolute URI such as `https://api.example.com`, becomes the `aud` of those tokens and cannot change. It cannot be the API `ISSUER` or `oidc_issuer`. A resource declares its scopes, and each application is allowed a subset of them. The provider signs an access token for a resource only when the application is allowed that resource and every scope in the token. Writes are audited as `admin_oidc_resource_*` and `admin_oidc_application_resources_updated`.
+
+| Route                                   | What it does                                                                                       |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `GET /admin/resources`                  | List resources.                                                                                    |
+| `POST /admin/resources`                 | Create one.                                                                                        |
+| `GET /admin/resources/:id`              | Get one.                                                                                           |
+| `PATCH /admin/resources/:id`            | Rename it, change its scopes or token lifetime. A dropped scope is removed from every application. |
+| `DELETE /admin/resources/:id`           | Delete it, and remove it from every application.                                                   |
+| `GET /admin/applications/:id/resources` | The resources and scopes an application may use.                                                   |
+| `PUT /admin/applications/:id/resources` | Replace that set. Each scope must be one the resource declares.                                    |
+
+The OpenID Connect scopes (`openid`, `profile`, `email`, `phone`, `address`, `offline_access`) and `seamless` belong to the provider and cannot be declared by a resource.
+
 ### Settings that cannot be created
 
 The API refuses these on create and on the merged result of every update (#410):
