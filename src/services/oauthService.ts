@@ -119,10 +119,6 @@ function signPayload(payload: string) {
   return createHmac('sha256', stateSecret()).update(payload).digest('base64url');
 }
 
-function hashStateForReplayCache(state: string) {
-  return createHmac('sha256', stateSecret()).update(`oauth-state:${state}`).digest('base64url');
-}
-
 /**
  * The escape hatch that accepted callbacks without a binding is gone, and a deployment
  * that still sets it should hear that it no longer does anything rather than assume the
@@ -263,7 +259,13 @@ export function createOAuthState(
 }
 
 export function verifyOAuthState(state: string, providerId: string): OAuthStatePayload | null {
-  const [encodedPayload, signature] = state.split('.');
+  const segments = state.split('.');
+
+  // Anything after a second dot would ride along unverified and make one signed state look
+  // like many to the replay check.
+  if (segments.length !== 2) return null;
+
+  const [encodedPayload, signature] = segments;
 
   if (!encodedPayload || !signature) return null;
   if (!safeEqual(signPayload(encodedPayload), signature)) return null;
@@ -312,10 +314,10 @@ export async function consumeOAuthState(
 
   if (refusal) return { ok: false, reason: refusal };
 
-  const firstUse = await claimOAuthStateUse(
-    hashStateForReplayCache(state),
-    new Date(payload.createdAt + STATE_TTL_MS),
-  );
+  // The signature already identifies the state: it covers the payload's random nonce, and
+  // verification accepted only its canonical form, so it serves as the replay key as is.
+  const signature = state.split('.')[1];
+  const firstUse = await claimOAuthStateUse(signature, new Date(payload.createdAt + STATE_TTL_MS));
 
   if (!firstUse) return { ok: false, reason: 'invalid_state' };
 

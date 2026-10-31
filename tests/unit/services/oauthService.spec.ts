@@ -745,7 +745,7 @@ describe('oauthService', () => {
     });
   });
 
-  it('records the state hash, not the state, until the state itself expires', async () => {
+  it('records the state by its signature until the state itself expires', async () => {
     const { state, binding, payload } = createOAuthState({
       providerId: 'google',
       redirectUri: 'https://app.example.com/oauth/callback',
@@ -753,10 +753,24 @@ describe('oauthService', () => {
 
     await consumeOAuthState(state, 'google', binding);
 
-    const [stateHash, expiresAt] = vi.mocked(claimOAuthStateUse).mock.calls[0];
-    expect(stateHash).not.toContain(state);
-    expect(stateHash).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const [replayKey, expiresAt] = vi.mocked(claimOAuthStateUse).mock.calls[0];
+    expect(replayKey).toBe(state.split('.')[1]);
+    expect(replayKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(expiresAt).toEqual(new Date(payload.createdAt + 10 * 60 * 1000));
+  });
+
+  it('refuses a state carrying extra segments, so a suffix cannot dodge the replay check', async () => {
+    const { state, binding } = createOAuthState({
+      providerId: 'google',
+      redirectUri: 'https://app.example.com/oauth/callback',
+    });
+
+    expect(verifyOAuthState(`${state}.x`, 'google')).toBeNull();
+    expect((await consumeOAuthState(state, 'google', binding)).ok).toBe(true);
+    expect(await consumeOAuthState(`${state}.x`, 'google', binding)).toEqual({
+      ok: false,
+      reason: 'invalid_state',
+    });
   });
 
   it('refuses a state another instance already used', async () => {
