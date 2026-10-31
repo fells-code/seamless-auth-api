@@ -4970,6 +4970,8 @@ export interface paths {
                 | 'admin_oidc_application_created'
                 | 'admin_oidc_application_deleted'
                 | 'admin_oidc_application_keys_updated'
+                | 'admin_oidc_application_nonce_updated'
+                | 'admin_oidc_application_pkce_updated'
                 | 'admin_oidc_application_resources_updated'
                 | 'admin_oidc_application_secret_rotated'
                 | 'admin_oidc_application_updated'
@@ -5085,6 +5087,8 @@ export interface paths {
                     | 'admin_oidc_application_created'
                     | 'admin_oidc_application_deleted'
                     | 'admin_oidc_application_keys_updated'
+                    | 'admin_oidc_application_nonce_updated'
+                    | 'admin_oidc_application_pkce_updated'
                     | 'admin_oidc_application_resources_updated'
                     | 'admin_oidc_application_secret_rotated'
                     | 'admin_oidc_application_updated'
@@ -12596,7 +12600,9 @@ export interface paths {
              *       "urn:seamless:first_party": true,
              *       "urn:seamless:access_token_ttl": 0,
              *       "urn:seamless:id_token_ttl": 0,
-             *       "urn:seamless:refresh_token_ttl": 0
+             *       "urn:seamless:refresh_token_ttl": 0,
+             *       "urn:seamless:pkce_required": true,
+             *       "urn:seamless:nonce_required": true
              *     }
              */
             'application/json': {
@@ -12636,6 +12642,8 @@ export interface paths {
               'urn:seamless:access_token_ttl'?: number;
               'urn:seamless:id_token_ttl'?: number;
               'urn:seamless:refresh_token_ttl'?: number;
+              'urn:seamless:pkce_required'?: boolean;
+              'urn:seamless:nonce_required'?: boolean;
             };
           };
         };
@@ -13834,6 +13842,8 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                pkceRequired: boolean;
+                nonceRequired: boolean;
                 jwks: {
                   keys: ({
                     kty: string;
@@ -13934,6 +13944,10 @@ export interface paths {
             deviceFlowEnabled?: boolean;
             /** @default false */
             noticesEnabled?: boolean;
+            /** @default true */
+            pkceRequired?: boolean;
+            /** @default true */
+            nonceRequired?: boolean;
             /** Format: uri */
             backchannelLogoutUri?: string | null;
             accessTokenTtlSeconds?: number | null;
@@ -13982,6 +13996,8 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "pkceRequired": true,
+             *         "nonceRequired": true,
              *         "jwks": {
              *           "keys": [
              *             null
@@ -14017,6 +14033,8 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                pkceRequired: boolean;
+                nonceRequired: boolean;
                 jwks: {
                   keys: ({
                     kty: string;
@@ -14190,6 +14208,8 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "pkceRequired": true,
+             *         "nonceRequired": true,
              *         "jwks": {
              *           "keys": [
              *             null
@@ -14224,6 +14244,8 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                pkceRequired: boolean;
+                nonceRequired: boolean;
                 jwks: {
                   keys: ({
                     kty: string;
@@ -14580,6 +14602,8 @@ export interface paths {
             grantTypes?: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
             deviceFlowEnabled?: boolean;
             noticesEnabled?: boolean;
+            pkceRequired?: boolean;
+            nonceRequired?: boolean;
             /** Format: uri */
             backchannelLogoutUri?: string | null;
             accessTokenTtlSeconds?: number | null;
@@ -14616,6 +14640,8 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "pkceRequired": true,
+             *         "nonceRequired": true,
              *         "jwks": {
              *           "keys": [
              *             null
@@ -14650,6 +14676,8 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                pkceRequired: boolean;
+                nonceRequired: boolean;
                 jwks: {
                   keys: ({
                     kty: string;
@@ -14841,6 +14869,8 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "pkceRequired": true,
+             *         "nonceRequired": true,
              *         "jwks": {
              *           "keys": [
              *             null
@@ -14876,6 +14906,8 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                pkceRequired: boolean;
+                nonceRequired: boolean;
                 jwks: {
                   keys: ({
                     kty: string;
@@ -15092,6 +15124,8 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "pkceRequired": true,
+             *         "nonceRequired": true,
              *         "jwks": {
              *           "keys": [
              *             null
@@ -15126,6 +15160,8 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                pkceRequired: boolean;
+                nonceRequired: boolean;
                 jwks: {
                   keys: ({
                     kty: string;

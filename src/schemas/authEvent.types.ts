@@ -22,6 +22,8 @@ export const AUTH_EVENT_TYPES = [
   'admin_oidc_application_created',
   'admin_oidc_application_deleted',
   'admin_oidc_application_keys_updated',
+  'admin_oidc_application_nonce_updated',
+  'admin_oidc_application_pkce_updated',
   'admin_oidc_application_resources_updated',
   'admin_oidc_application_secret_rotated',
   'admin_oidc_application_updated',
