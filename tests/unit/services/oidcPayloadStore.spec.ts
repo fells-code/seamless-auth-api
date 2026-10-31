@@ -16,7 +16,12 @@ vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
   resolveCurrentSession: vi.fn(),
 }));
 
+vi.mock('../../../src/services/oidcBackchannelLogout', () => ({
+  recordBackchannelLogoutTargets: vi.fn(),
+}));
+
 import { OidcPayload } from '../../../src/models/oidcPayloads';
+import { recordBackchannelLogoutTargets } from '../../../src/services/oidcBackchannelLogout';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
   claimOAuthStateUse,
@@ -60,6 +65,26 @@ describe('upsertOidcPayload', () => {
         expiresAt: expect.any(Date),
       }),
     );
+  });
+
+  it('records who to tell at logout when a provider Session is stored for a session', async () => {
+    const payload = { authorizations: { app: { sid: 's' } } };
+    await upsertOidcPayload('Session', 's1', { payload, expiresIn: 60, sessionId: SESSION });
+
+    expect(recordBackchannelLogoutTargets).toHaveBeenCalledWith(
+      SESSION,
+      payload,
+      expect.any(Date),
+      hasOidcGrantForSession,
+    );
+  });
+
+  it('records nothing for other models or a Session without a first-party session', async () => {
+    vi.mocked(recordBackchannelLogoutTargets).mockClear();
+    await upsertOidcPayload('Grant', 'g1', { payload: {}, expiresIn: 60, sessionId: SESSION });
+    await upsertOidcPayload('Session', 's1', { payload: {}, expiresIn: 60 });
+
+    expect(recordBackchannelLogoutTargets).not.toHaveBeenCalled();
   });
 
   it('leaves lookup columns empty when the payload has none', async () => {

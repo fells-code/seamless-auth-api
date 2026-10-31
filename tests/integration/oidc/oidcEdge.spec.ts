@@ -18,6 +18,10 @@ vi.mock('../../../src/services/oidcPayloadStore.js', async (importOriginal) => (
   findGrantBoundSession: vi.fn(),
 }));
 
+vi.mock('../../../src/services/oidcBackchannelLogout.js', () => ({
+  sendBackchannelLogout: vi.fn(),
+}));
+
 vi.mock('../../../src/services/oidcSigning.js', () => ({
   signForOidcEdge: vi.fn(),
 }));
@@ -46,6 +50,7 @@ import { OidcPayload } from '../../../src/models/oidcPayloads.js';
 import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { getOidcAuthContext } from '../../../src/services/oidcAuthContext.js';
+import { sendBackchannelLogout } from '../../../src/services/oidcBackchannelLogout.js';
 import {
   findActiveOidcClient,
   getOidcAccountClaims,
@@ -457,7 +462,12 @@ describe('sessions', () => {
 
     expect(res.status).toBe(204);
     expect(revokeSessionChain).toHaveBeenCalledWith(session, 'oidc_refresh_token_reuse');
+    expect(sendBackchannelLogout).toHaveBeenCalledWith([SESSION]);
     expect(OidcPayload.destroy).toHaveBeenCalledWith({ where: { sessionId: SESSION } });
+    // Sent before the provider records go, while nothing else depends on them.
+    expect(vi.mocked(sendBackchannelLogout).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(OidcPayload.destroy).mock.invocationCallOrder[0],
+    );
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'oidc_session_revoked',
