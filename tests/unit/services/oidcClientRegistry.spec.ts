@@ -180,6 +180,13 @@ describe('verifyOidcClientSecret', () => {
 });
 
 describe('getOidcClientResourceScopes', () => {
+  beforeEach(() => {
+    vi.mocked(getSystemConfig).mockResolvedValue({
+      oidc_issuer: 'https://login.example.com',
+    } as never);
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(client() as never);
+  });
+
   it('returns the scopes each link allows, never more than the resource defines', async () => {
     vi.mocked(OidcClientResource.findAll).mockResolvedValue([
       { resourceId: 'r1', scopes: ['read', 'admin'] },
@@ -200,10 +207,45 @@ describe('getOidcClientResourceScopes', () => {
     expect((await getOidcClientResourceScopes('app')).size).toBe(0);
     expect(OidcResource.findAll).not.toHaveBeenCalled();
   });
+
+  it('adds the built-in notices resource for a client with notices enabled', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ noticesEnabled: true }) as never);
+    vi.mocked(OidcClientResource.findAll).mockResolvedValue([] as never);
+
+    expect(await getOidcClientResourceScopes('app')).toEqual(
+      new Map([['https://login.example.com/seamless', new Set(['notices:send'])]]),
+    );
+  });
+
+  it('ignores a stored link to the built-in resource', async () => {
+    vi.mocked(OidcClientResource.findAll).mockResolvedValue([
+      { resourceId: 'r1', scopes: ['notices:send'] },
+    ] as never);
+    vi.mocked(OidcResource.findAll).mockResolvedValue([
+      { id: 'r1', identifier: 'https://login.example.com/seamless', scopes: ['notices:send'] },
+    ] as never);
+
+    expect((await getOidcClientResourceScopes('app')).size).toBe(0);
+  });
+
+  it('has no built-in resource without a provider issuer', async () => {
+    vi.mocked(getSystemConfig).mockResolvedValue({} as never);
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ noticesEnabled: true }) as never);
+    vi.mocked(OidcClientResource.findAll).mockResolvedValue([] as never);
+
+    expect((await getOidcClientResourceScopes('app')).size).toBe(0);
+  });
 });
 
 describe('getOidcClientResources', () => {
-  it('lists each linked resource with its narrowed scopes and token lifetime', async () => {
+  beforeEach(() => {
+    vi.mocked(getSystemConfig).mockResolvedValue({
+      oidc_issuer: 'https://login.example.com',
+    } as never);
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ noticesEnabled: true }) as never);
+  });
+
+  it('lists the built-in notices resource first, then each linked resource with its narrowed scopes and token lifetime', async () => {
     vi.mocked(OidcClientResource.findAll).mockResolvedValue([
       { resourceId: 'r1', scopes: ['read', 'admin'] },
       { resourceId: 'r2', scopes: ['x'] },
@@ -225,6 +267,11 @@ describe('getOidcClientResources', () => {
     ] as never);
 
     expect(await getOidcClientResources('app')).toEqual([
+      {
+        identifier: 'https://login.example.com/seamless',
+        scopes: ['notices:send'],
+        accessTokenTtlSeconds: null,
+      },
       { identifier: 'https://api.example.com', scopes: ['read'], accessTokenTtlSeconds: 300 },
       { identifier: 'https://other.example.com', scopes: ['x'], accessTokenTtlSeconds: null },
     ]);

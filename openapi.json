@@ -5314,6 +5314,8 @@
                     "oauth_login_failed",
                     "oauth_login_started",
                     "oauth_login_success",
+                    "oidc_account_notice_failed",
+                    "oidc_account_notice_sent",
                     "oidc_client_auth_failed",
                     "oidc_consent_denied",
                     "oidc_consent_granted",
@@ -5431,6 +5433,8 @@
                           "oauth_login_failed",
                           "oauth_login_started",
                           "oauth_login_success",
+                          "oidc_account_notice_failed",
+                          "oidc_account_notice_sent",
                           "oidc_client_auth_failed",
                           "oidc_consent_denied",
                           "oidc_consent_granted",
@@ -7570,6 +7574,367 @@
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/account-notices": {
+      "post": {
+        "summary": "Send a user an account notice on a registered application's behalf",
+        "description": "For an application backend, with a client credentials token for the built-in `<oidc_issuer>/seamless` resource and scope `notices:send`, on a client an admin has enabled notices for. Sends to every verified channel of a user who holds a grant with the application, or to the channels named, inside a fixed template naming the application and the instance. The response lists channels, never addresses. A caller that owns delivery gets `deliveries` back instead, as on the account recovery routes.",
+        "tags": ["Applications"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": { "type": "string", "format": "uuid" },
+                  "channels": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["email", "sms"] },
+                    "minItems": 1
+                  },
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f]+$"
+                  },
+                  "actionUrl": { "type": "string", "maxLength": 2048, "format": "uri" }
+                },
+                "required": ["userId", "subject", "text"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "channels": [null], "deliveries": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "channel": { "type": "string", "enum": ["email", "sms"] },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "sent",
+                              "failed",
+                              "returned_for_external_delivery",
+                              "not_sent_external_delivery"
+                            ]
+                          }
+                        },
+                        "required": ["channel", "status"]
+                      }
+                    },
+                    "deliveries": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["otp_email"] },
+                              "to": { "type": "string" },
+                              "token": { "type": "string" },
+                              "purpose": { "type": "string", "enum": ["account_recovery"] }
+                            },
+                            "required": ["kind", "to", "token"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["otp_sms"] },
+                              "to": { "type": "string" },
+                              "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                              "purpose": { "type": "string", "enum": ["account_recovery"] }
+                            },
+                            "required": ["kind", "to", "token"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["magic_link_email"] },
+                              "to": { "type": "string" },
+                              "token": { "type": "string" },
+                              "magicLinkUrl": { "type": "string" }
+                            },
+                            "required": ["kind", "to", "magicLinkUrl"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                              "to": { "type": "string" },
+                              "signInUrl": { "type": "string" }
+                            },
+                            "required": ["kind", "to", "signInUrl"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["account_notice_email"] },
+                              "notice": {
+                                "type": "string",
+                                "enum": [
+                                  "account_recovery_opened",
+                                  "account_recovery_completed",
+                                  "recovery_code_used",
+                                  "identity_changed",
+                                  "application_notice"
+                                ]
+                              },
+                              "to": { "type": "string" },
+                              "subject": { "type": "string" },
+                              "text": { "type": "string" },
+                              "cancelUrl": { "type": "string" },
+                              "application": {
+                                "type": "object",
+                                "properties": {
+                                  "clientId": { "type": "string" },
+                                  "name": { "type": "string" }
+                                },
+                                "required": ["clientId", "name"]
+                              }
+                            },
+                            "required": ["kind", "notice", "to", "subject", "text"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                              "notice": {
+                                "type": "string",
+                                "enum": [
+                                  "account_recovery_opened",
+                                  "account_recovery_completed",
+                                  "recovery_code_used",
+                                  "identity_changed",
+                                  "application_notice"
+                                ]
+                              },
+                              "to": { "type": "string" },
+                              "text": { "type": "string" },
+                              "cancelUrl": { "type": "string" },
+                              "application": {
+                                "type": "object",
+                                "properties": {
+                                  "clientId": { "type": "string" },
+                                  "name": { "type": "string" }
+                                },
+                                "required": ["clientId", "name"]
+                              }
+                            },
+                            "required": ["kind", "notice", "to", "text"]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["channels"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "notice_invalid_token",
+                        "notice_not_enabled",
+                        "notice_unknown_user",
+                        "notice_no_channel",
+                        "notice_action_url_not_allowed",
+                        "notice_rate_limited"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "notice_invalid_token",
+                        "notice_not_enabled",
+                        "notice_unknown_user",
+                        "notice_no_channel",
+                        "notice_action_url_not_allowed",
+                        "notice_rate_limited"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "notice_invalid_token",
+                        "notice_not_enabled",
+                        "notice_unknown_user",
+                        "notice_no_channel",
+                        "notice_action_url_not_allowed",
+                        "notice_rate_limited"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "HTTP 422",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "notice_invalid_token",
+                        "notice_not_enabled",
+                        "notice_unknown_user",
+                        "notice_no_channel",
+                        "notice_action_url_not_allowed",
+                        "notice_rate_limited"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "error": null, "message": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "notice_invalid_token",
+                        "notice_not_enabled",
+                        "notice_unknown_user",
+                        "notice_no_channel",
+                        "notice_action_url_not_allowed",
+                        "notice_rate_limited"
+                      ]
+                    },
+                    "message": { "type": "string" }
+                  },
                   "required": ["error"]
                 }
               }

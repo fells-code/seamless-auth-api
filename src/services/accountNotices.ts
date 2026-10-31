@@ -4,7 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { AccountNoticeName, AuthDeliveryInstruction } from '@seamless-auth/types';
+import type {
+  AccountNoticeApplication,
+  AccountNoticeName,
+  AuthDeliveryInstruction,
+} from '@seamless-auth/types';
 
 import getLogger from '../utils/logger.js';
 import { DeliveryError } from './deliveryError.js';
@@ -25,6 +29,7 @@ export interface AccountNotice {
   subject: string;
   text: string;
   cancelUrl?: string;
+  application?: AccountNoticeApplication;
 }
 
 export interface AccountNoticeResult {
@@ -50,7 +55,10 @@ function asDelivery(
   channel: 'email' | 'phone',
   to: string,
 ): AuthDeliveryInstruction {
-  const cancelUrl = notice.cancelUrl ? { cancelUrl: notice.cancelUrl } : {};
+  const cancelUrl = {
+    ...(notice.cancelUrl ? { cancelUrl: notice.cancelUrl } : {}),
+    ...(notice.application ? { application: notice.application } : {}),
+  };
 
   return channel === 'email'
     ? {

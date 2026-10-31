@@ -5,10 +5,12 @@
  */
 
 import {
+  APPLICATION_NOTICE_SCOPE,
   type OidcAccountClaims,
   type OidcClientMetadata,
   type OidcPublicJwk,
   oidcRedirectUriKind,
+  seamlessBuiltInResource,
 } from '@seamless-auth/types';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Op } from 'sequelize';
@@ -92,29 +94,43 @@ export async function verifyOidcClientSecret(id: string, secret: string) {
 
 /**
  * The resources a client may ask an access token for, each with the scopes it is allowed
- * there. A link may only narrow what the resource defines, whatever was stored on it.
+ * there. A link may only narrow what the resource defines, whatever was stored on it. The
+ * built-in `<oidc_issuer>/seamless` resource is never stored: an admin turning notices on
+ * for the client is what links it (ADR 0001, D14).
  */
 export async function getOidcClientResources(clientId: string) {
+  const client = await findActiveOidcClient(clientId);
+  const { oidc_issuer } = await getSystemConfig();
+  const builtIn = oidc_issuer ? seamlessBuiltInResource(oidc_issuer) : null;
+  const resources: {
+    identifier: string;
+    scopes: string[];
+    accessTokenTtlSeconds: number | null;
+  }[] =
+    builtIn && client?.noticesEnabled
+      ? [{ identifier: builtIn, scopes: [APPLICATION_NOTICE_SCOPE], accessTokenTtlSeconds: null }]
+      : [];
+
   const links = await OidcClientResource.findAll({ where: { clientId } });
 
-  if (links.length === 0) return [];
+  if (links.length === 0) return resources;
 
-  const resources = await OidcResource.findAll({
+  const stored = await OidcResource.findAll({
     where: { id: { [Op.in]: links.map((link) => link.resourceId) } },
   });
-  const byId = new Map(resources.map((resource) => [resource.id, resource]));
+  const byId = new Map(stored.map((resource) => [resource.id, resource]));
 
-  return links.flatMap((link) => {
+  for (const link of links) {
     const resource = byId.get(link.resourceId);
-    if (!resource) return [];
-    return [
-      {
-        identifier: resource.identifier,
-        scopes: link.scopes.filter((scope) => resource.scopes.includes(scope)),
-        accessTokenTtlSeconds: resource.accessTokenTtlSeconds ?? null,
-      },
-    ];
-  });
+    if (!resource || resource.identifier === builtIn) continue;
+    resources.push({
+      identifier: resource.identifier,
+      scopes: link.scopes.filter((scope) => resource.scopes.includes(scope)),
+      accessTokenTtlSeconds: resource.accessTokenTtlSeconds ?? null,
+    });
+  }
+
+  return resources;
 }
 
 /** The scopes a client may request at each resource it is linked to, keyed by identifier. */

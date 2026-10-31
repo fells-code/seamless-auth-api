@@ -153,6 +153,21 @@ export async function hasOidcGrantForSession(sessionId: string, clientId: string
   return grant?.payload.clientId === clientId;
 }
 
+/** Whether the user holds a live provider grant for the client, through any session. */
+export async function hasOidcGrantForUser(userId: string, clientId: string) {
+  if (!isUuid(userId)) return false;
+
+  const grant = await OidcPayload.findOne({
+    where: {
+      model: 'Grant',
+      payload: { accountId: userId, clientId },
+      expiresAt: { [Op.gt]: new Date() },
+    } as WhereOptions<OidcPayloadAttributes>,
+  });
+
+  return grant?.payload.accountId === userId && grant.payload.clientId === clientId;
+}
+
 /**
  * The current row of a session that holds a provider grant for the client, or null. What
  * every user-facing lookup and signature is bound to, so the edge can reach only the users
