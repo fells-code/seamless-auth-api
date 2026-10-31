@@ -100,7 +100,7 @@ const VALIDATION_ERROR_CODE = 'invalid_request';
  * the caller learns which field it got wrong without the response echoing back
  * whatever value it sent.
  */
-function toValidationErrorBody(error: ZodError) {
+export function toValidationErrorBody(error: ZodError) {
   return {
     error: VALIDATION_ERROR_CODE,
     message: 'Request failed schema validation.',

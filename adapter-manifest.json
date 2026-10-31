@@ -9,6 +9,13 @@
     "refreshTtl": "refreshTtl"
   },
   "routes": [
+    { "method": "GET", "path": "/admin/applications", "credential": "access" },
+    { "method": "POST", "path": "/admin/applications", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/applications/{id}", "credential": "access" },
+    { "method": "GET", "path": "/admin/applications/{id}", "credential": "access" },
+    { "method": "PATCH", "path": "/admin/applications/{id}", "credential": "access" },
+    { "method": "PUT", "path": "/admin/applications/{id}/keys", "credential": "access" },
+    { "method": "POST", "path": "/admin/applications/{id}/secret", "credential": "access" },
     { "method": "GET", "path": "/admin/auth-events", "credential": "access" },
     { "method": "GET", "path": "/admin/auth-events/export", "credential": "access" },
     { "method": "GET", "path": "/admin/auth-events/integrity", "credential": "access" },

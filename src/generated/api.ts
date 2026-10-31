@@ -4887,6 +4887,11 @@ export interface paths {
                 | 'admin_last_admin_change_refused'
                 | 'admin_oauth_provider_restored'
                 | 'admin_oauth_provider_retired'
+                | 'admin_oidc_application_created'
+                | 'admin_oidc_application_deleted'
+                | 'admin_oidc_application_keys_updated'
+                | 'admin_oidc_application_secret_rotated'
+                | 'admin_oidc_application_updated'
                 | 'admin_session_revoked'
                 | 'admin_user_import_completed'
                 | 'admin_user_imported'
@@ -4989,6 +4994,11 @@ export interface paths {
                     | 'admin_last_admin_change_refused'
                     | 'admin_oauth_provider_restored'
                     | 'admin_oauth_provider_retired'
+                    | 'admin_oidc_application_created'
+                    | 'admin_oidc_application_deleted'
+                    | 'admin_oidc_application_keys_updated'
+                    | 'admin_oidc_application_secret_rotated'
+                    | 'admin_oidc_application_updated'
                     | 'admin_session_revoked'
                     | 'admin_user_import_completed'
                     | 'admin_user_imported'
@@ -13064,6 +13074,1481 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/applications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List OpenID Provider applications */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "applications": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              applications: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                clientType: 'public' | 'confidential';
+                /** @enum {string} */
+                applicationType: 'web' | 'native';
+                firstParty: boolean;
+                /** @enum {string} */
+                tokenEndpointAuthMethod:
+                  'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+                redirectUris: string[];
+                postLogoutRedirectUris: string[];
+                grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+                deviceFlowEnabled: boolean;
+                noticesEnabled: boolean;
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                } | null;
+                jwksUri: string | null;
+                hasSecret: boolean;
+                backchannelLogoutUri: string | null;
+                accessTokenTtlSeconds: number | null;
+                idTokenTtlSeconds: number | null;
+                refreshTokenTtlSeconds: number | null;
+                disabled: boolean;
+                createdAt: string;
+                updatedAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create an OpenID Provider application
+     * @description Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name: string;
+            /** @enum {string} */
+            clientType: 'public' | 'confidential';
+            /** @default false */
+            firstParty?: boolean;
+            /** @enum {string} */
+            tokenEndpointAuthMethod?:
+              'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+            /** @default [] */
+            redirectUris?: string[];
+            /** @default [] */
+            postLogoutRedirectUris?: string[];
+            /**
+             * @default [
+             *       "authorization_code",
+             *       "refresh_token"
+             *     ]
+             */
+            grantTypes?: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+            /** @default false */
+            deviceFlowEnabled?: boolean;
+            /** @default false */
+            noticesEnabled?: boolean;
+            /** Format: uri */
+            backchannelLogoutUri?: string | null;
+            accessTokenTtlSeconds?: number | null;
+            idTokenTtlSeconds?: number | null;
+            refreshTokenTtlSeconds?: number | null;
+            jwks?: {
+              keys: ({
+                kty: string;
+                kid: string;
+                alg: string;
+                /** @enum {string} */
+                use?: 'sig';
+              } & {
+                [key: string]: unknown;
+              })[];
+            };
+            /** Format: uri */
+            jwksUri?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "application": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "clientType": null,
+             *         "applicationType": null,
+             *         "firstParty": true,
+             *         "tokenEndpointAuthMethod": null,
+             *         "redirectUris": [
+             *           null
+             *         ],
+             *         "postLogoutRedirectUris": [
+             *           null
+             *         ],
+             *         "grantTypes": [
+             *           null
+             *         ],
+             *         "deviceFlowEnabled": true,
+             *         "noticesEnabled": true,
+             *         "jwks": {
+             *           "keys": [
+             *             null
+             *           ]
+             *         },
+             *         "jwksUri": "string",
+             *         "hasSecret": true,
+             *         "backchannelLogoutUri": "string",
+             *         "accessTokenTtlSeconds": 0,
+             *         "idTokenTtlSeconds": 0,
+             *         "refreshTokenTtlSeconds": 0,
+             *         "disabled": true,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       },
+             *       "clientSecret": "string"
+             *     }
+             */
+            'application/json': {
+              application: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                clientType: 'public' | 'confidential';
+                /** @enum {string} */
+                applicationType: 'web' | 'native';
+                firstParty: boolean;
+                /** @enum {string} */
+                tokenEndpointAuthMethod:
+                  'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+                redirectUris: string[];
+                postLogoutRedirectUris: string[];
+                grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+                deviceFlowEnabled: boolean;
+                noticesEnabled: boolean;
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                } | null;
+                jwksUri: string | null;
+                hasSecret: boolean;
+                backchannelLogoutUri: string | null;
+                accessTokenTtlSeconds: number | null;
+                idTokenTtlSeconds: number | null;
+                refreshTokenTtlSeconds: number | null;
+                disabled: boolean;
+                createdAt: string;
+                updatedAt: string;
+              };
+              clientSecret?: string;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/applications/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get an OpenID Provider application */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "application": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "clientType": null,
+             *         "applicationType": null,
+             *         "firstParty": true,
+             *         "tokenEndpointAuthMethod": null,
+             *         "redirectUris": [
+             *           null
+             *         ],
+             *         "postLogoutRedirectUris": [
+             *           null
+             *         ],
+             *         "grantTypes": [
+             *           null
+             *         ],
+             *         "deviceFlowEnabled": true,
+             *         "noticesEnabled": true,
+             *         "jwks": {
+             *           "keys": [
+             *             null
+             *           ]
+             *         },
+             *         "jwksUri": "string",
+             *         "hasSecret": true,
+             *         "backchannelLogoutUri": "string",
+             *         "accessTokenTtlSeconds": 0,
+             *         "idTokenTtlSeconds": 0,
+             *         "refreshTokenTtlSeconds": 0,
+             *         "disabled": true,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              application: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                clientType: 'public' | 'confidential';
+                /** @enum {string} */
+                applicationType: 'web' | 'native';
+                firstParty: boolean;
+                /** @enum {string} */
+                tokenEndpointAuthMethod:
+                  'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+                redirectUris: string[];
+                postLogoutRedirectUris: string[];
+                grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+                deviceFlowEnabled: boolean;
+                noticesEnabled: boolean;
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                } | null;
+                jwksUri: string | null;
+                hasSecret: boolean;
+                backchannelLogoutUri: string | null;
+                accessTokenTtlSeconds: number | null;
+                idTokenTtlSeconds: number | null;
+                refreshTokenTtlSeconds: number | null;
+                disabled: boolean;
+                createdAt: string;
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    /**
+     * Delete an OpenID Provider application
+     * @description Also deletes its resource grants and every provider grant, code and token issued to it.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /**
+     * Update an OpenID Provider application
+     * @description Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens.
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name?: string;
+            firstParty?: boolean;
+            /** @enum {string} */
+            tokenEndpointAuthMethod?:
+              'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+            redirectUris?: string[];
+            postLogoutRedirectUris?: string[];
+            grantTypes?: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+            deviceFlowEnabled?: boolean;
+            noticesEnabled?: boolean;
+            /** Format: uri */
+            backchannelLogoutUri?: string | null;
+            accessTokenTtlSeconds?: number | null;
+            idTokenTtlSeconds?: number | null;
+            refreshTokenTtlSeconds?: number | null;
+            disabled?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "application": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "clientType": null,
+             *         "applicationType": null,
+             *         "firstParty": true,
+             *         "tokenEndpointAuthMethod": null,
+             *         "redirectUris": [
+             *           null
+             *         ],
+             *         "postLogoutRedirectUris": [
+             *           null
+             *         ],
+             *         "grantTypes": [
+             *           null
+             *         ],
+             *         "deviceFlowEnabled": true,
+             *         "noticesEnabled": true,
+             *         "jwks": {
+             *           "keys": [
+             *             null
+             *           ]
+             *         },
+             *         "jwksUri": "string",
+             *         "hasSecret": true,
+             *         "backchannelLogoutUri": "string",
+             *         "accessTokenTtlSeconds": 0,
+             *         "idTokenTtlSeconds": 0,
+             *         "refreshTokenTtlSeconds": 0,
+             *         "disabled": true,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              application: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                clientType: 'public' | 'confidential';
+                /** @enum {string} */
+                applicationType: 'web' | 'native';
+                firstParty: boolean;
+                /** @enum {string} */
+                tokenEndpointAuthMethod:
+                  'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+                redirectUris: string[];
+                postLogoutRedirectUris: string[];
+                grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+                deviceFlowEnabled: boolean;
+                noticesEnabled: boolean;
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                } | null;
+                jwksUri: string | null;
+                hasSecret: boolean;
+                backchannelLogoutUri: string | null;
+                accessTokenTtlSeconds: number | null;
+                idTokenTtlSeconds: number | null;
+                refreshTokenTtlSeconds: number | null;
+                disabled: boolean;
+                createdAt: string;
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/admin/applications/{id}/secret': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Issue or rotate an application secret
+     * @description Only for `client_secret_basic` and `client_secret_post` applications, on an instance with `allow_client_secrets`. The previous secret stops working at once. The secret is returned here only; the API keeps an HMAC of it.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "application": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "clientType": null,
+             *         "applicationType": null,
+             *         "firstParty": true,
+             *         "tokenEndpointAuthMethod": null,
+             *         "redirectUris": [
+             *           null
+             *         ],
+             *         "postLogoutRedirectUris": [
+             *           null
+             *         ],
+             *         "grantTypes": [
+             *           null
+             *         ],
+             *         "deviceFlowEnabled": true,
+             *         "noticesEnabled": true,
+             *         "jwks": {
+             *           "keys": [
+             *             null
+             *           ]
+             *         },
+             *         "jwksUri": "string",
+             *         "hasSecret": true,
+             *         "backchannelLogoutUri": "string",
+             *         "accessTokenTtlSeconds": 0,
+             *         "idTokenTtlSeconds": 0,
+             *         "refreshTokenTtlSeconds": 0,
+             *         "disabled": true,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       },
+             *       "clientSecret": "string"
+             *     }
+             */
+            'application/json': {
+              application: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                clientType: 'public' | 'confidential';
+                /** @enum {string} */
+                applicationType: 'web' | 'native';
+                firstParty: boolean;
+                /** @enum {string} */
+                tokenEndpointAuthMethod:
+                  'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+                redirectUris: string[];
+                postLogoutRedirectUris: string[];
+                grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+                deviceFlowEnabled: boolean;
+                noticesEnabled: boolean;
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                } | null;
+                jwksUri: string | null;
+                hasSecret: boolean;
+                backchannelLogoutUri: string | null;
+                accessTokenTtlSeconds: number | null;
+                idTokenTtlSeconds: number | null;
+                refreshTokenTtlSeconds: number | null;
+                disabled: boolean;
+                createdAt: string;
+                updatedAt: string;
+              };
+              clientSecret: string;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/applications/{id}/keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Register application keys
+     * @description Replaces the JWKS or JWKS URI a `private_key_jwt` application signs its client assertions with. Private key members are refused.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json':
+            | {
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                };
+              }
+            | {
+                /** Format: uri */
+                jwksUri: string;
+              };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "application": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "clientType": null,
+             *         "applicationType": null,
+             *         "firstParty": true,
+             *         "tokenEndpointAuthMethod": null,
+             *         "redirectUris": [
+             *           null
+             *         ],
+             *         "postLogoutRedirectUris": [
+             *           null
+             *         ],
+             *         "grantTypes": [
+             *           null
+             *         ],
+             *         "deviceFlowEnabled": true,
+             *         "noticesEnabled": true,
+             *         "jwks": {
+             *           "keys": [
+             *             null
+             *           ]
+             *         },
+             *         "jwksUri": "string",
+             *         "hasSecret": true,
+             *         "backchannelLogoutUri": "string",
+             *         "accessTokenTtlSeconds": 0,
+             *         "idTokenTtlSeconds": 0,
+             *         "refreshTokenTtlSeconds": 0,
+             *         "disabled": true,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              application: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                clientType: 'public' | 'confidential';
+                /** @enum {string} */
+                applicationType: 'web' | 'native';
+                firstParty: boolean;
+                /** @enum {string} */
+                tokenEndpointAuthMethod:
+                  'private_key_jwt' | 'none' | 'client_secret_basic' | 'client_secret_post';
+                redirectUris: string[];
+                postLogoutRedirectUris: string[];
+                grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
+                deviceFlowEnabled: boolean;
+                noticesEnabled: boolean;
+                jwks: {
+                  keys: ({
+                    kty: string;
+                    kid: string;
+                    alg: string;
+                    /** @enum {string} */
+                    use?: 'sig';
+                  } & {
+                    [key: string]: unknown;
+                  })[];
+                } | null;
+                jwksUri: string | null;
+                hasSecret: boolean;
+                backchannelLogoutUri: string | null;
+                accessTokenTtlSeconds: number | null;
+                idTokenTtlSeconds: number | null;
+                refreshTokenTtlSeconds: number | null;
+                disabled: boolean;
+                createdAt: string;
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/organizations/': {
     parameters: {
       query?: never;
@@ -18587,7 +20072,8 @@ export interface paths {
              *       "oidc_provider_enabled": null,
              *       "oidc_issuer": null,
              *       "allow_client_secrets": null,
-             *       "third_party_clients_enabled": null
+             *       "third_party_clients_enabled": null,
+             *       "hosted_ui": null
              *     }
              */
             'application/json': {
@@ -18809,6 +20295,20 @@ export interface paths {
               allow_client_secrets: boolean;
               /** @default false */
               third_party_clients_enabled: boolean;
+              /** @default null */
+              hosted_ui: {
+                appName?: string;
+                /** Format: uri */
+                logoUrl?: string;
+                colors?: {
+                  primary?: string;
+                  onPrimary?: string;
+                  background?: string;
+                  surface?: string;
+                  text?: string;
+                };
+                fontFamily?: string;
+              } | null;
             };
           };
         };
@@ -19040,6 +20540,19 @@ export interface paths {
             oidc_issuer?: string | null;
             allow_client_secrets?: boolean;
             third_party_clients_enabled?: boolean;
+            hosted_ui?: {
+              appName?: string;
+              /** Format: uri */
+              logoUrl?: string;
+              colors?: {
+                primary?: string;
+                onPrimary?: string;
+                background?: string;
+                surface?: string;
+                text?: string;
+              };
+              fontFamily?: string;
+            } | null;
           };
         };
       };

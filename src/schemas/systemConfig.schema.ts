@@ -11,6 +11,7 @@ export type {
   SystemConfig,
 } from '@seamless-auth/types';
 export {
+  HostedUiSchema,
   LoginMethodSchema,
   OAuthProviderConfigSchema,
   SystemConfigSchema,

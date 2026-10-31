@@ -75,14 +75,20 @@ describe('getOidcClientMetadata', () => {
     });
   });
 
-  it.each([
-    'http://localhost:8080/cb',
-    'http://127.0.0.1/cb',
-    'http://[::1]/cb',
-    'com.example.app:/cb',
-  ])('treats %s as a native redirect', async (uri) => {
-    vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ redirectUris: [uri] }) as never);
-    expect((await getOidcClientMetadata('app'))?.application_type).toBe('native');
+  it.each(['http://127.0.0.1/cb', 'http://[::1]/cb', 'com.example.app:/cb'])(
+    'treats %s as a native redirect',
+    async (uri) => {
+      vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ redirectUris: [uri] }) as never);
+      expect((await getOidcClientMetadata('app'))?.application_type).toBe('native');
+    },
+  );
+
+  // localhost cannot be registered (RFC 8252 section 8.3), so a stored one is not native.
+  it('does not treat a localhost redirect as native', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ redirectUris: ['http://localhost:8080/cb'] }) as never,
+    );
+    expect((await getOidcClientMetadata('app'))?.application_type).toBe('web');
   });
 
   it('carries inline keys and back-channel logout, and no code for a service client', async () => {

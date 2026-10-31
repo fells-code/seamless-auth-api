@@ -7,7 +7,7 @@
 import { z } from 'zod';
 
 import { SYSTEM_CONFIG_ENV_MAP } from '../config/systemConfig.envMap.js';
-import { OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
+import { HostedUiSchema, OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
 
 export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MAP, raw: string) {
   switch (key) {
@@ -63,6 +63,9 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
 
     case 'oidc_issuer':
       return raw.trim();
+
+    case 'hosted_ui':
+      return HostedUiSchema.parse(JSON.parse(raw));
 
     case 'access_token_ttl':
     case 'session_idle_ttl':
