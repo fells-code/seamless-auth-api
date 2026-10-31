@@ -7,7 +7,9 @@
 import {
   createOAuthProvider,
   deleteOAuthProvider,
+  discoverOAuthProvider,
   listOAuthProviders,
+  refreshOAuthProviderDiscovery,
   updateOAuthProvider,
 } from '../controllers/oauthProviders.js';
 import {
@@ -35,6 +37,7 @@ import {
 } from '../schemas/generic.responses.js';
 import {
   OAuthProviderCreateSchema,
+  OAuthProviderDiscoverSchema,
   OAuthProviderIdParamSchema,
   OAuthProviderUpdateSchema,
 } from '../schemas/oauthProviders.requests.js';
@@ -188,6 +191,58 @@ systemConfigRouter.post(
     },
   },
   createOAuthProvider,
+);
+
+systemConfigRouter.post(
+  '/oauth-providers/discover',
+  {
+    auth: 'access',
+    summary: 'Add an OAuth provider from its OpenID discovery document',
+    description:
+      "Reads the issuer's `/.well-known/openid-configuration` and stores the provider with the authorization, token, userinfo and JWKS endpoints it names. Endpoints given in the body are kept over the discovered ones. The issuer in the document must match the one requested. Answers 502 when the document cannot be read or is refused.",
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write'), requireStepUp()],
+
+    schemas: {
+      body: OAuthProviderDiscoverSchema,
+      response: {
+        201: OAuthProviderResponseSchema,
+        400: InvalidPayloadSchema,
+        401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        409: SecretRequiredSchema,
+        502: ErrorSchema,
+      },
+    },
+  },
+  discoverOAuthProvider,
+);
+
+systemConfigRouter.post(
+  '/oauth-providers/:id/discovery',
+  {
+    auth: 'access',
+    summary: "Refresh an OAuth provider's endpoints and keys from its issuer",
+    description:
+      "Reads the provider's OpenID discovery document again, replaces the stored endpoints with the ones it names, and drops the cached signing keys so the next sign-in fetches them.",
+    tags: ['SystemConfig'],
+
+    middleware: [requireAdmin('write'), requireStepUp()],
+
+    schemas: {
+      params: OAuthProviderIdParamSchema,
+      response: {
+        200: OAuthProviderResponseSchema,
+        400: InvalidPayloadSchema,
+        401: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        404: ErrorSchema,
+        502: ErrorSchema,
+      },
+    },
+  },
+  refreshOAuthProviderDiscovery,
 );
 
 systemConfigRouter.patch(

@@ -492,6 +492,11 @@ function remoteJwks(uri: string) {
   return jwks;
 }
 
+/** Drops the cached key set, so the next verification fetches the provider's keys again. */
+export function forgetOAuthProviderKeys(uri: string) {
+  jwksByUri.delete(uri);
+}
+
 // Asymmetric only. A symmetric algorithm would verify against a key the provider
 // shares with every client, and `none` verifies nothing.
 const ID_TOKEN_ALGORITHMS = [
