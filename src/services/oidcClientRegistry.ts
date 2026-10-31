@@ -85,7 +85,10 @@ export async function getOidcClientMetadata(id: string): Promise<OidcClientMetad
       ? { 'urn:seamless:refresh_token_ttl': client.refreshTokenTtlSeconds }
       : {}),
     ...(client.pkceRequired === false && client.clientType === 'confidential'
-      ? { 'urn:seamless:pkce_required': false }
+      ? {
+          'urn:seamless:pkce_required': false,
+          ...(client.nonceRequired === false ? { 'urn:seamless:nonce_required': false } : {}),
+        }
       : {}),
   };
 }

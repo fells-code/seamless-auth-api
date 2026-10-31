@@ -77,6 +77,7 @@ export async function createApplication(req: Request, res: Response) {
         grantTypes: application.grantTypes,
         deviceFlowEnabled: application.deviceFlowEnabled,
         pkceRequired: application.pkceRequired,
+        nonceRequired: application.nonceRequired,
         redirectUris: application.redirectUris,
       },
     });
@@ -85,6 +86,12 @@ export async function createApplication(req: Request, res: Response) {
       await audit(req, {
         type: 'admin_oidc_application_pkce_updated',
         metadata: { clientId: client.id, pkceRequired: false },
+      });
+    }
+    if (!application.nonceRequired) {
+      await audit(req, {
+        type: 'admin_oidc_application_nonce_updated',
+        metadata: { clientId: client.id, nonceRequired: false },
       });
     }
 
@@ -96,13 +103,21 @@ export async function createApplication(req: Request, res: Response) {
 
 export async function updateApplication(req: Request, res: Response) {
   try {
-    const pkceBefore = (await findOidcApplication(req.params.id as string)).pkceRequired;
+    const { pkceRequired: pkceBefore, nonceRequired: nonceBefore } = await findOidcApplication(
+      req.params.id as string,
+    );
     const client = await updateOidcApplication(req.params.id as string, req.body);
 
     if (client.pkceRequired !== pkceBefore) {
       await audit(req, {
         type: 'admin_oidc_application_pkce_updated',
         metadata: { clientId: client.id, pkceRequired: client.pkceRequired },
+      });
+    }
+    if (client.nonceRequired !== nonceBefore) {
+      await audit(req, {
+        type: 'admin_oidc_application_nonce_updated',
+        metadata: { clientId: client.id, nonceRequired: client.nonceRequired },
       });
     }
 

@@ -7,8 +7,8 @@
 'use strict';
 
 /**
- * PKCE stays required for every existing client. Only a confidential client may opt out
- * (ADR 0001, D1).
+ * PKCE and the nonce stay required for every existing client. Only a confidential client
+ * may opt out of PKCE, and only then of the nonce (ADR 0001, D1).
  *
  * @type {import('sequelize-cli').Migration}
  */
@@ -16,13 +16,15 @@ module.exports = {
   async up(queryInterface) {
     await queryInterface.sequelize.query(`
       ALTER TABLE public.oidc_clients
-      ADD COLUMN IF NOT EXISTS "pkceRequired" boolean DEFAULT true NOT NULL;
+      ADD COLUMN IF NOT EXISTS "pkceRequired" boolean DEFAULT true NOT NULL,
+      ADD COLUMN IF NOT EXISTS "nonceRequired" boolean DEFAULT true NOT NULL;
     `);
   },
 
   async down(queryInterface) {
     await queryInterface.sequelize.query(`
-      ALTER TABLE public.oidc_clients DROP COLUMN IF EXISTS "pkceRequired";
+      ALTER TABLE public.oidc_clients DROP COLUMN IF EXISTS "pkceRequired",
+      DROP COLUMN IF EXISTS "nonceRequired";
     `);
   },
 };

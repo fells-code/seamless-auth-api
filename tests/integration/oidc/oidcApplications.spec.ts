@@ -59,6 +59,7 @@ function row(overrides: Record<string, unknown> = {}): Row {
     deviceFlowEnabled: false,
     noticesEnabled: false,
     pkceRequired: true,
+    nonceRequired: true,
     disabledAt: null,
     createdAt: new Date('2026-10-30T12:00:00.000Z'),
     updatedAt: new Date('2026-10-30T12:00:00.000Z'),
@@ -211,6 +212,48 @@ describe('POST /admin/applications', () => {
       clientId: vi.mocked(OidcClient.create).mock.calls[0][0].id,
       pkceRequired: false,
     });
+  });
+
+  it('lets a client without PKCE turn the nonce requirement off, and audits it', async () => {
+    const res = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Conformance',
+        clientType: 'confidential',
+        firstParty: true,
+        redirectUris: ['https://conformance.example.com/cb'],
+        jwks: { keys: [jwk] },
+        pkceRequired: false,
+        nonceRequired: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.application).toMatchObject({ pkceRequired: false, nonceRequired: false });
+    expect(loggedTypes()).toEqual([
+      'admin_oidc_application_created',
+      'admin_oidc_application_pkce_updated',
+      'admin_oidc_application_nonce_updated',
+    ]);
+    expect(vi.mocked(AuthEventService.log).mock.calls[2][0].metadata).toEqual({
+      clientId: vi.mocked(OidcClient.create).mock.calls[0][0].id,
+      nonceRequired: false,
+    });
+  });
+
+  it('refuses to drop the nonce requirement while PKCE is required', async () => {
+    const res = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Grafana',
+        clientType: 'confidential',
+        firstParty: true,
+        redirectUris: ['https://grafana.example.com/cb'],
+        jwks: { keys: [jwk] },
+        nonceRequired: false,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details.issues[0].path).toEqual(['nonceRequired']);
   });
 
   it('refuses a PKCE opt-out on a public client', async () => {
@@ -381,6 +424,27 @@ describe('PATCH /admin/applications/:id', () => {
       type: 'admin_oidc_application_pkce_updated',
       metadata: { clientId: 'app-1', pkceRequired: true },
     });
+  });
+
+  it('audits a nonce requirement change, and re-checks it against PKCE', async () => {
+    const existing = row({ pkceRequired: false });
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(existing as never);
+
+    const off = await request(app)
+      .patch('/admin/applications/app-1')
+      .send({ nonceRequired: false });
+    expect(off.status).toBe(200);
+    expect(off.body.application.nonceRequired).toBe(false);
+    expect(loggedTypes()).toEqual([
+      'admin_oidc_application_nonce_updated',
+      'admin_oidc_application_updated',
+    ]);
+
+    const pkceBack = await request(app)
+      .patch('/admin/applications/app-1')
+      .send({ pkceRequired: true });
+    expect(pkceBack.status).toBe(400);
+    expect(pkceBack.body.details.issues[0].path).toEqual(['nonceRequired']);
   });
 
   it('refuses a PKCE opt-out on a public client', async () => {

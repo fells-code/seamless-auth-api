@@ -5281,6 +5281,7 @@
                     "admin_oidc_application_created",
                     "admin_oidc_application_deleted",
                     "admin_oidc_application_keys_updated",
+                    "admin_oidc_application_nonce_updated",
                     "admin_oidc_application_pkce_updated",
                     "admin_oidc_application_resources_updated",
                     "admin_oidc_application_secret_rotated",
@@ -5403,6 +5404,7 @@
                           "admin_oidc_application_created",
                           "admin_oidc_application_deleted",
                           "admin_oidc_application_keys_updated",
+                          "admin_oidc_application_nonce_updated",
                           "admin_oidc_application_pkce_updated",
                           "admin_oidc_application_resources_updated",
                           "admin_oidc_application_secret_rotated",
@@ -12669,7 +12671,8 @@
                   "urn:seamless:access_token_ttl": 0,
                   "urn:seamless:id_token_ttl": 0,
                   "urn:seamless:refresh_token_ttl": 0,
-                  "urn:seamless:pkce_required": true
+                  "urn:seamless:pkce_required": true,
+                  "urn:seamless:nonce_required": true
                 },
                 "schema": {
                   "type": "object",
@@ -12750,7 +12753,8 @@
                       "minimum": 0,
                       "exclusiveMinimum": true
                     },
-                    "urn:seamless:pkce_required": { "type": "boolean" }
+                    "urn:seamless:pkce_required": { "type": "boolean" },
+                    "urn:seamless:nonce_required": { "type": "boolean" }
                   },
                   "required": [
                     "client_id",
@@ -13906,6 +13910,7 @@
                           "deviceFlowEnabled": { "type": "boolean" },
                           "noticesEnabled": { "type": "boolean" },
                           "pkceRequired": { "type": "boolean" },
+                          "nonceRequired": { "type": "boolean" },
                           "jwks": {
                             "type": "object",
                             "nullable": true,
@@ -13952,6 +13957,7 @@
                           "deviceFlowEnabled",
                           "noticesEnabled",
                           "pkceRequired",
+                          "nonceRequired",
                           "jwks",
                           "jwksUri",
                           "hasSecret",
@@ -14041,6 +14047,7 @@
                   "deviceFlowEnabled": { "type": "boolean", "default": false },
                   "noticesEnabled": { "type": "boolean", "default": false },
                   "pkceRequired": { "type": "boolean", "default": true },
+                  "nonceRequired": { "type": "boolean", "default": true },
                   "backchannelLogoutUri": {
                     "type": "string",
                     "nullable": true,
@@ -14114,6 +14121,7 @@
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
                     "pkceRequired": true,
+                    "nonceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -14162,6 +14170,7 @@
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
+                        "nonceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -14208,6 +14217,7 @@
                         "deviceFlowEnabled",
                         "noticesEnabled",
                         "pkceRequired",
+                        "nonceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -14362,6 +14372,7 @@
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
                     "pkceRequired": true,
+                    "nonceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -14409,6 +14420,7 @@
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
+                        "nonceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -14455,6 +14467,7 @@
                         "deviceFlowEnabled",
                         "noticesEnabled",
                         "pkceRequired",
+                        "nonceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -14601,6 +14614,7 @@
                   "deviceFlowEnabled": { "type": "boolean" },
                   "noticesEnabled": { "type": "boolean" },
                   "pkceRequired": { "type": "boolean" },
+                  "nonceRequired": { "type": "boolean" },
                   "backchannelLogoutUri": {
                     "type": "string",
                     "nullable": true,
@@ -14651,6 +14665,7 @@
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
                     "pkceRequired": true,
+                    "nonceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -14698,6 +14713,7 @@
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
+                        "nonceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -14744,6 +14760,7 @@
                         "deviceFlowEnabled",
                         "noticesEnabled",
                         "pkceRequired",
+                        "nonceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -15156,6 +15173,7 @@
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
                     "pkceRequired": true,
+                    "nonceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -15204,6 +15222,7 @@
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
+                        "nonceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -15250,6 +15269,7 @@
                         "deviceFlowEnabled",
                         "noticesEnabled",
                         "pkceRequired",
+                        "nonceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",
@@ -15465,6 +15485,7 @@
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
                     "pkceRequired": true,
+                    "nonceRequired": true,
                     "jwks": { "keys": [null] },
                     "jwksUri": "string",
                     "hasSecret": true,
@@ -15512,6 +15533,7 @@
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
+                        "nonceRequired": { "type": "boolean" },
                         "jwks": {
                           "type": "object",
                           "nullable": true,
@@ -15558,6 +15580,7 @@
                         "deviceFlowEnabled",
                         "noticesEnabled",
                         "pkceRequired",
+                        "nonceRequired",
                         "jwks",
                         "jwksUri",
                         "hasSecret",

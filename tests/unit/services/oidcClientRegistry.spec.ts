@@ -114,6 +114,21 @@ describe('getOidcClientMetadata', () => {
     expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:pkce_required');
   });
 
+  it('sends a nonce opt-out only alongside a PKCE opt-out', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: false, nonceRequired: false }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).toMatchObject({
+      'urn:seamless:pkce_required': false,
+      'urn:seamless:nonce_required': false,
+    });
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: true, nonceRequired: false }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:nonce_required');
+  });
+
   it('lists the device grant only for a first-party client with the flag on', async () => {
     const device = 'urn:ietf:params:oauth:grant-type:device_code';
     const grantTypes = [device, 'refresh_token'];

@@ -85,7 +85,7 @@ Writing our own provider was rejected. Each RFC above, and keeping a certified r
 **Locked configuration (#410).**
 
 - Only the `code` response type: no implicit or hybrid.
-- PKCE required by default for every client, with a per-client opt-out for confidential clients only (amended 2026-10-31, below).
+- PKCE required by default for every client, with a per-client opt-out for confidential clients only that keeps the nonce on unless separately disabled (amended 2026-10-31, below).
 - Exact redirect URI matching, except the RFC 8252 loopback port rule.
 - Refresh tokens always rotated.
 - `devInteractions` and dynamic registration off.
@@ -93,7 +93,7 @@ Writing our own provider was rejected. Each RFC above, and keeping a certified r
 
 DPoP and PAR are available. The API's admin routes refuse client settings that would loosen this list (D12).
 
-**Amendment, 2026-10-31: per-client PKCE opt-out.** PKCE stays required by default. An admin can set `pkceRequired: false` on a confidential client (`private_key_jwt` or a shared secret), as RFC 9700 section 2.1.1 allows when the client authenticates and binds the code to the transaction another way. The API and the edge both refuse the opt-out on a public client. An opted-out client must send `nonce` on every authorization request that asks for an ID token, which binds the code to the RP's transaction in place of PKCE. The reason is OpenID certification: the conformance suite's Basic OP and Config OP test plans send code requests without PKCE. The change is recorded as `admin_oidc_application_pkce_updated`.
+**Amendment, 2026-10-31: per-client PKCE opt-out.** PKCE stays required by default. An admin can set `pkceRequired: false` on a confidential client (`private_key_jwt` or a shared secret), as RFC 9700 section 2.1.1 allows when the client authenticates and binds the code to the transaction another way. The API and the edge both refuse the opt-out on a public client. An opted-out client must send `nonce` on every authorization request that asks for an ID token, which binds the code to the RP's transaction in place of PKCE. A second flag, `nonceRequired`, is on by default and can be turned off only on a client that has already opted out of PKCE. A client with both off relies on `state` and client authentication alone against code injection, so each flag is a separate admin write with step-up, recorded as `admin_oidc_application_pkce_updated` and `admin_oidc_application_nonce_updated`, and both are in every application response so the dashboard and CLI can warn about it. The reason is OpenID certification: the conformance suite's Basic OP, Config OP and Form Post OP plans send code requests without PKCE, and one of their modules sends one without a nonce and expects it to succeed.
 
 **Issuer.** The edge's public URL, for example `https://login.example.com`, is stored in `system_config` as `oidc_issuer`. Discovery is at `/.well-known/openid-configuration` on the edge, and the provider JWKS is at `/jwks`. The API refuses an `oidc_issuer` equal to `ISSUER`.
 
