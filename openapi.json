@@ -89,13 +89,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -109,12 +118,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -312,13 +330,22 @@
                                   "account_recovery_opened",
                                   "account_recovery_completed",
                                   "recovery_code_used",
-                                  "identity_changed"
+                                  "identity_changed",
+                                  "application_notice"
                                 ]
                               },
                               "to": { "type": "string" },
                               "subject": { "type": "string" },
                               "text": { "type": "string" },
-                              "cancelUrl": { "type": "string" }
+                              "cancelUrl": { "type": "string" },
+                              "application": {
+                                "type": "object",
+                                "properties": {
+                                  "clientId": { "type": "string" },
+                                  "name": { "type": "string" }
+                                },
+                                "required": ["clientId", "name"]
+                              }
                             },
                             "required": ["kind", "notice", "to", "subject", "text"]
                           },
@@ -332,12 +359,21 @@
                                   "account_recovery_opened",
                                   "account_recovery_completed",
                                   "recovery_code_used",
-                                  "identity_changed"
+                                  "identity_changed",
+                                  "application_notice"
                                 ]
                               },
                               "to": { "type": "string" },
                               "text": { "type": "string" },
-                              "cancelUrl": { "type": "string" }
+                              "cancelUrl": { "type": "string" },
+                              "application": {
+                                "type": "object",
+                                "properties": {
+                                  "clientId": { "type": "string" },
+                                  "name": { "type": "string" }
+                                },
+                                "required": ["clientId", "name"]
+                              }
                             },
                             "required": ["kind", "notice", "to", "text"]
                           }
@@ -631,13 +667,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -651,12 +696,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -1055,13 +1109,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -1075,12 +1138,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -2277,13 +2349,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -2297,12 +2378,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -3102,13 +3192,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -3122,12 +3221,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -4033,13 +4141,22 @@
                                       "account_recovery_opened",
                                       "account_recovery_completed",
                                       "recovery_code_used",
-                                      "identity_changed"
+                                      "identity_changed",
+                                      "application_notice"
                                     ]
                                   },
                                   "to": { "type": "string" },
                                   "subject": { "type": "string" },
                                   "text": { "type": "string" },
-                                  "cancelUrl": { "type": "string" }
+                                  "cancelUrl": { "type": "string" },
+                                  "application": {
+                                    "type": "object",
+                                    "properties": {
+                                      "clientId": { "type": "string" },
+                                      "name": { "type": "string" }
+                                    },
+                                    "required": ["clientId", "name"]
+                                  }
                                 },
                                 "required": ["kind", "notice", "to", "subject", "text"]
                               },
@@ -4053,12 +4170,21 @@
                                       "account_recovery_opened",
                                       "account_recovery_completed",
                                       "recovery_code_used",
-                                      "identity_changed"
+                                      "identity_changed",
+                                      "application_notice"
                                     ]
                                   },
                                   "to": { "type": "string" },
                                   "text": { "type": "string" },
-                                  "cancelUrl": { "type": "string" }
+                                  "cancelUrl": { "type": "string" },
+                                  "application": {
+                                    "type": "object",
+                                    "properties": {
+                                      "clientId": { "type": "string" },
+                                      "name": { "type": "string" }
+                                    },
+                                    "required": ["clientId", "name"]
+                                  }
                                 },
                                 "required": ["kind", "notice", "to", "text"]
                               }
@@ -4980,13 +5106,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -5000,12 +5135,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -7049,13 +7193,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -7069,12 +7222,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -7271,13 +7433,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -7291,12 +7462,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -7613,13 +7793,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -7633,12 +7822,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -7759,13 +7957,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -7779,12 +7986,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -9236,13 +9452,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -9256,12 +9481,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -9431,13 +9665,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -9451,12 +9694,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -9652,13 +9904,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -9672,12 +9933,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -9814,13 +10084,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -9834,12 +10113,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -10044,13 +10332,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -10064,12 +10361,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -12849,13 +13155,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -12869,12 +13184,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -14063,13 +14387,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -14083,12 +14416,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -15778,13 +16120,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -15798,12 +16149,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -17561,13 +17921,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -17581,12 +17950,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -17748,13 +18126,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -17768,12 +18155,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -17907,13 +18303,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -17927,12 +18332,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -18066,13 +18480,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -18086,12 +18509,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -18212,13 +18644,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -18232,12 +18673,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -18358,13 +18808,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -18378,12 +18837,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -18504,13 +18972,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -18524,12 +19001,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -18650,13 +19136,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -18670,12 +19165,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -18796,13 +19300,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -18816,12 +19329,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -19848,13 +20370,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -19868,12 +20399,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -20046,13 +20586,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -20066,12 +20615,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -20462,13 +21020,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -20482,12 +21049,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -20611,13 +21187,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -20631,12 +21216,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -25106,13 +25700,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -25126,12 +25729,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -26046,13 +26658,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -26066,12 +26687,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }
@@ -26221,13 +26851,22 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "subject": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "subject", "text"]
                         },
@@ -26241,12 +26880,21 @@
                                 "account_recovery_opened",
                                 "account_recovery_completed",
                                 "recovery_code_used",
-                                "identity_changed"
+                                "identity_changed",
+                                "application_notice"
                               ]
                             },
                             "to": { "type": "string" },
                             "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" }
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
                           },
                           "required": ["kind", "notice", "to", "text"]
                         }

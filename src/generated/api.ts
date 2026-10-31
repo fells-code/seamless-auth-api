@@ -96,11 +96,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -110,10 +115,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -317,11 +327,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -331,10 +346,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
               )[];
             };
@@ -693,11 +713,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -707,10 +732,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -1197,11 +1227,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -1211,10 +1246,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -2076,11 +2116,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -2090,10 +2135,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -2870,11 +2920,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -2884,10 +2939,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -3884,11 +3944,16 @@ export interface paths {
                         | 'account_recovery_opened'
                         | 'account_recovery_completed'
                         | 'recovery_code_used'
-                        | 'identity_changed';
+                        | 'identity_changed'
+                        | 'application_notice';
                       to: string;
                       subject: string;
                       text: string;
                       cancelUrl?: string;
+                      application?: {
+                        clientId: string;
+                        name: string;
+                      };
                     }
                   | {
                       /** @enum {string} */
@@ -3898,10 +3963,15 @@ export interface paths {
                         | 'account_recovery_opened'
                         | 'account_recovery_completed'
                         | 'recovery_code_used'
-                        | 'identity_changed';
+                        | 'identity_changed'
+                        | 'application_notice';
                       to: string;
                       text: string;
                       cancelUrl?: string;
+                      application?: {
+                        clientId: string;
+                        name: string;
+                      };
                     };
               }[];
             };
@@ -4747,11 +4817,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -4761,10 +4836,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -6807,11 +6887,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -6821,10 +6906,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -7024,11 +7114,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -7038,10 +7133,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -7369,11 +7469,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -7383,10 +7488,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -7526,11 +7636,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -7540,10 +7655,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -9164,11 +9284,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -9178,10 +9303,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -9339,11 +9469,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -9353,10 +9488,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -9552,11 +9692,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -9566,10 +9711,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -9732,11 +9882,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -9746,10 +9901,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -9962,11 +10122,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -9976,10 +10141,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -12976,11 +13146,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -12990,10 +13165,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -13726,11 +13906,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -13740,10 +13925,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -15356,11 +15546,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -15370,10 +15565,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -16979,11 +17179,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -16993,10 +17198,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -17325,11 +17535,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -17339,10 +17554,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -17486,11 +17706,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -17500,10 +17725,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -17663,11 +17893,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -17677,10 +17912,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -17806,11 +18046,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -17820,10 +18065,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -17965,11 +18215,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -17979,10 +18234,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -18108,11 +18368,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -18122,10 +18387,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -18267,11 +18537,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -18281,10 +18556,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -18410,11 +18690,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -18424,10 +18709,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -19643,11 +19933,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -19657,10 +19952,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -19836,11 +20136,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -19850,10 +20155,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -20293,11 +20603,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -20307,10 +20622,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -20452,11 +20772,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -20466,10 +20791,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -24914,11 +25244,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -24928,10 +25263,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -25789,11 +26129,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -25803,10 +26148,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
@@ -25961,11 +26311,16 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     subject: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   }
                 | {
                     /** @enum {string} */
@@ -25975,10 +26330,15 @@ export interface paths {
                       | 'account_recovery_opened'
                       | 'account_recovery_completed'
                       | 'recovery_code_used'
-                      | 'identity_changed';
+                      | 'identity_changed'
+                      | 'application_notice';
                     to: string;
                     text: string;
                     cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
                   };
             };
           };
