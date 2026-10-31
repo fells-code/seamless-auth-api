@@ -13,12 +13,8 @@ import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { OAuthProviderConfig, OAuthProviderConfigSchema } from '../schemas/systemConfig.schema.js';
 import { AuthEventService } from '../services/authEventService.js';
-import {
-  type DiscoveredOAuthEndpoints,
-  discoverOAuthEndpoints,
-  OAuthDiscoveryError,
-} from '../services/oauthDiscovery.js';
-import { forgetOAuthProviderKeys } from '../services/oauthService.js';
+import { OAuthDiscoveryError } from '../services/oauthDiscovery.js';
+import { forgetOAuthProviderKeys, resolveOAuthProvider } from '../services/oauthService.js';
 import { ServiceRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -128,84 +124,9 @@ export async function listOAuthProviders(req: ServiceRequest, res: Response) {
     .json({ providers: (row?.value as OAuthProviderConfig[] | undefined) ?? [] });
 }
 
-function discoveryRefusal(error: unknown): ProviderRefusal {
-  if (error instanceof OAuthProviderPolicyError) {
-    return { status: 400, body: { error: 'Invalid OAuth provider', details: [error.message] } };
-  }
-
-  if (error instanceof OAuthDiscoveryError) {
-    return { status: 502, body: { error: 'oauth_discovery_failed', message: error.message } };
-  }
-
-  logger.warn(`OpenID discovery failed: ${error}`);
-  return {
-    status: 502,
-    body: { error: 'oauth_discovery_failed', message: 'OpenID discovery request failed' },
-  };
-}
-
-async function discover(
-  issuer: string,
-  refresh = false,
-): Promise<{ endpoints: DiscoveredOAuthEndpoints } | { refusal: ProviderRefusal }> {
-  try {
-    return { endpoints: await discoverOAuthEndpoints(issuer, { refresh }) };
-  } catch (error) {
-    return { refusal: discoveryRefusal(error) };
-  }
-}
-
-function withDiscoveredEndpoints(
-  input: Record<string, unknown>,
-  endpoints: DiscoveredOAuthEndpoints,
-  { preferInput }: { preferInput: boolean },
-) {
-  const discovered = {
-    issuer: endpoints.issuer,
-    authorizationUrl: endpoints.authorizationUrl,
-    tokenUrl: endpoints.tokenUrl,
-    ...(endpoints.userInfoUrl ? { userInfoUrl: endpoints.userInfoUrl } : {}),
-    jwksUri: endpoints.jwksUri,
-  };
-
-  return preferInput
-    ? {
-        ...input,
-        ...Object.fromEntries(
-          Object.entries(discovered).filter(([key]) => input[key] === undefined),
-        ),
-        issuer: endpoints.issuer,
-      }
-    : { ...input, ...discovered };
-}
-
 export async function createOAuthProvider(req: ServiceRequest, res: Response) {
-  return addOAuthProvider(req, res, req.body as OAuthProviderConfig);
-}
+  const provider = req.body as OAuthProviderConfig;
 
-export async function discoverOAuthProvider(req: ServiceRequest, res: Response) {
-  const body = req.body as Record<string, unknown> & { issuer: string };
-
-  const discovered = await discover(body.issuer);
-  if ('refusal' in discovered) {
-    return res.status(discovered.refusal.status).json(discovered.refusal.body);
-  }
-
-  const provider = OAuthProviderConfigSchema.safeParse(
-    withDiscoveredEndpoints(body, discovered.endpoints, { preferInput: true }),
-  );
-
-  if (!provider.success) {
-    return res.status(400).json({
-      error: 'Invalid OAuth provider payload',
-      details: provider.error,
-    });
-  }
-
-  return addOAuthProvider(req, res, provider.data);
-}
-
-async function addOAuthProvider(req: ServiceRequest, res: Response, provider: OAuthProviderConfig) {
   const invalid = policyRefusal(provider);
   if (invalid) {
     return res.status(invalid.status).json(invalid.body);
@@ -287,10 +208,26 @@ export async function updateOAuthProvider(req: ServiceRequest, res: Response) {
   return res.status(200).json({ provider: updated });
 }
 
+function discoveryRefusal(error: unknown): ProviderRefusal {
+  if (error instanceof OAuthProviderPolicyError) {
+    return { status: 400, body: { error: 'Invalid OAuth provider', details: [error.message] } };
+  }
+
+  if (error instanceof OAuthDiscoveryError) {
+    return { status: 502, body: { error: 'oauth_discovery_failed', message: error.message } };
+  }
+
+  logger.warn(`OpenID discovery failed: ${error}`);
+  return {
+    status: 502,
+    body: { error: 'oauth_discovery_failed', message: 'OpenID discovery request failed' },
+  };
+}
+
 /**
- * Fetches the issuer's discovery document again and stores the endpoints it names now,
- * replacing the stored ones. The provider's cached signing keys are dropped too, so a
- * rotated key set is read on the next sign-in rather than when the cache expires.
+ * Reads the stored issuer's discovery document again and drops the provider's cached
+ * signing keys, so a moved endpoint or a rotated key set is picked up now rather than when
+ * the caches expire. Nothing is stored: the answer is the provider as sign-in will use it.
  */
 export async function refreshOAuthProviderDiscovery(req: ServiceRequest, res: Response) {
   const { id } = req.params;
@@ -308,58 +245,24 @@ export async function refreshOAuthProviderDiscovery(req: ServiceRequest, res: Re
     return res.status(400).json({ error: `OAuth provider "${id}" has no issuer to discover` });
   }
 
-  const discovered = await discover(stored.issuer, true);
-  if ('refusal' in discovered) {
-    return res.status(discovered.refusal.status).json(discovered.refusal.body);
-  }
-
-  let updated: OAuthProviderConfig | null = null;
-
-  const refusal = await editProviders(req, (providers) => {
-    const index = providers.findIndex((existing) => existing.id === id);
-
-    if (index === -1) {
-      return { refusal: { status: 404, body: { error: `OAuth provider "${id}" not found` } } };
-    }
-
-    const merged = OAuthProviderConfigSchema.safeParse(
-      withDiscoveredEndpoints({ ...providers[index] }, discovered.endpoints, {
-        preferInput: false,
-      }),
-    );
-
-    if (!merged.success) {
-      return {
-        refusal: {
-          status: 400,
-          body: { error: 'Invalid OAuth provider payload', details: merged.error },
-        },
-      };
-    }
-
-    const invalid = policyRefusal(merged.data);
-    if (invalid) {
-      return { refusal: invalid };
-    }
-
-    const next = [...providers];
-    next[index] = merged.data;
-    updated = merged.data;
-
-    return {
-      providers: next,
-      audit: { action: 'updated', providerId: id, before: providers[index], after: merged.data },
-    };
-  });
-
-  if (refusal) {
+  let provider: OAuthProviderConfig;
+  try {
+    provider = await resolveOAuthProvider(stored, { refresh: true });
+  } catch (error) {
+    const refusal = discoveryRefusal(error);
     return res.status(refusal.status).json(refusal.body);
   }
 
   if (stored.jwksUri) forgetOAuthProviderKeys(stored.jwksUri);
-  forgetOAuthProviderKeys(discovered.endpoints.jwksUri);
+  if (provider.jwksUri) forgetOAuthProviderKeys(provider.jwksUri);
 
-  return res.status(200).json({ provider: updated });
+  await AuthEventService.log({
+    type: 'system_config_updated',
+    req,
+    metadata: { resource: 'oauth_provider', action: 'discovery_refreshed', providerId: id },
+  });
+
+  return res.status(200).json({ provider });
 }
 
 export async function deleteOAuthProvider(req: ServiceRequest, res: Response) {

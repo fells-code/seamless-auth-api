@@ -10,6 +10,8 @@ import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 
+import { missingOAuthProviderEndpoints } from '@seamless-auth/types';
+
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 
 type EnvSource = Record<string, string | undefined>;
@@ -171,7 +173,9 @@ export function oauthProviderProblems(
   provider: OAuthProviderConfig,
   env: EnvSource = process.env,
 ): string[] {
-  const problems: string[] = [];
+  const problems: string[] = missingOAuthProviderEndpoints(provider).map(
+    (field) => `${field} is required unless the provider has an issuer to discover it from`,
+  );
 
   const secretProblem = clientSecretEnvProblem(provider.clientSecretEnv);
   if (secretProblem) problems.push(secretProblem);

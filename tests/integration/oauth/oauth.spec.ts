@@ -19,6 +19,7 @@ import { UserExternalId } from '../../../src/models/userExternalIds.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
+import { clearOAuthDiscoveryCache } from '../../../src/services/oauthDiscovery.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 import {
   buildOrganization,
@@ -466,6 +467,109 @@ describe('OAuth routes', () => {
     expect(UserExternalId.findOne).toHaveBeenCalledWith({
       where: { source: 'entra-id', externalId: 'oid-ada' },
     });
+  });
+
+  it('signs in through a provider configured from its issuer alone', async () => {
+    clearOAuthDiscoveryCache();
+    const issuer = 'https://idp.example.com';
+    const discovered = {
+      issuer,
+      authorization_endpoint: 'https://idp.example.com/authorize',
+      token_endpoint: 'https://idp.example.com/token',
+      jwks_uri: 'https://idp.example.com/keys',
+    };
+    const {
+      authorizationUrl: _authorizationUrl,
+      tokenUrl: _tokenUrl,
+      userInfoUrl: _userInfoUrl,
+      ...rest
+    } = provider;
+    const issuerOnly = { ...rest, id: 'idp', issuer };
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({ login_methods: ['passkey', 'oauth'], oauth_providers: [issuerOnly] }),
+    );
+
+    const { privateKey, publicKey } = await generateKeyPair('RS256');
+    const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256' };
+    let idToken = '';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const target = String(url);
+      if (target === `${issuer}/.well-known/openid-configuration`) {
+        return new Response(JSON.stringify(discovered), { status: 200 });
+      }
+      if (target === discovered.jwks_uri) {
+        return new Response(JSON.stringify({ keys: [jwk] }), { status: 200 });
+      }
+      if (target === discovered.token_endpoint) {
+        return new Response(JSON.stringify({ access_token: 'at', id_token: idToken }));
+      }
+      throw new Error(`unexpected fetch ${target}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const start = await request(app)
+      .post('/oauth/idp/start')
+      .send({ redirectUri: 'http://localhost:5174/oauth/callback' });
+
+    expect(start.status).toBe(200);
+    expect(start.body.authorizationUrl).toMatch(/^https:\/\/idp\.example\.com\/authorize\?/);
+
+    const { nonce } = JSON.parse(
+      Buffer.from(start.body.state.split('.')[0], 'base64url').toString('utf8'),
+    );
+    idToken = await new SignJWT({ nonce, email: 'ada@example.com', email_verified: true })
+      .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+      .setIssuer(issuer)
+      .setAudience('client-id')
+      .setSubject('ada')
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(privateKey);
+
+    (OAuthIdentity.findOne as any).mockResolvedValue({ userId: 'user-ada' });
+    (User.findByPk as any).mockResolvedValue(buildUser({ id: 'user-ada' }));
+    (Session.create as any).mockResolvedValue({ id: 'session-1' });
+    (signAccessToken as any).mockResolvedValue('access-token');
+    (generateRefreshToken as any).mockReturnValue('refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+
+    const res = await request(app)
+      .post('/oauth/idp/callback')
+      .send({ code: 'oauth-code', state: start.body.state, binding: start.body.binding });
+
+    expect(res.status).toBe(200);
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith('openid-configuration')),
+    ).toHaveLength(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('fails the start of a sign-in whose issuer cannot be discovered', async () => {
+    clearOAuthDiscoveryCache();
+    const {
+      authorizationUrl: _authorizationUrl,
+      tokenUrl: _tokenUrl,
+      userInfoUrl: _userInfoUrl,
+      ...rest
+    } = provider;
+    (getSystemConfig as any).mockResolvedValue(
+      buildSystemConfig({
+        login_methods: ['passkey', 'oauth'],
+        oauth_providers: [{ ...rest, id: 'idp', issuer: 'https://down.example.com' }],
+      }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('down', { status: 503 })),
+    );
+
+    const res = await request(app)
+      .post('/oauth/idp/start')
+      .send({ redirectUri: 'http://localhost:5174/oauth/callback' });
+
+    vi.unstubAllGlobals();
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('OAuth start failed');
   });
 
   it('refuses an ID token minted for a different sign-in', async () => {

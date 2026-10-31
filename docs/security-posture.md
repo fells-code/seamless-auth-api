@@ -814,9 +814,9 @@ token has no `security-events` scope; those alerts are caught when the branch re
 
 ### Standing dismissals
 
-Three are invisible to CodeQL because they are not on the taint path it follows. Each was
-verified by reading the code rather than by trusting the rule name, and each is expected to
-reappear on a rescan.
+Two fixes are invisible to CodeQL because they are not on the taint path it follows. Both
+were verified by reading the code rather than by trusting the rule name, and both are
+expected to reappear on a rescan.
 
 - **`js/log-injection`** in [`app.ts`](../src/app.ts),
   [`routeLogger.ts`](../src/middleware/routeLogger.ts) and
@@ -837,18 +837,7 @@ reappear on a rescan.
   object's prototype with caller-supplied content. CodeQL does not model the null-prototype
   receiver.
 
-- **`js/request-forgery`** in [`oauthProviderPolicy.ts`](../src/lib/oauthProviderPolicy.ts)
-  (`guardedRequest` and `providerFetch`). OpenID discovery for inbound providers
-  (`POST /system-config/oauth-providers/discover`) fetches a URL built from the issuer an
-  administrator types, which CodeQL reads as a request whose host a remote caller controls.
-  The caller is an administrator with a fresh step-up, who could already store any provider
-  endpoint by hand. The request is what the feature is for, so the host cannot be allowlisted.
-  What keeps it from reaching internal services is `providerFetch` itself: in production it
-  requires https, refuses non-public IP literals, checks every resolved address in
-  `guardedLookup` at connect time (so a name cannot answer differently for the check and the
-  socket), follows no redirects, and caps the response size and time.
-
-If any of these reappears, it should be dismissed on this footing rather than closed by scattering
+If either reappears, it should be dismissed on this footing rather than closed by scattering
 sanitiser calls onto the taint path.
 
 ### What is still accepted

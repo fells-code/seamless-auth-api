@@ -238,7 +238,6 @@
       "path": "/system-config/oauth-providers/{id}/discovery",
       "credential": "access"
     },
-    { "method": "POST", "path": "/system-config/oauth-providers/discover", "credential": "access" },
     { "method": "GET", "path": "/system-config/policy", "credential": "access" },
     { "method": "DELETE", "path": "/system-config/policy/draft", "credential": "access" },
     { "method": "PUT", "path": "/system-config/policy/draft", "credential": "access" },

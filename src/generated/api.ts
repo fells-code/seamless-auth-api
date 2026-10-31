@@ -22017,11 +22017,11 @@ export interface paths {
                 clientId: string;
                 clientSecretEnv: string;
                 /** Format: uri */
-                authorizationUrl: string;
+                authorizationUrl?: string;
                 /** Format: uri */
-                tokenUrl: string;
+                tokenUrl?: string;
                 /** Format: uri */
-                userInfoUrl: string;
+                userInfoUrl?: string;
                 /** @default [] */
                 scopes: string[];
                 /** Format: uri */
@@ -22321,11 +22321,11 @@ export interface paths {
               clientId: string;
               clientSecretEnv: string;
               /** Format: uri */
-              authorizationUrl: string;
+              authorizationUrl?: string;
               /** Format: uri */
-              tokenUrl: string;
+              tokenUrl?: string;
               /** Format: uri */
-              userInfoUrl: string;
+              userInfoUrl?: string;
               /** @default [] */
               scopes?: string[];
               /** Format: uri */
@@ -22661,11 +22661,11 @@ export interface paths {
                 clientId: string;
                 clientSecretEnv: string;
                 /** Format: uri */
-                authorizationUrl: string;
+                authorizationUrl?: string;
                 /** Format: uri */
-                tokenUrl: string;
+                tokenUrl?: string;
                 /** Format: uri */
-                userInfoUrl: string;
+                userInfoUrl?: string;
                 /** @default [] */
                 scopes: string[];
                 /** Format: uri */
@@ -22776,11 +22776,11 @@ export interface paths {
             clientId: string;
             clientSecretEnv: string;
             /** Format: uri */
-            authorizationUrl: string;
+            authorizationUrl?: string;
             /** Format: uri */
-            tokenUrl: string;
+            tokenUrl?: string;
             /** Format: uri */
-            userInfoUrl: string;
+            userInfoUrl?: string;
             /** @default [] */
             scopes?: string[];
             /** Format: uri */
@@ -22861,11 +22861,11 @@ export interface paths {
                 clientId: string;
                 clientSecretEnv: string;
                 /** Format: uri */
-                authorizationUrl: string;
+                authorizationUrl?: string;
                 /** Format: uri */
-                tokenUrl: string;
+                tokenUrl?: string;
                 /** Format: uri */
-                userInfoUrl: string;
+                userInfoUrl?: string;
                 /** @default [] */
                 scopes: string[];
                 /** Format: uri */
@@ -23004,312 +23004,6 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "error": "string"
-             *     }
-             */
-            'application/json': {
-              message?: string;
-              error: string;
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/system-config/oauth-providers/discover': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Add an OAuth provider from its OpenID discovery document
-     * @description Reads the issuer's `/.well-known/openid-configuration` and stores the provider with the authorization, token, userinfo and JWKS endpoints it names. Endpoints given in the body are kept over the discovered ones. The issuer in the document must match the one requested. Answers 502 when the document cannot be read or is refused.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          'application/json': {
-            id: string;
-            name: string;
-            /** @default true */
-            enabled?: boolean;
-            clientId: string;
-            clientSecretEnv: string;
-            /** Format: uri */
-            authorizationUrl?: string;
-            /** Format: uri */
-            tokenUrl?: string;
-            /** Format: uri */
-            userInfoUrl?: string;
-            /**
-             * @default [
-             *       "openid",
-             *       "email",
-             *       "profile"
-             *     ]
-             */
-            scopes?: string[];
-            /** Format: uri */
-            redirectUri?: string;
-            /** @default [] */
-            redirectUris?: string[];
-            /** @default sub */
-            subjectJsonPath?: string;
-            /** @default email */
-            emailJsonPath?: string;
-            /** @default email_verified */
-            emailVerifiedJsonPath?: string;
-            nameJsonPath?: string;
-            /** @default true */
-            allowSignup?: boolean;
-            /**
-             * @default email
-             * @enum {string}
-             */
-            accountLinking?: 'email' | 'disabled';
-            /** @default false */
-            requireEmailVerified?: boolean;
-            pkce?: boolean;
-            /** Format: uri */
-            issuer: string;
-            /** Format: uri */
-            jwksUri?: string;
-            externalIdSource?: string;
-            externalIdJsonPath?: string;
-            /** @default false */
-            promptPasskeyEnrollment?: boolean;
-          };
-        };
-      };
-      responses: {
-        /** @description HTTP 201 */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "provider": {
-             *         "id": "string",
-             *         "name": "string",
-             *         "enabled": null,
-             *         "clientId": "string",
-             *         "clientSecretEnv": "string",
-             *         "authorizationUrl": null,
-             *         "tokenUrl": null,
-             *         "userInfoUrl": null,
-             *         "scopes": null,
-             *         "redirectUri": null,
-             *         "redirectUris": null,
-             *         "subjectJsonPath": null,
-             *         "emailJsonPath": null,
-             *         "emailVerifiedJsonPath": null,
-             *         "nameJsonPath": "string",
-             *         "allowSignup": null,
-             *         "accountLinking": null,
-             *         "requireEmailVerified": null,
-             *         "pkce": true,
-             *         "issuer": null,
-             *         "jwksUri": null,
-             *         "externalIdSource": "string",
-             *         "externalIdJsonPath": "string",
-             *         "promptPasskeyEnrollment": null
-             *       }
-             *     }
-             */
-            'application/json': {
-              provider: {
-                id: string;
-                name: string;
-                /** @default true */
-                enabled: boolean;
-                clientId: string;
-                clientSecretEnv: string;
-                /** Format: uri */
-                authorizationUrl: string;
-                /** Format: uri */
-                tokenUrl: string;
-                /** Format: uri */
-                userInfoUrl: string;
-                /** @default [] */
-                scopes: string[];
-                /** Format: uri */
-                redirectUri?: string;
-                /** @default [] */
-                redirectUris: string[];
-                /** @default sub */
-                subjectJsonPath: string;
-                /** @default email */
-                emailJsonPath: string;
-                /** @default email_verified */
-                emailVerifiedJsonPath: string;
-                nameJsonPath?: string;
-                /** @default true */
-                allowSignup: boolean;
-                /**
-                 * @default email
-                 * @enum {string}
-                 */
-                accountLinking: 'email' | 'disabled';
-                /** @default false */
-                requireEmailVerified: boolean;
-                pkce?: boolean;
-                /** Format: uri */
-                issuer?: string;
-                /** Format: uri */
-                jwksUri?: string;
-                externalIdSource?: string;
-                externalIdJsonPath?: string;
-                /** @default false */
-                promptPasskeyEnrollment: boolean;
-              };
-            };
-          };
-        };
-        /** @description HTTP 400 */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "error": "string",
-             *       "details": null
-             *     }
-             */
-            'application/json': {
-              error: string;
-              details?: unknown;
-            };
-          };
-        };
-        /** @description HTTP 401 */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "error": "string"
-             *     }
-             */
-            'application/json': {
-              message?: string;
-              error: string;
-            };
-          };
-        };
-        /** @description HTTP 403 */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "error": "string",
-             *       "fresh": true,
-             *       "method": null,
-             *       "verifiedAt": "string",
-             *       "expiresAt": "string",
-             *       "maxAgeSeconds": 0
-             *     }
-             */
-            'application/json': {
-              message?: string;
-              error: string;
-              fresh?: boolean;
-              /** @enum {string|null} */
-              method?: 'webauthn' | 'totp' | null;
-              verifiedAt?: string | null;
-              expiresAt?: string | null;
-              maxAgeSeconds?: number;
-            };
-          };
-        };
-        /** @description HTTP 409 */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "error": "string",
-             *       "variable": "string"
-             *     }
-             */
-            'application/json': {
-              error: string;
-              variable?: string;
-            };
-          };
-        };
-        /** @description HTTP 429 */
-        429: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "error": "string"
-             *     }
-             */
-            'application/json': {
-              message?: string;
-              error: string;
-            };
-          };
-        };
-        /** @description HTTP 500 */
-        500: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "error": "string"
-             *     }
-             */
-            'application/json': {
-              message?: string;
-              error: string;
-            };
-          };
-        };
-        /** @description HTTP 502 */
-        502: {
           headers: {
             [name: string]: unknown;
           };
@@ -23345,7 +23039,7 @@ export interface paths {
     put?: never;
     /**
      * Refresh an OAuth provider's endpoints and keys from its issuer
-     * @description Reads the provider's OpenID discovery document again, replaces the stored endpoints with the ones it names, and drops the cached signing keys so the next sign-in fetches them.
+     * @description A provider with an `issuer` reads any endpoint it does not configure from the issuer's `/.well-known/openid-configuration`, cached for an hour. This reads the document again now, checks the issuer it names, and drops the cached signing keys so the next sign-in fetches them. Nothing is stored; the answer is the provider as sign-in will use it. Answers 502 when the document cannot be read or is refused.
      */
     post: {
       parameters: {
@@ -23403,11 +23097,11 @@ export interface paths {
                 clientId: string;
                 clientSecretEnv: string;
                 /** Format: uri */
-                authorizationUrl: string;
+                authorizationUrl?: string;
                 /** Format: uri */
-                tokenUrl: string;
+                tokenUrl?: string;
                 /** Format: uri */
-                userInfoUrl: string;
+                userInfoUrl?: string;
                 /** @default [] */
                 scopes: string[];
                 /** Format: uri */
@@ -23856,11 +23550,11 @@ export interface paths {
                 clientId: string;
                 clientSecretEnv: string;
                 /** Format: uri */
-                authorizationUrl: string;
+                authorizationUrl?: string;
                 /** Format: uri */
-                tokenUrl: string;
+                tokenUrl?: string;
                 /** Format: uri */
-                userInfoUrl: string;
+                userInfoUrl?: string;
                 /** @default [] */
                 scopes: string[];
                 /** Format: uri */

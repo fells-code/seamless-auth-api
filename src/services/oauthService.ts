@@ -12,6 +12,7 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import {
   clientSecretEnvProblem,
   OAuthProviderPolicyError,
+  oauthProviderProblems,
   providerFetch,
 } from '../lib/oauthProviderPolicy.js';
 import { withOwnerAdminRole } from '../lib/ownerAdmin.js';
@@ -22,6 +23,7 @@ import { User } from '../models/users.js';
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
 import getLogger from '../utils/logger.js';
 import { normalizeLoginPolicy } from './loginPolicyService.js';
+import { discoverOAuthEndpoints } from './oauthDiscovery.js';
 import { claimOAuthStateUse } from './oidcPayloadStore.js';
 import { findOrganizationsRetiringOAuthProvider } from './organizationService.js';
 
@@ -33,6 +35,12 @@ export type PublicOAuthProvider = {
   id: string;
   name: string;
   scopes: string[];
+};
+
+/** A provider with the endpoints a sign-in needs, read from its issuer where not configured. */
+export type ResolvedOAuthProvider = OAuthProviderConfig & {
+  authorizationUrl: string;
+  tokenUrl: string;
 };
 
 export type OAuthStatePayload = {
@@ -202,6 +210,46 @@ export async function getOAuthProvider(providerId: string) {
   return providers.find((provider) => provider.id === providerId) ?? null;
 }
 
+function needsDiscovery(provider: OAuthProviderConfig) {
+  return !provider.authorizationUrl || !provider.tokenUrl || !provider.jwksUri;
+}
+
+/**
+ * Fills the endpoints a provider left out from its issuer's discovery document, which is
+ * cached. The URL fetched is the stored issuer's, never one from a request, and what comes
+ * back is held to the same policy as endpoints an administrator types. A provider that
+ * names every endpoint is returned as it is, without a request. `refresh` skips the cache.
+ */
+export async function resolveOAuthProvider(
+  provider: OAuthProviderConfig,
+  { refresh = false }: { refresh?: boolean } = {},
+): Promise<ResolvedOAuthProvider> {
+  let resolved: OAuthProviderConfig = provider;
+
+  if (provider.issuer && (refresh || needsDiscovery(provider))) {
+    const discovered = await discoverOAuthEndpoints(provider.issuer, { refresh });
+
+    resolved = {
+      ...provider,
+      issuer: discovered.issuer,
+      authorizationUrl: provider.authorizationUrl ?? discovered.authorizationUrl,
+      tokenUrl: provider.tokenUrl ?? discovered.tokenUrl,
+      userInfoUrl: provider.userInfoUrl ?? discovered.userInfoUrl,
+      jwksUri: provider.jwksUri ?? discovered.jwksUri,
+    };
+  }
+
+  const problems = oauthProviderProblems(resolved);
+
+  if (problems.length || !resolved.authorizationUrl || !resolved.tokenUrl) {
+    throw new OAuthProviderPolicyError(
+      `OAuth provider ${provider.id} is not usable: ${problems.join('; ') || 'missing endpoints'}`,
+    );
+  }
+
+  return resolved as ResolvedOAuthProvider;
+}
+
 export async function resolveOAuthRedirectUri(
   provider: OAuthProviderConfig,
   requestedRedirectUri?: string,
@@ -360,7 +408,7 @@ export function buildOAuthAuthorizationUrl({
   nonce,
   codeChallenge,
 }: {
-  provider: OAuthProviderConfig;
+  provider: ResolvedOAuthProvider;
   redirectUri: string;
   state: string;
   nonce?: string;
@@ -399,7 +447,7 @@ export function buildOAuthAuthorizationUrl({
 }
 
 export async function exchangeOAuthCode(args: {
-  provider: OAuthProviderConfig;
+  provider: ResolvedOAuthProvider;
   code: string;
   redirectUri: string;
   codeVerifier?: string;
@@ -413,7 +461,7 @@ export async function exchangeOAuthTokens({
   redirectUri,
   codeVerifier,
 }: {
-  provider: OAuthProviderConfig;
+  provider: ResolvedOAuthProvider;
   code: string;
   redirectUri: string;
   codeVerifier?: string;
@@ -579,10 +627,10 @@ export function oauthProfileFromIdToken(
  * (scope `user:email`), so a GitHub provider is recognised by its userinfo endpoint
  * and asked there. Covers github.com and GitHub Enterprise Server (`/api/v3/user`).
  */
-function githubEmailsUrl(provider: OAuthProviderConfig): string | null {
+function githubEmailsUrl(userInfoUrl: string): string | null {
   let url: URL;
   try {
-    url = new URL(provider.userInfoUrl);
+    url = new URL(userInfoUrl);
   } catch {
     return null;
   }
@@ -636,6 +684,10 @@ async function fetchGitHubVerifiedEmail(
 }
 
 export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessToken: string) {
+  if (!provider.userInfoUrl) {
+    throw new OAuthProviderPolicyError(`OAuth provider ${provider.id} has no userinfo endpoint`);
+  }
+
   const response = await providerFetch(provider.userInfoUrl, {
     method: 'GET',
     headers: {
@@ -652,7 +704,7 @@ export async function fetchOAuthProfile(provider: OAuthProviderConfig, accessTok
   let email = normalizeEmail(getJsonPathValue(raw, provider.emailJsonPath));
   let emailVerifiedValue = getJsonPathValue(raw, provider.emailVerifiedJsonPath);
 
-  const emailsUrl = githubEmailsUrl(provider);
+  const emailsUrl = githubEmailsUrl(provider.userInfoUrl);
   if (emailsUrl) {
     const verifiedEmail = await fetchGitHubVerifiedEmail(emailsUrl, accessToken, email);
     if (verifiedEmail) {

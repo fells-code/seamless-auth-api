@@ -31,10 +31,6 @@ const provider = {
   clientId: 'acme-client',
   clientSecretEnv: 'ACME_CLIENT_SECRET',
   issuer: 'https://idp.example.com',
-  authorizationUrl: 'https://idp.example.com/authorize',
-  tokenUrl: 'https://idp.example.com/token',
-  userInfoUrl: 'https://idp.example.com/userinfo',
-  jwksUri: 'https://idp.example.com/jwks',
   scopes: ['openid'],
 };
 
@@ -58,6 +54,5 @@ describe('POST /system-config/oauth-providers/:id/discovery in production', () =
     vi.unstubAllEnvs();
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid OAuth provider');
-    expect(SystemConfig.upsert).not.toHaveBeenCalled();
   });
 });
