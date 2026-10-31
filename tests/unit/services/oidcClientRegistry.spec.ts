@@ -76,6 +76,26 @@ describe('getOidcClientMetadata', () => {
     });
   });
 
+  it('lists the device grant only for a first-party client with the flag on', async () => {
+    const device = 'urn:ietf:params:oauth:grant-type:device_code';
+    const grantTypes = [device, 'refresh_token'];
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ grantTypes, deviceFlowEnabled: true }) as never,
+    );
+    expect((await getOidcClientMetadata('app'))?.grant_types).toEqual(grantTypes);
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ grantTypes, deviceFlowEnabled: false }) as never,
+    );
+    expect((await getOidcClientMetadata('app'))?.grant_types).toEqual(['refresh_token']);
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ grantTypes, deviceFlowEnabled: true, firstParty: false }) as never,
+    );
+    expect((await getOidcClientMetadata('app'))?.grant_types).toEqual(['refresh_token']);
+  });
+
   it.each(['http://127.0.0.1/cb', 'http://[::1]/cb', 'com.example.app:/cb'])(
     'treats %s as a native redirect',
     async (uri) => {
