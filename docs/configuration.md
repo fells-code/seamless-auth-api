@@ -373,7 +373,7 @@ it is off until a deployment runs the provider service and turns it on.
 | `SEAMLESS_OIDC_SERVICE_TOKEN`      | When enabled | -       | The provider service's own service token secret. Must differ from `SEAMLESS_SERVICE_TOKEN`, or the server refuses to start. `/oidc/*` accepts only this, and external delivery refuses it. |
 | `OIDC_JWKS_ACTIVE_KID`             | When enabled | -       | Key ID of the provider signing key. Only this key signs.                                                                                                                                   |
 | `OIDC_JWKS_KEYS`                   | When enabled | -       | JSON JWK set of private RS256 keys, each with a unique `kid`. Separate from the `SEAMLESS_JWKS_*` keys. Every key in it is published at `/oidc/jwks`.                                      |
-| `OIDC_HOSTED_UI`                   | No           | -       | Seeds `hosted_ui` as JSON: branding for the hosted pages (`appName`, an https `logoUrl`, hex `colors`, `fontFamily`).                                                                      |
+| `OIDC_HOSTED_UI`                   | No           | -       | Seeds `hosted_ui` as JSON: branding for the hosted pages (`appName`, an https `logoUrl`, hex `colors`, `fontFamily`). Admins change it through `PATCH /system-config/admin`.               |
 
 The issuer has to sit under `rpid` because the hosted sign-in pages run on it and passkeys are
 bound to `rpid`. Changing `rpid` to fit a new hostname orphans every existing passkey, so pick

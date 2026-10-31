@@ -171,6 +171,24 @@ describe('GET /oidc/config', () => {
       thirdPartyClientsEnabled: false,
     });
   });
+
+  it('carries the hosted page branding when it is set', async () => {
+    const hostedUi = {
+      appName: 'Acme',
+      logoUrl: 'https://cdn.example.com/logo.svg',
+      colors: { primary: '#1a73e8', muted: '#5f6368' },
+      fontFamily: "'Inter', system-ui, sans-serif",
+    };
+    vi.mocked(getSystemConfig).mockResolvedValue({
+      ...(await getSystemConfig()),
+      hosted_ui: hostedUi,
+    });
+
+    const res = await edge('get', '/oidc/config');
+
+    expect(res.status).toBe(200);
+    expect(res.body.hostedUi).toEqual(hostedUi);
+  });
 });
 
 describe('/oidc/payloads', () => {
