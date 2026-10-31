@@ -5137,8 +5137,12 @@
                     "admin_oidc_application_created",
                     "admin_oidc_application_deleted",
                     "admin_oidc_application_keys_updated",
+                    "admin_oidc_application_resources_updated",
                     "admin_oidc_application_secret_rotated",
                     "admin_oidc_application_updated",
+                    "admin_oidc_resource_created",
+                    "admin_oidc_resource_deleted",
+                    "admin_oidc_resource_updated",
                     "admin_session_revoked",
                     "admin_user_import_completed",
                     "admin_user_imported",
@@ -5250,8 +5254,12 @@
                           "admin_oidc_application_created",
                           "admin_oidc_application_deleted",
                           "admin_oidc_application_keys_updated",
+                          "admin_oidc_application_resources_updated",
                           "admin_oidc_application_secret_rotated",
                           "admin_oidc_application_updated",
+                          "admin_oidc_resource_created",
+                          "admin_oidc_resource_deleted",
+                          "admin_oidc_resource_updated",
                           "admin_session_revoked",
                           "admin_user_import_completed",
                           "admin_user_imported",
@@ -14586,6 +14594,1158 @@
                     }
                   },
                   "required": ["application"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/resources": {
+      "get": {
+        "summary": "List the resources an application may use",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "resources": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "resourceId": { "type": "string", "format": "uuid" },
+                          "identifier": { "type": "string" },
+                          "name": { "type": "string" },
+                          "scopes": { "type": "array", "items": { "type": "string" } }
+                        },
+                        "required": ["resourceId", "identifier", "name", "scopes"]
+                      }
+                    }
+                  },
+                  "required": ["resources"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set the resources an application may use",
+        "description": "Replaces the whole set. Each scope must be one the resource declares. The provider signs an access token for a resource only when the application is allowed it and every requested scope.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "resources": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "resourceId": { "type": "string", "format": "uuid" },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]{1,128}$"
+                          },
+                          "maxItems": 100
+                        }
+                      },
+                      "required": ["resourceId", "scopes"],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 50
+                  }
+                },
+                "required": ["resources"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "resources": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "resourceId": { "type": "string", "format": "uuid" },
+                          "identifier": { "type": "string" },
+                          "name": { "type": "string" },
+                          "scopes": { "type": "array", "items": { "type": "string" } }
+                        },
+                        "required": ["resourceId", "identifier", "name", "scopes"]
+                      }
+                    }
+                  },
+                  "required": ["resources"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/resources": {
+      "get": {
+        "summary": "List OpenID Provider resources",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "resources": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "format": "uuid" },
+                          "identifier": { "type": "string" },
+                          "name": { "type": "string" },
+                          "scopes": { "type": "array", "items": { "type": "string" } },
+                          "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                          "createdAt": { "type": "string" },
+                          "updatedAt": { "type": "string" }
+                        },
+                        "required": [
+                          "id",
+                          "identifier",
+                          "name",
+                          "scopes",
+                          "accessTokenTtlSeconds",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["resources"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an OpenID Provider resource",
+        "description": "The identifier becomes the `aud` of the resource access tokens and cannot change. It cannot be the API `ISSUER` or `oidc_issuer`.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identifier": { "type": "string", "maxLength": 2048 },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]{1,128}$"
+                    },
+                    "maxItems": 100,
+                    "default": []
+                  },
+                  "accessTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 60,
+                    "maximum": 86400
+                  }
+                },
+                "required": ["identifier", "name"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HTTP 201",
+            "content": {
+              "application/json": {
+                "example": {
+                  "resource": {
+                    "id": null,
+                    "identifier": "string",
+                    "name": "string",
+                    "scopes": [null],
+                    "accessTokenTtlSeconds": 0,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resource": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "identifier": { "type": "string" },
+                        "name": { "type": "string" },
+                        "scopes": { "type": "array", "items": { "type": "string" } },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "identifier",
+                        "name",
+                        "scopes",
+                        "accessTokenTtlSeconds",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["resource"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/resources/{id}": {
+      "get": {
+        "summary": "Get an OpenID Provider resource",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "resource": {
+                    "id": null,
+                    "identifier": "string",
+                    "name": "string",
+                    "scopes": [null],
+                    "accessTokenTtlSeconds": 0,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resource": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "identifier": { "type": "string" },
+                        "name": { "type": "string" },
+                        "scopes": { "type": "array", "items": { "type": "string" } },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "identifier",
+                        "name",
+                        "scopes",
+                        "accessTokenTtlSeconds",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["resource"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update an OpenID Provider resource",
+        "description": "A scope removed from the resource is also removed from every application.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]{1,128}$"
+                    },
+                    "maxItems": 100
+                  },
+                  "accessTokenTtlSeconds": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 60,
+                    "maximum": 86400
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "resource": {
+                    "id": null,
+                    "identifier": "string",
+                    "name": "string",
+                    "scopes": [null],
+                    "accessTokenTtlSeconds": 0,
+                    "createdAt": "string",
+                    "updatedAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resource": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "identifier": { "type": "string" },
+                        "name": { "type": "string" },
+                        "scopes": { "type": "array", "items": { "type": "string" } },
+                        "accessTokenTtlSeconds": { "type": "integer", "nullable": true },
+                        "createdAt": { "type": "string" },
+                        "updatedAt": { "type": "string" }
+                      },
+                      "required": [
+                        "id",
+                        "identifier",
+                        "name",
+                        "scopes",
+                        "accessTokenTtlSeconds",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["resource"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an OpenID Provider resource",
+        "description": "Also removes it from every application allowed it.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
                 }
               }
             }

@@ -4890,8 +4890,12 @@ export interface paths {
                 | 'admin_oidc_application_created'
                 | 'admin_oidc_application_deleted'
                 | 'admin_oidc_application_keys_updated'
+                | 'admin_oidc_application_resources_updated'
                 | 'admin_oidc_application_secret_rotated'
                 | 'admin_oidc_application_updated'
+                | 'admin_oidc_resource_created'
+                | 'admin_oidc_resource_deleted'
+                | 'admin_oidc_resource_updated'
                 | 'admin_session_revoked'
                 | 'admin_user_import_completed'
                 | 'admin_user_imported'
@@ -4997,8 +5001,12 @@ export interface paths {
                     | 'admin_oidc_application_created'
                     | 'admin_oidc_application_deleted'
                     | 'admin_oidc_application_keys_updated'
+                    | 'admin_oidc_application_resources_updated'
                     | 'admin_oidc_application_secret_rotated'
                     | 'admin_oidc_application_updated'
+                    | 'admin_oidc_resource_created'
+                    | 'admin_oidc_resource_deleted'
+                    | 'admin_oidc_resource_updated'
                     | 'admin_session_revoked'
                     | 'admin_user_import_completed'
                     | 'admin_user_imported'
@@ -14547,6 +14555,1093 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  '/admin/applications/{id}/resources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the resources an application may use */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "resources": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              resources: {
+                /** Format: uuid */
+                resourceId: string;
+                identifier: string;
+                name: string;
+                scopes: string[];
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    /**
+     * Set the resources an application may use
+     * @description Replaces the whole set. Each scope must be one the resource declares. The provider signs an access token for a resource only when the application is allowed it and every requested scope.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            resources: {
+              /** Format: uuid */
+              resourceId: string;
+              scopes: string[];
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "resources": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              resources: {
+                /** Format: uuid */
+                resourceId: string;
+                identifier: string;
+                name: string;
+                scopes: string[];
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/resources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List OpenID Provider resources */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "resources": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              resources: {
+                /** Format: uuid */
+                id: string;
+                identifier: string;
+                name: string;
+                scopes: string[];
+                accessTokenTtlSeconds: number | null;
+                createdAt: string;
+                updatedAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create an OpenID Provider resource
+     * @description The identifier becomes the `aud` of the resource access tokens and cannot change. It cannot be the API `ISSUER` or `oidc_issuer`.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            identifier: string;
+            name: string;
+            /** @default [] */
+            scopes?: string[];
+            accessTokenTtlSeconds?: number | null;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "resource": {
+             *         "id": null,
+             *         "identifier": "string",
+             *         "name": "string",
+             *         "scopes": [
+             *           null
+             *         ],
+             *         "accessTokenTtlSeconds": 0,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              resource: {
+                /** Format: uuid */
+                id: string;
+                identifier: string;
+                name: string;
+                scopes: string[];
+                accessTokenTtlSeconds: number | null;
+                createdAt: string;
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/resources/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get an OpenID Provider resource */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "resource": {
+             *         "id": null,
+             *         "identifier": "string",
+             *         "name": "string",
+             *         "scopes": [
+             *           null
+             *         ],
+             *         "accessTokenTtlSeconds": 0,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              resource: {
+                /** Format: uuid */
+                id: string;
+                identifier: string;
+                name: string;
+                scopes: string[];
+                accessTokenTtlSeconds: number | null;
+                createdAt: string;
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    /**
+     * Delete an OpenID Provider resource
+     * @description Also removes it from every application allowed it.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /**
+     * Update an OpenID Provider resource
+     * @description A scope removed from the resource is also removed from every application.
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name?: string;
+            scopes?: string[];
+            accessTokenTtlSeconds?: number | null;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "resource": {
+             *         "id": null,
+             *         "identifier": "string",
+             *         "name": "string",
+             *         "scopes": [
+             *           null
+             *         ],
+             *         "accessTokenTtlSeconds": 0,
+             *         "createdAt": "string",
+             *         "updatedAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              resource: {
+                /** Format: uuid */
+                id: string;
+                identifier: string;
+                name: string;
+                scopes: string[];
+                accessTokenTtlSeconds: number | null;
+                createdAt: string;
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     trace?: never;
   };
   '/organizations/': {

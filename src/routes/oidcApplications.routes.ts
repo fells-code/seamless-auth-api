@@ -10,6 +10,8 @@ import {
   OidcApplicationIdParamsSchema,
   OidcApplicationKeysRequestSchema,
   OidcApplicationListResponseSchema,
+  OidcApplicationResourcesRequestSchema,
+  OidcApplicationResourcesResponseSchema,
   OidcApplicationResponseSchema,
   OidcApplicationSecretResponseSchema,
   OidcApplicationUpdateRequestSchema,
@@ -24,6 +26,7 @@ import {
   rotateApplicationSecret,
   updateApplication,
 } from '../controllers/oidcApplications.js';
+import { getApplicationResources, putApplicationResources } from '../controllers/oidcResources.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
@@ -157,6 +160,40 @@ router.put(
     },
   },
   putApplicationKeys,
+);
+
+router.get(
+  '/:id/resources',
+  {
+    ...read,
+    summary: 'List the resources an application may use',
+    schemas: {
+      params: OidcApplicationIdParamsSchema,
+      response: { 200: OidcApplicationResourcesResponseSchema, 404: ErrorSchema },
+    },
+  },
+  getApplicationResources,
+);
+
+router.put(
+  '/:id/resources',
+  {
+    ...write,
+    summary: 'Set the resources an application may use',
+    description:
+      'Replaces the whole set. Each scope must be one the resource declares. The provider signs an access token for a resource only when the application is allowed it and every requested scope.',
+    schemas: {
+      params: OidcApplicationIdParamsSchema,
+      body: OidcApplicationResourcesRequestSchema,
+      response: {
+        200: OidcApplicationResourcesResponseSchema,
+        400: ValidationErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        404: ErrorSchema,
+      },
+    },
+  },
+  putApplicationResources,
 );
 
 export default router.router;
