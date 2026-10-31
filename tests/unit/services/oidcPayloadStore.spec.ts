@@ -28,6 +28,7 @@ import {
   findGrantBoundSession,
   findOidcPayloadByUserCode,
   hasOidcGrantForSession,
+  hasOidcGrantForUser,
   InvalidSessionIdError,
   MAX_EXPIRES_IN_SECONDS,
   purgeExpiredOidcPayloads,
@@ -194,6 +195,31 @@ describe('hasOidcGrantForSession', () => {
 
   it('refuses a malformed session id without a query', async () => {
     expect(await hasOidcGrantForSession('nope', 'app')).toBe(false);
+    expect(OidcPayload.findOne).not.toHaveBeenCalled();
+  });
+});
+
+describe('hasOidcGrantForUser', () => {
+  it('needs a live grant held by the user for this client', async () => {
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({
+      payload: { accountId: SESSION, clientId: 'app' },
+    } as never);
+    expect(await hasOidcGrantForUser(SESSION, 'app')).toBe(true);
+    expect(vi.mocked(OidcPayload.findOne).mock.calls[0][0]).toMatchObject({
+      where: { model: 'Grant', payload: { accountId: SESSION, clientId: 'app' } },
+    });
+
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({
+      payload: { accountId: SESSION, clientId: 'other' },
+    } as never);
+    expect(await hasOidcGrantForUser(SESSION, 'app')).toBe(false);
+
+    vi.mocked(OidcPayload.findOne).mockResolvedValueOnce(null);
+    expect(await hasOidcGrantForUser(SESSION, 'app')).toBe(false);
+  });
+
+  it('refuses a malformed user id without a query', async () => {
+    expect(await hasOidcGrantForUser('nope', 'app')).toBe(false);
     expect(OidcPayload.findOne).not.toHaveBeenCalled();
   });
 });
