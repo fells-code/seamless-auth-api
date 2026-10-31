@@ -14,6 +14,7 @@ import { Op, QueryTypes, WhereOptions } from 'sequelize';
 import { OidcPayload, OidcPayloadAttributes } from '../models/oidcPayloads.js';
 import getLogger from '../utils/logger.js';
 import { isUuid, resolveCurrentSession } from './oidcAuthContext.js';
+import { recordBackchannelLogoutTargets } from './oidcBackchannelLogout.js';
 
 const logger = getLogger('oidcPayloadStore');
 
@@ -70,6 +71,16 @@ export async function upsertOidcPayload(
   }
 
   await OidcPayload.upsert(row);
+
+  if (model === 'Session' && row.sessionId) {
+    await recordBackchannelLogoutTargets(
+      row.sessionId,
+      payload,
+      row.expiresAt,
+      hasOidcGrantForSession,
+    );
+  }
+
   return { created: true };
 }
 
