@@ -136,6 +136,31 @@ describe('grant binding', () => {
     expect((await findGrantBoundSession(session.id, 'app'))?.id).toBe(session.id);
     expect(await findGrantBoundSession(session.id, 'other')).toBeNull();
   });
+
+  it('binds every client a session signed in to, not just one of them', async () => {
+    const { User } = await import('../../src/models/users.js');
+    const { Session } = await import('../../src/models/sessions.js');
+    const user = await User.create({ email: `${randomUUID()}@example.com` } as never);
+    const session = await Session.create({
+      userId: user.id,
+      mode: 'server',
+      expiresAt: new Date(Date.now() + 3_600_000),
+      idleExpiresAt: new Date(Date.now() + 3_600_000),
+    });
+
+    for (const clientId of ['first', 'second', 'third']) {
+      await upsertOidcPayload('Grant', randomUUID(), {
+        payload: { clientId, accountId: user.id },
+        expiresIn: 600,
+        sessionId: session.id,
+      });
+    }
+
+    for (const clientId of ['first', 'second', 'third']) {
+      expect((await findGrantBoundSession(session.id, clientId))?.id).toBe(session.id);
+    }
+    expect(await findGrantBoundSession(session.id, 'other')).toBeNull();
+  });
 });
 
 describe('oidc_clients', () => {

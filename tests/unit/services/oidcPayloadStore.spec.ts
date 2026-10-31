@@ -158,7 +158,7 @@ describe('hasOidcGrantForSession', () => {
     vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({ payload: { clientId: 'app' } } as never);
     expect(await hasOidcGrantForSession(SESSION, 'app')).toBe(true);
     expect(vi.mocked(OidcPayload.findOne).mock.calls[0][0]).toMatchObject({
-      where: { model: 'Grant', sessionId: SESSION },
+      where: { model: 'Grant', sessionId: SESSION, payload: { clientId: 'app' } },
     });
 
     vi.mocked(OidcPayload.findOne).mockResolvedValueOnce({
