@@ -92,6 +92,7 @@ export async function getOidcEdgeConfig(_req: Request, res: Response) {
     appName: config.app_name,
     allowClientSecrets: config.allow_client_secrets,
     thirdPartyClientsEnabled: config.third_party_clients_enabled,
+    ...(config.hosted_ui ? { hostedUi: config.hosted_ui } : {}),
   });
 }
 
