@@ -16,6 +16,8 @@ vi.mock('../../../src/services/oidcPayloadStore.js', async (importOriginal) => (
   destroyOidcPayload: vi.fn(),
   revokeOidcPayloadsByGrant: vi.fn(),
   findGrantBoundSession: vi.fn(),
+  bindOidcSession: vi.fn(),
+  isOidcSessionBound: vi.fn(),
 }));
 
 vi.mock('../../../src/services/oidcBackchannelLogout.js', () => ({
@@ -59,6 +61,7 @@ import {
   verifyOidcClientSecret,
 } from '../../../src/services/oidcClientRegistry.js';
 import {
+  bindOidcSession,
   consumeOidcPayload,
   destroyOidcPayload,
   findOidcPayload,
@@ -67,12 +70,13 @@ import {
   findGrantBoundSession,
   findOidcPayloadByUserCode,
   InvalidSessionIdError,
+  isOidcSessionBound,
   revokeOidcPayloadsByGrant,
   upsertOidcPayload,
 } from '../../../src/services/oidcPayloadStore.js';
 import { getOidcPublicJwks } from '../../../src/services/oidcProviderKeys.js';
 import { signForOidcEdge } from '../../../src/services/oidcSigning.js';
-import { revokeSessionChain } from '../../../src/services/sessionService.js';
+import { revokeSessionChain, validateBearerToken } from '../../../src/services/sessionService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory';
 import {
   mintInternalServiceToken,
@@ -173,7 +177,7 @@ describe('GET /oidc/config', () => {
     const res = await edge('get', '/oidc/config');
 
     expect(res.body).toEqual({
-      contractVersion: 2,
+      contractVersion: 3,
       issuer: ISSUER,
       appName: 'SeamlessAuth',
       allowClientSecrets: false,
@@ -459,9 +463,65 @@ describe('sessions', () => {
     expect((await edge('get', `/oidc/sessions/${SESSION}/auth-context`)).status).toBe(400);
   });
 
+  describe('binding a session to a client', () => {
+    const path = `/oidc/sessions/${SESSION}/bind`;
+    const body = { clientId: 'app', accessToken: 'user-access-token' };
+
+    beforeEach(() => {
+      vi.mocked(validateBearerToken).mockResolvedValue({
+        user: { id: USER },
+        sessionId: SESSION,
+      } as never);
+      vi.mocked(findActiveOidcClient).mockResolvedValue({ id: 'app' } as never);
+    });
+
+    it("binds with the user's own access token for that session", async () => {
+      expect((await edge('post', path).send(body)).status).toBe(204);
+      expect(validateBearerToken).toHaveBeenCalledWith('user-access-token', 'access');
+      expect(bindOidcSession).toHaveBeenCalledWith(SESSION, USER, 'app');
+    });
+
+    it('refuses a token that is not an access token for this session', async () => {
+      vi.mocked(validateBearerToken).mockResolvedValueOnce(null);
+      expect((await edge('post', path).send(body)).body).toEqual({
+        error: 'invalid_access_token',
+      });
+
+      vi.mocked(validateBearerToken).mockResolvedValueOnce({
+        user: { id: USER },
+        sessionId: '33333333-3333-4333-8333-333333333333',
+      } as never);
+      const res = await edge('post', path).send(body);
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'invalid_access_token' });
+      expect(bindOidcSession).not.toHaveBeenCalled();
+    });
+
+    it('refuses a recovery session and an inactive client', async () => {
+      vi.mocked(validateBearerToken).mockResolvedValueOnce({
+        user: { id: USER },
+        sessionId: SESSION,
+        recovery: true,
+      } as never);
+      const recovery = await edge('post', path).send(body);
+      expect(recovery.status).toBe(403);
+      expect(recovery.body).toEqual({ error: 'enrollment_required' });
+
+      vi.mocked(findActiveOidcClient).mockResolvedValueOnce(null);
+      expect((await edge('post', path).send(body)).status).toBe(404);
+      expect(bindOidcSession).not.toHaveBeenCalled();
+    });
+
+    it('requires the client and the token', async () => {
+      expect((await edge('post', path).send({ clientId: 'app' })).status).toBe(400);
+      expect((await edge('post', path).send({ accessToken: 't' })).status).toBe(400);
+    });
+  });
+
   it('revokes the chain and the provider records behind it', async () => {
     const session = { id: SESSION, userId: 'u1' };
     vi.mocked(Session.findByPk).mockResolvedValue(session as never);
+    vi.mocked(isOidcSessionBound).mockResolvedValue(true);
 
     const res = await edge('post', `/oidc/sessions/${SESSION}/revoke`).send({
       reason: 'refresh_token_reuse',
@@ -497,6 +557,20 @@ describe('sessions', () => {
     expect(AuthEventService.log).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'oidc_session_revoked', metadata: expect.anything() }),
     );
+  });
+
+  it('refuses to revoke a session nobody signed in to a client with', async () => {
+    vi.mocked(Session.findByPk).mockResolvedValue({ id: SESSION, userId: 'u1' } as never);
+    vi.mocked(isOidcSessionBound).mockResolvedValue(false);
+
+    const res = await edge('post', `/oidc/sessions/${SESSION}/revoke`).send({
+      reason: 'provider_logout',
+    });
+
+    expect(res.status).toBe(404);
+    expect(isOidcSessionBound).toHaveBeenCalledWith(SESSION);
+    expect(revokeSessionChain).not.toHaveBeenCalled();
+    expect(OidcPayload.destroy).not.toHaveBeenCalled();
   });
 });
 

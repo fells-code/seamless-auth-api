@@ -146,9 +146,55 @@ async function findOne(
   };
 }
 
-/** Whether a live provider grant for this client was stored against the session. */
+// Written only by bindOidcSession, after the API has checked the user's own access token for
+// the session, and kept under a model the edge's payload routes cannot name. The edge's own
+// Grant rows say whatever the edge sends, so on their own they bind nothing.
+const SESSION_BINDING = 'SessionBinding';
+
+/**
+ * Records that a provider sign-in for the client happened on the session. Lasts as long as
+ * the longest provider grant can, and goes with the session's other provider records when
+ * the session is revoked.
+ */
+export async function bindOidcSession(sessionId: string, userId: string, clientId: string) {
+  await OidcPayload.upsert({
+    id: `${sessionId}:${clientId}`,
+    model: SESSION_BINDING,
+    payload: { accountId: userId, clientId },
+    grantId: null,
+    userCode: null,
+    uid: null,
+    sessionId,
+    expiresAt: new Date(Date.now() + MAX_EXPIRES_IN_SECONDS * 1000),
+  });
+}
+
+function findBinding(where: Record<string, unknown>) {
+  return OidcPayload.findOne({
+    where: {
+      ...where,
+      model: SESSION_BINDING,
+      expiresAt: { [Op.gt]: new Date() },
+    } as WhereOptions<OidcPayloadAttributes>,
+  });
+}
+
+/** Whether a provider sign-in for any client was bound to the session. */
+export async function isOidcSessionBound(sessionId: string) {
+  if (!isUuid(sessionId)) return false;
+
+  return Boolean(await findBinding({ sessionId }));
+}
+
+/**
+ * Whether the session is bound to this client and a live provider grant for the client was
+ * stored against it. The grant is still required so that revoking it ends access.
+ */
 export async function hasOidcGrantForSession(sessionId: string, clientId: string) {
   if (!isUuid(sessionId)) return false;
+
+  const binding = await findBinding({ id: `${sessionId}:${clientId}` });
+  if (binding?.payload.clientId !== clientId) return false;
 
   // One first-party session can sign in to several clients, so the client is part of the
   // query rather than checked on whichever grant comes back first.
@@ -164,9 +210,14 @@ export async function hasOidcGrantForSession(sessionId: string, clientId: string
   return grant?.payload.clientId === clientId;
 }
 
-/** Whether the user holds a live provider grant for the client, through any session. */
+/** Whether the user signed in to the client and still holds a live provider grant for it. */
 export async function hasOidcGrantForUser(userId: string, clientId: string) {
   if (!isUuid(userId)) return false;
+
+  const binding = await findBinding({ payload: { accountId: userId, clientId } });
+  if (binding?.payload.accountId !== userId || binding.payload.clientId !== clientId) {
+    return false;
+  }
 
   const grant = await OidcPayload.findOne({
     where: {

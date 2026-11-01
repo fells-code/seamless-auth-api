@@ -125,9 +125,15 @@ describe('POST /applications/account-notices', () => {
     );
   });
 
-  it('only checks a grant held with the asking client', async () => {
+  it('only checks a sign-in and a grant held with the asking client', async () => {
     await send();
 
+    expect(OidcPayload.findOne).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        model: 'SessionBinding',
+        payload: { accountId: USER, clientId: 'locksley' },
+      }),
+    });
     expect(OidcPayload.findOne).toHaveBeenCalledWith({
       where: expect.objectContaining({
         model: 'Grant',

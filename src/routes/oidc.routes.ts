@@ -23,6 +23,7 @@ import {
   OidcPayloadUpsertRequestSchema,
   OidcPayloadUpsertResponseSchema,
   OidcPayloadUserCodeParamsSchema,
+  OidcSessionBindRequestSchema,
   OidcSessionIdParamsSchema,
   OidcSessionQuerySchema,
   OidcSessionRevokeRequestSchema,
@@ -47,6 +48,7 @@ import {
   getOidcSessionAuthContext,
   postOidcEvent,
   postOidcPayloadConsume,
+  postOidcSessionBind,
   postOidcSessionRevoke,
   postOidcSign,
   postOidcVerifySecret,
@@ -267,6 +269,20 @@ oidcRouter.get(
     },
   },
   getOidcSessionAuthContext,
+);
+
+oidcRouter.post(
+  '/sessions/:id/bind',
+  {
+    ...edge,
+    summary: 'Bind a session to the client a provider sign-in is for',
+    schemas: {
+      params: OidcSessionIdParamsSchema,
+      body: OidcSessionBindRequestSchema,
+      response: { 403: ErrorSchema, ...guarded },
+    },
+  },
+  postOidcSessionBind,
 );
 
 oidcRouter.post(

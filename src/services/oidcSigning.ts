@@ -275,7 +275,10 @@ async function checkUserToken(
 
   // ADR 0001, D10. The passkey proves who approved the device, not who holds its tokens, so
   // a device-flow token never states the assurance the approving session earned.
-  if (device && claims.acr !== undefined) {
+  if (
+    device &&
+    (claims.acr !== undefined || claims.amr !== undefined || claims.auth_time !== undefined)
+  ) {
     return refuse('auth_context_mismatch', session.userId);
   }
 

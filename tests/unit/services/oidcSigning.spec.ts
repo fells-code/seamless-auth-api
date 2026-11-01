@@ -421,12 +421,24 @@ describe('signForOidcEdge', () => {
       } as never);
     }
 
-    it('signs one that leaves acr out', async () => {
+    it('signs one that leaves acr, amr and auth_time out', async () => {
       deviceClient();
-      const { acr: _acr, ...claims } = idTokenClaims();
+      const { acr: _acr, amr: _amr, auth_time: _authTime, ...claims } = idTokenClaims();
       expect((await signForOidcEdge({ ...idTokenRequest(claims), grantType: DEVICE })).ok).toBe(
         true,
       );
+    });
+
+    it('never signs the amr or auth_time of the approving session', async () => {
+      deviceClient();
+      const { acr: _acr, ...withAmr } = idTokenClaims();
+      const { auth_time: _authTime, ...amrOnly } = withAmr;
+      const { amr: _amr, ...authTimeOnly } = withAmr;
+      for (const claims of [amrOnly, authTimeOnly]) {
+        expect(
+          await signForOidcEdge({ ...idTokenRequest(claims), grantType: DEVICE }),
+        ).toMatchObject({ ok: false, code: 'auth_context_mismatch' });
+      }
     });
 
     it('never signs the acr the approving session earned', async () => {
