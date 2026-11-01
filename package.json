@@ -49,9 +49,9 @@
   "homepage": "https://github.com/fells-code/seamless-auth-api#readme",
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
-    "@seamless-auth/messaging": "^0.2.0",
-    "@seamless-auth/messaging-aws": "^0.2.0",
-    "@seamless-auth/messaging-twilio": "^0.2.0",
+    "@seamless-auth/messaging": "^0.3.1",
+    "@seamless-auth/messaging-aws": "^0.3.1",
+    "@seamless-auth/messaging-twilio": "^0.3.1",
     "@seamless-auth/types": "^0.34.0",
     "@simplewebauthn/server": "^14.0.3",
     "base64url": "^3.0.1",
