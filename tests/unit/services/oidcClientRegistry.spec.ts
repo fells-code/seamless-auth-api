@@ -76,6 +76,59 @@ describe('getOidcClientMetadata', () => {
     });
   });
 
+  it("carries the application's token lifetimes when they are set", async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({
+        accessTokenTtlSeconds: 120,
+        idTokenTtlSeconds: 90,
+        refreshTokenTtlSeconds: 3600,
+      }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).toMatchObject({
+      'urn:seamless:access_token_ttl': 120,
+      'urn:seamless:id_token_ttl': 90,
+      'urn:seamless:refresh_token_ttl': 3600,
+    });
+  });
+
+  it('sends a PKCE opt-out only for a confidential client', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: false }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).toMatchObject({
+      'urn:seamless:pkce_required': false,
+    });
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({
+        clientType: 'public',
+        tokenEndpointAuthMethod: 'none',
+        pkceRequired: false,
+      }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:pkce_required');
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: true }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:pkce_required');
+  });
+
+  it('sends a nonce opt-out only alongside a PKCE opt-out', async () => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: false, nonceRequired: false }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).toMatchObject({
+      'urn:seamless:pkce_required': false,
+      'urn:seamless:nonce_required': false,
+    });
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ clientType: 'confidential', pkceRequired: true, nonceRequired: false }) as never,
+    );
+    expect(await getOidcClientMetadata('app')).not.toHaveProperty('urn:seamless:nonce_required');
+  });
+
   it('lists the device grant only for a first-party client with the flag on', async () => {
     const device = 'urn:ietf:params:oauth:grant-type:device_code';
     const grantTypes = [device, 'refresh_token'];

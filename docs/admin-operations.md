@@ -357,6 +357,8 @@ The API refuses these on create and on the merged result of every update (#410):
 | -------------------------------------------------------------------------------------------- | ------------------------ |
 | Only the `authorization_code`, `refresh_token`, `client_credentials` and device grants exist | Schema                   |
 | Public clients authenticate with PKCE alone: no secret, no keys, no `client_credentials`     | Schema                   |
+| Only a confidential client may set `pkceRequired: false`                                     | Schema, provider service |
+| `nonceRequired: false` only once `pkceRequired` is `false`                                   | Schema, provider service |
 | `client_secret_jwt` cannot be chosen                                                         | Schema                   |
 | Redirects are exact, except the RFC 8252 loopback port (`127.0.0.1`, `[::1]`)                | Schema, provider service |
 | `localhost`, fragments and embedded credentials are refused as redirects                     | Schema                   |
@@ -366,7 +368,7 @@ The API refuses these on create and on the merged result of every update (#410):
 | Shared secrets need `allow_client_secrets`                                                   | API, provider service    |
 | Third-party clients need `third_party_clients_enabled`                                       | API, provider service    |
 
-PKCE with `S256` for every client, `code` as the only response type, and refresh token rotation are fixed in the provider service's configuration and cannot be changed per client.
+PKCE with `S256` is required for every client unless a confidential client sets `pkceRequired: false` (RFC 9700 section 2.1.1). An opted-out client must send `nonce` whenever it asks for an ID token unless `nonceRequired` is also `false`. Each change is recorded as `admin_oidc_application_pkce_updated` or `admin_oidc_application_nonce_updated`. Both fields are in every application response, so a client with both off can be flagged: it relies on `state` and client authentication alone against code injection. Like every application write, either change needs step-up. `code` as the only response type and refresh token rotation are fixed in the provider service's configuration and cannot be changed per client.
 
 ## Audit Events
 
