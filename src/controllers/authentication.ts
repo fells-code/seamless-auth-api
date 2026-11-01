@@ -33,6 +33,7 @@ import {
   LoginMethod,
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
+import { sweepBackchannelLogoutInBackground } from '../services/oidcBackchannelLogout.js';
 import { hasUsableRecoveryCode } from '../services/recoveryCodeService.js';
 import { isRevokedByCutoff, revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
 import {
@@ -464,6 +465,7 @@ export const logoutCurrentSession = async (req: Request, res: Response) => {
 
     if (session) {
       await hardRevokeSession(session, 'user_logout');
+      sweepBackchannelLogoutInBackground();
     }
 
     await AuthEventService.log({
@@ -487,6 +489,7 @@ export const logoutAllSessions = async (req: Request, res: Response) => {
 
   try {
     const revokedSessions = await revokeAllSessionsForUsers(authUser.id, 'user_logout_all');
+    sweepBackchannelLogoutInBackground();
 
     await AuthEventService.log({
       userId: authUser.id,

@@ -30,6 +30,7 @@ import { Session } from '../models/sessions.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { getOidcAuthContext, isUuid } from '../services/oidcAuthContext.js';
+import { sendBackchannelLogout } from '../services/oidcBackchannelLogout.js';
 import {
   findActiveOidcClient,
   getOidcAccountClaims,
@@ -222,6 +223,9 @@ export async function postOidcSessionRevoke(
   // From the recorded row forward, so the rotations the edge's adapter made since the
   // provider sign-in are revoked with it.
   await revokeSessionChain(session, `oidc_${req.body.reason}`);
+  // Before the provider rows go, and awaited, so an RP-initiated logout's redirect lands
+  // after the other apps were told.
+  await sendBackchannelLogout([session.id]);
   await OidcPayload.destroy({ where: { sessionId: session.id } });
 
   await AuthEventService.log({

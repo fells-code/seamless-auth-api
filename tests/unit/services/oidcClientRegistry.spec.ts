@@ -111,6 +111,7 @@ describe('getOidcClientMetadata', () => {
       response_types: [],
       jwks,
       backchannel_logout_uri: 'https://app.example.com/bcl',
+      backchannel_logout_session_required: true,
     });
     expect(metadata).not.toHaveProperty('jwks_uri');
     expect(metadata).not.toHaveProperty('client_secret');

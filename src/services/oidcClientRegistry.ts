@@ -64,7 +64,13 @@ export async function getOidcClientMetadata(id: string): Promise<OidcClientMetad
     post_logout_redirect_uris: client.postLogoutRedirectUris,
     ...(client.jwks ? { jwks: client.jwks as { keys: OidcPublicJwk[] } } : {}),
     ...(client.jwksUri ? { jwks_uri: client.jwksUri } : {}),
-    ...(client.backchannelLogoutUri ? { backchannel_logout_uri: client.backchannelLogoutUri } : {}),
+    // Logout tokens always carry sid, so the ID token must too for the RP to match them.
+    ...(client.backchannelLogoutUri
+      ? {
+          backchannel_logout_uri: client.backchannelLogoutUri,
+          backchannel_logout_session_required: true,
+        }
+      : {}),
     'urn:seamless:first_party': client.firstParty,
   };
 }
