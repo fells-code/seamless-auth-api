@@ -75,6 +75,7 @@ function idTokenRequest(claims = idTokenClaims(), header: Record<string, unknown
     kid: 'k1',
     clientId: 'app',
     sessionId: SESSION,
+    grantType: 'authorization_code' as const,
     signingInput: input({ alg: 'RS256', kid: 'k1', ...header }, claims),
   };
 }
@@ -88,6 +89,7 @@ function accessTokenRequest(
     kid: 'k1',
     clientId: 'app',
     sessionId: SESSION,
+    grantType: 'authorization_code' as const,
     signingInput: input(
       { alg: 'RS256', kid: 'k1', typ: 'at+jwt', ...header },
       {
@@ -403,6 +405,62 @@ describe('signForOidcEdge', () => {
     expect(await signForOidcEdge(idTokenRequest(idTokenClaims(), { typ: 'logout+jwt' }))).toEqual({
       ok: false,
       code: 'malformed_signing_input',
+    });
+  });
+
+  describe('device-flow tokens (ADR 0001, D10)', () => {
+    const DEVICE = 'urn:ietf:params:oauth:grant-type:device_code' as const;
+
+    function deviceClient(overrides: Record<string, unknown> = {}) {
+      vi.mocked(findActiveOidcClient).mockResolvedValue({
+        id: 'app',
+        grantTypes: [DEVICE, 'refresh_token'],
+        firstParty: true,
+        deviceFlowEnabled: true,
+        ...overrides,
+      } as never);
+    }
+
+    it('signs one that leaves acr out', async () => {
+      deviceClient();
+      const { acr: _acr, ...claims } = idTokenClaims();
+      expect((await signForOidcEdge({ ...idTokenRequest(claims), grantType: DEVICE })).ok).toBe(
+        true,
+      );
+    });
+
+    it('never signs the acr the approving session earned', async () => {
+      deviceClient();
+      expect(await signForOidcEdge({ ...idTokenRequest(), grantType: DEVICE })).toMatchObject({
+        ok: false,
+        code: 'auth_context_mismatch',
+      });
+      expect(
+        await signForOidcEdge({ ...accessTokenRequest({ acr: 'phrh' }), grantType: DEVICE }),
+      ).toMatchObject({ code: 'auth_context_mismatch' });
+    });
+
+    it('refuses a client without the device grant turned on', async () => {
+      const { acr: _acr, ...claims } = idTokenClaims();
+      const request = { ...idTokenRequest(claims), grantType: DEVICE };
+      expect(await signForOidcEdge(request)).toMatchObject({ code: 'grant_not_allowed' });
+
+      deviceClient({ deviceFlowEnabled: false });
+      expect(await signForOidcEdge(request)).toMatchObject({ code: 'grant_not_allowed' });
+
+      deviceClient({ firstParty: false });
+      expect(await signForOidcEdge(request)).toMatchObject({ code: 'grant_not_allowed' });
+    });
+
+    it('refuses a user token that names no grant, or one the client lacks', async () => {
+      deviceClient();
+      expect(await signForOidcEdge(idTokenRequest())).toMatchObject({
+        code: 'grant_not_allowed',
+      });
+      const { grantType: _grant, ...unnamed } = idTokenRequest();
+      expect(await signForOidcEdge(unnamed as never)).toMatchObject({
+        code: 'grant_not_allowed',
+      });
     });
   });
 

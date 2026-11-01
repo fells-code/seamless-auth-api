@@ -25,6 +25,7 @@ import { isUuid } from './oidcAuthContext.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 const SHARED_SECRET_METHODS = new Set(['client_secret_basic', 'client_secret_post']);
+const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 
 /**
  * Keyed with the refresh token lookup secret, but over a prefixed input, so a client
@@ -58,7 +59,11 @@ export async function getOidcClientMetadata(id: string): Promise<OidcClientMetad
     client_name: client.name,
     application_type: client.redirectUris.some(isNativeRedirectUri) ? 'native' : 'web',
     token_endpoint_auth_method: client.tokenEndpointAuthMethod,
-    grant_types: client.grantTypes as OidcClientMetadata['grant_types'],
+    // The device grant only for a first-party client with the flag on (ADR 0001, D10),
+    // whatever the stored grant list says.
+    grant_types: client.grantTypes.filter(
+      (grant) => grant !== DEVICE_CODE_GRANT || (client.firstParty && client.deviceFlowEnabled),
+    ) as OidcClientMetadata['grant_types'],
     response_types: client.grantTypes.includes('authorization_code') ? ['code'] : [],
     redirect_uris: client.redirectUris,
     post_logout_redirect_uris: client.postLogoutRedirectUris,
