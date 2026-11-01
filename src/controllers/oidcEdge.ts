@@ -16,6 +16,7 @@ import {
   type OidcPayloadUidParams,
   type OidcPayloadUpsertRequest,
   type OidcPayloadUserCodeParams,
+  type OidcSessionBindRequest,
   type OidcSessionIdParams,
   type OidcSessionQuery,
   type OidcSessionRevokeRequest,
@@ -39,6 +40,7 @@ import {
   verifyOidcClientSecret,
 } from '../services/oidcClientRegistry.js';
 import {
+  bindOidcSession,
   consumeOidcPayload,
   destroyOidcPayload,
   ExpiryTooLongError,
@@ -47,12 +49,13 @@ import {
   findOidcPayloadByUid,
   findOidcPayloadByUserCode,
   InvalidSessionIdError,
+  isOidcSessionBound,
   revokeOidcPayloadsByGrant,
   upsertOidcPayload,
 } from '../services/oidcPayloadStore.js';
 import { getOidcPublicJwks } from '../services/oidcProviderKeys.js';
 import { signForOidcEdge } from '../services/oidcSigning.js';
-import { revokeSessionChain } from '../services/sessionService.js';
+import { revokeSessionChain, validateBearerToken } from '../services/sessionService.js';
 import getLogger from '../utils/logger.js';
 
 const logger = getLogger('oidcEdge');
@@ -212,13 +215,40 @@ export async function getOidcSessionAuthContext(req: Req<OidcSessionIdParams>, r
   return context ? res.status(200).json(context) : res.status(404).json(NOT_FOUND);
 }
 
+/**
+ * The edge holds a user's access token only while that user signs in through it, so a
+ * binding made with one is a sign-in the user really made, for the session the token was
+ * issued under.
+ */
+export async function postOidcSessionBind(
+  req: Req<OidcSessionIdParams, OidcSessionBindRequest>,
+  res: Response,
+) {
+  const { clientId, accessToken } = req.body;
+  const validated = await validateBearerToken(accessToken, 'access');
+
+  if (!validated || validated.sessionId !== req.params.id) {
+    return res.status(403).json({ error: 'invalid_access_token' });
+  }
+  if (validated.recovery) {
+    return res.status(403).json({ error: 'enrollment_required' });
+  }
+  if (!(await findActiveOidcClient(clientId))) return res.status(404).json(NOT_FOUND);
+
+  await bindOidcSession(req.params.id, validated.user.id, clientId);
+  return res.status(204).end();
+}
+
 export async function postOidcSessionRevoke(
   req: Req<OidcSessionIdParams, OidcSessionRevokeRequest>,
   res: Response,
 ) {
   const session = isUuid(req.params.id) ? await Session.findByPk(req.params.id) : null;
 
-  if (!session) return res.status(404).json(NOT_FOUND);
+  // Only a session someone signed in to a client with through the edge is the edge's to end.
+  if (!session || !(await isOidcSessionBound(session.id))) {
+    return res.status(404).json(NOT_FOUND);
+  }
 
   // From the recorded row forward, so the rotations the edge's adapter made since the
   // provider sign-in are revoked with it.

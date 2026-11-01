@@ -5,11 +5,14 @@ import { getSequelize, initializeModels } from '../../src/models/index.js';
 import { OidcClient } from '../../src/models/oidcClients.js';
 import { OidcPayload } from '../../src/models/oidcPayloads.js';
 import {
+  bindOidcSession,
   claimOAuthStateUse,
   consumeOidcPayload,
   findGrantBoundSession,
   findOidcPayload,
   findOidcPayloadByUid,
+  hasOidcGrantForUser,
+  isOidcSessionBound,
   purgeExpiredOidcPayloads,
   revokeOidcPayloadsByGrant,
   upsertOidcPayload,
@@ -168,9 +171,37 @@ describe('grant binding', () => {
       expiresIn: 600,
       sessionId: session.id,
     });
+    await bindOidcSession(session.id, user.id, 'app');
 
     expect((await findGrantBoundSession(session.id, 'app'))?.id).toBe(session.id);
     expect(await findGrantBoundSession(session.id, 'other')).toBeNull();
+  });
+
+  it('ignores grants the edge stored without an API binding', async () => {
+    const { User } = await import('../../src/models/users.js');
+    const { Session } = await import('../../src/models/sessions.js');
+    const user = await User.create({ email: `${randomUUID()}@example.com` } as never);
+    const session = await Session.create({
+      userId: user.id,
+      mode: 'server',
+      expiresAt: new Date(Date.now() + 3_600_000),
+      idleExpiresAt: new Date(Date.now() + 3_600_000),
+    });
+
+    await upsertOidcPayload('Grant', randomUUID(), {
+      payload: { clientId: 'app', accountId: user.id },
+      expiresIn: 600,
+      sessionId: session.id,
+    });
+
+    expect(await findGrantBoundSession(session.id, 'app')).toBeNull();
+    expect(await hasOidcGrantForUser(user.id, 'app')).toBe(false);
+    expect(await isOidcSessionBound(session.id)).toBe(false);
+
+    await bindOidcSession(session.id, user.id, 'other');
+    expect(await findGrantBoundSession(session.id, 'app')).toBeNull();
+    expect(await hasOidcGrantForUser(user.id, 'app')).toBe(false);
+    expect(await isOidcSessionBound(session.id)).toBe(true);
   });
 
   it('binds every client a session signed in to, not just one of them', async () => {
@@ -190,6 +221,7 @@ describe('grant binding', () => {
         expiresIn: 600,
         sessionId: session.id,
       });
+      await bindOidcSession(session.id, user.id, clientId);
     }
 
     for (const clientId of ['first', 'second', 'third']) {
