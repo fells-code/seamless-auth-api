@@ -15,6 +15,7 @@ import {
   OidcEdgeConfigResponseSchema,
   OidcEdgeEventSchema,
   OidcJwksResponseSchema,
+  OidcPayloadConsumeResponseSchema,
   OidcPayloadGrantParamsSchema,
   OidcPayloadParamsSchema,
   OidcPayloadRecordSchema,
@@ -142,8 +143,11 @@ oidcRouter.post(
   '/payloads/:model/:id/consume',
   {
     ...edge,
-    summary: 'Mark a provider record consumed',
-    schemas: { params: OidcPayloadParamsSchema, response: guarded },
+    summary: 'Mark a provider record consumed, and say whether this call did',
+    schemas: {
+      params: OidcPayloadParamsSchema,
+      response: { 200: OidcPayloadConsumeResponseSchema, ...guarded },
+    },
   },
   postOidcPayloadConsume,
 );

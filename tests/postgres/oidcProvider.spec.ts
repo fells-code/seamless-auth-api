@@ -51,6 +51,17 @@ describe('oidc_payloads', () => {
     expect(await findOidcPayload('AuthorizationCode', id)).toBeNull();
   });
 
+  it('lets exactly one of many concurrent consumes win', async () => {
+    const id = randomUUID();
+    await upsertOidcPayload('RefreshToken', id, { payload: { grantId: id }, expiresIn: 600 });
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => consumeOidcPayload('RefreshToken', id)),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
   it('overwrites a record on upsert without losing its consumed state', async () => {
     const id = randomUUID();
 

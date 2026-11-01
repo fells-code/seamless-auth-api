@@ -12109,7 +12109,7 @@
     },
     "/oidc/payloads/{model}/{id}/consume": {
       "post": {
-        "summary": "Mark a provider record consumed",
+        "summary": "Mark a provider record consumed, and say whether this call did",
         "tags": ["OpenID Provider service"],
         "security": [{ "serviceToken": [] }],
         "parameters": [
@@ -12141,6 +12141,19 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "consumed": true },
+                "schema": {
+                  "type": "object",
+                  "properties": { "consumed": { "type": "boolean" } },
+                  "required": ["consumed"]
+                }
+              }
+            }
+          },
           "400": {
             "description": "HTTP 400",
             "content": {
