@@ -14,4 +14,4 @@ Adds the API side of the OpenID Provider service (ADR 0001): service-token route
 - New tables `oidc_payloads`, `oidc_clients`, `oidc_resources` and `oidc_client_resources`, and new `sessions` columns `authMethods` and `authTime`. Sign-in now records the method that proved the user (with the passkey's backup state and user verification), and a refresh carries it forward.
 - New system config keys and environment variables: `oidc_provider_enabled` (`OIDC_PROVIDER_ENABLED`), `oidc_issuer` (`OIDC_ISSUER`), `allow_client_secrets` (`OIDC_ALLOW_CLIENT_SECRETS`) and `third_party_clients_enabled` (`OIDC_THIRD_PARTY_CLIENTS_ENABLED`). New `oidc_*` auth event types.
 
-Run the migrations before deploying. Nothing changes for a deployment that leaves the provider off. Requires `@seamless-auth/types` 0.34.0-next.0.
+Run the migrations before deploying. Nothing changes for a deployment that leaves the provider off. Requires `@seamless-auth/types` 0.34.0.
