@@ -61,6 +61,9 @@ export function serializeOidcApplication(client: OidcClient): OidcApplication {
     ),
     deviceFlowEnabled: client.deviceFlowEnabled,
     noticesEnabled: client.noticesEnabled,
+    // Not stored yet: every application still needs PKCE and a nonce.
+    pkceRequired: true,
+    nonceRequired: true,
     jwks: (client.jwks as OidcApplication['jwks']) ?? null,
     jwksUri: client.jwksUri ?? null,
     hasSecret: Boolean(client.secretLookup),
