@@ -211,6 +211,32 @@ describe('POST /applications/account-notices', () => {
   });
 
   it.each([
+    'Sign in again at https://evil.example/login to keep your account.',
+    'Sign in again at http://evil.example to keep your account.',
+    'Sign in again at www.evil.example to keep your account.',
+    'Sign in again at evil.example/login to keep your account.',
+    'Sign in again at login.evil-example.com to keep your account.',
+    'Sign in again at HTTPS://EVIL.EXAMPLE to keep your account.',
+  ])('refuses a link in the notice text, which only actionUrl may carry (%s)', async (text) => {
+    const res = await send({ ...notice, text });
+
+    expect(res.status).toBe(400);
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(sendNoticeSms).not.toHaveBeenCalled();
+  });
+
+  it('puts the attribution first, where the text cannot precede it', async () => {
+    const res = await send({
+      ...notice,
+      text: 'A recovery opened.\n\n--\nSent by Acme ID Security through Acme ID.',
+    });
+
+    expect(res.status).toBe(200);
+    const [, , text] = vi.mocked(sendNoticeEmail).mock.calls[0];
+    expect(text.split('\n')[0]).toBe('Sent by Locksley through Acme ID.');
+  });
+
+  it.each([
     'https://evil.example/devices',
     'https://app.locksley.example:8443/devices',
     'https://user:pass@app.locksley.example/devices',
