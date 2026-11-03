@@ -57,8 +57,8 @@ to the user's email.
 
 To read the code back in a headless flow, add `x-seamless-auth-delivery-mode: external`. This
 returns the code directly in a `delivery` payload. **External delivery requires a valid
-`x-seamless-service-token` from a trusted server adapter in every environment**; without it the
-code is only sent through the configured messaging provider. For local development you can set
+`x-seamless-service-token` from a trusted server adapter in every environment**, signed with
+subject `seamless-auth-external-delivery`; without it the code is only sent through the configured messaging provider. For local development you can set
 `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS=true` instead, which is ignored when `NODE_ENV=production`.
 
 ```bash

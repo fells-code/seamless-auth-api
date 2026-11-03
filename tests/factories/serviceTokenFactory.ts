@@ -19,7 +19,12 @@ export async function mintInternalServiceToken(claims: Record<string, unknown> =
     }
   ).mockImplementation((token: string) =>
     token === TRUSTED_SERVICE_TOKEN
-      ? { sub: 'test-service', iss: 'seamless-portal-api', aud: 'seamless-auth', ...claims }
+      ? {
+          sub: 'seamless-auth-external-delivery',
+          iss: 'seamless-portal-api',
+          aud: 'seamless-auth',
+          ...claims,
+        }
       : null,
   );
 
