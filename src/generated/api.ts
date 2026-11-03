@@ -11473,7 +11473,10 @@ export interface paths {
       };
     };
     post?: never;
-    /** Delete a provider record */
+    /**
+     * Delete a provider record
+     * @description Deleting a `Grant` while its first-party session goes on sends back-channel logout to that grant's application alone, once no other grant signs it in on the session.
+     */
     delete: {
       parameters: {
         query?: never;

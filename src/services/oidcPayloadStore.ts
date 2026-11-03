@@ -14,7 +14,10 @@ import { Op, QueryTypes, WhereOptions } from 'sequelize';
 import { OidcPayload, OidcPayloadAttributes } from '../models/oidcPayloads.js';
 import getLogger from '../utils/logger.js';
 import { isUuid, resolveCurrentSession } from './oidcAuthContext.js';
-import { recordBackchannelLogoutTargets } from './oidcBackchannelLogout.js';
+import {
+  recordBackchannelLogoutTargets,
+  sendBackchannelLogoutForClient,
+} from './oidcBackchannelLogout.js';
 
 const logger = getLogger('oidcPayloadStore');
 
@@ -291,7 +294,17 @@ export async function consumeOidcPayload(model: OidcPayloadModel, id: string) {
 }
 
 export async function destroyOidcPayload(model: OidcPayloadModel, id: string) {
+  const grant = model === 'Grant' ? await OidcPayload.findOne({ where: { model, id } }) : null;
+
   await OidcPayload.destroy({ where: { model, id } });
+
+  // The library ends a grant on its own when the user signs out of one application, or
+  // the grant is revoked, and the first-party session lives on, so nothing else would tell
+  // that application. Not while another grant still signs it in on the same session.
+  const clientId = grant ? stringField(grant.payload, 'clientId') : null;
+  if (grant?.sessionId && clientId && !(await hasOidcGrantForSession(grant.sessionId, clientId))) {
+    await sendBackchannelLogoutForClient(grant.sessionId, clientId);
+  }
 }
 
 export async function revokeOidcPayloadsByGrant(model: OidcPayloadModel, grantId: string) {

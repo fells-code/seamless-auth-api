@@ -18,10 +18,14 @@ vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
 
 vi.mock('../../../src/services/oidcBackchannelLogout', () => ({
   recordBackchannelLogoutTargets: vi.fn(),
+  sendBackchannelLogoutForClient: vi.fn(),
 }));
 
 import { OidcPayload } from '../../../src/models/oidcPayloads';
-import { recordBackchannelLogoutTargets } from '../../../src/services/oidcBackchannelLogout';
+import {
+  recordBackchannelLogoutTargets,
+  sendBackchannelLogoutForClient,
+} from '../../../src/services/oidcBackchannelLogout';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
   DEVICE_CODE_EXPIRED_GRACE_MS,
@@ -383,6 +387,45 @@ describe('changing records', () => {
     expect(OidcPayload.destroy).toHaveBeenCalledWith({
       where: { model: 'RefreshToken', grantId: 'g1' },
     });
+  });
+
+  it('tells the application when its grant ends while its session lives on', async () => {
+    vi.mocked(OidcPayload.findOne)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' }, sessionId: SESSION } as never)
+      .mockResolvedValueOnce(null);
+
+    await destroyOidcPayload('Grant', 'g1');
+
+    expect(OidcPayload.destroy).toHaveBeenCalledWith({ where: { model: 'Grant', id: 'g1' } });
+    expect(sendBackchannelLogoutForClient).toHaveBeenCalledWith(SESSION, 'app');
+    expect(vi.mocked(OidcPayload.destroy).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(sendBackchannelLogoutForClient).mock.invocationCallOrder[0],
+    );
+  });
+
+  it('tells no one while another grant still signs the application in on the session', async () => {
+    vi.mocked(OidcPayload.findOne)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' }, sessionId: SESSION } as never)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' } } as never)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' } } as never);
+
+    await destroyOidcPayload('Grant', 'g1');
+
+    expect(sendBackchannelLogoutForClient).not.toHaveBeenCalled();
+  });
+
+  it('tells no one for a grant without a session or client, or one that is gone', async () => {
+    vi.mocked(OidcPayload.findOne)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' }, sessionId: null } as never)
+      .mockResolvedValueOnce({ payload: {}, sessionId: SESSION } as never)
+      .mockResolvedValueOnce(null);
+
+    await destroyOidcPayload('Grant', 'g1');
+    await destroyOidcPayload('Grant', 'g2');
+    await destroyOidcPayload('Grant', 'g3');
+
+    expect(OidcPayload.destroy).toHaveBeenCalledTimes(3);
+    expect(sendBackchannelLogoutForClient).not.toHaveBeenCalled();
   });
 
   it('purges expired records', async () => {
