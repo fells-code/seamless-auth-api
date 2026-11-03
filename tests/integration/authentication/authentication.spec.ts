@@ -665,6 +665,8 @@ describe('POST /refresh', () => {
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(200);
+    // A token response must never be stored by a cache between the adapter and the API.
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(signAccessToken).toHaveBeenCalledWith(
       'new-session',
       expect.any(String),

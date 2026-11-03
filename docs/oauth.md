@@ -13,7 +13,10 @@ Provider access tokens are used only during callback handling to fetch profile d
    other secret the server holds.
 4. In production, provider URLs must use `https` and resolve to public addresses, and the server does not
    follow redirects from them. For an on-premises IdP, list its host in `OAUTH_PROVIDER_PRIVATE_HOSTS`.
-   Link-local addresses are refused even when listed.
+   Link-local addresses are refused even when listed. Outside production, `http` and private or loopback
+   addresses are allowed so a local stack can reach its IdP, but link-local (`169.254.0.0/16`, which carries
+   cloud instance metadata) and unspecified (`0.0.0.0/8`) addresses are refused in every mode, whether
+   named directly or reached through DNS.
 5. Set `OAUTH_STATE_SECRET` in production. Adding a provider answers `409 secret_required` until it is
    set, and the server refuses to start with a provider configured and no value.
 

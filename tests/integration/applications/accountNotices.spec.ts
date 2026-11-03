@@ -40,6 +40,7 @@ function client(overrides: Record<string, unknown> = {}) {
   return {
     id: 'locksley',
     name: 'Locksley',
+    firstParty: true,
     grantTypes: ['authorization_code', 'client_credentials'],
     redirectUris: ['https://app.locksley.example/callback', 'http://127.0.0.1/callback'],
     noticesEnabled: true,
@@ -114,7 +115,7 @@ describe('POST /applications/account-notices', () => {
     expect(sendNoticeEmail).toHaveBeenCalledWith(
       'test@example.com',
       '[Locksley] Device recovery started',
-      'A recovery opened.\n\nhttps://app.locksley.example/devices\n\n--\nSent by Locksley through Acme ID.',
+      'Sent by Locksley through Acme ID.\n\nA recovery opened.\n\nhttps://app.locksley.example/devices',
     );
     expect(sendNoticeSms).toHaveBeenCalledWith('+14155552671', expect.stringContaining('Locksley'));
     expect(JSON.stringify(res.body)).not.toContain('test@example.com');
@@ -211,6 +212,41 @@ describe('POST /applications/account-notices', () => {
   });
 
   it.each([
+    'Sign in again at https://evil.example/login to keep your account.',
+    'Sign in again at http://evil.example to keep your account.',
+    'Sign in again at www.evil.example to keep your account.',
+    'Sign in again at evil.example/login to keep your account.',
+    'Sign in again at login.evil-example.com to keep your account.',
+    'Sign in again at HTTPS://EVIL.EXAMPLE to keep your account.',
+    'Write to help@evil.example to keep your account.',
+    'Sign in again at evil\uff0eexample to keep your account.',
+  ])('refuses a link in the notice text, which only actionUrl may carry (%s)', async (text) => {
+    const res = await send({ ...notice, text });
+
+    expect(res.status).toBe(400);
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(sendNoticeSms).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'Version 2.4.1 is ready, e.g. on your desktop.',
+    'Your order 3.5 shipped. Reply STOP to opt out.',
+  ])('sends plain text that names no address (%s)', async (text) => {
+    expect((await send({ ...notice, text })).status).toBe(200);
+  });
+
+  it('puts the attribution first, where the text cannot precede it', async () => {
+    const res = await send({
+      ...notice,
+      text: 'A recovery opened.\n\n--\nSent by Acme ID Security through Acme ID.',
+    });
+
+    expect(res.status).toBe(200);
+    const [, , text] = vi.mocked(sendNoticeEmail).mock.calls[0];
+    expect(text.split('\n')[0]).toBe('Sent by Locksley through Acme ID.');
+  });
+
+  it.each([
     'https://evil.example/devices',
     'https://app.locksley.example:8443/devices',
     'https://user:pass@app.locksley.example/devices',
@@ -256,7 +292,7 @@ describe('POST /applications/account-notices', () => {
       expect(res.status).toBe(200);
       expect(res.body.channels).toEqual([
         { channel: 'email', status: 'returned_for_external_delivery' },
-        { channel: 'sms', status: 'not_sent_external_delivery' },
+        { channel: 'sms', status: 'sent' },
       ]);
       expect(res.body.deliveries).toEqual([
         expect.objectContaining({
@@ -267,6 +303,10 @@ describe('POST /applications/account-notices', () => {
         }),
       ]);
       expect(sendNoticeEmail).not.toHaveBeenCalled();
+      expect(sendNoticeSms).toHaveBeenCalledWith(
+        '+14155552671',
+        expect.stringContaining('Locksley'),
+      );
     });
 
     it('sends directly when the caller asks for external delivery without the service token', async () => {
@@ -355,6 +395,19 @@ describe('POST /applications/account-notices', () => {
       expect(limited.body).toEqual({ error: 'notice_rate_limited' });
     });
 
+    it('counts case variants of one user id against the same allowance', async () => {
+      const userId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+      const bearer = await token();
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        await send({ ...notice, userId }, bearer);
+      }
+
+      const variant = await send({ ...notice, userId: userId.toUpperCase() }, bearer);
+      expect(variant.status).toBe(429);
+      expect(variant.body).toEqual({ error: 'notice_rate_limited' });
+    });
+
     it('limits every notice from one client', async () => {
       vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ id: 'busy' }) as never);
       const bearer = await token({ client_id: 'busy', sub: 'busy' });
@@ -429,7 +482,7 @@ describe('POST /applications/account-notices for a linked client', () => {
     expect(sendNoticeEmail).toHaveBeenCalledWith(
       'test@example.com',
       '[Locksley Desktop] Device recovery started',
-      'A recovery opened.\n\nhttps://store.locksley.example/recoveries/cancel\n\n--\nSent by Locksley Desktop through Acme ID.',
+      'Sent by Locksley Desktop through Acme ID.\n\nA recovery opened.\n\nhttps://store.locksley.example/recoveries/cancel',
     );
     expect(OidcPayload.findOne).toHaveBeenCalledWith({
       where: expect.objectContaining({
@@ -491,6 +544,14 @@ describe('POST /applications/account-notices for a linked client', () => {
     ['moved across the first-party boundary', { firstParty: false }],
     ['became confidential', { clientType: 'confidential' }],
   ])('answers 404 once the linked client %s', async (_label, change) => {
+    // Third-party clients on, so the boundary check rather than the instance gate refuses.
+    vi.mocked(getSystemConfig).mockResolvedValue(
+      buildSystemConfig({
+        oidc_issuer: ISSUER,
+        app_name: 'Acme ID',
+        third_party_clients_enabled: true,
+      }) as never,
+    );
     registry(backend, { ...desktop, ...change });
 
     const res = await send({ ...notice, clientId: 'locksley-desktop' });

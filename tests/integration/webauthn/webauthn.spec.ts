@@ -585,7 +585,7 @@ describe('challenge is spent on every login outcome', () => {
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: true,
-      authenticationInfo: { newCounter: 1 },
+      authenticationInfo: { newCounter: 1, credentialDeviceType: 'singleDevice' },
     });
 
     await request(app)
@@ -1260,7 +1260,7 @@ describe('POST /webauthn/login/finish', () => {
 
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: true,
-      authenticationInfo: { newCounter: 1 },
+      authenticationInfo: { newCounter: 1, credentialDeviceType: 'singleDevice' },
       id: 'cred-1',
     });
 
@@ -1405,7 +1405,7 @@ describe('POST /webauthn/login/finish', () => {
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: false,
-      authenticationInfo: { newCounter: 1 },
+      authenticationInfo: { newCounter: 1, credentialDeviceType: 'singleDevice' },
     });
 
     const res = buildRes();
@@ -1440,7 +1440,7 @@ describe('POST /webauthn/login/finish', () => {
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: true,
-      authenticationInfo: { newCounter: 3 },
+      authenticationInfo: { newCounter: 3, credentialDeviceType: 'singleDevice' },
     });
 
     const res = buildRes();

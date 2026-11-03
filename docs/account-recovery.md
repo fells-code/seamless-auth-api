@@ -144,9 +144,10 @@ off, and a request id from another account answers `404`.
   `x-seamless-auth-delivery-kinds` (`account_notice_email`, `account_notice_sms`): they
   arrive as `deliveries` on the `/recovery/verify` response, each with `notice:
 "account_recovery_opened"` and the `cancelUrl`, and count as notifying the owner. A
-  caller that owns delivery but lists neither kind gets the `503`, with each notice
-  recorded as `not_sent_external_delivery`, because an adapter that predates the kinds
-  would drop them. The adapter manifest marks the route `notices: true`. The delivery
+  kind the caller does not list goes out directly through the API's own transport for
+  that channel, because an adapter that predates the kinds would drop it. Only when the
+  API has no transport for it either is it recorded as `not_sent_external_delivery`, and
+  if no notice reached the owner the caller gets the `503`. The adapter manifest marks the route `notices: true`. The delivery
   header alone does not suppress notices, so a stranger cannot recover an account
   silently, and the cancel link is never written to the audit event.
 - Audit events: `account_recovery_started`, `account_recovery_verified` (with each notice's

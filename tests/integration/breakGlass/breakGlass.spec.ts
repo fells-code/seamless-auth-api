@@ -122,7 +122,7 @@ async function passkeyAssertionVerifies() {
 
   (verifyAuthenticationResponse as any).mockResolvedValue({
     verified: true,
-    authenticationInfo: { newCounter: 1 },
+    authenticationInfo: { newCounter: 1, credentialDeviceType: 'singleDevice' },
   });
 }
 

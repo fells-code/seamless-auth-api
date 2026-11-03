@@ -293,6 +293,15 @@ vi.mock('../../src/utils/otp.js', async (importOriginal) => ({
   verifyEmailOTP: vi.fn(),
 }));
 
+// Provider requests go to the network through node:http(s) with an address guard. The
+// suite answers them from a stubbed global fetch instead, the way the specs stub it, and
+// tests/unit/lib/oauthProviderPolicy.spec.ts unmocks this to exercise the real socket.
+vi.mock('../../src/lib/providerTransport.js', () => ({
+  sendProviderRequest: vi.fn((url: URL, init: RequestInit) =>
+    globalThis.fetch(url.href, { ...init, redirect: 'manual' }),
+  ),
+}));
+
 vi.mock('../../src/lib/token.js', () => ({
   signEphemeralToken: vi.fn(),
   signAccessToken: vi.fn(),
@@ -334,6 +343,7 @@ vi.mock('../../src/services/messagingService.js', () => ({
   sendOTPSMS: vi.fn(),
   sendNoticeEmail: vi.fn(),
   sendNoticeSms: vi.fn(),
+  canSendNoticeDirectly: vi.fn(() => true),
 }));
 
 vi.mock('crypto', async () => {

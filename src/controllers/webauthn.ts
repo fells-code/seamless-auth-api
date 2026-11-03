@@ -17,6 +17,7 @@ import { Request, Response } from 'express';
 import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { classifyAttestation } from '../lib/attestationType.js';
+import { passkeyDeviceBinding } from '../lib/passkeyAssurance.js';
 import { SUPPORTED_ALGORITHM_IDS } from '../lib/webauthnAlgorithms.js';
 import {
   buildPrfAuthenticationExtensions,
@@ -626,7 +627,22 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Internal server error' });
     }
 
-    if (verification.verified) {
+    const binding = verification.verified
+      ? passkeyDeviceBinding(cred, verification.authenticationInfo.credentialDeviceType)
+      : null;
+
+    if (verification.verified && !binding) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'webauthn_login_failed',
+        req,
+        metadata: { reason: 'Backup eligibility differs from registration' },
+      });
+
+      return res.status(401).json({ error: 'Authentication failed.' });
+    }
+
+    if (verification.verified && binding) {
       await cred.update({
         lastUsedAt: new Date(),
         counter: verification.authenticationInfo.newCounter,
@@ -644,7 +660,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       await issueSessionAndRespond({
         method: 'passkey',
         passkey: {
-          deviceBound: verification.authenticationInfo.credentialDeviceType === 'singleDevice',
+          deviceBound: binding.deviceBound,
           userVerified: verification.authenticationInfo.userVerified,
         },
         user: {

@@ -215,20 +215,22 @@ The API derives both from the session's `auth_methods`. The edge only passes the
 
 `amr` uses the RFC 8176 registry:
 
-| Sign-in method                          | `amr`                                              |
-| --------------------------------------- | -------------------------------------------------- |
-| Passkey, device-bound (BE flag not set) | `hwk`, plus `user` and `mfa` when UV was performed |
-| Passkey, synced or unknown              | `swk`, plus `user` and `mfa` when UV was performed |
-| Email code or magic link                | `otp`                                              |
-| SMS code                                | `sms`, `otp`                                       |
-| TOTP                                    | `otp`                                              |
-| Two distinct factors in one session     | `mfa` added                                        |
+| Sign-in method                      | `amr`                                              |
+| ----------------------------------- | -------------------------------------------------- |
+| Passkey, device-bound (see below)   | `hwk`, plus `user` and `mfa` when UV was performed |
+| Passkey, synced or unknown          | `swk`, plus `user` and `mfa` when UV was performed |
+| Email code or magic link            | `otp`                                              |
+| SMS code                            | `sms`, `otp`                                       |
+| TOTP                                | `otp`                                              |
+| Two distinct factors in one session | `mfa` added                                        |
 
 `acr` uses the OpenID Enhanced Authentication Profile ACR values:
 
 - `phrh` for a device-bound passkey with user verification.
 - `phr` for any passkey with user verification.
 - Omitted otherwise.
+
+**Amendment, 2026-11-02: device binding comes from registration (#552).** A passkey counts as device-bound only when its registration stored the BE flag as not set and its attestation was verified against the FIDO Metadata Service. The flag in each assertion is no longer trusted on its own: WebAuthn Level 3 fixes it at registration, so an assertion whose flag differs from the stored value is refused, and under `none` attestation the flag is self-reported. A deployment that does not request attestation therefore never issues `phrh` or `hwk`.
 
 `acr_values_supported` is `["phr", "phrh"]`. Seamless-specific names were rejected, because generic RPs would not recognise them. #510's `webauthn` example is read with this mapping.
 
@@ -247,7 +249,7 @@ A passkey resists phishing because it is bound to an origin. Two flows can still
 
 - A client is first-party only if an admin marks it so.
 - Third-party clients always show the consent page, with their redirect domain.
-- An instance-wide `third_party_clients_enabled` flag, off by default, gates them entirely.
+- An instance-wide `third_party_clients_enabled` flag, off by default, gates them entirely. Turning it off makes existing third-party clients inactive in the API, as a disabled client is (#555).
 
 ## D11. Compatibility and token separation
 
@@ -313,8 +315,8 @@ The notices endpoint, `POST /applications/account-notices`, stays on the private
 
 - It goes only to a user who already holds a grant with that application, or with an application it is linked to (amended 2026-11-02, below).
 - The application must have notices enabled by an admin (`oidc_clients`).
-- It is plain text only, inside a fixed template the application cannot change: "Sent by <application> through <instance>". It cannot pose as a Seamless security notice.
-- An optional action link must be on one of the application's `https` redirect origins or its `noticeActionOrigins`.
+- It is plain text only, inside a fixed template the application cannot change: "Sent by <application> through <instance>" as the first line, ahead of the text, so the text cannot imitate it (amended 2026-11-02, #554). It cannot pose as a Seamless security notice.
+- An optional action link must be on one of the application's `https` redirect origins or its `noticeActionOrigins`. It is the only link: text that contains a URL, a domain name or an email address is refused with `400`, since mail and SMS clients link those too (#554).
 - Rate limits apply per client and per user, and every notice writes an auth event.
 - Delivery uses `src/services/accountNotices.ts`, including external delivery (`account_notice_email`, `account_notice_sms`).
 - types#120 defines the request and response. The response lists channels, never addresses.

@@ -308,6 +308,7 @@ describe('POST /admin/applications', () => {
       });
 
     expect(res.status).toBe(201);
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body.clientSecret).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(res.body.application.hasSecret).toBe(true);
     const stored = vi.mocked(OidcClient.create).mock.calls[0][0].secretLookup;
@@ -735,6 +736,7 @@ describe('POST /admin/applications/:id/secret', () => {
     const res = await request(app).post('/admin/applications/app-1/secret');
 
     expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(existing.update).toHaveBeenCalledWith({
       secretLookup: createOidcClientSecretLookup(res.body.clientSecret),
     });

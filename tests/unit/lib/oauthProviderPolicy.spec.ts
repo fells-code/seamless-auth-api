@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const lookup = vi.fn();
 
 vi.mock('node:dns/promises', () => ({ lookup, default: { lookup } }));
+// The real socket and address guard, not the suite's fetch-backed stand-in.
+vi.unmock('../../../src/lib/providerTransport.js');
 
 const { createServer, get: httpGet } = await import('node:http');
 type AddressInfo = import('node:net').AddressInfo;
@@ -292,25 +294,32 @@ describe('guardedLookup', () => {
   });
 });
 
-describe('providerFetch', () => {
-  it('does not follow redirects', async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 302 }));
+describe('providerFetch outside production', () => {
+  const staging = { NODE_ENV: 'staging' };
+
+  it.each([
+    'http://169.254.169.254/latest/meta-data/',
+    'http://[::ffff:169.254.169.254]/latest/meta-data/',
+    'http://0.0.0.0:9000/token',
+  ])('never reaches a link-local or unspecified address (%s)', async (target) => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(providerFetch(target, {}, staging)).rejects.toBeInstanceOf(
+      OAuthProviderPolicyError,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('never reaches a host that resolves to the metadata address', async () => {
+    lookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
+    const fetch = vi.fn().mockResolvedValue(new Response('{}'));
     vi.stubGlobal('fetch', fetch);
 
     await expect(
-      providerFetch('https://idp.example.com/token', { method: 'POST' }, {}),
-    ).rejects.toThrow(/redirect \(302\)/);
-    expect(fetch).toHaveBeenCalledWith('https://idp.example.com/token', {
-      method: 'POST',
-      redirect: 'manual',
-    });
-  });
-
-  it('returns other responses', async () => {
-    const answer = new Response('{}', { status: 400 });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer));
-
-    await expect(providerFetch('https://idp.example.com/token', {}, {})).resolves.toBe(answer);
+      providerFetch('http://idp.staging.example/.well-known/openid-configuration', {}, staging),
+    ).rejects.toBeInstanceOf(OAuthProviderPolicyError);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -358,6 +367,17 @@ describe('guardedRequest', () => {
   });
 
   const url = (path: string) => new URL(`http://idp.corp.example:${port}${path}`);
+
+  it('lets providerFetch reach a private provider outside production', async () => {
+    const response = await providerFetch(url('/token'), { method: 'POST' }, {});
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ method: 'POST' });
+  });
+
+  it('does not let providerFetch follow a redirect', async () => {
+    await expect(providerFetch(url('/redirect'), {}, {})).rejects.toThrow(/redirect \(302\)/);
+  });
 
   it('sends the method, headers and body, and returns the answer', async () => {
     const response = await guardedRequest(

@@ -115,8 +115,8 @@ function storedGrantTypes(grants: string[], deviceFlowEnabled: boolean) {
 /**
  * ADR 0001, D6 and D10. The schema cannot see instance config, so these are checked
  * here, and only for settings the request names: an instance that later turns a flag off
- * does not lock every existing client out of being renamed. The edge enforces both flags
- * at sign-in either way.
+ * does not lock every existing client out of being renamed. Serving, secret checks and
+ * signing apply both flags to existing clients either way (`oidcClientRegistry.ts`).
  */
 async function assertInstanceAllows(settings: {
   firstParty?: boolean | undefined;

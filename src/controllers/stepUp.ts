@@ -13,6 +13,7 @@ import base64url from 'base64url';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { passkeyDeviceBinding } from '../lib/passkeyAssurance.js';
 import { buildPrfAuthenticationExtensions, containsPrfOutput } from '../lib/webauthnPrf.js';
 import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -228,6 +229,21 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'step_up_failed' });
     }
 
+    const binding = passkeyDeviceBinding(
+      credential,
+      verification.authenticationInfo.credentialDeviceType,
+    );
+
+    if (!binding) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'step_up_failed',
+        req,
+        metadata: { reason: 'Backup eligibility differs from registration' },
+      });
+      return res.status(401).json({ error: 'step_up_failed' });
+    }
+
     await credential.update({
       lastUsedAt: new Date(),
       counter: verification.authenticationInfo.newCounter,
@@ -238,7 +254,7 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
       userId: user.id,
       method: 'webauthn',
       passkey: {
-        deviceBound: verification.authenticationInfo.credentialDeviceType === 'singleDevice',
+        deviceBound: binding.deviceBound,
         userVerified: verification.authenticationInfo.userVerified,
       },
     });

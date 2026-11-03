@@ -121,7 +121,7 @@ describe('step-up controller', () => {
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: true,
-      authenticationInfo: { newCounter: 2 },
+      authenticationInfo: { newCounter: 2, credentialDeviceType: 'singleDevice' },
     });
 
     const req = buildReq({
@@ -155,7 +155,11 @@ describe('step-up controller', () => {
 
   it('records the passkey step-up in the session auth context with its device binding', async () => {
     const user = buildUser();
-    const credential = buildCredential({ id: 'cred-1', userId: user.id });
+    const credential = buildCredential({
+      id: 'cred-1',
+      userId: user.id,
+      attestationVerified: true,
+    });
     const session = buildSession({ authMethods: [] });
 
     (Credential.findOne as any).mockResolvedValue(credential);
@@ -199,7 +203,7 @@ describe('step-up controller', () => {
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: false,
-      authenticationInfo: { newCounter: 2 },
+      authenticationInfo: { newCounter: 2, credentialDeviceType: 'singleDevice' },
     });
 
     const req = buildReq({
@@ -405,7 +409,7 @@ describe('step-up controller', () => {
     const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
     (verifyAuthenticationResponse as any).mockResolvedValue({
       verified: true,
-      authenticationInfo: { newCounter: 2 },
+      authenticationInfo: { newCounter: 2, credentialDeviceType: 'singleDevice' },
     });
 
     const req = buildReq({ user, body: { assertionResponse: { id: 'cred-1' } } });

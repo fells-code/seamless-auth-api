@@ -37,10 +37,18 @@ export function createOidcClientSecretLookup(secret: string) {
     .digest('hex');
 }
 
+/**
+ * A disabled client, or a third-party one while the instance has third-party clients off
+ * (ADR 0001, D10), is inactive everywhere the edge or an application can reach it: serving,
+ * secret checks, signing, notices and back-channel logout.
+ */
 export async function findActiveOidcClient(id: string) {
   const client = await OidcClient.findByPk(id);
+  if (!client || client.disabledAt) return null;
+  if (client.firstParty) return client;
 
-  return client && !client.disabledAt ? client : null;
+  const { third_party_clients_enabled } = await getSystemConfig();
+  return third_party_clients_enabled ? client : null;
 }
 
 /** A loopback or private-use redirect (RFC 8252) makes the client a native one. */

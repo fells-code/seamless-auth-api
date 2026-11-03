@@ -122,6 +122,14 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(dynamicRateLimit);
 }
 
+// Responses carry tokens, client secrets, recovery codes and delivery payloads, so none is
+// stored by a cache between the caller and the API unless its route says otherwise (JWKS,
+// hashed dashboard assets).
+app.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 app.use(express.json());
 app.use(cors<Request>(corsOptionsDelegate));
 

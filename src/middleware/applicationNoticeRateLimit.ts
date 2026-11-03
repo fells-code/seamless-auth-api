@@ -34,9 +34,17 @@ function limiter(limit: number, key: (req: Request) => string) {
 
 export const applicationNoticeClientLimiter = limiter(NOTICES_PER_CLIENT_PER_HOUR, clientKey);
 
+// The schema accepts an upper-case UUID and Postgres matches it case-insensitively, so the
+// id is folded here or each case variant would get an allowance of its own.
+function userKey(req: Request) {
+  const userId = (req.body as { userId?: unknown })?.userId;
+
+  return typeof userId === 'string' ? userId.toLowerCase() : String(userId);
+}
+
 // Per user within one client, so one application cannot spend another's allowance for the
 // same user.
 export const applicationNoticeUserLimiter = limiter(
   NOTICES_PER_USER_PER_CLIENT_PER_HOUR,
-  (req) => `${clientKey(req)}:${String((req.body as { userId?: unknown })?.userId)}`,
+  (req) => `${clientKey(req)}:${userKey(req)}`,
 );

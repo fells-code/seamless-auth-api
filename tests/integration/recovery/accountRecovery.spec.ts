@@ -35,6 +35,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { DeliveryError } from '../../../src/services/deliveryError.js';
 import {
+  canSendNoticeDirectly,
   sendNoticeEmail,
   sendNoticeSms,
   sendOTPEmail,
@@ -276,7 +277,8 @@ describe('POST /recovery/verify', () => {
     );
   });
 
-  it('voids the request when a credentialed caller owns delivery, since no notice is sent', async () => {
+  it('voids the request when a credentialed caller owns delivery and the API cannot send', async () => {
+    vi.mocked(canSendNoticeDirectly).mockReturnValue(false);
     const token = await mintInternalServiceToken();
     const started = await request(app)
       .post('/recovery/start')
@@ -350,7 +352,39 @@ describe('POST /recovery/verify', () => {
     expect(JSON.stringify(logged.metadata)).not.toContain('/recovery/cancel#');
   });
 
-  it('still voids the request for a credentialed caller that lists no notice kind', async () => {
+  it('sends directly the notice kinds a credentialed caller does not deliver', async () => {
+    const token = await mintInternalServiceToken();
+    const started = await request(app)
+      .post('/recovery/start')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', token)
+      .send({ channel: 'email' });
+
+    const res = await request(app)
+      .post('/recovery/verify')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', token)
+      .set('x-seamless-auth-delivery-kinds', 'account_notice_email')
+      .send({ code: started.body.delivery.token });
+
+    expect(res.status).toBe(200);
+    expect(res.body.deliveries).toEqual([
+      expect.objectContaining({ kind: 'account_notice_email', to: 'owner@example.com' }),
+    ]);
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(sendNoticeSms).toHaveBeenCalledWith('+14155552671', expect.any(String));
+
+    const logged = (AuthEventService.log as any).mock.calls.find(
+      ([event]: [{ type: string }]) => event.type === 'account_recovery_verified',
+    )[0];
+    expect(logged.metadata.notices).toEqual([
+      { channel: 'email', status: 'returned_for_external_delivery' },
+      { channel: 'phone', status: 'sent' },
+    ]);
+  });
+
+  it('still voids the request for a caller that lists no notice kind when the API cannot send', async () => {
+    vi.mocked(canSendNoticeDirectly).mockReturnValue(false);
     const token = await mintInternalServiceToken();
     const started = await request(app)
       .post('/recovery/start')
