@@ -249,7 +249,7 @@ A passkey resists phishing because it is bound to an origin. Two flows can still
 
 - A client is first-party only if an admin marks it so.
 - Third-party clients always show the consent page, with their redirect domain.
-- An instance-wide `third_party_clients_enabled` flag, off by default, gates them entirely.
+- An instance-wide `third_party_clients_enabled` flag, off by default, gates them entirely. Turning it off makes existing third-party clients inactive in the API, as a disabled client is (#555).
 
 ## D11. Compatibility and token separation
 

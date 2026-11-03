@@ -143,6 +143,7 @@ describe('getOidcClientMetadata', () => {
     );
     expect((await getOidcClientMetadata('app'))?.grant_types).toEqual(['refresh_token']);
 
+    vi.mocked(getSystemConfig).mockResolvedValue({ third_party_clients_enabled: true } as never);
     vi.mocked(OidcClient.findByPk).mockResolvedValue(
       client({ grantTypes, deviceFlowEnabled: true, firstParty: false }) as never,
     );

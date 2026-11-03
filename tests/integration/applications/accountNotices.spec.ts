@@ -40,6 +40,7 @@ function client(overrides: Record<string, unknown> = {}) {
   return {
     id: 'locksley',
     name: 'Locksley',
+    firstParty: true,
     grantTypes: ['authorization_code', 'client_credentials'],
     redirectUris: ['https://app.locksley.example/callback', 'http://127.0.0.1/callback'],
     noticesEnabled: true,
@@ -539,6 +540,14 @@ describe('POST /applications/account-notices for a linked client', () => {
     ['moved across the first-party boundary', { firstParty: false }],
     ['became confidential', { clientType: 'confidential' }],
   ])('answers 404 once the linked client %s', async (_label, change) => {
+    // Third-party clients on, so the boundary check rather than the instance gate refuses.
+    vi.mocked(getSystemConfig).mockResolvedValue(
+      buildSystemConfig({
+        oidc_issuer: ISSUER,
+        app_name: 'Acme ID',
+        third_party_clients_enabled: true,
+      }) as never,
+    );
     registry(backend, { ...desktop, ...change });
 
     const res = await send({ ...notice, clientId: 'locksley-desktop' });
