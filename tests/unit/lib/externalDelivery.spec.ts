@@ -53,28 +53,22 @@ describe('external delivery gates', () => {
     ).resolves.toBe(false);
   });
 
-  // TODO(#556): requiring the `seamless-auth-external-delivery` subject waits on the
-  // seamless-cli conformance harness, which mints `seamless-verify` for delivery. This
-  // reproduces the finding and starts failing, so it must become `it`, once it is fixed.
-  it.fails(
-    'refuses a valid service token minted for something other than external delivery',
-    async () => {
-      (validateInternalServiceToken as any).mockResolvedValue({
-        sub: 'seamless-auth-express-adapter',
-        iss: 'seamless-portal-api',
-        aud: 'seamless-auth',
-      });
+  it('refuses a valid service token minted for something other than external delivery', async () => {
+    (validateInternalServiceToken as any).mockResolvedValue({
+      sub: 'seamless-auth-express-adapter',
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+    });
 
-      await expect(
-        canReturnExternalDelivery(
-          req({
-            'x-seamless-auth-delivery-mode': 'external',
-            'x-seamless-service-token': 'Bearer proxy-token',
-          }),
-        ),
-      ).resolves.toBe(false);
-    },
-  );
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'Bearer proxy-token',
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
 
   it('allows external delivery with a trusted service token outside production', async () => {
     (validateInternalServiceToken as any).mockResolvedValue({
