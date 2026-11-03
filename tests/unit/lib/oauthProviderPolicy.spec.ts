@@ -314,6 +314,35 @@ describe('providerFetch', () => {
   });
 });
 
+describe('providerFetch outside production', () => {
+  const staging = { NODE_ENV: 'staging' };
+
+  it.each([
+    'http://169.254.169.254/latest/meta-data/',
+    'http://[::ffff:169.254.169.254]/latest/meta-data/',
+    'http://0.0.0.0:9000/token',
+  ])('never reaches a link-local or unspecified address (%s)', async (target) => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(providerFetch(target, {}, staging)).rejects.toBeInstanceOf(
+      OAuthProviderPolicyError,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('never reaches a host that resolves to the metadata address', async () => {
+    lookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
+    const fetch = vi.fn().mockResolvedValue(new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(
+      providerFetch('http://idp.staging.example/.well-known/openid-configuration', {}, staging),
+    ).rejects.toBeInstanceOf(OAuthProviderPolicyError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('guardedRequest', () => {
   const allowLocal = { ...production, OAUTH_PROVIDER_PRIVATE_HOSTS: 'idp.corp.example' };
   let port = 0;
