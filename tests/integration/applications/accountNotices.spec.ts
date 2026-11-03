@@ -355,6 +355,19 @@ describe('POST /applications/account-notices', () => {
       expect(limited.body).toEqual({ error: 'notice_rate_limited' });
     });
 
+    it('counts case variants of one user id against the same allowance', async () => {
+      const userId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+      const bearer = await token();
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        await send({ ...notice, userId }, bearer);
+      }
+
+      const variant = await send({ ...notice, userId: userId.toUpperCase() }, bearer);
+      expect(variant.status).toBe(429);
+      expect(variant.body).toEqual({ error: 'notice_rate_limited' });
+    });
+
     it('limits every notice from one client', async () => {
       vi.mocked(OidcClient.findByPk).mockResolvedValue(client({ id: 'busy' }) as never);
       const bearer = await token({ client_id: 'busy', sub: 'busy' });
