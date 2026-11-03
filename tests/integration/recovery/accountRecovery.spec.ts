@@ -35,6 +35,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { DeliveryError } from '../../../src/services/deliveryError.js';
 import {
+  canSendNoticeDirectly,
   sendNoticeEmail,
   sendNoticeSms,
   sendOTPEmail,
@@ -276,7 +277,8 @@ describe('POST /recovery/verify', () => {
     );
   });
 
-  it('voids the request when a credentialed caller owns delivery, since no notice is sent', async () => {
+  it('voids the request when a credentialed caller owns delivery and the API cannot send', async () => {
+    vi.mocked(canSendNoticeDirectly).mockReturnValue(false);
     const token = await mintInternalServiceToken();
     const started = await request(app)
       .post('/recovery/start')
@@ -381,7 +383,8 @@ describe('POST /recovery/verify', () => {
     ]);
   });
 
-  it('still voids the request for a credentialed caller that lists no notice kind', async () => {
+  it('still voids the request for a caller that lists no notice kind when the API cannot send', async () => {
+    vi.mocked(canSendNoticeDirectly).mockReturnValue(false);
     const token = await mintInternalServiceToken();
     const started = await request(app)
       .post('/recovery/start')

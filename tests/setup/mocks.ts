@@ -343,6 +343,7 @@ vi.mock('../../src/services/messagingService.js', () => ({
   sendOTPSMS: vi.fn(),
   sendNoticeEmail: vi.fn(),
   sendNoticeSms: vi.fn(),
+  canSendNoticeDirectly: vi.fn(() => true),
 }));
 
 vi.mock('crypto', async () => {

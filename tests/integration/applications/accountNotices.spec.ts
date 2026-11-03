@@ -292,7 +292,7 @@ describe('POST /applications/account-notices', () => {
       expect(res.status).toBe(200);
       expect(res.body.channels).toEqual([
         { channel: 'email', status: 'returned_for_external_delivery' },
-        { channel: 'sms', status: 'not_sent_external_delivery' },
+        { channel: 'sms', status: 'sent' },
       ]);
       expect(res.body.deliveries).toEqual([
         expect.objectContaining({
@@ -303,6 +303,10 @@ describe('POST /applications/account-notices', () => {
         }),
       ]);
       expect(sendNoticeEmail).not.toHaveBeenCalled();
+      expect(sendNoticeSms).toHaveBeenCalledWith(
+        '+14155552671',
+        expect.stringContaining('Locksley'),
+      );
     });
 
     it('sends directly when the caller asks for external delivery without the service token', async () => {

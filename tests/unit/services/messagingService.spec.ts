@@ -228,4 +228,26 @@ describe('messagingService', () => {
     await expect(sendNoticeSms('+14155552671', 'B')).rejects.toBeInstanceOf(DeliveryError);
     await expect(sendNoticeSms('not-a-phone', 'B')).rejects.toBeInstanceOf(DeliveryError);
   });
+
+  it('can always send a notice outside production, where sends are skipped', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const { canSendNoticeDirectly } = await import('../../../src/services/messagingService');
+
+    expect(canSendNoticeDirectly('email')).toBe(true);
+    expect(canSendNoticeDirectly('phone')).toBe(true);
+    expect(createDirectSmsTransportMock).not.toHaveBeenCalled();
+  });
+
+  it('can send a notice in production only on a channel with a configured transport', async () => {
+    process.env.NODE_ENV = 'production';
+    createDirectSmsTransportMock.mockImplementationOnce(() => {
+      throw new Error('MESSAGING_TWILIO_ACCOUNT_SID is required');
+    });
+
+    const { canSendNoticeDirectly } = await import('../../../src/services/messagingService');
+
+    expect(canSendNoticeDirectly('email')).toBe(true);
+    expect(canSendNoticeDirectly('phone')).toBe(false);
+  });
 });

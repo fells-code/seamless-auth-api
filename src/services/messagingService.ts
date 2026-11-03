@@ -141,6 +141,29 @@ export const sendEnrollmentInviteEmail = async (to: string, signInUrl: string) =
 let noticeEmailTransport: EmailTransport | null = null;
 let noticeSmsTransport: SmsTransport | null = null;
 
+/**
+ * Whether the API can send an account notice on a channel itself. Outside production a
+ * send is skipped and reported as sent, so this answers true there too; otherwise the
+ * channel's transport has to be configured.
+ */
+export function canSendNoticeDirectly(channel: 'email' | 'phone') {
+  if (shouldBypassDirectMessaging()) {
+    return true;
+  }
+
+  try {
+    if (channel === 'email') {
+      noticeEmailTransport ??= createDirectEmailTransport();
+    } else {
+      noticeSmsTransport ??= createDirectSmsTransport();
+    }
+    return true;
+  } catch (error) {
+    logger.debug(`No direct transport for account notices on ${channel}: ${error}`);
+    return false;
+  }
+}
+
 export const sendNoticeEmail = async (to: string, subject: string, text: string) => {
   logger.debug('Sending account notice email');
 

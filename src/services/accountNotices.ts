@@ -13,7 +13,7 @@ import type {
 import getLogger from '../utils/logger.js';
 import { DeliveryError } from './deliveryError.js';
 import type { IdentityNoticeStatus } from './identityChangeService.js';
-import { sendNoticeEmail, sendNoticeSms } from './messagingService.js';
+import { canSendNoticeDirectly, sendNoticeEmail, sendNoticeSms } from './messagingService.js';
 
 const logger = getLogger('accountNotices');
 
@@ -85,9 +85,10 @@ export function verifiedAddresses(user: NoticeRecipient) {
  * account. A notice that fails to send does not fail the request it reports on; the
  * outcome belongs in that request's audit event.
  *
- * `external` is for a credentialed caller that owns delivery, so the API does not send
- * for it. A route that can return notices passes the kinds that caller accepts as
- * `returnable`; a notice of any other kind is not sent at all.
+ * `external` is for a credentialed caller that owns delivery. A route that can return
+ * notices passes the kinds that caller accepts as `returnable`, and those are handed back
+ * rather than sent. A notice of any other kind is sent directly when the API has a
+ * transport for its channel, since the caller would drop it, and is otherwise not sent.
  */
 export async function sendAccountNotice(
   user: NoticeRecipient,
@@ -111,10 +112,13 @@ export async function sendAccountNotice(
       if (returnable?.has(delivery.kind)) {
         deliveries.push(delivery);
         results.push({ channel, status: 'returned_for_external_delivery' });
-      } else {
-        results.push({ channel, status: 'not_sent_external_delivery' });
+        continue;
       }
-      continue;
+
+      if (!canSendNoticeDirectly(channel)) {
+        results.push({ channel, status: 'not_sent_external_delivery' });
+        continue;
+      }
     }
 
     try {

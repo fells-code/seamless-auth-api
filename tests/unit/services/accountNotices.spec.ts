@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   ownerWasNotified,
@@ -6,7 +6,11 @@ import {
   verifiedAddresses,
 } from '../../../src/services/accountNotices.js';
 import { DeliveryError } from '../../../src/services/deliveryError.js';
-import { sendNoticeEmail, sendNoticeSms } from '../../../src/services/messagingService.js';
+import {
+  canSendNoticeDirectly,
+  sendNoticeEmail,
+  sendNoticeSms,
+} from '../../../src/services/messagingService.js';
 
 const notice = {
   name: 'account_recovery_opened' as const,
@@ -60,7 +64,23 @@ describe('sendAccountNotice', () => {
     await expect(sendAccountNotice(owner, notice, { external: false })).rejects.toThrow('bug');
   });
 
-  it('sends nothing to a caller that owns delivery, and says so', async () => {
+  it('sends directly what a caller that owns delivery does not take', async () => {
+    const outcome = await sendAccountNotice(owner, notice, { external: true });
+
+    expect(sendNoticeEmail).toHaveBeenCalledWith('owner@example.com', 'Subject', 'Body');
+    expect(sendNoticeSms).toHaveBeenCalledWith('+14155552671', 'Body');
+    expect(outcome).toEqual({
+      results: [
+        { channel: 'email', status: 'sent' },
+        { channel: 'phone', status: 'sent' },
+      ],
+      deliveries: [],
+    });
+  });
+
+  it('sends nothing for a caller that owns delivery when the API has no transport, and says so', async () => {
+    vi.mocked(canSendNoticeDirectly).mockReturnValue(false);
+
     const outcome = await sendAccountNotice(owner, notice, { external: true });
 
     expect(sendNoticeEmail).not.toHaveBeenCalled();
@@ -74,16 +94,17 @@ describe('sendAccountNotice', () => {
     expect(ownerWasNotified(outcome)).toBe(false);
   });
 
-  it('hands a notice back only in the kinds the caller accepts', async () => {
+  it('hands a notice back only in the kinds the caller accepts, and sends the rest', async () => {
     const outcome = await sendAccountNotice(owner, notice, {
       external: true,
       returnable: new Set(['account_notice_email']),
     });
 
     expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(sendNoticeSms).toHaveBeenCalledWith('+14155552671', 'Body');
     expect(outcome.results).toEqual([
       { channel: 'email', status: 'returned_for_external_delivery' },
-      { channel: 'phone', status: 'not_sent_external_delivery' },
+      { channel: 'phone', status: 'sent' },
     ]);
     expect(outcome.deliveries).toEqual([
       {
