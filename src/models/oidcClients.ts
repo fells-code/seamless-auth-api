@@ -30,6 +30,8 @@ export interface OidcClientAttributes {
   refreshTokenTtlSeconds?: number | null;
   deviceFlowEnabled: boolean;
   noticesEnabled: boolean;
+  /** https origins an account notice's action link may point at, besides https redirects. */
+  noticeActionOrigins: string[];
   pkceRequired: boolean;
   nonceRequired: boolean;
   disabledAt?: Date | null;
@@ -52,6 +54,7 @@ type OidcClientCreationAttributes = Optional<
   | 'refreshTokenTtlSeconds'
   | 'deviceFlowEnabled'
   | 'noticesEnabled'
+  | 'noticeActionOrigins'
   | 'pkceRequired'
   | 'nonceRequired'
   | 'disabledAt'
@@ -78,6 +81,7 @@ export class OidcClient
   declare refreshTokenTtlSeconds: number | null;
   declare deviceFlowEnabled: boolean;
   declare noticesEnabled: boolean;
+  declare noticeActionOrigins: string[];
   declare pkceRequired: boolean;
   declare nonceRequired: boolean;
   declare disabledAt: Date | null;
@@ -109,6 +113,7 @@ const initializeOidcClientModel = (sequelize: Sequelize) => {
       refreshTokenTtlSeconds: { type: DataTypes.INTEGER, allowNull: true },
       deviceFlowEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       noticesEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      noticeActionOrigins: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
       pkceRequired: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       nonceRequired: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       disabledAt: { type: DataTypes.DATE, allowNull: true },

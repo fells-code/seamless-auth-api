@@ -1,4 +1,5 @@
 import { Application } from 'express';
+import { Op } from 'sequelize';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +22,7 @@ vi.mock('../../../src/models/oidcPayloads.js', () => ({
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
+import { OidcClientLink } from '../../../src/models/oidcClientLinks.js';
 import { OidcClientResource } from '../../../src/models/oidcClientResources.js';
 import { OidcClient } from '../../../src/models/oidcClients.js';
 import { OidcPayload } from '../../../src/models/oidcPayloads.js';
@@ -58,6 +60,7 @@ function row(overrides: Record<string, unknown> = {}): Row {
     refreshTokenTtlSeconds: null,
     deviceFlowEnabled: false,
     noticesEnabled: false,
+    noticeActionOrigins: [],
     pkceRequired: true,
     nonceRequired: true,
     disabledAt: null,
@@ -379,6 +382,110 @@ describe('POST /admin/applications', () => {
   });
 });
 
+describe('noticeActionOrigins', () => {
+  it('is set on create, returned, and audited', async () => {
+    const res = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Registry',
+        clientType: 'confidential',
+        firstParty: true,
+        grantTypes: ['client_credentials'],
+        noticeActionOrigins: ['https://store.example.com'],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.application).toMatchObject({
+      noticeActionOrigins: ['https://store.example.com'],
+      links: [],
+      linkedFrom: [],
+    });
+    expect(OidcClient.create).toHaveBeenCalledWith(
+      expect.objectContaining({ noticeActionOrigins: ['https://store.example.com'] }),
+    );
+    expect(vi.mocked(AuthEventService.log).mock.calls[0][0].metadata).toMatchObject({
+      noticeActionOrigins: ['https://store.example.com'],
+    });
+  });
+
+  it('defaults to none on create', async () => {
+    await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Desktop',
+        clientType: 'public',
+        firstParty: true,
+        redirectUris: ['http://127.0.0.1/cb'],
+      });
+
+    expect(OidcClient.create).toHaveBeenCalledWith(
+      expect.objectContaining({ noticeActionOrigins: [] }),
+    );
+  });
+
+  it('is changed by a patch, and audited', async () => {
+    const existing = row();
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(existing as never);
+
+    const res = await request(app)
+      .patch('/admin/applications/app-1')
+      .send({ noticeActionOrigins: ['https://store.example.com'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.application.noticeActionOrigins).toEqual(['https://store.example.com']);
+    expect(existing.update).toHaveBeenCalledWith(
+      expect.objectContaining({ noticeActionOrigins: ['https://store.example.com'] }),
+    );
+    expect(vi.mocked(AuthEventService.log).mock.calls[0][0]).toMatchObject({
+      type: 'admin_oidc_application_updated',
+      metadata: { changed: ['noticeActionOrigins'] },
+    });
+  });
+
+  it('is left alone by a patch that does not name it', async () => {
+    const existing = row({ noticeActionOrigins: ['https://store.example.com'] });
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(existing as never);
+
+    await request(app).patch('/admin/applications/app-1').send({ name: 'Renamed' });
+
+    expect(existing.update.mock.calls[0][0]).not.toHaveProperty('noticeActionOrigins');
+    expect(existing.noticeActionOrigins).toEqual(['https://store.example.com']);
+  });
+
+  it.each([
+    [['http://store.example.com']],
+    [['https://127.0.0.1']],
+    [['https://[::1]']],
+    [['https://localhost']],
+    [['https://app.localhost']],
+    [['https://store.example.com/']],
+    [['https://store.example.com/recover']],
+    [['https://user:pass@store.example.com']],
+    [['not a url']],
+    [['https://store.example.com', 'https://store.example.com']],
+  ])('refuses %j', async (noticeActionOrigins) => {
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(row() as never);
+
+    const created = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'Registry',
+        clientType: 'confidential',
+        firstParty: true,
+        grantTypes: ['client_credentials'],
+        noticeActionOrigins,
+      });
+    const patched = await request(app)
+      .patch('/admin/applications/app-1')
+      .send({ noticeActionOrigins });
+
+    expect(created.status).toBe(400);
+    expect(created.body.details.issues[0].path[0]).toBe('noticeActionOrigins');
+    expect(patched.status).toBe(400);
+    expect(OidcClient.create).not.toHaveBeenCalled();
+  });
+});
+
 describe('PATCH /admin/applications/:id', () => {
   it('changes one field and audits what changed', async () => {
     const existing = row();
@@ -654,7 +761,7 @@ describe('POST /admin/applications/:id/secret', () => {
 });
 
 describe('DELETE /admin/applications/:id', () => {
-  it('deletes the application, its resource grants and its provider records', async () => {
+  it('deletes the application, its resource grants, its links and its provider records', async () => {
     const existing = row();
     vi.mocked(OidcClient.findByPk).mockResolvedValue(existing as never);
 
@@ -667,6 +774,10 @@ describe('DELETE /admin/applications/:id', () => {
     });
     expect(OidcClientResource.destroy).toHaveBeenCalledWith({
       where: { clientId: 'app-1' },
+      transaction: { tx: true },
+    });
+    expect(OidcClientLink.destroy).toHaveBeenCalledWith({
+      where: { [Op.or]: [{ clientId: 'app-1' }, { linkedClientId: 'app-1' }] },
       transaction: { tx: true },
     });
     expect(existing.destroy).toHaveBeenCalledWith({ transaction: { tx: true } });

@@ -311,13 +311,15 @@ The notices endpoint, `POST /applications/account-notices`, stays on the private
 
 **Phishing limits.** A notice is sent under the instance's trusted sender, so it is tightly constrained:
 
-- It goes only to a user who already holds a grant with that application.
+- It goes only to a user who already holds a grant with that application, or with an application it is linked to (amended 2026-11-02, below).
 - The application must have notices enabled by an admin (`oidc_clients`).
 - It is plain text only, inside a fixed template the application cannot change: "Sent by <application> through <instance>". It cannot pose as a Seamless security notice.
-- An optional action link must be on one of the application's registered redirect origins.
+- An optional action link must be on one of the application's `https` redirect origins or its `noticeActionOrigins`.
 - Rate limits apply per client and per user, and every notice writes an auth event.
 - Delivery uses `src/services/accountNotices.ts`, including external delivery (`account_notice_email`, `account_notice_sms`).
 - types#120 defines the request and response. The response lists channels, never addresses.
+
+**Amendment, 2026-11-02: notices through a link (#547).** A user often signs in to a public client (a desktop app with a loopback redirect, or a SPA) whose server side is a separate confidential client. That backend holds no grants and the public client cannot authenticate, so neither could send the user a notice. An admin can now link a confidential client to the public clients it acts for, in `oidc_client_links` through `/admin/applications/:id/links`, with step-up and audit. Links stay within first-party or within third-party clients and do not chain ([ADR 0002](0002-native-and-desktop-apps.md), N4). The request gains an optional `clientId`: the calling client must hold a link to it, the grant check uses it, and the template names it, since that is the application the user knows. A missing link, or one whose clients are disabled or no longer meet the rules, answers the same `404 notice_unknown_user` as a missing grant. Everything else above still applies to the calling client: it needs `client_credentials`, `notices:send` and notices enabled, the action link is checked against its origins, and rate limits count against it. Clients also gain `noticeActionOrigins` (bare `https` origins, never loopback), so a client without `https` redirects can carry an action link. The auth event records the calling client as `clientId` and the client the notice was sent for as `sentForClientId` (ADR 0002, N5).
 
 **Relation to #418.** The two are opposite directions on the same application record:
 

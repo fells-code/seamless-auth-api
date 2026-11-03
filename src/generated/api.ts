@@ -4970,6 +4970,8 @@ export interface paths {
                 | 'admin_oidc_application_created'
                 | 'admin_oidc_application_deleted'
                 | 'admin_oidc_application_keys_updated'
+                | 'admin_oidc_application_link_added'
+                | 'admin_oidc_application_link_removed'
                 | 'admin_oidc_application_nonce_updated'
                 | 'admin_oidc_application_pkce_updated'
                 | 'admin_oidc_application_resources_updated'
@@ -5087,6 +5089,8 @@ export interface paths {
                     | 'admin_oidc_application_created'
                     | 'admin_oidc_application_deleted'
                     | 'admin_oidc_application_keys_updated'
+                    | 'admin_oidc_application_link_added'
+                    | 'admin_oidc_application_link_removed'
                     | 'admin_oidc_application_nonce_updated'
                     | 'admin_oidc_application_pkce_updated'
                     | 'admin_oidc_application_resources_updated'
@@ -7290,6 +7294,7 @@ export interface paths {
             text: string;
             /** Format: uri */
             actionUrl?: string;
+            clientId?: string;
           };
         };
       };
@@ -14020,6 +14025,9 @@ export interface paths {
                 disabled: boolean;
                 createdAt: string;
                 updatedAt: string;
+                noticeActionOrigins: string[];
+                links: string[];
+                linkedFrom: string[];
               }[];
             };
           };
@@ -14065,7 +14073,7 @@ export interface paths {
     put?: never;
     /**
      * Create an OpenID Provider application
-     * @description Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant.
+     * @description Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins.
      */
     post: {
       parameters: {
@@ -14122,6 +14130,8 @@ export interface paths {
             };
             /** Format: uri */
             jwksUri?: string;
+            /** @default [] */
+            noticeActionOrigins?: string[];
           };
         };
       };
@@ -14167,7 +14177,16 @@ export interface paths {
              *         "refreshTokenTtlSeconds": 0,
              *         "disabled": true,
              *         "createdAt": "string",
-             *         "updatedAt": "string"
+             *         "updatedAt": "string",
+             *         "noticeActionOrigins": [
+             *           null
+             *         ],
+             *         "links": [
+             *           null
+             *         ],
+             *         "linkedFrom": [
+             *           null
+             *         ]
              *       },
              *       "clientSecret": "string"
              *     }
@@ -14211,6 +14230,9 @@ export interface paths {
                 disabled: boolean;
                 createdAt: string;
                 updatedAt: string;
+                noticeActionOrigins: string[];
+                links: string[];
+                linkedFrom: string[];
               };
               clientSecret?: string;
             };
@@ -14379,7 +14401,16 @@ export interface paths {
              *         "refreshTokenTtlSeconds": 0,
              *         "disabled": true,
              *         "createdAt": "string",
-             *         "updatedAt": "string"
+             *         "updatedAt": "string",
+             *         "noticeActionOrigins": [
+             *           null
+             *         ],
+             *         "links": [
+             *           null
+             *         ],
+             *         "linkedFrom": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -14422,6 +14453,9 @@ export interface paths {
                 disabled: boolean;
                 createdAt: string;
                 updatedAt: string;
+                noticeActionOrigins: string[];
+                links: string[];
+                linkedFrom: string[];
               };
             };
           };
@@ -14516,7 +14550,7 @@ export interface paths {
     post?: never;
     /**
      * Delete an OpenID Provider application
-     * @description Also deletes its resource grants and every provider grant, code and token issued to it.
+     * @description Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it.
      */
     delete: {
       parameters: {
@@ -14766,6 +14800,7 @@ export interface paths {
             idTokenTtlSeconds?: number | null;
             refreshTokenTtlSeconds?: number | null;
             disabled?: boolean;
+            noticeActionOrigins?: string[];
           };
         };
       };
@@ -14811,7 +14846,16 @@ export interface paths {
              *         "refreshTokenTtlSeconds": 0,
              *         "disabled": true,
              *         "createdAt": "string",
-             *         "updatedAt": "string"
+             *         "updatedAt": "string",
+             *         "noticeActionOrigins": [
+             *           null
+             *         ],
+             *         "links": [
+             *           null
+             *         ],
+             *         "linkedFrom": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -14854,6 +14898,9 @@ export interface paths {
                 disabled: boolean;
                 createdAt: string;
                 updatedAt: string;
+                noticeActionOrigins: string[];
+                links: string[];
+                linkedFrom: string[];
               };
             };
           };
@@ -15040,7 +15087,16 @@ export interface paths {
              *         "refreshTokenTtlSeconds": 0,
              *         "disabled": true,
              *         "createdAt": "string",
-             *         "updatedAt": "string"
+             *         "updatedAt": "string",
+             *         "noticeActionOrigins": [
+             *           null
+             *         ],
+             *         "links": [
+             *           null
+             *         ],
+             *         "linkedFrom": [
+             *           null
+             *         ]
              *       },
              *       "clientSecret": "string"
              *     }
@@ -15084,6 +15140,9 @@ export interface paths {
                 disabled: boolean;
                 createdAt: string;
                 updatedAt: string;
+                noticeActionOrigins: string[];
+                links: string[];
+                linkedFrom: string[];
               };
               clientSecret: string;
             };
@@ -15295,7 +15354,16 @@ export interface paths {
              *         "refreshTokenTtlSeconds": 0,
              *         "disabled": true,
              *         "createdAt": "string",
-             *         "updatedAt": "string"
+             *         "updatedAt": "string",
+             *         "noticeActionOrigins": [
+             *           null
+             *         ],
+             *         "links": [
+             *           null
+             *         ],
+             *         "linkedFrom": [
+             *           null
+             *         ]
              *       }
              *     }
              */
@@ -15338,6 +15406,9 @@ export interface paths {
                 disabled: boolean;
                 createdAt: string;
                 updatedAt: string;
+                noticeActionOrigins: string[];
+                links: string[];
+                linkedFrom: string[];
               };
             };
           };
@@ -15759,6 +15830,539 @@ export interface paths {
     };
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/applications/{id}/links': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the links of an application
+     * @description `links` are the public applications this one acts for, and `linkedFrom` the confidential applications that act for this one.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "links": [
+             *         null
+             *       ],
+             *       "linkedFrom": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              links: {
+                clientId: string;
+                linkedClientId: string;
+                createdBy: string | null;
+                createdAt: string;
+              }[];
+              linkedFrom: {
+                clientId: string;
+                linkedClientId: string;
+                createdBy: string | null;
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/applications/{id}/links/{linkedId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Let a confidential application act for a public one
+     * @description A linked backend can send account notices to users of the application it acts for, named as that application. The acting application must be confidential, the linked one a different public application, and both first-party or both third-party. Links do not chain. Idempotent.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          linkedId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "link": {
+             *         "clientId": "string",
+             *         "linkedClientId": "string",
+             *         "createdBy": "string",
+             *         "createdAt": "string"
+             *       }
+             *     }
+             */
+            'application/json': {
+              link: {
+                clientId: string;
+                linkedClientId: string;
+                createdBy: string | null;
+                createdAt: string;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    /** Remove a link between applications */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          linkedId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
     options?: never;
     head?: never;
     patch?: never;

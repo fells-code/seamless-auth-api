@@ -14,6 +14,7 @@ vi.mock('../../../src/models/oidcPayloads.js', () => ({
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
+import { OidcClientLink } from '../../../src/models/oidcClientLinks.js';
 import { OidcClient } from '../../../src/models/oidcClients.js';
 import { OidcPayload } from '../../../src/models/oidcPayloads.js';
 import { User } from '../../../src/models/users.js';
@@ -42,6 +43,7 @@ function client(overrides: Record<string, unknown> = {}) {
     grantTypes: ['authorization_code', 'client_credentials'],
     redirectUris: ['https://app.locksley.example/callback', 'http://127.0.0.1/callback'],
     noticesEnabled: true,
+    noticeActionOrigins: [],
     disabledAt: null,
     ...overrides,
   };
@@ -364,5 +366,159 @@ describe('POST /applications/account-notices', () => {
 
       expect(last).toBe(429);
     });
+  });
+});
+
+describe('POST /applications/account-notices for a linked client', () => {
+  const backend = client({
+    clientType: 'confidential',
+    firstParty: true,
+    redirectUris: [],
+    noticeActionOrigins: ['https://store.locksley.example'],
+  });
+  const desktop = client({
+    id: 'locksley-desktop',
+    name: 'Locksley Desktop',
+    clientType: 'public',
+    firstParty: true,
+    grantTypes: ['authorization_code', 'refresh_token'],
+    redirectUris: ['http://127.0.0.1/callback'],
+    noticesEnabled: false,
+  });
+
+  function registry(...clients: Record<string, unknown>[]) {
+    const byId = new Map(clients.map((c) => [c.id, c]));
+    vi.mocked(OidcClient.findByPk).mockImplementation(
+      async (id: unknown) => (byId.get(id as string) ?? null) as never,
+    );
+  }
+
+  /** The user signed in to the desktop app only. */
+  function grantsFor(clientId: string) {
+    vi.mocked(OidcPayload.findOne).mockImplementation(async (options) => {
+      const where = (options as { where: { payload: { clientId: string } } }).where;
+      return (
+        where.payload.clientId === clientId ? { payload: { accountId: USER, clientId } } : null
+      ) as never;
+    });
+  }
+
+  beforeEach(() => {
+    registry(backend, desktop);
+    grantsFor('locksley-desktop');
+    vi.mocked(OidcClientLink.findOne).mockImplementation(async (options) => {
+      const where = (options as { where: Record<string, string> }).where;
+      return (
+        where.clientId === 'locksley' && where.linkedClientId === 'locksley-desktop'
+          ? { clientId: 'locksley', linkedClientId: 'locksley-desktop' }
+          : null
+      ) as never;
+    });
+  });
+
+  it('sends to a user of the linked client, named as that client', async () => {
+    const res = await send({
+      ...notice,
+      clientId: 'locksley-desktop',
+      channels: ['email'],
+      actionUrl: 'https://store.locksley.example/recoveries/cancel',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ channels: [{ channel: 'email', status: 'sent' }] });
+    expect(sendNoticeEmail).toHaveBeenCalledWith(
+      'test@example.com',
+      '[Locksley Desktop] Device recovery started',
+      'A recovery opened.\n\nhttps://store.locksley.example/recoveries/cancel\n\n--\nSent by Locksley Desktop through Acme ID.',
+    );
+    expect(OidcPayload.findOne).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        model: 'Grant',
+        payload: { accountId: USER, clientId: 'locksley-desktop' },
+      }),
+    });
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oidc_account_notice_sent',
+        userId: USER,
+        metadata: expect.objectContaining({
+          clientId: 'locksley',
+          sentForClientId: 'locksley-desktop',
+        }),
+      }),
+    );
+  });
+
+  it('does not reach the same user without naming the linked client', async () => {
+    const res = await send();
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'notice_unknown_user' });
+  });
+
+  it('treats its own client id as no client id', async () => {
+    grantsFor('locksley');
+
+    const res = await send({ ...notice, clientId: 'locksley' });
+
+    expect(res.status).toBe(200);
+    expect(OidcClientLink.findOne).not.toHaveBeenCalled();
+    expect(vi.mocked(sendNoticeEmail).mock.calls[0][1]).toBe('[Locksley] Device recovery started');
+  });
+
+  it.each([
+    ['a client it is not linked to', () => registry(backend, desktop, { ...desktop, id: 'other' })],
+    ['a client that does not exist', () => undefined],
+  ])('answers the same 404 as an unknown user for %s', async (_label, arrange) => {
+    arrange();
+    grantsFor('other');
+
+    const res = await send({ ...notice, clientId: 'other' });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'notice_unknown_user' });
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oidc_account_notice_failed',
+        metadata: { clientId: 'locksley', sentForClientId: 'other', reason: 'notice_unknown_user' },
+      }),
+    );
+  });
+
+  it.each([
+    ['is disabled', { disabledAt: new Date() }],
+    ['moved across the first-party boundary', { firstParty: false }],
+    ['became confidential', { clientType: 'confidential' }],
+  ])('answers 404 once the linked client %s', async (_label, change) => {
+    registry(backend, { ...desktop, ...change });
+
+    const res = await send({ ...notice, clientId: 'locksley-desktop' });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'notice_unknown_user' });
+    expect(sendNoticeEmail).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a user who did not sign in to the linked client', async () => {
+    grantsFor('somewhere-else');
+
+    const res = await send({ ...notice, clientId: 'locksley-desktop' });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'notice_unknown_user' });
+  });
+
+  it("checks the action link against the caller's origins, not the linked client's", async () => {
+    registry(backend, { ...desktop, redirectUris: ['https://desktop.example/callback'] });
+
+    const res = await send({
+      ...notice,
+      clientId: 'locksley-desktop',
+      actionUrl: 'https://desktop.example/cancel',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'notice_action_url_not_allowed' });
   });
 });

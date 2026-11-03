@@ -6,20 +6,25 @@
 
 import {
   type OidcApplication,
-  type OidcApplicationCreateRequest,
   OidcApplicationCreateRequestSchema,
   type OidcApplicationGrantType,
   OidcApplicationGrantTypeSchema,
   type OidcApplicationKeysRequest,
-  type OidcApplicationUpdateRequest,
 } from '@seamless-auth/types';
 import { randomBytes } from 'crypto';
+import { Op } from 'sequelize';
 import type { ZodError } from 'zod';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { OidcClientLink } from '../models/oidcClientLinks.js';
 import { OidcClientResource } from '../models/oidcClientResources.js';
 import { OidcClient, type OidcClientAuthMethod } from '../models/oidcClients.js';
 import { OidcPayload } from '../models/oidcPayloads.js';
+import type {
+  OidcApplicationCreateRequest,
+  OidcApplicationUpdateRequest,
+} from '../schemas/oidcApplications.requests.js';
+import type { OidcApplicationView } from '../schemas/oidcApplications.responses.js';
 import { createOidcClientSecretLookup, isNativeRedirectUri } from './oidcClientRegistry.js';
 
 export const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
@@ -74,6 +79,33 @@ export function serializeOidcApplication(client: OidcClient): OidcApplication {
     createdAt: new Date(client.createdAt).toISOString(),
     updatedAt: new Date(client.updatedAt).toISOString(),
   };
+}
+
+/** The application as the admin routes return it, with its links in both directions. */
+export async function presentOidcApplications(
+  clients: OidcClient[],
+): Promise<OidcApplicationView[]> {
+  const ids = clients.map((client) => client.id);
+  const links = ids.length
+    ? await OidcClientLink.findAll({
+        where: { [Op.or]: [{ clientId: ids }, { linkedClientId: ids }] },
+        order: [['createdAt', 'ASC']],
+      })
+    : [];
+
+  return clients.map((client) => ({
+    ...serializeOidcApplication(client),
+    noticeActionOrigins: client.noticeActionOrigins,
+    links: links.filter((link) => link.clientId === client.id).map((link) => link.linkedClientId),
+    linkedFrom: links
+      .filter((link) => link.linkedClientId === client.id)
+      .map((link) => link.clientId),
+  }));
+}
+
+export async function presentOidcApplication(client: OidcClient) {
+  const [application] = await presentOidcApplications([client]);
+  return application;
 }
 
 function storedGrantTypes(grants: string[], deviceFlowEnabled: boolean) {
@@ -153,6 +185,7 @@ export async function createOidcApplication(input: OidcApplicationCreateRequest)
     refreshTokenTtlSeconds: input.refreshTokenTtlSeconds ?? null,
     deviceFlowEnabled: input.deviceFlowEnabled,
     noticesEnabled: input.noticesEnabled,
+    noticeActionOrigins: input.noticeActionOrigins,
     pkceRequired: input.pkceRequired,
     nonceRequired: input.nonceRequired,
   });
@@ -167,7 +200,7 @@ export async function createOidcApplication(input: OidcApplicationCreateRequest)
  */
 export async function updateOidcApplication(id: string, patch: OidcApplicationUpdateRequest) {
   const client = await findOidcApplication(id);
-  const { disabled, ...settings } = patch;
+  const { disabled, noticeActionOrigins, ...settings } = patch;
 
   await assertInstanceAllows(settings);
 
@@ -216,6 +249,7 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
     accessTokenTtlSeconds: next.accessTokenTtlSeconds ?? null,
     idTokenTtlSeconds: next.idTokenTtlSeconds ?? null,
     refreshTokenTtlSeconds: next.refreshTokenTtlSeconds ?? null,
+    ...(noticeActionOrigins ? { noticeActionOrigins } : {}),
     ...(keepsKeys ? {} : { jwks: null, jwksUri: null }),
     ...(SHARED_SECRET_METHODS.has(method) ? {} : { secretLookup: null }),
     ...(disabled === undefined
@@ -260,8 +294,9 @@ export async function rotateOidcApplicationSecret(id: string) {
 }
 
 /**
- * Deletes the application with its resource grants and every provider record issued to
- * it (grants, codes and tokens), so nothing it was given outlives it.
+ * Deletes the application with its resource grants, its links in both directions and
+ * every provider record issued to it (grants, codes and tokens), so nothing it was given
+ * outlives it.
  */
 export async function deleteOidcApplication(id: string) {
   const client = await findOidcApplication(id);
@@ -269,6 +304,10 @@ export async function deleteOidcApplication(id: string) {
   await OidcClient.sequelize!.transaction(async (transaction) => {
     await OidcPayload.destroy({ where: { payload: { clientId: id } }, transaction });
     await OidcClientResource.destroy({ where: { clientId: id }, transaction });
+    await OidcClientLink.destroy({
+      where: { [Op.or]: [{ clientId: id }, { linkedClientId: id }] },
+      transaction,
+    });
     await client.destroy({ transaction });
   });
 }

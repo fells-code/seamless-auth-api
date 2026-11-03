@@ -259,20 +259,20 @@ Seamless does not add per-app features for any of these. If two adopters need th
 
 ## Issue map
 
-| Issue                          | State  | Where      | Must deliver                                                                                        | Governed by |
-| ------------------------------ | ------ | ---------- | --------------------------------------------------------------------------------------------------- | ----------- |
-| #508                           | closed | API, edge  | Shipped: native public clients, loopback and private-use redirects                                  | N2          |
-| #509                           | closed | API, edge  | Shipped: resource-bound JWT access tokens                                                           | N2, N3      |
-| #511                           | closed | edge       | Shipped: introspection and revocation                                                               | N3, N9      |
-| #510                           | closed | API, edge  | Shipped: step-up at the edge, `acr` and `amr` on ID tokens. Resource server half moves to oidc#34   | N7, N8      |
-| #547                           | open   | API, types | `oidc_client_links`, link admin routes, `clientId` on notices, `noticeActionOrigins`, D14 amendment | N4, N5      |
-| seamless-auth-oidc-provider#34 | open   | edge       | `acr`, `amr`, `auth_time` on resource access tokens and in introspection, none on device tokens     | N7          |
-| seamless-auth-oidc-provider#35 | open   | edge, docs | The local recipe, seeding the three records and a link                                              | N10         |
-| seamless-auth-docs#137         | open   | docs       | The runnable desktop and backend example and the backend guide section                              | N11         |
-| #418                           | open   | API        | Links as the subscription scope rule                                                                | N6          |
-| #512                           | open   | API, edge  | DPoP, then the device key guidance in N9                                                            | N9          |
+| Issue                          | State  | Where      | Must deliver                                                                                                 | Governed by |
+| ------------------------------ | ------ | ---------- | ------------------------------------------------------------------------------------------------------------ | ----------- |
+| #508                           | closed | API, edge  | Shipped: native public clients, loopback and private-use redirects                                           | N2          |
+| #509                           | closed | API, edge  | Shipped: resource-bound JWT access tokens                                                                    | N2, N3      |
+| #511                           | closed | edge       | Shipped: introspection and revocation                                                                        | N3, N9      |
+| #510                           | closed | API, edge  | Shipped: step-up at the edge, `acr` and `amr` on ID tokens. Resource server half moves to oidc#34            | N7, N8      |
+| #547                           | closed | API        | Shipped: `oidc_client_links`, link admin routes, `clientId` on notices, `noticeActionOrigins`, D14 amendment | N4, N5      |
+| seamless-auth-oidc-provider#34 | open   | edge       | `acr`, `amr`, `auth_time` on resource access tokens and in introspection, none on device tokens              | N7          |
+| seamless-auth-oidc-provider#35 | open   | edge, docs | The local recipe, seeding the three records and a link                                                       | N10         |
+| seamless-auth-docs#137         | open   | docs       | The runnable desktop and backend example and the backend guide section                                       | N11         |
+| #418                           | open   | API        | Links as the subscription scope rule                                                                         | N6          |
+| #512                           | open   | API, edge  | DPoP, then the device key guidance in N9                                                                     | N9          |
 
-#547 also needs a types issue for the link shape, `clientId` and `noticeActionOrigins`, and console and CLI issues for managing links. They are opened when #547 starts.
+#547's follow-ups are seamless-auth-types#148 for the link shape, `clientId` and `noticeActionOrigins` (the API extends the published schemas locally until then), seamless-auth-admin-dashboard#337 and seamless-cli#344 for managing links and `noticeActionOrigins`.
 
 ## Affected repos
 

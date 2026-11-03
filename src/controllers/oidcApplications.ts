@@ -17,11 +17,17 @@ import {
   listOidcApplications,
   OidcApplicationError,
   OidcApplicationInvalidError,
+  presentOidcApplication,
+  presentOidcApplications,
   rotateOidcApplicationSecret,
-  serializeOidcApplication,
   setOidcApplicationKeys,
   updateOidcApplication,
 } from '../services/oidcApplicationService.js';
+import {
+  addOidcApplicationLink,
+  listOidcApplicationLinks,
+  removeOidcApplicationLink,
+} from '../services/oidcClientLinkService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 
 function audit(req: Request, event: { type: AuthEventType; metadata: Record<string, unknown> }) {
@@ -50,13 +56,13 @@ function keysSummary(keys: OidcApplicationKeysRequest) {
 
 export async function listApplications(_req: Request, res: Response) {
   const clients = await listOidcApplications();
-  return res.json({ applications: clients.map(serializeOidcApplication) });
+  return res.json({ applications: await presentOidcApplications(clients) });
 }
 
 export async function getApplication(req: Request, res: Response) {
   try {
     const client = await findOidcApplication(req.params.id as string);
-    return res.json({ application: serializeOidcApplication(client) });
+    return res.json({ application: await presentOidcApplication(client) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -65,7 +71,7 @@ export async function getApplication(req: Request, res: Response) {
 export async function createApplication(req: Request, res: Response) {
   try {
     const { client, clientSecret } = await createOidcApplication(req.body);
-    const application = serializeOidcApplication(client);
+    const application = await presentOidcApplication(client);
 
     await audit(req, {
       type: 'admin_oidc_application_created',
@@ -79,6 +85,7 @@ export async function createApplication(req: Request, res: Response) {
         pkceRequired: application.pkceRequired,
         nonceRequired: application.nonceRequired,
         redirectUris: application.redirectUris,
+        noticeActionOrigins: application.noticeActionOrigins,
       },
     });
 
@@ -130,7 +137,7 @@ export async function updateApplication(req: Request, res: Response) {
       },
     });
 
-    return res.json({ application: serializeOidcApplication(client) });
+    return res.json({ application: await presentOidcApplication(client) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -148,7 +155,7 @@ export async function putApplicationKeys(req: Request, res: Response) {
       },
     });
 
-    return res.json({ application: serializeOidcApplication(client) });
+    return res.json({ application: await presentOidcApplication(client) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -163,7 +170,7 @@ export async function rotateApplicationSecret(req: Request, res: Response) {
       metadata: { clientId: client.id },
     });
 
-    return res.json({ application: serializeOidcApplication(client), clientSecret });
+    return res.json({ application: await presentOidcApplication(client), clientSecret });
   } catch (error) {
     return sendError(res, error);
   }
@@ -177,6 +184,54 @@ export async function deleteApplication(req: Request, res: Response) {
     await audit(req, { type: 'admin_oidc_application_deleted', metadata: { clientId: id } });
 
     return res.json({ message: 'Application deleted' });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+export async function getApplicationLinks(req: Request, res: Response) {
+  try {
+    return res.json(await listOidcApplicationLinks(req.params.id as string));
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+export async function putApplicationLink(req: Request, res: Response) {
+  try {
+    const clientId = req.params.id as string;
+    const linkedClientId = req.params.linkedId as string;
+    const { link, created } = await addOidcApplicationLink(
+      clientId,
+      linkedClientId,
+      (req as AuthenticatedRequest).user?.id ?? null,
+    );
+
+    if (created) {
+      await audit(req, {
+        type: 'admin_oidc_application_link_added',
+        metadata: { clientId, linkedClientId },
+      });
+    }
+
+    return res.json({ link });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+export async function deleteApplicationLink(req: Request, res: Response) {
+  try {
+    const clientId = req.params.id as string;
+    const linkedClientId = req.params.linkedId as string;
+    await removeOidcApplicationLink(clientId, linkedClientId);
+
+    await audit(req, {
+      type: 'admin_oidc_application_link_removed',
+      metadata: { clientId, linkedClientId },
+    });
+
+    return res.json({ message: 'Link removed' });
   } catch (error) {
     return sendError(res, error);
   }

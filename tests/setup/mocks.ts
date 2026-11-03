@@ -61,6 +61,17 @@ vi.mock('../../src/models/policyDrafts.js', () => ({
   },
 }));
 
+// Every admin application response lists its links, so specs that do not exercise links
+// see none.
+vi.mock('../../src/models/oidcClientLinks.js', () => ({
+  OidcClientLink: {
+    findAll: vi.fn(async () => []),
+    findOne: vi.fn(async () => null),
+    findOrCreate: vi.fn(),
+    destroy: vi.fn(async () => 0),
+  },
+}));
+
 vi.mock('../../src/models/authFailures.js', () => ({
   AuthFailure: {
     create: vi.fn(),
