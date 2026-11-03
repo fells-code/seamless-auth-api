@@ -215,20 +215,22 @@ The API derives both from the session's `auth_methods`. The edge only passes the
 
 `amr` uses the RFC 8176 registry:
 
-| Sign-in method                          | `amr`                                              |
-| --------------------------------------- | -------------------------------------------------- |
-| Passkey, device-bound (BE flag not set) | `hwk`, plus `user` and `mfa` when UV was performed |
-| Passkey, synced or unknown              | `swk`, plus `user` and `mfa` when UV was performed |
-| Email code or magic link                | `otp`                                              |
-| SMS code                                | `sms`, `otp`                                       |
-| TOTP                                    | `otp`                                              |
-| Two distinct factors in one session     | `mfa` added                                        |
+| Sign-in method                      | `amr`                                              |
+| ----------------------------------- | -------------------------------------------------- |
+| Passkey, device-bound (see below)   | `hwk`, plus `user` and `mfa` when UV was performed |
+| Passkey, synced or unknown          | `swk`, plus `user` and `mfa` when UV was performed |
+| Email code or magic link            | `otp`                                              |
+| SMS code                            | `sms`, `otp`                                       |
+| TOTP                                | `otp`                                              |
+| Two distinct factors in one session | `mfa` added                                        |
 
 `acr` uses the OpenID Enhanced Authentication Profile ACR values:
 
 - `phrh` for a device-bound passkey with user verification.
 - `phr` for any passkey with user verification.
 - Omitted otherwise.
+
+**Amendment, 2026-11-02: device binding comes from registration (#552).** A passkey counts as device-bound only when its registration stored the BE flag as not set and its attestation was verified against the FIDO Metadata Service. The flag in each assertion is no longer trusted on its own: WebAuthn Level 3 fixes it at registration, so an assertion whose flag differs from the stored value is refused, and under `none` attestation the flag is self-reported. A deployment that does not request attestation therefore never issues `phrh` or `hwk`.
 
 `acr_values_supported` is `["phr", "phrh"]`. Seamless-specific names were rejected, because generic RPs would not recognise them. #510's `webauthn` example is read with this mapping.
 
