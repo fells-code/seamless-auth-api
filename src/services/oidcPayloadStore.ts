@@ -36,6 +36,16 @@ export class ExpiryTooLongError extends Error {
   }
 }
 
+// RFC 8628 section 3.5: a client polling with an expired device code is told
+// `expired_token`, which the library answers only when it is handed the expired code. The
+// code stays readable by id for this long after it expires, so a client polling at any
+// sane interval hears why, and is then purged as usual.
+export const DEVICE_CODE_EXPIRED_GRACE_MS = 1000 * 60 * 10;
+
+function deviceCodeGraceCutoff(now: Date) {
+  return new Date(now.getTime() - DEVICE_CODE_EXPIRED_GRACE_MS);
+}
+
 function stringField(payload: Record<string, unknown>, key: string) {
   const value = payload[key];
   return typeof value === 'string' && value ? value : null;
@@ -124,9 +134,13 @@ export function claimOAuthStateUse(stateHash: string, expiresAt: Date) {
 
 async function findOne(
   where: WhereOptions<OidcPayloadAttributes>,
+  expiresAfter = new Date(),
 ): Promise<OidcPayloadRecord | null> {
   const row = await OidcPayload.findOne({
-    where: { ...where, expiresAt: { [Op.gt]: new Date() } } as WhereOptions<OidcPayloadAttributes>,
+    where: {
+      ...where,
+      expiresAt: { [Op.gt]: expiresAfter },
+    } as WhereOptions<OidcPayloadAttributes>,
   });
 
   if (!row) return null;
@@ -244,7 +258,8 @@ export async function findGrantBoundSession(sessionId: string, clientId: string)
 }
 
 export function findOidcPayload(model: OidcPayloadModel, id: string) {
-  return findOne({ model, id });
+  const now = new Date();
+  return findOne({ model, id }, model === 'DeviceCode' ? deviceCodeGraceCutoff(now) : now);
 }
 
 export function findOidcPayloadByUserCode(model: OidcPayloadModel, userCode: string) {
@@ -285,7 +300,12 @@ export async function revokeOidcPayloadsByGrant(model: OidcPayloadModel, grantId
 
 export async function purgeExpiredOidcPayloads(now = new Date()) {
   return OidcPayload.destroy({
-    where: { expiresAt: { [Op.lte]: now } } as WhereOptions<OidcPayloadAttributes>,
+    where: {
+      [Op.or]: [
+        { model: { [Op.ne]: 'DeviceCode' }, expiresAt: { [Op.lte]: now } },
+        { expiresAt: { [Op.lte]: deviceCodeGraceCutoff(now) } },
+      ],
+    } as WhereOptions<OidcPayloadAttributes>,
   });
 }
 

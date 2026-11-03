@@ -24,6 +24,7 @@ import { OidcPayload } from '../../../src/models/oidcPayloads';
 import { recordBackchannelLogoutTargets } from '../../../src/services/oidcBackchannelLogout';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
+  DEVICE_CODE_EXPIRED_GRACE_MS,
   bindOidcSession,
   claimOAuthStateUse,
   consumeOidcPayload,
@@ -201,6 +202,21 @@ describe('finding records', () => {
     vi.mocked(OidcPayload.findOne).mockResolvedValue(null);
     expect(await findOidcPayload('Grant', 'g1')).toBeNull();
   });
+
+  it('reads a device code by id for a grace window past its expiry', async () => {
+    vi.mocked(OidcPayload.findOne).mockResolvedValue(null);
+    const before = Date.now();
+
+    await findOidcPayload('DeviceCode', 'd1');
+    await findOidcPayloadByUserCode('DeviceCode', 'ABCD');
+
+    const [byId, byUserCode] = vi
+      .mocked(OidcPayload.findOne)
+      .mock.calls.map((call) => (call[0] as any).where.expiresAt[Op.gt].getTime());
+    expect(byId).toBeLessThanOrEqual(Date.now() - DEVICE_CODE_EXPIRED_GRACE_MS);
+    expect(byId).toBeGreaterThanOrEqual(before - DEVICE_CODE_EXPIRED_GRACE_MS);
+    expect(byUserCode).toBeGreaterThanOrEqual(before);
+  });
 });
 
 describe('bindOidcSession', () => {
@@ -374,7 +390,18 @@ describe('changing records', () => {
     const now = new Date();
 
     expect(await purgeExpiredOidcPayloads(now)).toBe(3);
-    expect(OidcPayload.destroy).toHaveBeenCalledWith({ where: { expiresAt: { [Op.lte]: now } } });
+    expect(OidcPayload.destroy).toHaveBeenCalledWith({
+      where: {
+        [Op.or]: [
+          { model: { [Op.ne]: 'DeviceCode' }, expiresAt: { [Op.lte]: now } },
+          {
+            expiresAt: {
+              [Op.lte]: new Date(now.getTime() - DEVICE_CODE_EXPIRED_GRACE_MS),
+            },
+          },
+        ],
+      },
+    });
   });
 });
 

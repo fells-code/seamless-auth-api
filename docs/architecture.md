@@ -72,7 +72,8 @@ flowchart LR
   sign-in is an ordinary `sessions` row with every first-party protection applied.
 - Its `oidc-provider` storage lives here, in `oidc_payloads`, reached through
   `/oidc/payloads/*`. A record tied to a session that is no longer live reads as absent, so any
-  revocation ends provider access at once.
+  revocation ends provider access at once. A device code stays readable by id for 10 minutes
+  past its expiry, so a polling device is told `expired_token` rather than `invalid_grant`.
 - Account claims and auth context answer only for a live session holding a provider grant for
   the calling client, the same binding signing uses. Each provider token signed for a session
   counts as activity on it, so an app refreshing its tokens keeps the session alive up to its
