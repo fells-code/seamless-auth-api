@@ -114,7 +114,7 @@ describe('POST /applications/account-notices', () => {
     expect(sendNoticeEmail).toHaveBeenCalledWith(
       'test@example.com',
       '[Locksley] Device recovery started',
-      'A recovery opened.\n\nhttps://app.locksley.example/devices\n\n--\nSent by Locksley through Acme ID.',
+      'Sent by Locksley through Acme ID.\n\nA recovery opened.\n\nhttps://app.locksley.example/devices',
     );
     expect(sendNoticeSms).toHaveBeenCalledWith('+14155552671', expect.stringContaining('Locksley'));
     expect(JSON.stringify(res.body)).not.toContain('test@example.com');
@@ -217,12 +217,21 @@ describe('POST /applications/account-notices', () => {
     'Sign in again at evil.example/login to keep your account.',
     'Sign in again at login.evil-example.com to keep your account.',
     'Sign in again at HTTPS://EVIL.EXAMPLE to keep your account.',
+    'Write to help@evil.example to keep your account.',
+    'Sign in again at evil\uff0eexample to keep your account.',
   ])('refuses a link in the notice text, which only actionUrl may carry (%s)', async (text) => {
     const res = await send({ ...notice, text });
 
     expect(res.status).toBe(400);
     expect(sendNoticeEmail).not.toHaveBeenCalled();
     expect(sendNoticeSms).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'Version 2.4.1 is ready, e.g. on your desktop.',
+    'Your order 3.5 shipped. Reply STOP to opt out.',
+  ])('sends plain text that names no address (%s)', async (text) => {
+    expect((await send({ ...notice, text })).status).toBe(200);
   });
 
   it('puts the attribution first, where the text cannot precede it', async () => {
@@ -468,7 +477,7 @@ describe('POST /applications/account-notices for a linked client', () => {
     expect(sendNoticeEmail).toHaveBeenCalledWith(
       'test@example.com',
       '[Locksley Desktop] Device recovery started',
-      'A recovery opened.\n\nhttps://store.locksley.example/recoveries/cancel\n\n--\nSent by Locksley Desktop through Acme ID.',
+      'Sent by Locksley Desktop through Acme ID.\n\nA recovery opened.\n\nhttps://store.locksley.example/recoveries/cancel',
     );
     expect(OidcPayload.findOne).toHaveBeenCalledWith({
       where: expect.objectContaining({

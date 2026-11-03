@@ -315,8 +315,8 @@ The notices endpoint, `POST /applications/account-notices`, stays on the private
 
 - It goes only to a user who already holds a grant with that application, or with an application it is linked to (amended 2026-11-02, below).
 - The application must have notices enabled by an admin (`oidc_clients`).
-- It is plain text only, inside a fixed template the application cannot change: "Sent by <application> through <instance>". It cannot pose as a Seamless security notice.
-- An optional action link must be on one of the application's `https` redirect origins or its `noticeActionOrigins`.
+- It is plain text only, inside a fixed template the application cannot change: "Sent by <application> through <instance>" as the first line, ahead of the text, so the text cannot imitate it (amended 2026-11-02, #554). It cannot pose as a Seamless security notice.
+- An optional action link must be on one of the application's `https` redirect origins or its `noticeActionOrigins`. It is the only link: text that contains a URL, a domain name or an email address is refused with `400`, since mail and SMS clients link those too (#554).
 - Rate limits apply per client and per user, and every notice writes an auth event.
 - Delivery uses `src/services/accountNotices.ts`, including external delivery (`account_notice_email`, `account_notice_sms`).
 - types#120 defines the request and response. The response lists channels, never addresses.

@@ -59,6 +59,7 @@ export function actionUrlAllowed(client: OidcClient, actionUrl: string) {
 /**
  * The fixed template (ADR 0001, D14). The application supplies only the subject line and
  * the body; the attribution is the API's, so a notice cannot read as one from Seamless.
+ * The attribution is the first line, since the text could imitate one placed after it.
  */
 export function applicationNotice(
   client: OidcClient,
@@ -76,7 +77,7 @@ export function applicationNotice(
   return {
     name: 'application_notice',
     subject: `[${application}] ${singleLine(subject)}`,
-    text: `${body}\n\n--\nSent by ${application} through ${instance}.`,
+    text: `Sent by ${application} through ${instance}.\n\n${body}`,
     application: { clientId: client.id, name: client.name },
   };
 }
