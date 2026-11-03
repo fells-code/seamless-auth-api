@@ -5281,6 +5281,8 @@
                     "admin_oidc_application_created",
                     "admin_oidc_application_deleted",
                     "admin_oidc_application_keys_updated",
+                    "admin_oidc_application_link_added",
+                    "admin_oidc_application_link_removed",
                     "admin_oidc_application_nonce_updated",
                     "admin_oidc_application_pkce_updated",
                     "admin_oidc_application_resources_updated",
@@ -5404,6 +5406,8 @@
                           "admin_oidc_application_created",
                           "admin_oidc_application_deleted",
                           "admin_oidc_application_keys_updated",
+                          "admin_oidc_application_link_added",
+                          "admin_oidc_application_link_removed",
                           "admin_oidc_application_nonce_updated",
                           "admin_oidc_application_pkce_updated",
                           "admin_oidc_application_resources_updated",
@@ -7633,7 +7637,8 @@
                     "maxLength": 2000,
                     "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f]+$"
                   },
-                  "actionUrl": { "type": "string", "maxLength": 2048, "format": "uri" }
+                  "actionUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                  "clientId": { "type": "string", "minLength": 1, "maxLength": 255 }
                 },
                 "required": ["userId", "subject", "text"]
               }
@@ -14079,7 +14084,10 @@
                           "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
                           "disabled": { "type": "boolean" },
                           "createdAt": { "type": "string" },
-                          "updatedAt": { "type": "string" }
+                          "updatedAt": { "type": "string" },
+                          "noticeActionOrigins": { "type": "array", "items": { "type": "string" } },
+                          "links": { "type": "array", "items": { "type": "string" } },
+                          "linkedFrom": { "type": "array", "items": { "type": "string" } }
                         },
                         "required": [
                           "id",
@@ -14104,7 +14112,10 @@
                           "refreshTokenTtlSeconds",
                           "disabled",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "noticeActionOrigins",
+                          "links",
+                          "linkedFrom"
                         ]
                       }
                     }
@@ -14144,7 +14155,7 @@
       },
       "post": {
         "summary": "Create an OpenID Provider application",
-        "description": "Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant.",
+        "description": "Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins.",
         "tags": ["Admin", "OpenID Provider applications"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -14231,7 +14242,13 @@
                     },
                     "required": ["keys"]
                   },
-                  "jwksUri": { "type": "string", "maxLength": 2048, "format": "uri" }
+                  "jwksUri": { "type": "string", "maxLength": 2048, "format": "uri" },
+                  "noticeActionOrigins": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 20,
+                    "default": []
+                  }
                 },
                 "required": ["name", "clientType"],
                 "additionalProperties": false
@@ -14268,7 +14285,10 @@
                     "refreshTokenTtlSeconds": 0,
                     "disabled": true,
                     "createdAt": "string",
-                    "updatedAt": "string"
+                    "updatedAt": "string",
+                    "noticeActionOrigins": [null],
+                    "links": [null],
+                    "linkedFrom": [null]
                   },
                   "clientSecret": "string"
                 },
@@ -14339,7 +14359,10 @@
                         "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
                         "disabled": { "type": "boolean" },
                         "createdAt": { "type": "string" },
-                        "updatedAt": { "type": "string" }
+                        "updatedAt": { "type": "string" },
+                        "noticeActionOrigins": { "type": "array", "items": { "type": "string" } },
+                        "links": { "type": "array", "items": { "type": "string" } },
+                        "linkedFrom": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": [
                         "id",
@@ -14364,7 +14387,10 @@
                         "refreshTokenTtlSeconds",
                         "disabled",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "noticeActionOrigins",
+                        "links",
+                        "linkedFrom"
                       ]
                     },
                     "clientSecret": { "type": "string" }
@@ -14519,7 +14545,10 @@
                     "refreshTokenTtlSeconds": 0,
                     "disabled": true,
                     "createdAt": "string",
-                    "updatedAt": "string"
+                    "updatedAt": "string",
+                    "noticeActionOrigins": [null],
+                    "links": [null],
+                    "linkedFrom": [null]
                   }
                 },
                 "schema": {
@@ -14589,7 +14618,10 @@
                         "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
                         "disabled": { "type": "boolean" },
                         "createdAt": { "type": "string" },
-                        "updatedAt": { "type": "string" }
+                        "updatedAt": { "type": "string" },
+                        "noticeActionOrigins": { "type": "array", "items": { "type": "string" } },
+                        "links": { "type": "array", "items": { "type": "string" } },
+                        "linkedFrom": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": [
                         "id",
@@ -14614,7 +14646,10 @@
                         "refreshTokenTtlSeconds",
                         "disabled",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "noticeActionOrigins",
+                        "links",
+                        "linkedFrom"
                       ]
                     }
                   },
@@ -14776,7 +14811,12 @@
                     "minimum": 300,
                     "maximum": 7776000
                   },
-                  "disabled": { "type": "boolean" }
+                  "disabled": { "type": "boolean" },
+                  "noticeActionOrigins": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 20
+                  }
                 },
                 "additionalProperties": false
               }
@@ -14812,7 +14852,10 @@
                     "refreshTokenTtlSeconds": 0,
                     "disabled": true,
                     "createdAt": "string",
-                    "updatedAt": "string"
+                    "updatedAt": "string",
+                    "noticeActionOrigins": [null],
+                    "links": [null],
+                    "linkedFrom": [null]
                   }
                 },
                 "schema": {
@@ -14882,7 +14925,10 @@
                         "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
                         "disabled": { "type": "boolean" },
                         "createdAt": { "type": "string" },
-                        "updatedAt": { "type": "string" }
+                        "updatedAt": { "type": "string" },
+                        "noticeActionOrigins": { "type": "array", "items": { "type": "string" } },
+                        "links": { "type": "array", "items": { "type": "string" } },
+                        "linkedFrom": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": [
                         "id",
@@ -14907,7 +14953,10 @@
                         "refreshTokenTtlSeconds",
                         "disabled",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "noticeActionOrigins",
+                        "links",
+                        "linkedFrom"
                       ]
                     }
                   },
@@ -15033,7 +15082,7 @@
       },
       "delete": {
         "summary": "Delete an OpenID Provider application",
-        "description": "Also deletes its resource grants and every provider grant, code and token issued to it.",
+        "description": "Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it.",
         "tags": ["Admin", "OpenID Provider applications"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -15320,7 +15369,10 @@
                     "refreshTokenTtlSeconds": 0,
                     "disabled": true,
                     "createdAt": "string",
-                    "updatedAt": "string"
+                    "updatedAt": "string",
+                    "noticeActionOrigins": [null],
+                    "links": [null],
+                    "linkedFrom": [null]
                   },
                   "clientSecret": "string"
                 },
@@ -15391,7 +15443,10 @@
                         "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
                         "disabled": { "type": "boolean" },
                         "createdAt": { "type": "string" },
-                        "updatedAt": { "type": "string" }
+                        "updatedAt": { "type": "string" },
+                        "noticeActionOrigins": { "type": "array", "items": { "type": "string" } },
+                        "links": { "type": "array", "items": { "type": "string" } },
+                        "linkedFrom": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": [
                         "id",
@@ -15416,7 +15471,10 @@
                         "refreshTokenTtlSeconds",
                         "disabled",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "noticeActionOrigins",
+                        "links",
+                        "linkedFrom"
                       ]
                     },
                     "clientSecret": { "type": "string" }
@@ -15632,7 +15690,10 @@
                     "refreshTokenTtlSeconds": 0,
                     "disabled": true,
                     "createdAt": "string",
-                    "updatedAt": "string"
+                    "updatedAt": "string",
+                    "noticeActionOrigins": [null],
+                    "links": [null],
+                    "linkedFrom": [null]
                   }
                 },
                 "schema": {
@@ -15702,7 +15763,10 @@
                         "refreshTokenTtlSeconds": { "type": "integer", "nullable": true },
                         "disabled": { "type": "boolean" },
                         "createdAt": { "type": "string" },
-                        "updatedAt": { "type": "string" }
+                        "updatedAt": { "type": "string" },
+                        "noticeActionOrigins": { "type": "array", "items": { "type": "string" } },
+                        "links": { "type": "array", "items": { "type": "string" } },
+                        "linkedFrom": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": [
                         "id",
@@ -15727,7 +15791,10 @@
                         "refreshTokenTtlSeconds",
                         "disabled",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "noticeActionOrigins",
+                        "links",
+                        "linkedFrom"
                       ]
                     }
                   },
@@ -16045,6 +16112,562 @@
                     }
                   },
                   "required": ["resources"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/links": {
+      "get": {
+        "summary": "List the links of an application",
+        "description": "`links` are the public applications this one acts for, and `linkedFrom` the confidential applications that act for this one.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "links": [null], "linkedFrom": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "clientId": { "type": "string" },
+                          "linkedClientId": { "type": "string" },
+                          "createdBy": { "type": "string", "nullable": true },
+                          "createdAt": { "type": "string" }
+                        },
+                        "required": ["clientId", "linkedClientId", "createdBy", "createdAt"]
+                      }
+                    },
+                    "linkedFrom": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "clientId": { "type": "string" },
+                          "linkedClientId": { "type": "string" },
+                          "createdBy": { "type": "string", "nullable": true },
+                          "createdAt": { "type": "string" }
+                        },
+                        "required": ["clientId", "linkedClientId", "createdBy", "createdAt"]
+                      }
+                    }
+                  },
+                  "required": ["links", "linkedFrom"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/applications/{id}/links/{linkedId}": {
+      "put": {
+        "summary": "Let a confidential application act for a public one",
+        "description": "A linked backend can send account notices to users of the application it acts for, named as that application. The acting application must be confidential, the linked one a different public application, and both first-party or both third-party. Links do not chain. Idempotent.",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "linkedId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "link": {
+                    "clientId": "string",
+                    "linkedClientId": "string",
+                    "createdBy": "string",
+                    "createdAt": "string"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "type": "object",
+                      "properties": {
+                        "clientId": { "type": "string" },
+                        "linkedClientId": { "type": "string" },
+                        "createdBy": { "type": "string", "nullable": true },
+                        "createdAt": { "type": "string" }
+                      },
+                      "required": ["clientId", "linkedClientId", "createdBy", "createdAt"]
+                    }
+                  },
+                  "required": ["link"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove a link between applications",
+        "tags": ["Admin", "OpenID Provider applications"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "linkedId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
                 }
               }
             }

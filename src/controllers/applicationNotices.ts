@@ -4,12 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { SendApplicationNoticeRequest } from '@seamless-auth/types';
 import { Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { acceptedDeliveryKinds, canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import type { ApplicationRequest } from '../middleware/requireApplicationToken.js';
+import type { SendApplicationNoticeRequest } from '../schemas/applicationNotices.requests.js';
 import { ownerWasNotified } from '../services/accountNotices.js';
 import {
   ApplicationNoticeError,
@@ -35,7 +35,11 @@ export async function sendApplicationNoticeHandler(req: ApplicationRequest, res:
     await AuthEventService.log({
       type: 'oidc_account_notice_failed',
       req,
-      metadata: { clientId: client.id, reason: error.code },
+      metadata: {
+        clientId: client.id,
+        ...(body.clientId ? { sentForClientId: body.clientId } : {}),
+        reason: error.code,
+      },
     });
     return res.status(error.status).json({ error: error.code });
   }
@@ -46,7 +50,11 @@ export async function sendApplicationNoticeHandler(req: ApplicationRequest, res:
     status,
   }));
 
-  const audit = { userId: sent.userId, req, metadata: { clientId: client.id, channels } };
+  const audit = {
+    userId: sent.userId,
+    req,
+    metadata: { clientId: client.id, sentForClientId: sent.sentFor.id, channels },
+  };
 
   if (ownerWasNotified(outcome)) {
     await AuthEventService.log({ ...audit, type: 'oidc_account_notice_sent' });

@@ -31,6 +31,8 @@ const GUARDED = [
   'POST /admin/applications/{id}/secret',
   'PUT /admin/applications/{id}/keys',
   'PUT /admin/applications/{id}/resources',
+  'PUT /admin/applications/{id}/links/{linkedId}',
+  'DELETE /admin/applications/{id}/links/{linkedId}',
   'POST /admin/resources',
   'PATCH /admin/resources/{id}',
   'DELETE /admin/resources/{id}',

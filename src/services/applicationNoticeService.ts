@@ -4,16 +4,18 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { MessagingChannel, SendApplicationNoticeRequest } from '@seamless-auth/types';
+import type { MessagingChannel } from '@seamless-auth/types';
 
 import type { OidcClient } from '../models/oidcClients.js';
 import { User } from '../models/users.js';
+import type { SendApplicationNoticeRequest } from '../schemas/applicationNotices.requests.js';
 import {
   type AccountNotice,
   type AccountNoticeOutcome,
   sendAccountNotice,
   verifiedAddresses,
 } from './accountNotices.js';
+import { findLinkedOidcClient } from './oidcClientLinkService.js';
 import { hasOidcGrantForUser } from './oidcPayloadStore.js';
 
 export class ApplicationNoticeError extends Error {
@@ -30,14 +32,18 @@ function singleLine(value: string) {
   return value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
 }
 
-/** Only the https origins the client registered redirects on: never loopback or private-use. */
+/**
+ * The client's notice action origins and the https origins it registered redirects on:
+ * never loopback or private-use.
+ */
 function registeredOrigins(client: OidcClient) {
-  return new Set(
-    client.redirectUris.flatMap((uri) => {
+  return new Set([
+    ...client.noticeActionOrigins,
+    ...client.redirectUris.flatMap((uri) => {
       const url = new URL(uri);
       return url.protocol === 'https:' ? [url.origin] : [];
     }),
-  );
+  ]);
 }
 
 export function actionUrlAllowed(client: OidcClient, actionUrl: string) {
@@ -76,22 +82,31 @@ export function applicationNotice(
 }
 
 /**
- * Sends a notice on the client's behalf to a user who holds a grant with it. A user that
- * does not exist and one with no grant answer the same, so a client cannot probe for
- * accounts it has no relationship with.
+ * Sends a notice on the client's behalf to a user who holds a grant with it, or with the
+ * client named in `clientId` that it is linked to (ADR 0002, N5). A user that does not
+ * exist, one with no grant and a client the caller is not linked to all answer the same,
+ * so a client cannot probe for accounts or clients it has no relationship with.
+ *
+ * The action link is checked against the caller's origins, since it is the caller's site
+ * the user lands on; the template names the client the user signed in to.
  */
 export async function sendApplicationNotice(
   client: OidcClient,
   instanceName: string,
   request: SendApplicationNoticeRequest,
   delivery: { external: boolean; returnable?: ReadonlySet<string> },
-): Promise<{ userId: string; outcome: AccountNoticeOutcome }> {
+): Promise<{ userId: string; sentFor: OidcClient; outcome: AccountNoticeOutcome }> {
   if (request.actionUrl && !actionUrlAllowed(client, request.actionUrl)) {
     throw new ApplicationNoticeError(400, 'notice_action_url_not_allowed');
   }
 
+  const sentFor =
+    request.clientId && request.clientId !== client.id
+      ? await findLinkedOidcClient(client, request.clientId)
+      : client;
+
   const user = await User.findByPk(request.userId);
-  if (!user || user.revoked || !(await hasOidcGrantForUser(user.id, client.id))) {
+  if (!sentFor || !user || user.revoked || !(await hasOidcGrantForUser(user.id, sentFor.id))) {
     throw new ApplicationNoticeError(404, 'notice_unknown_user');
   }
 
@@ -110,9 +125,9 @@ export async function sendApplicationNotice(
 
   const outcome = await sendAccountNotice(
     recipient,
-    applicationNotice(client, instanceName, request),
+    applicationNotice(sentFor, instanceName, request),
     delivery,
   );
 
-  return { userId: user.id, outcome };
+  return { userId: user.id, sentFor, outcome };
 }

@@ -5,24 +5,21 @@
  */
 
 import {
-  OidcApplicationCreatedResponseSchema,
-  OidcApplicationCreateRequestSchema,
   OidcApplicationIdParamsSchema,
   OidcApplicationKeysRequestSchema,
-  OidcApplicationListResponseSchema,
   OidcApplicationResourcesRequestSchema,
   OidcApplicationResourcesResponseSchema,
-  OidcApplicationResponseSchema,
-  OidcApplicationSecretResponseSchema,
-  OidcApplicationUpdateRequestSchema,
 } from '@seamless-auth/types';
 
 import {
   createApplication,
   deleteApplication,
+  deleteApplicationLink,
   getApplication,
+  getApplicationLinks,
   listApplications,
   putApplicationKeys,
+  putApplicationLink,
   rotateApplicationSecret,
   updateApplication,
 } from '../controllers/oidcApplications.js';
@@ -31,6 +28,19 @@ import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
 import { ErrorSchema, MessageSchema, ValidationErrorSchema } from '../schemas/generic.responses.js';
+import {
+  OidcApplicationCreateRequestSchema,
+  OidcApplicationLinkParamsSchema,
+  OidcApplicationUpdateRequestSchema,
+} from '../schemas/oidcApplications.requests.js';
+import {
+  OidcApplicationCreatedResponseSchema,
+  OidcApplicationLinkResponseSchema,
+  OidcApplicationLinksResponseSchema,
+  OidcApplicationListResponseSchema,
+  OidcApplicationResponseSchema,
+  OidcApplicationSecretResponseSchema,
+} from '../schemas/oidcApplications.responses.js';
 import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 
 /**
@@ -59,7 +69,7 @@ router.post(
     ...write,
     summary: 'Create an OpenID Provider application',
     description:
-      'Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant.',
+      'Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins.',
     schemas: {
       body: OidcApplicationCreateRequestSchema,
       response: {
@@ -112,7 +122,7 @@ router.delete(
     ...write,
     summary: 'Delete an OpenID Provider application',
     description:
-      'Also deletes its resource grants and every provider grant, code and token issued to it.',
+      'Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it.',
     schemas: {
       params: OidcApplicationIdParamsSchema,
       response: { 200: MessageSchema, 403: StepUpRequiredErrorSchema, 404: ErrorSchema },
@@ -194,6 +204,54 @@ router.put(
     },
   },
   putApplicationResources,
+);
+
+router.get(
+  '/:id/links',
+  {
+    ...read,
+    summary: 'List the links of an application',
+    description:
+      '`links` are the public applications this one acts for, and `linkedFrom` the confidential applications that act for this one.',
+    schemas: {
+      params: OidcApplicationIdParamsSchema,
+      response: { 200: OidcApplicationLinksResponseSchema, 404: ErrorSchema },
+    },
+  },
+  getApplicationLinks,
+);
+
+router.put(
+  '/:id/links/:linkedId',
+  {
+    ...write,
+    summary: 'Let a confidential application act for a public one',
+    description:
+      'A linked backend can send account notices to users of the application it acts for, named as that application. The acting application must be confidential, the linked one a different public application, and both first-party or both third-party. Links do not chain. Idempotent.',
+    schemas: {
+      params: OidcApplicationLinkParamsSchema,
+      response: {
+        200: OidcApplicationLinkResponseSchema,
+        400: ErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        404: ErrorSchema,
+      },
+    },
+  },
+  putApplicationLink,
+);
+
+router.delete(
+  '/:id/links/:linkedId',
+  {
+    ...write,
+    summary: 'Remove a link between applications',
+    schemas: {
+      params: OidcApplicationLinkParamsSchema,
+      response: { 200: MessageSchema, 403: StepUpRequiredErrorSchema, 404: ErrorSchema },
+    },
+  },
+  deleteApplicationLink,
 );
 
 export default router.router;

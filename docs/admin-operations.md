@@ -333,6 +333,18 @@ The applications (clients) of the OpenID Provider service ([ADR 0001](./adr/0001
 
 Only an HMAC of a shared secret is stored, so a lost secret is rotated, never recovered.
 
+### Links
+
+A link lets a confidential application act for a public one, typically a backend acting for its desktop app or SPA ([ADR 0002](./adr/0002-native-and-desktop-apps.md), N4). It is the only way one application reaches users who signed in to another: a linked backend can send account notices (`POST /applications/account-notices` with `clientId`) to users of the application it acts for, named as that application. The API refuses a link unless the acting application is confidential, the linked one is a different public application, and both are first-party or both third-party (third-party links also need `third_party_clients_enabled`). Links do not chain. Writes are audited as `admin_oidc_application_link_added` and `admin_oidc_application_link_removed`, and every application response lists `links` (applications it acts for) and `linkedFrom` (applications acting for it).
+
+| Route                                            | What it does                                           |
+| ------------------------------------------------ | ------------------------------------------------------ |
+| `GET /admin/applications/:id/links`              | The links of an application, in both directions.       |
+| `PUT /admin/applications/:id/links/:linkedId`    | Let application `:id` act for `:linkedId`. Idempotent. |
+| `DELETE /admin/applications/:id/links/:linkedId` | Remove that link.                                      |
+
+Disabling either application, or moving one across the first-party boundary, ends a link's effect at once, and deleting either removes it. An application's `noticeActionOrigins` (bare `https` origins, never loopback) are where the action link of a notice it sends may point, besides its own `https` redirect origins. A backend with no redirect URIs, or one acting for a native app, sets them to its own site.
+
 ### Resources and scopes
 
 A resource is an API that applications request access tokens for (RFC 8707). Its identifier, an absolute URI such as `https://api.example.com`, becomes the `aud` of those tokens and cannot change. It cannot be the API `ISSUER` or `oidc_issuer`. A resource declares its scopes, and each application is allowed a subset of them. The provider signs an access token for a resource only when the application is allowed that resource and every scope in the token. Writes are audited as `admin_oidc_resource_*` and `admin_oidc_application_resources_updated`.
