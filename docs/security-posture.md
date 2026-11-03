@@ -328,6 +328,16 @@ that were never looked up at all.
 `basic`. The format alone cannot separate the last two: a manufacturer-signed
 statement and one a credential signed for itself are both `packed`.
 
+## Response caching
+
+**Posture: no API response is cacheable unless its route says so.**
+
+Responses carry access, refresh and ephemeral tokens, client secrets, recovery codes and
+external delivery payloads, so every response starts with `Cache-Control: no-store`, and
+a cache between the adapter and the API cannot keep one. Only routes that publish
+public material opt back in: the JWKS (`public, max-age=300`) and the dashboard's
+content-hashed assets.
+
 ## Token audience
 
 **Posture: `aud` is the deployment's own issuer URL.**

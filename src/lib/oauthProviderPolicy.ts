@@ -13,6 +13,7 @@ import { BlockList, isIP, type LookupFunction } from 'node:net';
 import { missingOAuthProviderEndpoints } from '@seamless-auth/types';
 
 import type { OAuthProviderConfig } from '../schemas/systemConfig.schema.js';
+import { sendProviderRequest } from './providerTransport.js';
 
 type EnvSource = Record<string, string | undefined>;
 
@@ -123,6 +124,15 @@ function isProduction(env: EnvSource) {
   return env.NODE_ENV === 'production';
 }
 
+/**
+ * Outside production any host may be private, so a local stack can reach a provider on a
+ * private address. The never-reachable ranges stay closed in every mode, since a staging
+ * deployment runs on the same cloud metadata network as a production one.
+ */
+function hostMayBePrivate(hostname: string, env: EnvSource) {
+  return !isProduction(env) || privateHostsAllowed(env).has(hostname.toLowerCase());
+}
+
 function privateHostsAllowed(env: EnvSource) {
   return new Set(
     (env[PRIVATE_PROVIDER_HOSTS_ENV] ?? '')
@@ -204,14 +214,12 @@ export function assertProviderDestination(target: string | URL, env: EnvSource =
     throw new OAuthProviderPolicyError('OAuth provider URL must use https');
   }
 
-  if (!isProduction(env)) return url;
-
-  if (url.protocol !== 'https:') {
+  if (isProduction(env) && url.protocol !== 'https:') {
     throw new OAuthProviderPolicyError('OAuth provider URL must use https');
   }
 
   const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (isIP(unmapIPv4(host)) && !addressAllowed(host, privateHostsAllowed(env).has(host))) {
+  if (isIP(unmapIPv4(host)) && !addressAllowed(host, hostMayBePrivate(host, env))) {
     throw new OAuthProviderPolicyError(`OAuth provider host ${host} is a non-public address`);
   }
 
@@ -233,8 +241,6 @@ type LookupCallback = (
  * cannot answer one way for the check and another for the connection.
  */
 export function guardedLookup(env: EnvSource = process.env): LookupFunction {
-  const allowlisted = privateHostsAllowed(env);
-
   const guarded = (
     hostname: string,
     options: { family?: number | string; all?: boolean },
@@ -249,7 +255,7 @@ export function guardedLookup(env: EnvSource = process.env): LookupFunction {
 
     lookup(hostname, { all: true, verbatim: true, family }).then(
       (addresses) => {
-        const allowed = allowlisted.has(hostname.toLowerCase());
+        const allowed = hostMayBePrivate(hostname, env);
         if (
           addresses.length === 0 ||
           addresses.some((entry) => !addressAllowed(entry.address, allowed))
@@ -339,9 +345,10 @@ export function guardedRequest(url: URL, init: RequestInit, env: EnvSource): Pro
 
 /**
  * fetch for provider endpoints. Redirects are not followed, since a redirect would
- * carry the request (and its credentials) to a host that was never checked. In
- * production the request goes through `guardedLookup`; elsewhere it is plain fetch, so
- * local stacks can reach a provider on a private address.
+ * carry the request (and its credentials) to a host that was never checked. Every
+ * request goes through `guardedLookup`, which outside production admits private
+ * addresses, so local stacks can reach a provider on one, but never link-local or
+ * unspecified ones.
  */
 export async function providerFetch(
   target: string | URL,
@@ -350,9 +357,7 @@ export async function providerFetch(
 ): Promise<Response> {
   const url = assertProviderDestination(target, env);
 
-  const response = isProduction(env)
-    ? await guardedRequest(url, init, env)
-    : await globalThis.fetch(target, { ...init, redirect: 'manual' });
+  const response = await sendProviderRequest(url, init, env);
 
   if (response.status >= 300 && response.status < 400) {
     throw new OAuthProviderPolicyError(
