@@ -33,7 +33,9 @@ delivery payload (recipient + token, and a URL for magic links) so the caller se
 its own channel. See [`src/lib/externalDelivery.ts`](../src/lib/externalDelivery.ts).
 
 - External delivery requires a valid `x-seamless-service-token` from a trusted server adapter
-  in every environment.
+  in every environment, signed with subject `seamless-auth-external-delivery` (issuer
+  `seamless-portal-api`, audience `seamless-auth`). A valid service token with any other subject,
+  such as an adapter's proxy token, is treated as a request for direct delivery.
 - For local development without a service token, set `ALLOW_UNCREDENTIALED_DELIVERY_SECRETS=true`.
   The flag is ignored when `NODE_ENV=production`.
 

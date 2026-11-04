@@ -14,7 +14,10 @@ import { Op, QueryTypes, WhereOptions } from 'sequelize';
 import { OidcPayload, OidcPayloadAttributes } from '../models/oidcPayloads.js';
 import getLogger from '../utils/logger.js';
 import { isUuid, resolveCurrentSession } from './oidcAuthContext.js';
-import { recordBackchannelLogoutTargets } from './oidcBackchannelLogout.js';
+import {
+  recordBackchannelLogoutTargets,
+  sendBackchannelLogoutForClient,
+} from './oidcBackchannelLogout.js';
 
 const logger = getLogger('oidcPayloadStore');
 
@@ -34,6 +37,16 @@ export class ExpiryTooLongError extends Error {
     super(`expiresIn may be at most ${MAX_EXPIRES_IN_SECONDS} seconds`);
     this.name = 'ExpiryTooLongError';
   }
+}
+
+// RFC 8628 section 3.5: a client polling with an expired device code is told
+// `expired_token`, which the library answers only when it is handed the expired code. The
+// code stays readable by id for this long after it expires, so a client polling at any
+// sane interval hears why, and is then purged as usual.
+export const DEVICE_CODE_EXPIRED_GRACE_MS = 1000 * 60 * 10;
+
+function deviceCodeGraceCutoff(now: Date) {
+  return new Date(now.getTime() - DEVICE_CODE_EXPIRED_GRACE_MS);
 }
 
 function stringField(payload: Record<string, unknown>, key: string) {
@@ -124,9 +137,13 @@ export function claimOAuthStateUse(stateHash: string, expiresAt: Date) {
 
 async function findOne(
   where: WhereOptions<OidcPayloadAttributes>,
+  expiresAfter = new Date(),
 ): Promise<OidcPayloadRecord | null> {
   const row = await OidcPayload.findOne({
-    where: { ...where, expiresAt: { [Op.gt]: new Date() } } as WhereOptions<OidcPayloadAttributes>,
+    where: {
+      ...where,
+      expiresAt: { [Op.gt]: expiresAfter },
+    } as WhereOptions<OidcPayloadAttributes>,
   });
 
   if (!row) return null;
@@ -244,7 +261,8 @@ export async function findGrantBoundSession(sessionId: string, clientId: string)
 }
 
 export function findOidcPayload(model: OidcPayloadModel, id: string) {
-  return findOne({ model, id });
+  const now = new Date();
+  return findOne({ model, id }, model === 'DeviceCode' ? deviceCodeGraceCutoff(now) : now);
 }
 
 export function findOidcPayloadByUserCode(model: OidcPayloadModel, userCode: string) {
@@ -276,7 +294,17 @@ export async function consumeOidcPayload(model: OidcPayloadModel, id: string) {
 }
 
 export async function destroyOidcPayload(model: OidcPayloadModel, id: string) {
+  const grant = model === 'Grant' ? await OidcPayload.findOne({ where: { model, id } }) : null;
+
   await OidcPayload.destroy({ where: { model, id } });
+
+  // The library ends a grant on its own when the user signs out of one application, or
+  // the grant is revoked, and the first-party session lives on, so nothing else would tell
+  // that application. Not while another grant still signs it in on the same session.
+  const clientId = grant ? stringField(grant.payload, 'clientId') : null;
+  if (grant?.sessionId && clientId && !(await hasOidcGrantForSession(grant.sessionId, clientId))) {
+    await sendBackchannelLogoutForClient(grant.sessionId, clientId);
+  }
 }
 
 export async function revokeOidcPayloadsByGrant(model: OidcPayloadModel, grantId: string) {
@@ -285,7 +313,12 @@ export async function revokeOidcPayloadsByGrant(model: OidcPayloadModel, grantId
 
 export async function purgeExpiredOidcPayloads(now = new Date()) {
   return OidcPayload.destroy({
-    where: { expiresAt: { [Op.lte]: now } } as WhereOptions<OidcPayloadAttributes>,
+    where: {
+      [Op.or]: [
+        { model: { [Op.ne]: 'DeviceCode' }, expiresAt: { [Op.lte]: now } },
+        { expiresAt: { [Op.lte]: deviceCodeGraceCutoff(now) } },
+      ],
+    } as WhereOptions<OidcPayloadAttributes>,
   });
 }
 

@@ -128,6 +128,7 @@ What follows from this:
   - It refuses to sign further for it.
   - It sends back-channel logout to the affected clients (#409).
 - **Back-channel logout is sent by the API.** The API holds the keys and the client registry, and already makes outbound calls for messaging.
+- **One application signing out.** When a grant ends and the session goes on (the user signs out of only that application, or the grant is revoked), the API sends back-channel logout to that application alone, for the `sid` it was given, once no other grant signs it in on the session (#543).
 - **RP-initiated logout** at the edge revokes the row through `/logout`.
 - **Recovery sessions.** A sign-in that only reaches a recovery session (`recovery: true`) cannot finish the interaction. The hosted UI takes the user through enrolling a new factor first, as first-party apps do.
 - **Step-up (#510).** When `acr_values` or `max_age` are not met, the hosted UI runs `/step-up/*` with the access token. The API records it on the session row as it does today.

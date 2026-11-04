@@ -150,6 +150,47 @@ describe('oidc_payloads', () => {
     expect(await purgeExpiredOidcPayloads()).toBeGreaterThanOrEqual(1);
     expect(await OidcPayload.findOne({ where: { model: 'Grant', id } })).toBeNull();
   });
+
+  // RFC 8628 section 3.5: the library answers expired_token only when it is handed the
+  // expired code and sees `exp` in the past, so a 404 reads as a code that never existed.
+  it('still returns a device code shortly after it expires, with its exp', async () => {
+    const id = randomUUID();
+    const exp = Math.floor(Date.now() / 1000) - 60;
+
+    await OidcPayload.create({
+      id,
+      model: 'DeviceCode',
+      payload: { kind: 'DeviceCode', exp },
+      expiresAt: new Date(exp * 1000),
+    });
+
+    expect((await findOidcPayload('DeviceCode', id))?.payload).toMatchObject({ exp });
+
+    await purgeExpiredOidcPayloads();
+    expect(await OidcPayload.findOne({ where: { model: 'DeviceCode', id } })).not.toBeNull();
+    expect(await consumeOidcPayload('DeviceCode', id)).toBe(false);
+  });
+
+  it('hides and purges a device code long past its expiry, and other expired models', async () => {
+    const stale = randomUUID();
+    const grant = randomUUID();
+
+    await OidcPayload.bulkCreate([
+      {
+        id: stale,
+        model: 'DeviceCode',
+        payload: {},
+        expiresAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+      },
+      { id: grant, model: 'Grant', payload: {}, expiresAt: new Date(Date.now() - 60 * 1000) },
+    ]);
+
+    expect(await findOidcPayload('DeviceCode', stale)).toBeNull();
+    expect(await findOidcPayload('Grant', grant)).toBeNull();
+
+    await purgeExpiredOidcPayloads();
+    expect(await OidcPayload.findOne({ where: { model: 'DeviceCode', id: stale } })).toBeNull();
+  });
 });
 
 describe('grant binding', () => {

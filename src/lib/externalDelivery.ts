@@ -16,6 +16,13 @@ const SERVICE_TOKEN_HEADER = 'x-seamless-service-token';
 const DELIVERY_KINDS_HEADER = 'x-seamless-auth-delivery-kinds';
 const UNCREDENTIALED_OPT_IN = 'ALLOW_UNCREDENTIALED_DELIVERY_SECRETS';
 
+/**
+ * The subject an adapter signs its external delivery token with. Other internal service
+ * tokens (the adapter's proxy token, a forwarded user token) are valid too, but only this
+ * one may have the API hand back codes and links instead of sending them.
+ */
+export const EXTERNAL_DELIVERY_SUBJECT = 'seamless-auth-external-delivery';
+
 function extractBearerToken(headerValue: string | undefined): string | null {
   if (!headerValue) {
     return null;
@@ -81,7 +88,9 @@ export async function canReturnExternalDelivery(req: Request) {
 
   const decoded = await validateInternalServiceToken(serviceToken);
 
-  return Boolean(
-    decoded?.sub && decoded.iss === 'seamless-portal-api' && decoded.aud === 'seamless-auth',
+  return (
+    decoded?.sub === EXTERNAL_DELIVERY_SUBJECT &&
+    decoded.iss === 'seamless-portal-api' &&
+    decoded.aud === 'seamless-auth'
   );
 }

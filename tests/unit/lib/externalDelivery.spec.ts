@@ -53,32 +53,26 @@ describe('external delivery gates', () => {
     ).resolves.toBe(false);
   });
 
-  // TODO(#556): requiring the `seamless-auth-external-delivery` subject waits on the
-  // seamless-cli conformance harness, which mints `seamless-verify` for delivery. This
-  // reproduces the finding and starts failing, so it must become `it`, once it is fixed.
-  it.fails(
-    'refuses a valid service token minted for something other than external delivery',
-    async () => {
-      (validateInternalServiceToken as any).mockResolvedValue({
-        sub: 'seamless-auth-express-adapter',
-        iss: 'seamless-portal-api',
-        aud: 'seamless-auth',
-      });
+  it('refuses a valid service token minted for something other than external delivery', async () => {
+    (validateInternalServiceToken as any).mockResolvedValue({
+      sub: 'seamless-auth-express-adapter',
+      iss: 'seamless-portal-api',
+      aud: 'seamless-auth',
+    });
 
-      await expect(
-        canReturnExternalDelivery(
-          req({
-            'x-seamless-auth-delivery-mode': 'external',
-            'x-seamless-service-token': 'Bearer proxy-token',
-          }),
-        ),
-      ).resolves.toBe(false);
-    },
-  );
+    await expect(
+      canReturnExternalDelivery(
+        req({
+          'x-seamless-auth-delivery-mode': 'external',
+          'x-seamless-service-token': 'Bearer proxy-token',
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
 
   it('allows external delivery with a trusted service token outside production', async () => {
     (validateInternalServiceToken as any).mockResolvedValue({
-      sub: 'service',
+      sub: 'seamless-auth-external-delivery',
       iss: 'seamless-portal-api',
       aud: 'seamless-auth',
     });
@@ -115,7 +109,7 @@ describe('external delivery gates', () => {
 
   it('rejects a token from an untrusted issuer or audience', async () => {
     (validateInternalServiceToken as any).mockResolvedValue({
-      sub: 'service',
+      sub: 'seamless-auth-external-delivery',
       iss: 'someone-else',
       aud: 'seamless-auth',
     });
@@ -160,7 +154,7 @@ describe('external delivery gates', () => {
   it('requires a valid internal service token in production', async () => {
     process.env.NODE_ENV = 'production';
     (validateInternalServiceToken as any).mockResolvedValue({
-      sub: 'service',
+      sub: 'seamless-auth-external-delivery',
       iss: 'seamless-portal-api',
       aud: 'seamless-auth',
     });
@@ -228,7 +222,7 @@ describe('external delivery gates', () => {
   it('accepts a raw (non-Bearer) service token value in production', async () => {
     process.env.NODE_ENV = 'production';
     (validateInternalServiceToken as any).mockResolvedValue({
-      sub: 'service',
+      sub: 'seamless-auth-external-delivery',
       iss: 'seamless-portal-api',
       aud: 'seamless-auth',
     });

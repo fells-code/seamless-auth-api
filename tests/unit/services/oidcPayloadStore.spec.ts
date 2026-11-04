@@ -18,12 +18,17 @@ vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
 
 vi.mock('../../../src/services/oidcBackchannelLogout', () => ({
   recordBackchannelLogoutTargets: vi.fn(),
+  sendBackchannelLogoutForClient: vi.fn(),
 }));
 
 import { OidcPayload } from '../../../src/models/oidcPayloads';
-import { recordBackchannelLogoutTargets } from '../../../src/services/oidcBackchannelLogout';
+import {
+  recordBackchannelLogoutTargets,
+  sendBackchannelLogoutForClient,
+} from '../../../src/services/oidcBackchannelLogout';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
+  DEVICE_CODE_EXPIRED_GRACE_MS,
   bindOidcSession,
   claimOAuthStateUse,
   consumeOidcPayload,
@@ -201,6 +206,21 @@ describe('finding records', () => {
     vi.mocked(OidcPayload.findOne).mockResolvedValue(null);
     expect(await findOidcPayload('Grant', 'g1')).toBeNull();
   });
+
+  it('reads a device code by id for a grace window past its expiry', async () => {
+    vi.mocked(OidcPayload.findOne).mockResolvedValue(null);
+    const before = Date.now();
+
+    await findOidcPayload('DeviceCode', 'd1');
+    await findOidcPayloadByUserCode('DeviceCode', 'ABCD');
+
+    const [byId, byUserCode] = vi
+      .mocked(OidcPayload.findOne)
+      .mock.calls.map((call) => (call[0] as any).where.expiresAt[Op.gt].getTime());
+    expect(byId).toBeLessThanOrEqual(Date.now() - DEVICE_CODE_EXPIRED_GRACE_MS);
+    expect(byId).toBeGreaterThanOrEqual(before - DEVICE_CODE_EXPIRED_GRACE_MS);
+    expect(byUserCode).toBeGreaterThanOrEqual(before);
+  });
 });
 
 describe('bindOidcSession', () => {
@@ -369,12 +389,62 @@ describe('changing records', () => {
     });
   });
 
+  it('tells the application when its grant ends while its session lives on', async () => {
+    vi.mocked(OidcPayload.findOne)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' }, sessionId: SESSION } as never)
+      .mockResolvedValueOnce(null);
+
+    await destroyOidcPayload('Grant', 'g1');
+
+    expect(OidcPayload.destroy).toHaveBeenCalledWith({ where: { model: 'Grant', id: 'g1' } });
+    expect(sendBackchannelLogoutForClient).toHaveBeenCalledWith(SESSION, 'app');
+    expect(vi.mocked(OidcPayload.destroy).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(sendBackchannelLogoutForClient).mock.invocationCallOrder[0],
+    );
+  });
+
+  it('tells no one while another grant still signs the application in on the session', async () => {
+    vi.mocked(OidcPayload.findOne)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' }, sessionId: SESSION } as never)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' } } as never)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' } } as never);
+
+    await destroyOidcPayload('Grant', 'g1');
+
+    expect(sendBackchannelLogoutForClient).not.toHaveBeenCalled();
+  });
+
+  it('tells no one for a grant without a session or client, or one that is gone', async () => {
+    vi.mocked(OidcPayload.findOne)
+      .mockResolvedValueOnce({ payload: { clientId: 'app' }, sessionId: null } as never)
+      .mockResolvedValueOnce({ payload: {}, sessionId: SESSION } as never)
+      .mockResolvedValueOnce(null);
+
+    await destroyOidcPayload('Grant', 'g1');
+    await destroyOidcPayload('Grant', 'g2');
+    await destroyOidcPayload('Grant', 'g3');
+
+    expect(OidcPayload.destroy).toHaveBeenCalledTimes(3);
+    expect(sendBackchannelLogoutForClient).not.toHaveBeenCalled();
+  });
+
   it('purges expired records', async () => {
     vi.mocked(OidcPayload.destroy).mockResolvedValue(3 as never);
     const now = new Date();
 
     expect(await purgeExpiredOidcPayloads(now)).toBe(3);
-    expect(OidcPayload.destroy).toHaveBeenCalledWith({ where: { expiresAt: { [Op.lte]: now } } });
+    expect(OidcPayload.destroy).toHaveBeenCalledWith({
+      where: {
+        [Op.or]: [
+          { model: { [Op.ne]: 'DeviceCode' }, expiresAt: { [Op.lte]: now } },
+          {
+            expiresAt: {
+              [Op.lte]: new Date(now.getTime() - DEVICE_CODE_EXPIRED_GRACE_MS),
+            },
+          },
+        ],
+      },
+    });
   });
 });
 

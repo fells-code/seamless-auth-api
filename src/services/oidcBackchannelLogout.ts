@@ -110,15 +110,15 @@ export async function recordBackchannelLogoutTargets(
  * Takes the rows in one statement, so of two instances (or the sweep and a revocation)
  * reaching the same session, only one sends.
  */
-async function claimTargets(sessionIds: string[]) {
-  if (sessionIds.length === 0) return [];
+function claimTargets(where: 'sessionIds' | 'ids', values: string[]) {
+  const column = where === 'ids' ? 'id' : '"sessionId"';
 
   return OidcPayload.sequelize!.query<{ payload: Record<string, unknown>; sessionId: string }>(
     `DELETE FROM public.oidc_payloads
-     WHERE model = :model AND "sessionId" IN (:sessionIds)
+     WHERE model = :model AND ${column} IN (:values)
      RETURNING payload, "sessionId"`,
     {
-      replacements: { model: BACKCHANNEL_LOGOUT_MODEL, sessionIds },
+      replacements: { model: BACKCHANNEL_LOGOUT_MODEL, values },
       type: QueryTypes.SELECT,
     },
   );
@@ -205,6 +205,32 @@ async function deliver(issuer: string, sessionId: string, userId: string, target
   );
 }
 
+async function deliverClaimed(
+  issuer: string,
+  claimed: { payload: Record<string, unknown>; sessionId: string }[],
+) {
+  if (claimed.length === 0) return 0;
+
+  const sessionIds = [...new Set(claimed.map((row) => row.sessionId))];
+  const owners = new Map(
+    (await Session.findAll({ where: { id: { [Op.in]: sessionIds } } })).map((row) => [
+      row.id,
+      row.userId,
+    ]),
+  );
+
+  await Promise.all(
+    claimed.map(async (row) => {
+      const target = targetOf(row.payload);
+      const userId = owners.get(row.sessionId);
+      if (!target || !userId) return;
+      await deliver(issuer, row.sessionId, userId, target);
+    }),
+  );
+
+  return claimed.length;
+}
+
 /**
  * Tells every client recorded against these first-party sessions that the user's session
  * at the provider ended. Each client is told once: the rows are deleted as they are taken.
@@ -215,23 +241,19 @@ export async function sendBackchannelLogout(sessionIds: string[]) {
   // Checked before claiming, so rows are never taken without a token being sent for them.
   if (ids.length === 0 || !oidc_issuer) return 0;
 
-  const claimed = await claimTargets(ids);
-  if (claimed.length === 0) return 0;
+  return deliverClaimed(oidc_issuer, await claimTargets('sessionIds', ids));
+}
 
-  const owners = new Map(
-    (await Session.findAll({ where: { id: { [Op.in]: ids } } })).map((row) => [row.id, row.userId]),
-  );
+/**
+ * Tells one client that its sign-in on the session ended while the session goes on, as
+ * when the user signs out of just that application or its grant is revoked. The other
+ * clients on the session are not told, since their sign-in is unchanged.
+ */
+export async function sendBackchannelLogoutForClient(sessionId: string, clientId: string) {
+  const { oidc_issuer } = await getSystemConfig();
+  if (!isUuid(sessionId) || !oidc_issuer) return 0;
 
-  await Promise.all(
-    claimed.map(async (row) => {
-      const target = targetOf(row.payload);
-      const userId = owners.get(row.sessionId);
-      if (!target || !userId) return;
-      await deliver(oidc_issuer, row.sessionId, userId, target);
-    }),
-  );
-
-  return claimed.length;
+  return deliverClaimed(oidc_issuer, await claimTargets('ids', [`${sessionId}:${clientId}`]));
 }
 
 /**

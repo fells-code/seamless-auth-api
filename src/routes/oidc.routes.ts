@@ -107,6 +107,8 @@ oidcRouter.get(
   {
     ...edge,
     summary: 'Read a provider record',
+    description:
+      'Answers 404 for a record past its expiry, except a `DeviceCode`, which stays readable for 10 minutes after it expires so the edge can answer a polling client with `expired_token` (RFC 8628 section 3.5).',
     schemas: {
       params: OidcPayloadParamsSchema,
       response: { 200: OidcPayloadRecordSchema, ...guarded },
@@ -159,6 +161,8 @@ oidcRouter.delete(
   {
     ...edge,
     summary: 'Delete a provider record',
+    description:
+      "Deleting a `Grant` while its first-party session goes on sends back-channel logout to that grant's application alone, once no other grant signs it in on the session.",
     schemas: { params: OidcPayloadParamsSchema, response: guarded },
   },
   deleteOidcPayload,

@@ -44,6 +44,7 @@ import {
   BACKCHANNEL_LOGOUT_MODEL,
   recordBackchannelLogoutTargets,
   sendBackchannelLogout,
+  sendBackchannelLogoutForClient,
   signLogoutToken,
   startBackchannelLogoutSweep,
   sweepBackchannelLogout,
@@ -229,7 +230,7 @@ describe('sendBackchannelLogout', () => {
     const [sql, options] = vi.mocked(OidcPayload.sequelize!.query).mock.calls[0];
     expect(sql).toMatch(/DELETE FROM public\.oidc_payloads[\s\S]*RETURNING/);
     expect(options).toMatchObject({
-      replacements: { model: BACKCHANNEL_LOGOUT_MODEL, sessionIds: [SESSION] },
+      replacements: { model: BACKCHANNEL_LOGOUT_MODEL, values: [SESSION] },
     });
 
     const [uri, init] = vi.mocked(providerFetch).mock.calls[0];
@@ -306,6 +307,45 @@ describe('sendBackchannelLogout', () => {
   });
 });
 
+describe('sendBackchannelLogoutForClient', () => {
+  it("claims only that client's row for the session and posts its logout token", async () => {
+    vi.mocked(OidcPayload.sequelize!.query).mockResolvedValue([
+      { payload: { clientId: 'app', sids: ['a1'] }, sessionId: SESSION },
+    ] as never);
+    vi.mocked(findActiveOidcClient).mockResolvedValue({
+      id: 'app',
+      backchannelLogoutUri: 'https://app.example.com/logout',
+    } as never);
+    vi.mocked(providerFetch).mockResolvedValue(new Response(null, { status: 204 }));
+
+    expect(await sendBackchannelLogoutForClient(SESSION, 'app')).toBe(1);
+
+    const [sql, options] = vi.mocked(OidcPayload.sequelize!.query).mock.calls[0];
+    expect(sql).toMatch(/WHERE model = :model AND id IN \(:values\)/);
+    expect(options).toMatchObject({
+      replacements: { model: BACKCHANNEL_LOGOUT_MODEL, values: [`${SESSION}:app`] },
+    });
+    const token = new URLSearchParams(String(vi.mocked(providerFetch).mock.calls[0][1]?.body)).get(
+      'logout_token',
+    )!;
+    expect(decode(token).claims).toMatchObject({ aud: 'app', sub: USER, sid: 'a1' });
+    expect(AuthEventService.logContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oidc_backchannel_logout_sent',
+        sessionId: SESSION,
+        metadata: { clientId: 'app', status: 204 },
+      }),
+    );
+  });
+
+  it('claims nothing for a malformed session or while no issuer is set', async () => {
+    expect(await sendBackchannelLogoutForClient('nope', 'app')).toBe(0);
+    vi.mocked(getSystemConfig).mockResolvedValue(buildSystemConfig({ oidc_issuer: '' }));
+    expect(await sendBackchannelLogoutForClient(SESSION, 'app')).toBe(0);
+    expect(OidcPayload.sequelize!.query).not.toHaveBeenCalled();
+  });
+});
+
 describe('sweepBackchannelLogout', () => {
   it('sends only for recorded sessions that are no longer live', async () => {
     vi.mocked(OidcPayload.findAll).mockResolvedValue([
@@ -322,7 +362,7 @@ describe('sweepBackchannelLogout', () => {
 
     expect(resolveCurrentSession).toHaveBeenCalledTimes(2);
     expect(vi.mocked(OidcPayload.sequelize!.query).mock.calls[0][1]).toMatchObject({
-      replacements: { sessionIds: [SESSION] },
+      replacements: { values: [SESSION] },
     });
   });
 
