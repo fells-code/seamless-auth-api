@@ -62,6 +62,7 @@ export function parseSystemConfigEnvValue(key: keyof typeof SYSTEM_CONFIG_ENV_MA
       return raw.trim().toLowerCase() === 'true';
 
     case 'oidc_issuer':
+    case 'oidc_cli_client_id':
       return raw.trim();
 
     case 'hosted_ui':

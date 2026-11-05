@@ -14702,6 +14702,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                /** @default false */
                 sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
@@ -14893,7 +14894,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
-             *         "sessionExchangeEnabled": true,
+             *         "sessionExchangeEnabled": null,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -14940,6 +14941,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                /** @default false */
                 sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
@@ -15119,7 +15121,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
-             *         "sessionExchangeEnabled": true,
+             *         "sessionExchangeEnabled": null,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -15165,6 +15167,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                /** @default false */
                 sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
@@ -15596,7 +15599,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
-             *         "sessionExchangeEnabled": true,
+             *         "sessionExchangeEnabled": null,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -15642,6 +15645,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                /** @default false */
                 sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
@@ -15839,7 +15843,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
-             *         "sessionExchangeEnabled": true,
+             *         "sessionExchangeEnabled": null,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -15886,6 +15890,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                /** @default false */
                 sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
@@ -16108,7 +16113,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
-             *         "sessionExchangeEnabled": true,
+             *         "sessionExchangeEnabled": null,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -16154,6 +16159,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                /** @default false */
                 sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
@@ -23939,13 +23945,22 @@ export interface paths {
              *         null
              *       ],
              *       "recoveryCodes": true,
-             *       "accountRecovery": true
+             *       "accountRecovery": true,
+             *       "oidcProvider": {
+             *         "issuer": null,
+             *         "cliClientId": "string"
+             *       }
              *     }
              */
             'application/json': {
               loginMethods: ('passkey' | 'magic_link' | 'email_otp' | 'phone_otp' | 'oauth')[];
               recoveryCodes?: boolean;
               accountRecovery?: boolean;
+              oidcProvider?: {
+                /** Format: uri */
+                issuer: string;
+                cliClientId: string;
+              };
             };
           };
         };
@@ -24163,6 +24178,7 @@ export interface paths {
              *       "magic_link_redirect_uris": null,
              *       "oidc_provider_enabled": null,
              *       "oidc_issuer": null,
+             *       "oidc_cli_client_id": null,
              *       "allow_client_secrets": null,
              *       "third_party_clients_enabled": null,
              *       "hosted_ui": null
@@ -24383,6 +24399,8 @@ export interface paths {
                * @default null
                */
               oidc_issuer: string | null;
+              /** @default null */
+              oidc_cli_client_id: string | null;
               /** @default false */
               allow_client_secrets: boolean;
               /** @default false */
@@ -24659,6 +24677,7 @@ export interface paths {
             oidc_provider_enabled?: boolean;
             /** Format: uri */
             oidc_issuer?: string | null;
+            oidc_cli_client_id?: string | null;
             allow_client_secrets?: boolean;
             third_party_clients_enabled?: boolean;
             hosted_ui?: {

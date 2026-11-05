@@ -17,10 +17,14 @@ import { resolveSystemConfigUpdatedBy } from '../lib/systemConfigActor.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { User } from '../models/users.js';
 import { createPatchSystemConfigSchema } from '../schemas/systemConfig.patch.schema.js';
-import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
+import {
+  type SystemConfig as SystemConfigValues,
+  SystemConfigSchema,
+} from '../schemas/systemConfig.schema.js';
 import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { getLoginPolicy } from '../services/loginPolicyService.js';
+import { findSessionExchangeClient } from '../services/oidcClientRegistry.js';
 import {
   isPolicyKey,
   lockPolicyForConfigPatch,
@@ -80,6 +84,16 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
     }
   }
 
+  if (
+    parsed.data.oidc_cli_client_id &&
+    !(await findSessionExchangeClient(parsed.data.oidc_cli_client_id))
+  ) {
+    return res.status(400).json({
+      error: 'Invalid OpenID Provider config',
+      details: ['oidc_cli_client_id must name an active application with session exchange on'],
+    });
+  }
+
   const rolesInUse = await getRolesInUse();
 
   if (parsed.data.available_roles) {
@@ -119,6 +133,12 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
     }
 
     for (const [key, value] of Object.entries(updates)) {
+      // system_config.value is NOT NULL, and no row reads back as the schema's null.
+      if (value === null) {
+        await SystemConfig.destroy({ where: { key }, transaction: tx });
+        continue;
+      }
+
       await SystemConfig.upsert(
         {
           key,
@@ -189,6 +209,19 @@ export const getAvailableRoles = async (_req: Request, res: Response) => {
 };
 
 /**
+ * ADR 0003. Whole or not at all. The application is read on every request rather than
+ * through the config cache, so disabling it ends the advertisement at once.
+ */
+async function advertisedOidcProvider(config: SystemConfigValues) {
+  const { oidc_provider_enabled, oidc_issuer, oidc_cli_client_id } = config;
+
+  if (!oidc_provider_enabled || !oidc_issuer || !oidc_cli_client_id) return null;
+  if (!(await findSessionExchangeClient(oidc_cli_client_id))) return null;
+
+  return { issuer: oidc_issuer, cliClientId: oidc_cli_client_id };
+}
+
+/**
  * The configuration a signed-out client is allowed to read.
  *
  * Served through getLoginPolicy, which fills defaults for login method values it
@@ -202,10 +235,12 @@ export const getPublicSystemConfig = async (_req: Request, res: Response) => {
   const { loginMethods } = await getLoginPolicy();
   const config = await getSystemConfig();
   const { recovery_codes } = config;
+  const oidcProvider = await advertisedOidcProvider(config);
 
   return res.json({
     loginMethods,
     recoveryCodes: recovery_codes?.enabled !== false,
     accountRecovery: isAccountRecoveryAvailable(config),
+    ...(oidcProvider ? { oidcProvider } : {}),
   });
 };

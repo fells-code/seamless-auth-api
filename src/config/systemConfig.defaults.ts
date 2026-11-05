@@ -48,6 +48,7 @@ export const SYSTEM_CONFIG_DEFAULTS: Partial<SystemConfig> = {
   // The provider is opt-in per deployment (ADR 0001, D13).
   oidc_provider_enabled: false,
   oidc_issuer: null,
+  oidc_cli_client_id: null,
   allow_client_secrets: false,
   third_party_clients_enabled: false,
   hosted_ui: null,

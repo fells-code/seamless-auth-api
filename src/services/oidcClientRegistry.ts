@@ -73,6 +73,12 @@ export function isSessionExchangeClient(client: OidcClient) {
   );
 }
 
+/** ADR 0003. The application a native admin tool can be told to sign in with, if this one is. */
+export async function findSessionExchangeClient(id: string) {
+  const client = await findActiveOidcClient(id);
+  return client && isSessionExchangeClient(client) ? client : null;
+}
+
 export async function getOidcClientMetadata(id: string): Promise<OidcClientMetadata | null> {
   const client = await findActiveOidcClient(id);
 

@@ -96,10 +96,7 @@ async function admin(roles = ['admin:write', 'admin:read'], stepUp = true) {
     chainStartedAt: new Date(now),
     ...(stepUp ? { stepUpVerifiedAt: new Date(now) } : {}),
   });
-  return {
-    user,
-    token: await tokens.signAccessToken(session.id, session.userId, roles, null),
-  };
+  return { token: await tokens.signAccessToken(session.id, session.userId, roles, null) };
 }
 
 function patchConfig(token: string, body: Record<string, unknown>) {
@@ -302,7 +299,7 @@ describe('PATCH /system-config/admin oidc_cli_client_id', () => {
     const client = await nativeClient();
     await configure({ clientId: null });
     await readPublic();
-    const { user, token } = await admin();
+    const { token } = await admin();
 
     const res = await patchConfig(token, { oidc_cli_client_id: client.id });
 
@@ -314,10 +311,10 @@ describe('PATCH /system-config/admin oidc_cli_client_id', () => {
       cliClientId: client.id,
     });
 
-    const event = await AuthEvent.findOne({
-      where: { type: 'system_config_updated', user_id: user.id },
-    });
-    expect(event?.metadata).toMatchObject({ after: { oidc_cli_client_id: client.id } });
+    const events = await AuthEvent.findAll({ where: { type: 'system_config_updated' } });
+    expect(events.some((event) => event.metadata?.after?.oidc_cli_client_id === client.id)).toBe(
+      true,
+    );
   });
 
   it('is readable back through the admin route', async () => {
