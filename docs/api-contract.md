@@ -60,7 +60,7 @@ failures, `500` server error). A few carry branch-significant meaning that clien
 | `POST /refresh`                | `401` | Missing, invalid, expired, or already-rotated refresh token.           |
 | `POST /refresh`                | `405` | Method other than POST.                                                |
 | `POST /sessions/exchange`      | `400` | `invalid_request`. With `token_already_used`, a replay: see below.     |
-| Admin and factor routes        | `403` | `step_up_required`, even on a read, for a device-grant child session.  |
+| Admin, org and factor routes   | `403` | `step_up_required`, even on a read, for a device-grant child session.  |
 
 The SDK adapters branch on these exact codes (for example, the magic-link poll treats `204` as
 "pending"). Changing a branch-significant status code is a contract change; see the ripple
@@ -167,13 +167,17 @@ user their sign-in may have been intercepted.
 
 **Step-up.** A session from an authorization code grant starts with the parent's step-up as it
 stood at the exchange, with the five minute window still running from the original step-up, so a
-stale one stays stale. A session from a device grant starts with none. Until it completes
-`POST /totp/verify-mfa`, it answers `403 step_up_required`, with the same body as `requireStepUp`, on
-every route behind `requireAdmin`, reads included, and on every route that changes how the account
-signs in or recovers: `/totp/enroll/*`, `/totp/disable`, `/webauthn/register/*`,
-`POST /recovery-codes`, `DELETE /users/credentials`, `/registration/phone`,
-`/registration/phone/verify` and `DELETE /recovery/requests/:id`. As for any session, a refresh does
-not carry a step-up to the new row.
+stale one stays stale. A session from a device grant starts with none. It steps up with the user's own factor:
+`POST /totp/verify-mfa`, which is what a CLI uses, or a real passkey assertion on the relying
+party's domain through `/step-up/webauthn/*`. Until then it answers `403 step_up_required`, with the
+same body as `requireStepUp`, on every route behind `requireAdmin`, on every `/organizations` route
+except `POST /organizations/:id/switch`, reads included, whether it acts through a global admin
+role or as an ordinary member or owner, and on every route that changes how the account signs in or
+recovers: `/totp/enroll/*`, `/totp/disable`, `/webauthn/register/*`, `POST /recovery-codes`,
+`DELETE /users/credentials`, `/registration/phone`, `/registration/phone/verify` and
+`DELETE /recovery/requests/:id`. `DELETE /sessions/:id`, `DELETE /sessions` and `DELETE /logout/all`
+stay open: they gain no access, though they could slow the owner's response. As for any session, a
+refresh does not carry a step-up to the new row.
 
 **A device sign-in with no TOTP cannot enroll one.** The user enrolls from a browser, then signs in
 on the device again. Without this, someone who phished a device approval could enroll their own
