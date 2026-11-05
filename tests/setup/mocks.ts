@@ -30,6 +30,7 @@ vi.mock('../../src/models/systemConfig.js', () => ({
     findAll: vi.fn(),
     findByPk: vi.fn(),
     upsert: vi.fn(),
+    destroy: vi.fn(),
     sequelize: {
       // The transaction object carries LOCK because the provider edits read the row
       // FOR UPDATE, so the double has to offer what the real one does.
