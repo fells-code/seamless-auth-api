@@ -25,6 +25,8 @@ on:
       - 'src/services/signInMetrics.ts'
       # Conditional updates whose single winner only a real database can show.
       - 'src/services/totpService.ts'
+      - 'src/services/oidcPayloadStore.ts'
+      - 'src/services/sessionExchangeService.ts'
       - 'src/utils/otp.ts'
       - 'tests/postgres/**'
       - 'scripts/upgrade-check/**'

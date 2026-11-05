@@ -24,6 +24,8 @@ import { AuthEvent } from '../../../src/models/authEvents';
 import { AuthFailure } from '../../../src/models/authFailures';
 import { AuthEventService } from '../../../src/services/authEventService';
 import { logoutCurrentSession } from '../../../src/controllers/authentication';
+import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
+import { recordProviderActivity } from '../../../src/services/oidcSigning';
 
 let app: Application;
 
@@ -43,6 +45,16 @@ function buildReq(overrides: Record<string, unknown> = {}) {
     ...overrides,
   } as any;
 }
+
+vi.mock('../../../src/services/oidcAuthContext.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/services/oidcAuthContext.js')>()),
+  resolveCurrentSession: vi.fn(),
+}));
+
+vi.mock('../../../src/services/oidcSigning.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/services/oidcSigning.js')>()),
+  recordProviderActivity: vi.fn(),
+}));
 
 vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {
   const actual =
@@ -682,6 +694,86 @@ describe('POST /refresh', () => {
       }),
     );
     expect(res.body.refreshToken).toBe('refresh');
+  });
+
+  describe('of an exchanged session', () => {
+    const child = () => ({
+      id: 'child-1',
+      replacedBySessionId: null,
+      revokedAt: null,
+      userId: 'user-1',
+      infraId: 'app',
+      mode: 'server',
+      parentSessionId: 'parent-1',
+      exchangeClientId: 'cli',
+      exchangeGrantType: 'authorization_code',
+      chainStartedAt: new Date(),
+      save: vi.fn(),
+    });
+
+    beforeEach(() => {
+      (User.findOne as any).mockResolvedValue(buildUser());
+      (Session.create as any).mockResolvedValue({ id: 'new-session' });
+      (claimSessionRotation as any).mockResolvedValue(true);
+      (signAccessToken as any).mockResolvedValue('access');
+      (generateRefreshToken as any).mockReturnValue('refresh');
+      (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+      (getSystemConfig as any).mockResolvedValue({
+        access_token_ttl: '15m',
+        refresh_token_ttl: '1h',
+        session_idle_ttl: '8h',
+      });
+      vi.mocked(recordProviderActivity).mockResolvedValue(undefined);
+    });
+
+    it('refuses and ends it once its parent has ended', async () => {
+      const session = child();
+      (findRefreshSessionByToken as any).mockResolvedValue(session);
+      vi.mocked(resolveCurrentSession).mockResolvedValue(null);
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('invalid_refresh_token');
+      expect(hardRevokeSession).toHaveBeenCalledWith(session, 'parent_session_ended');
+      expect(Session.create).not.toHaveBeenCalled();
+    });
+
+    it('keeps the link, stays inside the parent, and records activity on it', async () => {
+      const parentExpiry = new Date(Date.now() + 10 * 60_000);
+      (findRefreshSessionByToken as any).mockResolvedValue(child());
+      vi.mocked(resolveCurrentSession).mockResolvedValue({
+        id: 'parent-now',
+        expiresAt: parentExpiry,
+      } as never);
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(200);
+      expect(Session.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parentSessionId: 'parent-1',
+          exchangeClientId: 'cli',
+          exchangeGrantType: 'authorization_code',
+          expiresAt: parentExpiry,
+          idleExpiresAt: parentExpiry,
+        }),
+      );
+      expect(recordProviderActivity).toHaveBeenCalledWith('parent-now');
+    });
+
+    it('still answers when the activity cannot be recorded', async () => {
+      (findRefreshSessionByToken as any).mockResolvedValue(child());
+      vi.mocked(resolveCurrentSession).mockResolvedValue({
+        id: 'parent-now',
+        expiresAt: new Date(Date.now() + 10 * 60_000),
+      } as never);
+      vi.mocked(recordProviderActivity).mockRejectedValue(new Error('down'));
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(200);
+    });
   });
 
   it('carries the sign-in auth context to the rotated session', async () => {

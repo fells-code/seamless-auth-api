@@ -82,6 +82,7 @@ export async function createApplication(req: Request, res: Response) {
         tokenEndpointAuthMethod: application.tokenEndpointAuthMethod,
         grantTypes: application.grantTypes,
         deviceFlowEnabled: application.deviceFlowEnabled,
+        sessionExchangeEnabled: application.sessionExchangeEnabled,
         pkceRequired: application.pkceRequired,
         nonceRequired: application.nonceRequired,
         redirectUris: application.redirectUris,
@@ -89,6 +90,12 @@ export async function createApplication(req: Request, res: Response) {
       },
     });
 
+    if (application.sessionExchangeEnabled) {
+      await audit(req, {
+        type: 'admin_oidc_application_session_exchange_updated',
+        metadata: { clientId: client.id, sessionExchangeEnabled: true },
+      });
+    }
     if (!application.pkceRequired) {
       await audit(req, {
         type: 'admin_oidc_application_pkce_updated',
@@ -110,11 +117,19 @@ export async function createApplication(req: Request, res: Response) {
 
 export async function updateApplication(req: Request, res: Response) {
   try {
-    const { pkceRequired: pkceBefore, nonceRequired: nonceBefore } = await findOidcApplication(
-      req.params.id as string,
-    );
+    const {
+      pkceRequired: pkceBefore,
+      nonceRequired: nonceBefore,
+      sessionExchangeEnabled: sessionExchangeBefore,
+    } = await findOidcApplication(req.params.id as string);
     const client = await updateOidcApplication(req.params.id as string, req.body);
 
+    if (client.sessionExchangeEnabled !== sessionExchangeBefore) {
+      await audit(req, {
+        type: 'admin_oidc_application_session_exchange_updated',
+        metadata: { clientId: client.id, sessionExchangeEnabled: client.sessionExchangeEnabled },
+      });
+    }
     if (client.pkceRequired !== pkceBefore) {
       await audit(req, {
         type: 'admin_oidc_application_pkce_updated',

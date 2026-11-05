@@ -159,5 +159,8 @@ export function serializeSession(session: unknown, currentSessionId?: string | n
     lastUsedAt: dateField(session, 'lastUsedAt'),
     expiresAt: dateField(session, 'expiresAt'),
     current: currentSessionId ? id === currentSessionId : false,
+    parentSessionId: nullableStringField(session, 'parentSessionId') ?? undefined,
+    exchangeClientId: nullableStringField(session, 'exchangeClientId') ?? undefined,
+    exchangeGrantType: nullableStringField(session, 'exchangeGrantType') ?? undefined,
   });
 }

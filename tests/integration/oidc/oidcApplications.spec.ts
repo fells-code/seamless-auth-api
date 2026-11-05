@@ -60,6 +60,7 @@ function row(overrides: Record<string, unknown> = {}): Row {
     refreshTokenTtlSeconds: null,
     deviceFlowEnabled: false,
     noticesEnabled: false,
+    sessionExchangeEnabled: false,
     noticeActionOrigins: [],
     pkceRequired: true,
     nonceRequired: true,
@@ -172,6 +173,25 @@ describe('POST /admin/applications', () => {
     );
     expect(vi.mocked(OidcClient.create).mock.calls[0][0].id).toMatch(/^[A-Za-z0-9_-]{22}$/);
     expect(loggedTypes()).toEqual(['admin_oidc_application_created']);
+  });
+
+  it('audits creating a client with session exchange on', async () => {
+    const res = await request(app)
+      .post('/admin/applications')
+      .send({
+        name: 'CLI',
+        clientType: 'public',
+        firstParty: true,
+        redirectUris: ['http://127.0.0.1/callback'],
+        sessionExchangeEnabled: true,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.application.sessionExchangeEnabled).toBe(true);
+    expect(loggedTypes()).toEqual([
+      'admin_oidc_application_created',
+      'admin_oidc_application_session_exchange_updated',
+    ]);
   });
 
   it('defaults a confidential client to private_key_jwt', async () => {
@@ -506,6 +526,64 @@ describe('PATCH /admin/applications/:id', () => {
     expect(vi.mocked(AuthEventService.log).mock.calls[0][0]).toMatchObject({
       type: 'admin_oidc_application_updated',
       metadata: { clientId: 'app-1', changed: ['name'], name: 'Renamed' },
+    });
+  });
+
+  describe('sessionExchangeEnabled', () => {
+    const native = () =>
+      row({
+        clientType: 'public',
+        firstParty: true,
+        tokenEndpointAuthMethod: 'none',
+        jwksUri: null,
+        redirectUris: ['http://127.0.0.1/callback'],
+        sessionExchangeEnabled: true,
+      });
+
+    it('audits turning it off and revokes what the client exchanged for', async () => {
+      vi.mocked(OidcClient.findByPk).mockResolvedValue(native() as never);
+
+      const res = await request(app)
+        .patch('/admin/applications/app-1')
+        .send({ sessionExchangeEnabled: false });
+
+      expect(res.status).toBe(200);
+      expect(vi.mocked(AuthEventService.log).mock.calls[0][0]).toMatchObject({
+        type: 'admin_oidc_application_session_exchange_updated',
+        metadata: { clientId: 'app-1', sessionExchangeEnabled: false },
+      });
+      expect(vi.mocked(Session.update).mock.calls[0]).toEqual([
+        expect.objectContaining({ revokedReason: 'session_exchange_disabled' }),
+        { where: { exchangeClientId: 'app-1', revokedAt: null } },
+      ]);
+    });
+
+    it('revokes them when the client is disabled', async () => {
+      vi.mocked(OidcClient.findByPk).mockResolvedValue(native() as never);
+
+      await request(app).patch('/admin/applications/app-1').send({ disabled: true });
+
+      expect(vi.mocked(Session.update).mock.calls[0][0]).toMatchObject({
+        revokedReason: 'oidc_client_disabled',
+      });
+    });
+
+    it('leaves them alone on any other change', async () => {
+      vi.mocked(OidcClient.findByPk).mockResolvedValue(native() as never);
+
+      await request(app).patch('/admin/applications/app-1').send({ name: 'Renamed' });
+
+      expect(Session.update).not.toHaveBeenCalled();
+    });
+
+    it('is refused on a client that is not first-party public native', async () => {
+      vi.mocked(OidcClient.findByPk).mockResolvedValue(row() as never);
+
+      const res = await request(app)
+        .patch('/admin/applications/app-1')
+        .send({ sessionExchangeEnabled: true });
+
+      expect(res.status).toBe(400);
     });
   });
 

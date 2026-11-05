@@ -9,6 +9,10 @@ import { NextFunction, Response } from 'express';
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
+import {
+  type DeviceStepUpAwareHandler,
+  refuseDeviceSessionWithoutStepUp,
+} from './requireDeviceSessionStepUp.js';
 
 const logger = getLogger('requireAdmin');
 
@@ -17,7 +21,7 @@ export type AdminAccessLevel = 'read' | 'write';
 export function requireAdmin(accessLevel?: AdminAccessLevel) {
   const requiredRole = accessLevel ? `admin:${accessLevel}` : 'admin';
 
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const guard = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
         logger.error('Admin route hit without authenticated user');
@@ -29,10 +33,16 @@ export function requireAdmin(accessLevel?: AdminAccessLevel) {
         return res.status(403).json({ error: 'Forbidden' });
       }
 
+      if (refuseDeviceSessionWithoutStepUp(req, res)) return;
+
       next();
     } catch (err) {
       logger.error(`requireAdmin failure: ${err}`);
       return res.status(500).json({ error: 'Internal server error' });
     }
   };
+
+  const handler = guard as typeof guard & DeviceStepUpAwareHandler;
+  handler.seamlessDeviceStepUp = true;
+  return handler;
 }

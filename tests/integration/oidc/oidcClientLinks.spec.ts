@@ -38,6 +38,7 @@ function client(id: string, overrides: Record<string, unknown> = {}) {
     refreshTokenTtlSeconds: null,
     deviceFlowEnabled: false,
     noticesEnabled: false,
+    sessionExchangeEnabled: false,
     noticeActionOrigins: [],
     pkceRequired: true,
     nonceRequired: true,

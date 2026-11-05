@@ -42,6 +42,9 @@ All tokens are returned in the JSON body (the API never sets cookies). Present t
 
 > `POST /refresh` reads the refresh token from the `Authorization` header, not the request body.
 
+`POST /sessions/exchange` also issues an access and refresh token pair, from a provider sign-in;
+see [Native admin tools](#native-admin-tools).
+
 ## Status codes to branch on
 
 Most endpoints use conventional codes (`200` success, `400` invalid input, `401`/`403` auth
@@ -56,6 +59,8 @@ failures, `500` server error). A few carry branch-significant meaning that clien
 | `POST /login`                  | `423` | The account is locked out. Carries `retryAfterSeconds`.                |
 | `POST /refresh`                | `401` | Missing, invalid, expired, or already-rotated refresh token.           |
 | `POST /refresh`                | `405` | Method other than POST.                                                |
+| `POST /sessions/exchange`      | `400` | `invalid_request`. With `token_already_used`, a replay: see below.     |
+| Admin, org and factor routes   | `403` | `step_up_required`, even on a read, for a device-grant child session.  |
 
 The SDK adapters branch on these exact codes (for example, the magic-link poll treats `204` as
 "pending"). Changing a branch-significant status code is a contract change; see the ripple
@@ -122,6 +127,70 @@ IP forwarding in the path while the app holds the tokens. What a deployment has 
 - **Authenticator policy.** The defaults (`attestation: "none"`, `syncedPasskeys: "allow"`)
   admit iCloud Keychain and Google Password Manager passkeys. A tenant on
   `syncedPasskeys: "block"` refuses every iOS passkey.
+
+### Native admin tools
+
+A first-party public native client signed in through the OpenID Provider reaches `/admin/*` and
+`/users/me` by exchanging the sign-in for a first-party session of its own
+([ADR 0003](./adr/0003-native-admin-access.md)). An admin first turns `sessionExchangeEnabled` on
+for the client, with `PATCH /admin/applications/:id`. It is off by default, and accepted only on a
+first-party public client with a loopback or private-use redirect URI.
+
+The client runs authorization code with PKCE, or the device grant, with
+`resource=<oidc_issuer>/seamless` and `scope=openid session:exchange`, and without
+`offline_access`. It then has 60 seconds to send the access token here, directly rather than
+through an adapter:
+
+```http
+POST /sessions/exchange
+Content-Type: application/json
+
+{
+  "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+  "subject_token": "<the at+jwt>",
+  "subject_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "requested_token_type": "urn:ietf:params:oauth:token-type:refresh_token"
+}
+```
+
+`requested_token_type` is optional. A `200` is the body `POST /refresh` returns, plus
+`issued_token_type`. From there the client uses `/refresh`, `/logout`, `/users/me`,
+`/totp/verify-mfa` and `/admin/*` as any first-party client does. `/logout` ends this session and
+leaves the browser's alone.
+
+Every failure is a `400` whose `error` is `invalid_request`. A request that fails schema validation
+also carries `message` and `details`. Every subject token failure is the bare
+`{ "error": "invalid_request" }`, whatever the reason, so the route says nothing about sessions. A
+token presented a second time adds `"error_description": "token_already_used"` and revokes the
+session the first presentation created, so a client seeing it should sign in again and tell the
+user their sign-in may have been intercepted.
+
+**Step-up.** A session from an authorization code grant starts with the parent's step-up as it
+stood at the exchange, with the five minute window still running from the original step-up, so a
+stale one stays stale. A session from a device grant starts with none. It steps up with the user's own factor:
+`POST /totp/verify-mfa`, which is what a CLI uses, or a real passkey assertion on the relying
+party's domain through `/step-up/webauthn/*`. Until then it answers `403 step_up_required`, with the
+same body as `requireStepUp`, on every route behind `requireAdmin`, on every `/organizations` route
+except `POST /organizations/:id/switch`, reads included, whether it acts through a global admin
+role or as an ordinary member or owner, and on every route that changes how the account signs in or
+recovers: `/totp/enroll/*`, `/totp/disable`, `/webauthn/register/*`, `POST /recovery-codes`,
+`DELETE /users/credentials`, `/registration/phone`, `/registration/phone/verify` and
+`DELETE /recovery/requests/:id`. `DELETE /sessions/:id`, `DELETE /sessions` and `DELETE /logout/all`
+stay open: they gain no access, though they could slow the owner's response. As for any session, a
+refresh does not carry a step-up to the new row.
+
+**A device sign-in with no TOTP cannot enroll one.** The user enrolls from a browser, then signs in
+on the device again. Without this, someone who phished a device approval could enroll their own
+authenticator and step up with it. A session from an authorization code grant, and every other
+first-party session, can enroll as before.
+
+**Lifetime.** The session is capped at its parent's expiry, and `refreshTtl` says what is left. It
+ends when its parent does: sign-out at the provider, revocation, expiry or idling out. Refreshing
+it keeps the parent from idling out. An expired parent shows up as
+`401 invalid_refresh_token` on `POST /refresh`.
+
+**Session lists.** `GET /sessions` and the admin session views add `parentSessionId`,
+`exchangeClientId` and `exchangeGrantType` to a child, and leave them out otherwise.
 
 ### Error body
 

@@ -175,6 +175,21 @@ describe('verifyBearerAuth', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('attaches the step-up state of a session exchanged from a device grant', async () => {
+    req.headers.authorization = 'Bearer token';
+    const deviceChildSession = { stepUpVerifiedAt: null, stepUpMethod: null };
+
+    (validateBearerToken as any).mockResolvedValue({
+      user: { id: 'user-1' },
+      sessionId: 'session-1',
+      deviceChildSession,
+    });
+
+    await verifyBearerAuth(req, res, next);
+
+    expect(req.deviceChildSession).toBe(deviceChildSession);
+  });
+
   it('returns 401 if validation throws', async () => {
     req.headers.authorization = 'Bearer token';
 

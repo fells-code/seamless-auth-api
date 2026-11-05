@@ -17,6 +17,7 @@ import {
 } from '../controllers/organizations.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
 import { InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import {
@@ -41,6 +42,7 @@ const organizationRouter = createRouter('/organizations');
 organizationRouter.get(
   '/',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'List organizations for the authenticated user',
@@ -56,6 +58,7 @@ organizationRouter.get(
 organizationRouter.post(
   '/',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Create organization',
@@ -72,6 +75,7 @@ organizationRouter.post(
 organizationRouter.get(
   '/:organizationId',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Get organization',
@@ -89,6 +93,7 @@ organizationRouter.get(
 organizationRouter.patch(
   '/:organizationId',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Update organization',
@@ -126,6 +131,7 @@ organizationRouter.post(
 organizationRouter.get(
   '/:organizationId/members',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'List organization members',
@@ -150,7 +156,7 @@ organizationRouter.post(
       'Requires admin:write. Adding someone by email without their consent would let any ' +
       'account holder learn which addresses have accounts and attach strangers to an ' +
       'organization, so self-service adds wait for invitations.',
-    middleware: [requireAdmin('write'), requireStepUp()],
+    middleware: [requireDeviceSessionStepUp, requireAdmin('write'), requireStepUp()],
     schemas: {
       params: OrganizationIdParamSchema,
       body: AddOrganizationMemberRequestSchema,
@@ -168,6 +174,7 @@ organizationRouter.post(
 organizationRouter.patch(
   '/:organizationId/members/:userId',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Update organization member',
@@ -187,6 +194,7 @@ organizationRouter.patch(
 organizationRouter.delete(
   '/:organizationId/members/:userId',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Remove organization member',

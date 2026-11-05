@@ -11,6 +11,7 @@ import {
   type OidcPublicJwk,
   oidcRedirectUriKind,
   seamlessBuiltInResource,
+  SESSION_EXCHANGE_SCOPE,
 } from '@seamless-auth/types';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Op } from 'sequelize';
@@ -26,6 +27,7 @@ import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 const SHARED_SECRET_METHODS = new Set(['client_secret_basic', 'client_secret_post']);
 const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
+const SESSION_EXCHANGE_TOKEN_TTL_SECONDS = 60;
 
 /**
  * Keyed with the refresh token lookup secret, but over a prefixed input, so a client
@@ -55,6 +57,20 @@ export async function findActiveOidcClient(id: string) {
 export function isNativeRedirectUri(uri: string) {
   const kind = oidcRedirectUriKind(uri);
   return kind === 'loopback' || kind === 'private_use';
+}
+
+/**
+ * ADR 0003, X2. Checked on the client as stored rather than trusting the flag alone, so a
+ * row that reached this state some other way still cannot exchange.
+ */
+export function isSessionExchangeClient(client: OidcClient) {
+  return (
+    client.sessionExchangeEnabled &&
+    client.firstParty &&
+    client.clientType === 'public' &&
+    client.tokenEndpointAuthMethod === 'none' &&
+    client.redirectUris.some(isNativeRedirectUri)
+  );
 }
 
 export async function getOidcClientMetadata(id: string): Promise<OidcClientMetadata | null> {
@@ -128,19 +144,30 @@ export async function verifyOidcClientSecret(id: string, secret: string) {
  * The resources a client may ask an access token for, each with the scopes it is allowed
  * there. A link may only narrow what the resource defines, whatever was stored on it. The
  * built-in `<oidc_issuer>/seamless` resource is never stored: an admin turning notices on
- * for the client is what links it (ADR 0001, D14).
+ * for the client (ADR 0001, D14) or session exchange (ADR 0003, X2) is what links it.
  */
 export async function getOidcClientResources(clientId: string) {
   const client = await findActiveOidcClient(clientId);
   const { oidc_issuer } = await getSystemConfig();
   const builtIn = oidc_issuer ? seamlessBuiltInResource(oidc_issuer) : null;
+  const exchange = client ? isSessionExchangeClient(client) : false;
+  const builtInScopes = [
+    ...(client?.noticesEnabled ? [APPLICATION_NOTICE_SCOPE] : []),
+    ...(exchange ? [SESSION_EXCHANGE_SCOPE] : []),
+  ];
   const resources: {
     identifier: string;
     scopes: string[];
     accessTokenTtlSeconds: number | null;
   }[] =
-    builtIn && client?.noticesEnabled
-      ? [{ identifier: builtIn, scopes: [APPLICATION_NOTICE_SCOPE], accessTokenTtlSeconds: null }]
+    builtIn && builtInScopes.length > 0
+      ? [
+          {
+            identifier: builtIn,
+            scopes: builtInScopes,
+            accessTokenTtlSeconds: exchange ? SESSION_EXCHANGE_TOKEN_TTL_SECONDS : null,
+          },
+        ]
       : [];
 
   const links = await OidcClientResource.findAll({ where: { clientId } });

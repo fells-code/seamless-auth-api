@@ -175,6 +175,7 @@ vi.mock('../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),
     findAll: vi.fn(),
+    findByPk: vi.fn(),
     findOne: vi.fn(),
     count: vi.fn(),
     update: vi.fn(async () => [0]),
@@ -223,6 +224,7 @@ vi.mock('../../src/services/sessionService.js', () => ({
   verifyJwtWithKid: vi.fn(),
   revokeSessionChain: vi.fn(),
   hardRevokeSession: vi.fn(),
+  revokeOrphanedChildSessions: vi.fn(),
   liftRecoveryRestriction: vi.fn(async () => true),
 }));
 
@@ -268,9 +270,13 @@ vi.mock('../../src/middleware/authenticateServiceToken.js', () => ({
 }));
 
 vi.mock('../../src/middleware/requireAdmin.js', () => ({
-  requireAdmin: () => (_req: any, _res: any, next: any) => {
-    next();
-  },
+  requireAdmin: () =>
+    Object.assign(
+      (_req: any, _res: any, next: any) => {
+        next();
+      },
+      { seamlessDeviceStepUp: true },
+    ),
 }));
 
 vi.mock('../../src/middleware/rateLimit.js', () => ({
@@ -278,6 +284,7 @@ vi.mock('../../src/middleware/rateLimit.js', () => ({
   magicLinkEmailLimiter: (_req: any, _res: any, next: any) => next(),
   oauthIpLimiter: (_req: any, _res: any, next: any) => next(),
   oauthProviderLimiter: (_req: any, _res: any, next: any) => next(),
+  sessionExchangeLimiter: (_req: any, _res: any, next: any) => next(),
   otpIpLimiter: (_req: any, _res: any, next: any) => next(),
   otpIdentityLimiter: (_req: any, _res: any, next: any) => next(),
   dynamicRateLimit: (_req: any, _res: any, next: any) => next(),

@@ -4,6 +4,7 @@ import { createApp } from '../../../src/app';
 import { Application } from 'express';
 import { Op } from 'sequelize';
 
+import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { hardRevokeSession } from '../../../src/services/sessionService.js';
@@ -103,5 +104,34 @@ describe('DELETE /sessions', () => {
 
     expect(res.status).toBe(200);
     expect(hardRevokeSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /sessions/exchange', () => {
+  const body = {
+    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+    subject_token: 'a.b.c',
+    subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+  };
+
+  it('answers invalid_request to a malformed request, with no store', async () => {
+    const res = await request(app)
+      .post('/sessions/exchange')
+      .send({ ...body, grant_type: 'password' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  it('answers one body for a token that does not verify', async () => {
+    vi.mocked(getSystemConfig).mockResolvedValue({
+      oidc_issuer: 'https://login.example.com',
+    } as never);
+
+    const res = await request(app).post('/sessions/exchange').send(body);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'invalid_request' });
+    expect(res.headers['cache-control']).toBe('no-store');
   });
 });

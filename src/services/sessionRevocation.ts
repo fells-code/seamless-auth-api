@@ -9,6 +9,9 @@ import type { Transaction } from 'sequelize';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 
+/** What a session exchanged from another records when that parent ends (ADR 0003, X4). */
+export const PARENT_SESSION_ENDED = 'parent_session_ended';
+
 /**
  * Ends every session the given users hold, including one a refresh is creating right now.
  *
@@ -52,4 +55,24 @@ export function isRevokedByCutoff(
   if (!session.createdAt) return true;
 
   return new Date(session.createdAt).getTime() <= new Date(sessionsRevokedBefore).getTime();
+}
+
+/**
+ * Ends every session a client exchanged for, including superseded rows (ADR 0003). Used when
+ * exchange is turned off for the client, or the client is disabled or deleted.
+ */
+export async function revokeSessionsExchangedBy(
+  clientId: string,
+  reason: string,
+  transaction?: Transaction,
+): Promise<number> {
+  const [revoked] = await Session.update(
+    { revokedAt: new Date(), revokedReason: reason },
+    {
+      where: { exchangeClientId: clientId, revokedAt: null },
+      ...(transaction ? { transaction } : {}),
+    },
+  );
+
+  return revoked;
 }

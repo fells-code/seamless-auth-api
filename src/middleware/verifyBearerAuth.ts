@@ -89,6 +89,9 @@ export async function verifyBearerAuth(
     if (result.attemptId !== undefined) {
       (req as AuthenticatedRequest).attemptId = result.attemptId;
     }
+    if (result.deviceChildSession !== undefined) {
+      (req as AuthenticatedRequest).deviceChildSession = result.deviceChildSession;
+    }
     if (result.organizationId !== undefined) {
       (req as AuthenticatedRequest).organizationId = result.organizationId;
     }

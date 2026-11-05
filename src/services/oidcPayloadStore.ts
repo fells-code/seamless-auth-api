@@ -9,7 +9,7 @@ import type {
   OidcPayloadRecord,
   OidcPayloadUpsertRequest,
 } from '@seamless-auth/types';
-import { Op, QueryTypes, WhereOptions } from 'sequelize';
+import { Op, QueryTypes, UniqueConstraintError, WhereOptions } from 'sequelize';
 
 import { OidcPayload, OidcPayloadAttributes } from '../models/oidcPayloads.js';
 import getLogger from '../utils/logger.js';
@@ -184,6 +184,43 @@ export async function bindOidcSession(sessionId: string, userId: string, clientI
     sessionId,
     expiresAt: new Date(Date.now() + MAX_EXPIRES_IN_SECONDS * 1000),
   });
+}
+
+// ADR 0003, X3. Under a model the edge's payload routes cannot name, for the same reason as
+// the binding: the edge must not be able to read, write or consume these.
+export const SESSION_EXCHANGE_TOKEN = 'SessionExchangeToken';
+
+export interface SessionExchangeTokenPayload extends Record<string, unknown> {
+  clientId: string;
+  accountId: string;
+  grantType: string;
+  /** Set when the token is exchanged, so a replay can revoke what the first use created. */
+  childSessionId?: string;
+}
+
+/**
+ * Written when `/oidc/sign` signs a `session:exchange` token. Only ever inserted: a second
+ * signature over the same `jti` is refused rather than resetting a record already consumed.
+ */
+export async function recordSessionExchangeToken(
+  jti: string,
+  sessionId: string,
+  payload: SessionExchangeTokenPayload,
+  expiresAt: Date,
+): Promise<boolean> {
+  try {
+    await OidcPayload.create({
+      id: jti,
+      model: SESSION_EXCHANGE_TOKEN,
+      payload,
+      sessionId,
+      expiresAt,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof UniqueConstraintError) return false;
+    throw error;
+  }
 }
 
 function findBinding(where: Record<string, unknown>) {

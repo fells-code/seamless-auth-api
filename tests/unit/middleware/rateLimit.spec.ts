@@ -208,6 +208,7 @@ describe('flow limiters', () => {
     ['magicLinkIpLimiter', 20],
     ['magicLinkEmailLimiter', 20],
     ['otpIpLimiter', 10],
+    ['sessionExchangeLimiter', 30],
     ['otpIdentityLimiter', 20],
     ['oauthIpLimiter', 30],
     ['oauthProviderLimiter', 10],

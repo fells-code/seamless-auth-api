@@ -15,6 +15,7 @@ import {
 } from '../controllers/totp.js';
 import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
+import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
 import {
   ErrorSchema,
   InternalErrorSchema,
@@ -53,6 +54,7 @@ totpRouter.get(
 totpRouter.post(
   '/enroll/start',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Start TOTP enrollment',
@@ -73,7 +75,7 @@ totpRouter.post(
 totpRouter.post(
   '/enroll/verify',
   {
-    middleware: [otpIpLimiter, otpIdentityLimiter],
+    middleware: [requireDeviceSessionStepUp, otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Verify TOTP enrollment',
@@ -94,7 +96,7 @@ totpRouter.post(
 totpRouter.post(
   '/disable',
   {
-    middleware: [otpIpLimiter, otpIdentityLimiter],
+    middleware: [requireDeviceSessionStepUp, otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
     summary: 'Disable TOTP for the current user',
     tags: ['TOTP'],

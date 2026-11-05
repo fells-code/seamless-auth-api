@@ -14,13 +14,15 @@ import { User } from '../models/users.js';
 import getLogger from '../utils/logger.js';
 import { getPublicKeyByKid } from '../utils/signingKeyStore.js';
 import { decoyPrincipalAsUser, decoyPrincipalForSubject } from './decoyPrincipal.js';
-import { isRevokedByCutoff } from './sessionRevocation.js';
+import { resolveCurrentSession } from './oidcAuthContext.js';
+import { isRevokedByCutoff, PARENT_SESSION_ENDED } from './sessionRevocation.js';
 
 const logger = getLogger('sessionService');
 
 export type AuthTokenType = 'ephemeral' | 'access';
 
 const ISSUER = process.env.ISSUER!;
+const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 
 export interface ValidatedAccessToken {
   userId: string;
@@ -105,12 +107,52 @@ export async function revokeSessionChain(session: Session, reason = 'refresh_tok
     if (!current.replacedBySessionId) break;
     current = await Session.findByPk(current.replacedBySessionId);
   }
+
+  await revokeOrphanedChildSessions(session);
 }
 
 export async function hardRevokeSession(session: Session, reason = 'manual_revoke') {
   session.revokedAt = new Date();
   session.revokedReason = reason;
   await session.save();
+
+  await revokeOrphanedChildSessions(session);
+}
+
+/**
+ * The cascade that follows a session ending, for a user who holds exchanged sessions (ADR
+ * 0003, X4). A child records the row its parent was on when it was exchanged, and the parent
+ * rotates on from there, so which children just lost their parent is answered the same way
+ * validation answers it: by following each child's link forward. This keeps session lists
+ * accurate. It is not what ends a child, which is the check in `validateSessionRecord`, so a
+ * failure here is logged rather than failing the revoke that caused it.
+ */
+export async function revokeOrphanedChildSessions(
+  session: Pick<Session, 'userId' | 'parentSessionId'>,
+) {
+  if (session.parentSessionId) return;
+
+  try {
+    const children = await Session.findAll({
+      where: {
+        userId: session.userId,
+        parentSessionId: { [Op.ne]: null },
+        revokedAt: null,
+        replacedBySessionId: null,
+      },
+    });
+
+    for (const child of children) {
+      if (await resolveCurrentSession(child.parentSessionId as string)) continue;
+
+      await Session.update(
+        { revokedAt: new Date(), revokedReason: PARENT_SESSION_ENDED },
+        { where: { id: child.id, revokedAt: null } },
+      );
+    }
+  } catch (error) {
+    logger.error(`Could not revoke the child sessions of a session that ended: ${error}`);
+  }
 }
 
 /**
@@ -255,6 +297,12 @@ export async function validateSessionRecord(sessionId: string) {
   });
   if (!owner || isRevokedByCutoff(session, owner.sessionsRevokedBefore)) return null;
 
+  // An exchanged session ends with its parent whether or not a revoke's cascade reached it,
+  // and the parent also ends without any revoke when it expires or idles out (ADR 0003, X4).
+  if (session.parentSessionId && !(await resolveCurrentSession(session.parentSessionId))) {
+    return null;
+  }
+
   return session;
 }
 
@@ -275,6 +323,8 @@ export interface ValidatedBearerToken {
   attemptId?: string;
   /** An access session a recovery issued, restricted until a new factor is enrolled. */
   recovery?: boolean;
+  /** The step-up state of a session exchanged from a device grant (ADR 0003, X7). */
+  deviceChildSession?: Pick<Session, 'stepUpVerifiedAt' | 'stepUpMethod'>;
 }
 
 export async function validateEphemeralToken(token: string): Promise<ValidatedBearerToken | null> {
@@ -344,6 +394,14 @@ export async function validateBearerToken(
         // Read from the session rather than the token: enrolling a factor clears it on
         // the row, which takes effect at once, before the client next refreshes.
         recovery: session.recovery === true,
+        ...(session.exchangeGrantType === DEVICE_CODE_GRANT
+          ? {
+              deviceChildSession: {
+                stepUpVerifiedAt: session.stepUpVerifiedAt,
+                stepUpMethod: session.stepUpMethod,
+              },
+            }
+          : {}),
       }
     : null;
 }
