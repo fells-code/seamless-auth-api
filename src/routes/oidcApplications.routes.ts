@@ -69,7 +69,7 @@ router.post(
     ...write,
     summary: 'Create an OpenID Provider application',
     description:
-      'Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins.',
+      'Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins. `sessionExchangeEnabled` is accepted only on a first-party public native client (ADR 0003).',
     schemas: {
       body: OidcApplicationCreateRequestSchema,
       response: {
@@ -101,7 +101,7 @@ router.patch(
     ...write,
     summary: 'Update an OpenID Provider application',
     description:
-      'Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens.',
+      'Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens. Disabling an application, or turning `sessionExchangeEnabled` off, revokes every session it exchanged for.',
     schemas: {
       params: OidcApplicationIdParamsSchema,
       body: OidcApplicationUpdateRequestSchema,
@@ -122,7 +122,7 @@ router.delete(
     ...write,
     summary: 'Delete an OpenID Provider application',
     description:
-      'Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it.',
+      'Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it, and revokes every session it exchanged for.',
     schemas: {
       params: OidcApplicationIdParamsSchema,
       response: { 200: MessageSchema, 403: StepUpRequiredErrorSchema, 404: ErrorSchema },

@@ -4976,6 +4976,7 @@ export interface paths {
                 | 'admin_oidc_application_pkce_updated'
                 | 'admin_oidc_application_resources_updated'
                 | 'admin_oidc_application_secret_rotated'
+                | 'admin_oidc_application_session_exchange_updated'
                 | 'admin_oidc_application_updated'
                 | 'admin_oidc_resource_created'
                 | 'admin_oidc_resource_deleted'
@@ -5095,6 +5096,7 @@ export interface paths {
                     | 'admin_oidc_application_pkce_updated'
                     | 'admin_oidc_application_resources_updated'
                     | 'admin_oidc_application_secret_rotated'
+                    | 'admin_oidc_application_session_exchange_updated'
                     | 'admin_oidc_application_updated'
                     | 'admin_oidc_resource_created'
                     | 'admin_oidc_resource_deleted'
@@ -5911,6 +5913,9 @@ export interface paths {
                 lastUsedAt: string;
                 expiresAt: string;
                 current: boolean;
+                parentSessionId?: string | null;
+                exchangeClientId?: string | null;
+                exchangeGrantType?: string | null;
               }[];
               credentials: {
                 id: string;
@@ -6625,6 +6630,9 @@ export interface paths {
                 lastUsedAt: string;
                 expiresAt: string;
                 current: boolean;
+                parentSessionId?: string | null;
+                exchangeClientId?: string | null;
+                exchangeGrantType?: string | null;
               }[];
               total: number;
             };
@@ -6747,6 +6755,9 @@ export interface paths {
                 lastUsedAt: string;
                 expiresAt: string;
                 current: boolean;
+                parentSessionId?: string | null;
+                exchangeClientId?: string | null;
+                exchangeGrantType?: string | null;
               }[];
               total: number;
             };
@@ -14009,6 +14020,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
                 jwks: {
@@ -14079,7 +14091,7 @@ export interface paths {
     put?: never;
     /**
      * Create an OpenID Provider application
-     * @description Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins.
+     * @description Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins. `sessionExchangeEnabled` is accepted only on a first-party public native client (ADR 0003).
      */
     post: {
       parameters: {
@@ -14114,6 +14126,8 @@ export interface paths {
             deviceFlowEnabled?: boolean;
             /** @default false */
             noticesEnabled?: boolean;
+            /** @default false */
+            sessionExchangeEnabled?: boolean;
             /** @default true */
             pkceRequired?: boolean;
             /** @default true */
@@ -14168,6 +14182,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "sessionExchangeEnabled": true,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -14214,6 +14229,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
                 jwks: {
@@ -14392,6 +14408,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "sessionExchangeEnabled": true,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -14437,6 +14454,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
                 jwks: {
@@ -14556,7 +14574,7 @@ export interface paths {
     post?: never;
     /**
      * Delete an OpenID Provider application
-     * @description Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it.
+     * @description Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it, and revokes every session it exchanged for.
      */
     delete: {
       parameters: {
@@ -14774,7 +14792,7 @@ export interface paths {
     head?: never;
     /**
      * Update an OpenID Provider application
-     * @description Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens.
+     * @description Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens. Disabling an application, or turning `sessionExchangeEnabled` off, revokes every session it exchanged for.
      */
     patch: {
       parameters: {
@@ -14798,6 +14816,7 @@ export interface paths {
             grantTypes?: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
             deviceFlowEnabled?: boolean;
             noticesEnabled?: boolean;
+            sessionExchangeEnabled?: boolean;
             pkceRequired?: boolean;
             nonceRequired?: boolean;
             /** Format: uri */
@@ -14837,6 +14856,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "sessionExchangeEnabled": true,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -14882,6 +14902,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
                 jwks: {
@@ -15078,6 +15099,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "sessionExchangeEnabled": true,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -15124,6 +15146,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
                 jwks: {
@@ -15345,6 +15368,7 @@ export interface paths {
              *         ],
              *         "deviceFlowEnabled": true,
              *         "noticesEnabled": true,
+             *         "sessionExchangeEnabled": true,
              *         "pkceRequired": true,
              *         "nonceRequired": true,
              *         "jwks": {
@@ -15390,6 +15414,7 @@ export interface paths {
                 grantTypes: ('authorization_code' | 'refresh_token' | 'client_credentials')[];
                 deviceFlowEnabled: boolean;
                 noticesEnabled: boolean;
+                sessionExchangeEnabled: boolean;
                 pkceRequired: boolean;
                 nonceRequired: boolean;
                 jwks: {
@@ -21777,6 +21802,9 @@ export interface paths {
                 lastUsedAt: string;
                 expiresAt: string;
                 current: boolean;
+                parentSessionId?: string | null;
+                exchangeClientId?: string | null;
+                exchangeGrantType?: string | null;
               }[];
               total: number;
             };

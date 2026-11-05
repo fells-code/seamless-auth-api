@@ -60,6 +60,7 @@ function row(overrides: Record<string, unknown> = {}): Row {
     refreshTokenTtlSeconds: null,
     deviceFlowEnabled: false,
     noticesEnabled: false,
+    sessionExchangeEnabled: false,
     noticeActionOrigins: [],
     pkceRequired: true,
     nonceRequired: true,

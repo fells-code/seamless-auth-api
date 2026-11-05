@@ -26,6 +26,7 @@ import type {
 } from '../schemas/oidcApplications.requests.js';
 import type { OidcApplicationView } from '../schemas/oidcApplications.responses.js';
 import { createOidcClientSecretLookup, isNativeRedirectUri } from './oidcClientRegistry.js';
+import { revokeSessionsExchangedBy } from './sessionRevocation.js';
 
 export const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 
@@ -66,6 +67,7 @@ export function serializeOidcApplication(client: OidcClient): OidcApplication {
     ),
     deviceFlowEnabled: client.deviceFlowEnabled,
     noticesEnabled: client.noticesEnabled,
+    sessionExchangeEnabled: client.sessionExchangeEnabled,
     pkceRequired: client.pkceRequired,
     nonceRequired: client.nonceRequired,
     jwks: (client.jwks as OidcApplication['jwks']) ?? null,
@@ -185,6 +187,7 @@ export async function createOidcApplication(input: OidcApplicationCreateRequest)
     refreshTokenTtlSeconds: input.refreshTokenTtlSeconds ?? null,
     deviceFlowEnabled: input.deviceFlowEnabled,
     noticesEnabled: input.noticesEnabled,
+    sessionExchangeEnabled: input.sessionExchangeEnabled,
     noticeActionOrigins: input.noticeActionOrigins,
     pkceRequired: input.pkceRequired,
     nonceRequired: input.nonceRequired,
@@ -218,6 +221,7 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
     grantTypes: current.grantTypes,
     deviceFlowEnabled: current.deviceFlowEnabled,
     noticesEnabled: current.noticesEnabled,
+    sessionExchangeEnabled: current.sessionExchangeEnabled,
     pkceRequired: current.pkceRequired,
     nonceRequired: current.nonceRequired,
     backchannelLogoutUri: current.backchannelLogoutUri,
@@ -233,6 +237,8 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
   if (!parsed.success) throw new OidcApplicationInvalidError(parsed.error);
 
   const next = parsed.data;
+  const wasExchanging = client.sessionExchangeEnabled;
+  const wasDisabled = Boolean(client.disabledAt);
 
   await client.update({
     name: next.name,
@@ -243,6 +249,7 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
     grantTypes: storedGrantTypes(next.grantTypes, next.deviceFlowEnabled),
     deviceFlowEnabled: next.deviceFlowEnabled,
     noticesEnabled: next.noticesEnabled,
+    sessionExchangeEnabled: next.sessionExchangeEnabled,
     pkceRequired: next.pkceRequired,
     nonceRequired: next.nonceRequired,
     backchannelLogoutUri: next.backchannelLogoutUri ?? null,
@@ -256,6 +263,14 @@ export async function updateOidcApplication(id: string, patch: OidcApplicationUp
       ? {}
       : { disabledAt: disabled ? (client.disabledAt ?? new Date()) : null }),
   });
+
+  // After the write, so an exchange that read the client before it is one the exchange's own
+  // re-read or this revoke catches, whichever comes last (ADR 0003).
+  if (!wasDisabled && client.disabledAt) {
+    await revokeSessionsExchangedBy(id, 'oidc_client_disabled');
+  } else if (wasExchanging && !client.sessionExchangeEnabled) {
+    await revokeSessionsExchangedBy(id, 'session_exchange_disabled');
+  }
 
   return client;
 }
@@ -294,14 +309,15 @@ export async function rotateOidcApplicationSecret(id: string) {
 }
 
 /**
- * Deletes the application with its resource grants, its links in both directions and
- * every provider record issued to it (grants, codes and tokens), so nothing it was given
- * outlives it.
+ * Deletes the application with its resource grants, its links in both directions, every
+ * provider record issued to it (grants, codes and tokens) and the sessions it exchanged for,
+ * so nothing it was given outlives it.
  */
 export async function deleteOidcApplication(id: string) {
   const client = await findOidcApplication(id);
 
   await OidcClient.sequelize!.transaction(async (transaction) => {
+    await revokeSessionsExchangedBy(id, 'oidc_client_deleted', transaction);
     await OidcPayload.destroy({ where: { payload: { clientId: id } }, transaction });
     await OidcClientResource.destroy({ where: { clientId: id }, transaction });
     await OidcClientLink.destroy({

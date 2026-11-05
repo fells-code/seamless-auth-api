@@ -5287,6 +5287,7 @@
                     "admin_oidc_application_pkce_updated",
                     "admin_oidc_application_resources_updated",
                     "admin_oidc_application_secret_rotated",
+                    "admin_oidc_application_session_exchange_updated",
                     "admin_oidc_application_updated",
                     "admin_oidc_resource_created",
                     "admin_oidc_resource_deleted",
@@ -5412,6 +5413,7 @@
                           "admin_oidc_application_pkce_updated",
                           "admin_oidc_application_resources_updated",
                           "admin_oidc_application_secret_rotated",
+                          "admin_oidc_application_session_exchange_updated",
                           "admin_oidc_application_updated",
                           "admin_oidc_resource_created",
                           "admin_oidc_resource_deleted",
@@ -6407,7 +6409,10 @@
                           "userAgent": { "type": "string", "nullable": true },
                           "lastUsedAt": { "type": "string" },
                           "expiresAt": { "type": "string" },
-                          "current": { "type": "boolean" }
+                          "current": { "type": "boolean" },
+                          "parentSessionId": { "type": "string", "nullable": true },
+                          "exchangeClientId": { "type": "string", "nullable": true },
+                          "exchangeGrantType": { "type": "string", "nullable": true }
                         },
                         "required": ["id", "lastUsedAt", "expiresAt", "current"]
                       }
@@ -6949,7 +6954,10 @@
                           "userAgent": { "type": "string", "nullable": true },
                           "lastUsedAt": { "type": "string" },
                           "expiresAt": { "type": "string" },
-                          "current": { "type": "boolean" }
+                          "current": { "type": "boolean" },
+                          "parentSessionId": { "type": "string", "nullable": true },
+                          "exchangeClientId": { "type": "string", "nullable": true },
+                          "exchangeGrantType": { "type": "string", "nullable": true }
                         },
                         "required": ["id", "lastUsedAt", "expiresAt", "current"]
                       }
@@ -7058,7 +7066,10 @@
                           "userAgent": { "type": "string", "nullable": true },
                           "lastUsedAt": { "type": "string" },
                           "expiresAt": { "type": "string" },
-                          "current": { "type": "boolean" }
+                          "current": { "type": "boolean" },
+                          "parentSessionId": { "type": "string", "nullable": true },
+                          "exchangeClientId": { "type": "string", "nullable": true },
+                          "exchangeGrantType": { "type": "string", "nullable": true }
                         },
                         "required": ["id", "lastUsedAt", "expiresAt", "current"]
                       }
@@ -14053,6 +14064,7 @@
                           },
                           "deviceFlowEnabled": { "type": "boolean" },
                           "noticesEnabled": { "type": "boolean" },
+                          "sessionExchangeEnabled": { "type": "boolean" },
                           "pkceRequired": { "type": "boolean" },
                           "nonceRequired": { "type": "boolean" },
                           "jwks": {
@@ -14103,6 +14115,7 @@
                           "grantTypes",
                           "deviceFlowEnabled",
                           "noticesEnabled",
+                          "sessionExchangeEnabled",
                           "pkceRequired",
                           "nonceRequired",
                           "jwks",
@@ -14157,7 +14170,7 @@
       },
       "post": {
         "summary": "Create an OpenID Provider application",
-        "description": "Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins.",
+        "description": "Public clients authenticate with PKCE (S256) alone. Confidential clients default to `private_key_jwt`. A shared-secret client needs `allow_client_secrets`, and its secret is returned here once. A third-party client needs `third_party_clients_enabled`, and only a first-party client may enable the device grant. `noticeActionOrigins` are bare `https` origins, never loopback, where the action link of an account notice may point, besides the `https` redirect origins. `sessionExchangeEnabled` is accepted only on a first-party public native client (ADR 0003).",
         "tags": ["Admin", "OpenID Provider applications"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -14196,6 +14209,7 @@
                   },
                   "deviceFlowEnabled": { "type": "boolean", "default": false },
                   "noticesEnabled": { "type": "boolean", "default": false },
+                  "sessionExchangeEnabled": { "type": "boolean", "default": false },
                   "pkceRequired": { "type": "boolean", "default": true },
                   "nonceRequired": { "type": "boolean", "default": true },
                   "backchannelLogoutUri": {
@@ -14276,6 +14290,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "sessionExchangeEnabled": true,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -14328,6 +14343,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -14378,6 +14394,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -14536,6 +14553,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "sessionExchangeEnabled": true,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -14587,6 +14605,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -14637,6 +14656,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -14744,7 +14764,7 @@
       },
       "patch": {
         "summary": "Update an OpenID Provider application",
-        "description": "Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens.",
+        "description": "Every create rule is checked again on the merged result. Moving off `private_key_jwt` drops the registered keys, and moving off a shared-secret method drops the secret. A disabled application keeps its settings but cannot sign anyone in or get tokens. Disabling an application, or turning `sessionExchangeEnabled` off, revokes every session it exchanged for.",
         "tags": ["Admin", "OpenID Provider applications"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -14787,6 +14807,7 @@
                   },
                   "deviceFlowEnabled": { "type": "boolean" },
                   "noticesEnabled": { "type": "boolean" },
+                  "sessionExchangeEnabled": { "type": "boolean" },
                   "pkceRequired": { "type": "boolean" },
                   "nonceRequired": { "type": "boolean" },
                   "backchannelLogoutUri": {
@@ -14843,6 +14864,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "sessionExchangeEnabled": true,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -14894,6 +14916,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -14944,6 +14967,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -15084,7 +15108,7 @@
       },
       "delete": {
         "summary": "Delete an OpenID Provider application",
-        "description": "Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it.",
+        "description": "Also deletes its resource grants, its links in both directions, and every provider grant, code and token issued to it, and revokes every session it exchanged for.",
         "tags": ["Admin", "OpenID Provider applications"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -15360,6 +15384,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "sessionExchangeEnabled": true,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -15412,6 +15437,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -15462,6 +15488,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -15681,6 +15708,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
+                    "sessionExchangeEnabled": true,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -15732,6 +15760,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean" },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -15782,6 +15811,7 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
+                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -22257,7 +22287,10 @@
                           "userAgent": { "type": "string", "nullable": true },
                           "lastUsedAt": { "type": "string" },
                           "expiresAt": { "type": "string" },
-                          "current": { "type": "boolean" }
+                          "current": { "type": "boolean" },
+                          "parentSessionId": { "type": "string", "nullable": true },
+                          "exchangeClientId": { "type": "string", "nullable": true },
+                          "exchangeGrantType": { "type": "string", "nullable": true }
                         },
                         "required": ["id", "lastUsedAt", "expiresAt", "current"]
                       }

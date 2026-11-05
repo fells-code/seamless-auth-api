@@ -53,3 +53,23 @@ export function isRevokedByCutoff(
 
   return new Date(session.createdAt).getTime() <= new Date(sessionsRevokedBefore).getTime();
 }
+
+/**
+ * Ends every session a client exchanged for, including superseded rows (ADR 0003). Used when
+ * exchange is turned off for the client, or the client is disabled or deleted.
+ */
+export async function revokeSessionsExchangedBy(
+  clientId: string,
+  reason: string,
+  transaction?: Transaction,
+): Promise<number> {
+  const [revoked] = await Session.update(
+    { revokedAt: new Date(), revokedReason: reason },
+    {
+      where: { exchangeClientId: clientId, revokedAt: null },
+      ...(transaction ? { transaction } : {}),
+    },
+  );
+
+  return revoked;
+}

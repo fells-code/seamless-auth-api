@@ -29,6 +29,9 @@ export interface SessionAttributes {
   authMethods?: SessionAuthMethod[];
   authTime?: Date | null;
   replacedBySessionId?: string | null;
+  parentSessionId?: string | null;
+  exchangeClientId?: string | null;
+  exchangeGrantType?: string | null;
   revokedAt?: Date | null;
   revokedReason?: string | null;
   createdAt?: Date;
@@ -47,6 +50,9 @@ type SessionCreationAttributes = Optional<
   | 'stepUpMethod'
   | 'authMethods'
   | 'authTime'
+  | 'parentSessionId'
+  | 'exchangeClientId'
+  | 'exchangeGrantType'
 >;
 
 export class Session
@@ -72,6 +78,9 @@ export class Session
   declare authMethods: SessionAuthMethod[];
   declare authTime: Date | null;
   declare replacedBySessionId: string | null;
+  declare parentSessionId: string | null;
+  declare exchangeClientId: string | null;
+  declare exchangeGrantType: string | null;
   declare revokedAt: Date | null;
   declare revokedReason: string | null;
   declare readonly createdAt: Date;
@@ -155,6 +164,20 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       },
       replacedBySessionId: {
         type: DataTypes.UUID,
+        allowNull: true,
+      },
+      // A session a token exchange issued (ADR 0003): the provider sign-in it ends with, the
+      // client that exchanged, and the grant behind the sign-in. Carried across rotation.
+      parentSessionId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
+      exchangeClientId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      exchangeGrantType: {
+        type: DataTypes.STRING(255),
         allowNull: true,
       },
       revokedAt: DataTypes.DATE,
