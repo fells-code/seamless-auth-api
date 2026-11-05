@@ -1573,3 +1573,272 @@ describe('session lists', () => {
     expect(listed?.exchangeClientId).toBe(client.id);
   });
 });
+
+describe('factor changes on a device child', () => {
+  const ADMIN_ROLES = ['admin:read', 'admin:write'];
+
+  async function childOf(grantType: string, roles = ADMIN_ROLES) {
+    const { client, user, parent } = await signedInToCli(
+      { stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' },
+      {},
+      roles,
+    );
+    const { token } = await signSubject(client, parent, { grantType });
+    const res = await exchange(token);
+    expect(res.status).toBe(200);
+    return {
+      user,
+      parent,
+      token: res.body.token as string,
+      sessionId: res.body.sessionId as string,
+    };
+  }
+
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  function adminRead(token: string) {
+    return request(app).get('/admin/users').set(bearer(token));
+  }
+
+  /** The user's own authenticator, from before the device sign-in. */
+  async function enrollTotp(user: User) {
+    const { startTotpEnrollment, verifyTotpEnrollment } =
+      await import('../../src/services/totpService.js');
+    const { generateTotpCode, getTotpCounter } = await import('../../src/utils/totp.js');
+    const { secret } = await startTotpEnrollment({
+      userId: user.id,
+      email: user.email,
+      issuer: 'Test',
+    });
+    // The previous step's code, so the user's next one is not refused as a repeat.
+    const enrolled = await verifyTotpEnrollment(
+      user.id,
+      generateTotpCode({ secret, counter: getTotpCounter() - 1 }),
+    );
+    expect(enrolled.verified).toBe(true);
+    return { secret, code: () => generateTotpCode({ secret }) };
+  }
+
+  async function credentialsOf(userId: string) {
+    const { TotpCredential } = await import('../../src/models/totpCredentials.js');
+    return TotpCredential.findAll({ where: { userId } });
+  }
+
+  function expectStepUpRequired(res: request.Response) {
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({
+      error: 'step_up_required',
+      message: 'Recent step-up authentication is required',
+      fresh: false,
+      method: null,
+      maxAgeSeconds: 300,
+    });
+  }
+
+  it('leaves a device child with no TOTP unable to enroll one, so X7 holds', async () => {
+    const { user, token } = await childOf(DEVICE_CODE);
+    const { generateTotpCode, generateTotpSecret } = await import('../../src/utils/totp.js');
+    const chosen = generateTotpSecret();
+
+    expectStepUpRequired(await adminRead(token));
+
+    expectStepUpRequired(await request(app).post('/totp/enroll/start').set(bearer(token)));
+    expect(await credentialsOf(user.id)).toEqual([]);
+
+    const code = generateTotpCode({ secret: chosen });
+    expectStepUpRequired(
+      await request(app).post('/totp/enroll/verify').set(bearer(token)).send({ code }),
+    );
+
+    const stepUp = await request(app).post('/totp/verify-mfa').set(bearer(token)).send({ code });
+    expect(stepUp.status).toBe(401);
+
+    expect(await credentialsOf(user.id)).toEqual([]);
+    expectStepUpRequired(await adminRead(token));
+  });
+
+  it('cannot replace the TOTP of a user who has one', async () => {
+    const { user, token } = await childOf(DEVICE_CODE);
+    await enrollTotp(user);
+    const [original] = await credentialsOf(user.id);
+    const { generateTotpCode, generateTotpSecret } = await import('../../src/utils/totp.js');
+    const code = generateTotpCode({ secret: generateTotpSecret() });
+
+    expectStepUpRequired(await request(app).post('/totp/enroll/start').set(bearer(token)));
+    expectStepUpRequired(
+      await request(app).post('/totp/enroll/verify').set(bearer(token)).send({ code }),
+    );
+    expectStepUpRequired(
+      await request(app).post('/totp/disable').set(bearer(token)).send({ code }),
+    );
+
+    const after = await credentialsOf(user.id);
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(original.id);
+    expect(after[0].enabled).toBe(true);
+    expectStepUpRequired(await adminRead(token));
+  });
+
+  it('lets a device child through once it steps up with the real TOTP', async () => {
+    const { user, token } = await childOf(DEVICE_CODE);
+    const { code } = await enrollTotp(user);
+
+    expectStepUpRequired(await request(app).post('/recovery-codes').set(bearer(token)).send({}));
+
+    const stepUp = await request(app)
+      .post('/totp/verify-mfa')
+      .set(bearer(token))
+      .send({ code: code() });
+    expect(stepUp.status).toBe(200);
+    expect(stepUp.body.method).toBe('totp');
+
+    expect((await adminRead(token)).status).toBe(200);
+    expect((await request(app).post('/recovery-codes').set(bearer(token)).send({})).status).toBe(
+      201,
+    );
+    expect((await request(app).post('/totp/enroll/start').set(bearer(token))).status).toBe(200);
+  });
+
+  it('refuses again once the step-up goes stale', async () => {
+    const { token, sessionId } = await childOf(DEVICE_CODE);
+    await Session.update(
+      { stepUpVerifiedAt: new Date(Date.now() - 6 * 60_000), stepUpMethod: 'totp' },
+      { where: { id: sessionId } },
+    );
+
+    const res = await request(app).post('/totp/enroll/start').set(bearer(token));
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'step_up_required', fresh: false, method: 'totp' });
+  });
+
+  it.each([
+    ['post', '/totp/enroll/start'],
+    ['post', '/totp/enroll/verify'],
+    ['post', '/totp/disable'],
+    ['get', '/webauthn/register/start'],
+    ['post', '/webauthn/register/finish'],
+    ['post', '/recovery-codes'],
+    ['delete', '/users/credentials'],
+    ['post', '/registration/phone'],
+    ['post', '/registration/phone/verify'],
+    ['delete', `/recovery/requests/${randomUUID()}`],
+  ] as ['post' | 'get' | 'delete', string][])(
+    'answers step_up_required on %s %s, before reading the request',
+    async (method, url) => {
+      const { token } = await childOf(DEVICE_CODE);
+
+      expectStepUpRequired(await request(app)[method](url).set(bearer(token)));
+    },
+  );
+
+  it('does not delete a credential', async () => {
+    const { Credential } = await import('../../src/models/credentials.js');
+    const { user, token } = await childOf(DEVICE_CODE);
+    const seed = (id: string) =>
+      Credential.create({
+        id,
+        userId: user.id,
+        publicKey: Buffer.from('key'),
+        counter: 0,
+        transports: [],
+        deviceType: 'singleDevice',
+        backedup: false,
+      } as never);
+    const id = `cred-${randomUUID()}`;
+    await seed(id);
+    await seed(`cred-${randomUUID()}`);
+
+    expectStepUpRequired(
+      await request(app).delete('/users/credentials').set(bearer(token)).send({ id }),
+    );
+
+    expect(await Credential.count({ where: { userId: user.id } })).toBe(2);
+  });
+
+  it('does not change the phone on the account', async () => {
+    const { user, token } = await childOf(DEVICE_CODE);
+
+    expectStepUpRequired(
+      await request(app)
+        .post('/registration/phone')
+        .set(bearer(token))
+        .send({ phone: '+14155550123' }),
+    );
+
+    await user.reload();
+    expect(user.phone).toBeNull();
+  });
+
+  it('does not change a loopback child, with a step-up or without one', async () => {
+    const { token } = await childOf(AUTHORIZATION_CODE);
+    expect((await request(app).post('/totp/enroll/start').set(bearer(token))).status).toBe(200);
+    expect((await request(app).post('/recovery-codes').set(bearer(token)).send({})).status).toBe(
+      201,
+    );
+
+    const { client, parent } = await signedInToCli();
+    const { token: subject } = await signSubject(client, parent);
+    const plain = await exchange(subject);
+    expect(
+      (await request(app).post('/totp/enroll/start').set(bearer(plain.body.token))).status,
+    ).toBe(200);
+  });
+
+  it('does not change a first-party session', async () => {
+    const user = await createUser();
+    const session = await createSession(user.id);
+    const token = await accessTokenFor(session);
+
+    expect((await request(app).post('/totp/enroll/start').set(bearer(token))).status).toBe(200);
+    expect((await request(app).post('/recovery-codes').set(bearer(token)).send({})).status).toBe(
+      201,
+    );
+    expect((await request(app).get('/webauthn/register/start').set(bearer(token))).status).toBe(
+      200,
+    );
+  });
+
+  it('cannot turn a device child into a parent for another exchange', async () => {
+    const { client, parent } = await signedInToCli();
+    const { token: first } = await signSubject(client, parent, { grantType: DEVICE_CODE });
+    const child = await exchange(first);
+    await store.bindOidcSession(child.body.sessionId, parent.userId, client.id);
+    await store.upsertOidcPayload('Grant', randomUUID(), {
+      payload: { accountId: parent.userId, clientId: client.id },
+      expiresIn: 3600,
+      sessionId: child.body.sessionId,
+    });
+
+    const childRow = await Session.findByPk(child.body.sessionId);
+    const { token: second } = await signSubject(client, childRow as Session);
+    const res = await exchange(second);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(TOKEN_FAILURE);
+  });
+
+  it('keeps the child and its device grant on an organization switch', async () => {
+    const { Organization } = await import('../../src/models/organizations.js');
+    const { OrganizationMembership } = await import('../../src/models/organizationMemberships.js');
+    const { user, token, sessionId } = await childOf(DEVICE_CODE);
+    const organization = await Organization.create({
+      name: 'Org',
+      slug: `org-${randomUUID()}`,
+    } as never);
+    await OrganizationMembership.create({
+      userId: user.id,
+      organizationId: organization.id,
+      roles: ['member'],
+      scopes: [],
+    } as never);
+
+    const res = await request(app)
+      .post(`/organizations/${organization.id}/switch`)
+      .set(bearer(token));
+
+    expect(res.status).toBe(200);
+    expect(res.body.sessionId).toBe(sessionId);
+    expectStepUpRequired(await adminRead(res.body.token));
+  });
+});
