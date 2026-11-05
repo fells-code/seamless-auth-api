@@ -35,6 +35,8 @@ export interface AuthenticatedRequest extends RouteRequest {
   attemptId?: string;
   /** Set on an access session a recovery issued; see `allowRecoverySession`. */
   recoverySession?: boolean;
+  /** The step-up state of a session exchanged from a device grant; see `requireAdmin`. */
+  deviceChildSession?: Pick<Session, 'stepUpVerifiedAt' | 'stepUpMethod'>;
   organizationId?: string | null;
   clientId?: string;
   trustedClientIp?: string;

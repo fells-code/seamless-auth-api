@@ -1559,8 +1559,13 @@ describe('session lists', () => {
     const { client, child } = await family();
     const { token } = await admin();
 
+    // Newest rows come last, and the route takes at most a page at a time.
+    const first = await request(app)
+      .get('/admin/sessions?limit=1')
+      .set('Authorization', `Bearer ${token}`);
+    const offset = Math.max(first.body.total - 50, 0);
     const res = await request(app)
-      .get('/admin/sessions?limit=1000')
+      .get(`/admin/sessions?limit=50&offset=${offset}`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);

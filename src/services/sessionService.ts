@@ -22,6 +22,7 @@ const logger = getLogger('sessionService');
 export type AuthTokenType = 'ephemeral' | 'access';
 
 const ISSUER = process.env.ISSUER!;
+const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 
 export interface ValidatedAccessToken {
   userId: string;
@@ -322,6 +323,8 @@ export interface ValidatedBearerToken {
   attemptId?: string;
   /** An access session a recovery issued, restricted until a new factor is enrolled. */
   recovery?: boolean;
+  /** The step-up state of a session exchanged from a device grant (ADR 0003, X7). */
+  deviceChildSession?: Pick<Session, 'stepUpVerifiedAt' | 'stepUpMethod'>;
 }
 
 export async function validateEphemeralToken(token: string): Promise<ValidatedBearerToken | null> {
@@ -391,6 +394,14 @@ export async function validateBearerToken(
         // Read from the session rather than the token: enrolling a factor clears it on
         // the row, which takes effect at once, before the client next refreshes.
         recovery: session.recovery === true,
+        ...(session.exchangeGrantType === DEVICE_CODE_GRANT
+          ? {
+              deviceChildSession: {
+                stepUpVerifiedAt: session.stepUpVerifiedAt,
+                stepUpMethod: session.stepUpMethod,
+              },
+            }
+          : {}),
       }
     : null;
 }
