@@ -32,6 +32,7 @@ type Registry = typeof import('../../src/services/oidcClientRegistry.js');
 type Applications = typeof import('../../src/services/oidcApplicationService.js');
 type Store = typeof import('../../src/services/oidcPayloadStore.js');
 type Tokens = typeof import('../../src/lib/token.js');
+type Sessions = typeof import('../../src/services/sessionService.js');
 
 let app: App;
 let signing: Signing;
@@ -39,6 +40,7 @@ let registry: Registry;
 let applications: Applications;
 let store: Store;
 let tokens: Tokens;
+let sessions: Sessions;
 const savedEnv: Record<string, string | undefined> = {};
 
 function setEnv(values: Record<string, string>) {
@@ -88,6 +90,7 @@ beforeAll(async () => {
   applications = await import('../../src/services/oidcApplicationService.js');
   store = await import('../../src/services/oidcPayloadStore.js');
   tokens = await import('../../src/lib/token.js');
+  sessions = await import('../../src/services/sessionService.js');
 
   const { initDevSigningKey } = await import('../../src/utils/signingKeyStore.js');
   const { createApp } = await import('../../src/app.js');
@@ -1105,5 +1108,310 @@ describe('POST /sessions/exchange', () => {
     expect(res.body).toEqual(TOKEN_FAILURE);
     const children = await Session.findAll({ where: { parentSessionId: parent.id } });
     expect(children.every((child) => child.revokedAt !== null)).toBe(true);
+  });
+});
+
+describe('the child session lifecycle', () => {
+  /** A signed-in parent with known refresh token, and the child exchanged from it. */
+  async function family(
+    parentOverrides: Partial<SessionAttributes> = {},
+    roles: string[] = ['user'],
+    grantType = AUTHORIZATION_CODE,
+  ) {
+    const parentRefresh = tokens.generateRefreshToken();
+    const { client, user, parent } = await signedInToCli(
+      { refreshTokenLookup: tokens.createRefreshTokenLookup(parentRefresh), ...parentOverrides },
+      {},
+      roles,
+    );
+    const { token } = await signSubject(client, parent, { grantType });
+    const res = await exchange(token);
+    expect(res.status).toBe(200);
+    return {
+      client,
+      user,
+      parent,
+      parentRefresh,
+      childId: res.body.sessionId as string,
+      childToken: res.body.token as string,
+      childRefresh: res.body.refreshToken as string,
+    };
+  }
+
+  function refresh(token: string) {
+    return request(app).post('/refresh').set('Authorization', `Bearer ${token}`);
+  }
+
+  async function expectEnded(childId: string, childToken: string) {
+    expect((await me(childToken)).status).toBe(401);
+    const child = await Session.findByPk(childId);
+    expect(child?.revokedAt).not.toBeNull();
+  }
+
+  describe('validity', () => {
+    it('refuses a child whose parent ended, even if no cascade reached it', async () => {
+      const { parent, childId, childToken } = await family();
+      await Session.update({ revokedAt: new Date() }, { where: { id: parent.id } });
+
+      const row = await Session.findByPk(childId);
+      expect(row?.revokedAt).toBeNull();
+      expect((await me(childToken)).status).toBe(401);
+    });
+
+    it('refuses a child whose parent idled out', async () => {
+      const { parent, childToken } = await family();
+      await Session.update(
+        { idleExpiresAt: new Date(Date.now() - 1000) },
+        { where: { id: parent.id } },
+      );
+
+      expect((await me(childToken)).status).toBe(401);
+    });
+
+    it('keeps a child live while its parent rotates, and ends it with the current row', async () => {
+      const { parentRefresh, childToken, childId } = await family();
+
+      const rotated = await refresh(parentRefresh);
+      expect(rotated.status).toBe(200);
+      expect((await me(childToken)).status).toBe(200);
+
+      const logout = await request(app)
+        .delete('/logout')
+        .set('Authorization', `Bearer ${rotated.body.token}`);
+      expect(logout.status).toBe(200);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('leaves an ordinary session with no parent alone', async () => {
+      const user = await createUser();
+      const session = await createSession(user.id);
+
+      expect((await me(await accessTokenFor(session))).status).toBe(200);
+    });
+  });
+
+  describe('refresh', () => {
+    it('carries the link forward on rotation', async () => {
+      const { client, parent, childRefresh, childId } = await family();
+
+      const res = await refresh(childRefresh);
+
+      expect(res.status).toBe(200);
+      expect(res.body.sessionId).not.toBe(childId);
+      expect(await Session.findByPk(res.body.sessionId)).toMatchObject({
+        parentSessionId: parent.id,
+        exchangeClientId: client.id,
+        exchangeGrantType: AUTHORIZATION_CODE,
+      });
+    });
+
+    it('refuses and ends a child whose parent ended', async () => {
+      const { user, parent, childRefresh, childId } = await family();
+      await Session.update({ revokedAt: new Date() }, { where: { id: parent.id } });
+
+      const res = await refresh(childRefresh);
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('invalid_refresh_token');
+      const child = await Session.findByPk(childId);
+      expect(child?.revokedReason).toBe('parent_session_ended');
+      expect(child?.replacedBySessionId).toBeNull();
+      const event = await AuthEvent.findOne({
+        where: { type: 'refresh_token_failed', user_id: user.id, session_id: childId },
+      });
+      expect((event?.metadata as Record<string, unknown>)?.refusal).toBe('parent_session_ended');
+    });
+
+    it('never outlives the parent', async () => {
+      const parentExpiry = new Date(Date.now() + 30 * 60_000);
+      const { childRefresh } = await family({
+        expiresAt: parentExpiry,
+        idleExpiresAt: parentExpiry,
+      });
+
+      const res = await refresh(childRefresh);
+
+      const child = await Session.findByPk(res.body.sessionId);
+      expect(child?.expiresAt.getTime()).toBeLessThanOrEqual(parentExpiry.getTime());
+      expect(child?.idleExpiresAt.getTime()).toBeLessThanOrEqual(parentExpiry.getTime());
+      expect(res.body.refreshTtl).toBeLessThanOrEqual(30 * 60);
+    });
+
+    it('counts as activity on the parent, up to its absolute expiry', async () => {
+      const parentExpiry = new Date(Date.now() + 2 * 3_600_000);
+      const { parent, childRefresh } = await family({
+        expiresAt: parentExpiry,
+        idleExpiresAt: new Date(Date.now() + 60_000),
+        lastUsedAt: new Date(Date.now() - 3_600_000),
+      });
+
+      const res = await refresh(childRefresh);
+      expect(res.status).toBe(200);
+
+      await parent.reload();
+      expect(parent.idleExpiresAt.getTime()).toBeGreaterThan(Date.now() + 60_000);
+      expect(parent.idleExpiresAt.getTime()).toBeLessThanOrEqual(parentExpiry.getTime());
+      expect(parent.lastUsedAt.getTime()).toBeGreaterThan(Date.now() - 60_000);
+    });
+
+    it('revokes only the child chain on refresh token reuse', async () => {
+      const { parent, childRefresh } = await family();
+
+      const rotated = await refresh(childRefresh);
+      const reused = await refresh(childRefresh);
+
+      expect(reused.status).toBe(401);
+      expect((await me(rotated.body.token)).status).toBe(401);
+      await parent.reload();
+      expect(parent.revokedAt).toBeNull();
+      expect((await me(await accessTokenFor(parent))).status).toBe(200);
+    });
+  });
+
+  describe('every way a parent ends takes the child with it', () => {
+    it('logout', async () => {
+      const { parent, childId, childToken } = await family();
+
+      await request(app)
+        .delete('/logout')
+        .set('Authorization', `Bearer ${await accessTokenFor(parent)}`);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('sign out everywhere', async () => {
+      const { parent, childId, childToken } = await family();
+
+      await request(app)
+        .delete('/logout/all')
+        .set('Authorization', `Bearer ${await accessTokenFor(parent)}`);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('revoking the session from the user session list', async () => {
+      const { parent, childId, childToken } = await family();
+      const other = await createSession(parent.userId);
+
+      const res = await request(app)
+        .delete(`/sessions/${parent.id}`)
+        .set('Authorization', `Bearer ${await accessTokenFor(other)}`);
+      expect(res.status).toBe(200);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('revoking all sessions from the user session list', async () => {
+      const { parent, childId, childToken } = await family();
+
+      await request(app)
+        .delete('/sessions')
+        .set('Authorization', `Bearer ${await accessTokenFor(parent)}`);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('an admin revoking the session', async () => {
+      const { parent, childId, childToken } = await family();
+      const { token } = await admin();
+
+      const res = await request(app)
+        .delete(`/admin/sessions/by-id/${parent.id}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('an admin revoking every session of the user', async () => {
+      const { user, childId, childToken } = await family();
+      const { token } = await admin();
+
+      const res = await request(app)
+        .delete(`/admin/sessions/${user.id}/revoke-all`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('refresh token reuse on the parent chain', async () => {
+      const { parentRefresh, childId, childToken } = await family();
+
+      await refresh(parentRefresh);
+      const reused = await refresh(parentRefresh);
+      expect(reused.status).toBe(401);
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('the provider revoking the sign-in, from the row it recorded', async () => {
+      const { parent, parentRefresh, childId, childToken } = await family();
+      const rotated = await refresh(parentRefresh);
+      expect(rotated.status).toBe(200);
+
+      await sessions.revokeSessionChain(parent, 'oidc_end_session');
+
+      await expectEnded(childId, childToken);
+    });
+
+    it('concurrent session eviction', async () => {
+      const { user, parent, childId, childToken } = await family();
+      const { enforceConcurrentSessionLimit } =
+        await import('../../src/services/concurrentSessionPolicy.js');
+
+      const evicted = await enforceConcurrentSessionLimit({
+        userId: user.id,
+        limit: 1,
+        req: { ip: '127.0.0.1', get: () => undefined, headers: {} } as never,
+      });
+
+      expect(evicted).toBe(1);
+      await parent.reload();
+      expect(parent.revokedReason).toBe('concurrent_session_limit');
+      await expectEnded(childId, childToken);
+    });
+  });
+
+  describe('ending a child leaves the parent alone', () => {
+    it('logout', async () => {
+      const { parent, childId, childToken } = await family();
+
+      const res = await request(app).delete('/logout').set('Authorization', `Bearer ${childToken}`);
+      expect(res.status).toBe(200);
+
+      await expectEnded(childId, childToken);
+      expect((await me(await accessTokenFor(parent))).status).toBe(200);
+    });
+
+    it('an admin revoking the child', async () => {
+      const { parent, childId, childToken } = await family();
+      const { token } = await admin();
+
+      await request(app)
+        .delete(`/admin/sessions/by-id/${childId}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      await expectEnded(childId, childToken);
+      expect((await me(await accessTokenFor(parent))).status).toBe(200);
+    });
+  });
+
+  it('does not count a child against the concurrent session limit', async () => {
+    const { user, parent, childId } = await family();
+    const { enforceConcurrentSessionLimit } =
+      await import('../../src/services/concurrentSessionPolicy.js');
+
+    const evicted = await enforceConcurrentSessionLimit({
+      userId: user.id,
+      limit: 2,
+      req: { ip: '127.0.0.1', get: () => undefined, headers: {} } as never,
+    });
+
+    expect(evicted).toBe(0);
+    await parent.reload();
+    expect(parent.revokedAt).toBeNull();
+    expect((await Session.findByPk(childId))?.revokedAt).toBeNull();
   });
 });
