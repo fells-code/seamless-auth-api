@@ -45,6 +45,11 @@ vi.mock('jsonwebtoken', () => ({
   },
 }));
 
+vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/services/oidcAuthContext')>()),
+  resolveCurrentSession: vi.fn(),
+}));
+
 describe('sessionService', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -840,5 +845,89 @@ describe('liftRecoveryRestriction', () => {
     const { liftRecoveryRestriction } = await import('../../../src/services/sessionService');
 
     expect(await liftRecoveryRestriction(undefined)).toBe(false);
+  });
+});
+
+describe('exchanged sessions', () => {
+  const future = new Date(Date.now() + 60_000);
+  const childRow = {
+    id: 'child-1',
+    userId: 'user-1',
+    parentSessionId: 'parent-1',
+    expiresAt: future,
+    idleExpiresAt: future,
+    createdAt: new Date(),
+  };
+
+  beforeEach(async () => {
+    const { User } = await import('../../../src/models/users');
+    vi.mocked(User.findOne).mockResolvedValue({
+      id: 'user-1',
+      sessionsRevokedBefore: null,
+    } as never);
+  });
+
+  it('refuses a child whose parent no longer resolves to a live session', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { resolveCurrentSession } = await import('../../../src/services/oidcAuthContext');
+    const { validateSessionRecord } = await import('../../../src/services/sessionService');
+    vi.mocked(Session.findByPk).mockResolvedValue(childRow as never);
+    vi.mocked(resolveCurrentSession).mockResolvedValue(null);
+
+    expect(await validateSessionRecord('child-1')).toBeNull();
+    expect(resolveCurrentSession).toHaveBeenCalledWith('parent-1');
+  });
+
+  it('accepts a child whose parent is live', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { resolveCurrentSession } = await import('../../../src/services/oidcAuthContext');
+    const { validateSessionRecord } = await import('../../../src/services/sessionService');
+    vi.mocked(Session.findByPk).mockResolvedValue(childRow as never);
+    vi.mocked(resolveCurrentSession).mockResolvedValue({ id: 'parent-now' } as never);
+
+    expect(await validateSessionRecord('child-1')).toBe(childRow);
+  });
+
+  describe('revokeOrphanedChildSessions', () => {
+    it('ends the children whose parent is gone, and only those', async () => {
+      const { Session } = await import('../../../src/models/sessions');
+      const { resolveCurrentSession } = await import('../../../src/services/oidcAuthContext');
+      const { revokeOrphanedChildSessions } = await import('../../../src/services/sessionService');
+      vi.mocked(Session.findAll).mockResolvedValue([
+        { id: 'orphan', parentSessionId: 'gone' },
+        { id: 'kept', parentSessionId: 'live' },
+      ] as never);
+      vi.mocked(resolveCurrentSession).mockImplementation((async (id: string) =>
+        id === 'live' ? { id } : null) as never);
+
+      await revokeOrphanedChildSessions({ userId: 'user-1', parentSessionId: null });
+
+      expect(Session.update).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(Session.update).mock.calls[0][1]).toMatchObject({
+        where: { id: 'orphan', revokedAt: null },
+      });
+      expect(vi.mocked(Session.update).mock.calls[0][0]).toMatchObject({
+        revokedReason: 'parent_session_ended',
+      });
+    });
+
+    it('does nothing for a session that is itself a child', async () => {
+      const { Session } = await import('../../../src/models/sessions');
+      const { revokeOrphanedChildSessions } = await import('../../../src/services/sessionService');
+
+      await revokeOrphanedChildSessions({ userId: 'user-1', parentSessionId: 'parent-1' });
+
+      expect(Session.findAll).not.toHaveBeenCalled();
+    });
+
+    it('never fails the revoke that caused it', async () => {
+      const { Session } = await import('../../../src/models/sessions');
+      const { revokeOrphanedChildSessions } = await import('../../../src/services/sessionService');
+      vi.mocked(Session.findAll).mockRejectedValue(new Error('down'));
+
+      await expect(
+        revokeOrphanedChildSessions({ userId: 'user-1', parentSessionId: null }),
+      ).resolves.toBeUndefined();
+    });
   });
 });

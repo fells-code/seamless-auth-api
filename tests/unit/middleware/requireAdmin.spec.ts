@@ -151,4 +151,42 @@ describe('requireAdmin', () => {
       error: 'Internal server error',
     });
   });
+
+  describe('a session exchanged from a device grant', () => {
+    const admin = { id: 'user-1', roles: ['admin:read'] };
+
+    it('needs a fresh step-up, even to read', async () => {
+      const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
+      req.user = admin;
+      req.deviceChildSession = { stepUpVerifiedAt: null, stepUpMethod: null };
+
+      await requireAdmin('read')(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'step_up_required', fresh: false }),
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('passes once it has one', async () => {
+      const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
+      req.user = admin;
+      req.deviceChildSession = { stepUpVerifiedAt: new Date(), stepUpMethod: 'totp' };
+
+      await requireAdmin('read')(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('checks the role first', async () => {
+      const { requireAdmin } = await import('../../../src/middleware/requireAdmin');
+      req.user = { id: 'user-1', roles: ['user'] };
+      req.deviceChildSession = { stepUpVerifiedAt: null, stepUpMethod: null };
+
+      await requireAdmin('read')(req, res, next);
+
+      expect(res.json).toHaveBeenCalledWith({ error: 'Forbidden' });
+    });
+  });
 });

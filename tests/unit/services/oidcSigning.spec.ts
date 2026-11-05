@@ -10,6 +10,7 @@ vi.mock('../../../src/services/oidcClientRegistry', () => ({
 
 vi.mock('../../../src/services/oidcPayloadStore', () => ({
   hasOidcGrantForSession: vi.fn(),
+  recordSessionExchangeToken: vi.fn(),
 }));
 
 vi.mock('../../../src/services/oidcAuthContext', async (importOriginal) => ({
@@ -30,7 +31,10 @@ import {
   getOidcAccountClaims,
   getOidcClientResourceScopes,
 } from '../../../src/services/oidcClientRegistry';
-import { hasOidcGrantForSession } from '../../../src/services/oidcPayloadStore';
+import {
+  hasOidcGrantForSession,
+  recordSessionExchangeToken,
+} from '../../../src/services/oidcPayloadStore';
 import {
   getActiveOidcSigningKey,
   OidcProviderKeysError,
@@ -563,5 +567,126 @@ describe('signForOidcEdge', () => {
       ok: false,
       code: 'audience_mismatch',
     });
+  });
+});
+
+describe('a session:exchange token', () => {
+  const BUILT_IN = `${ISSUER}/seamless`;
+  const DEVICE = 'urn:ietf:params:oauth:grant-type:device_code';
+
+  function exchangeRequest(claims: Record<string, unknown> = {}, grantType = 'authorization_code') {
+    const issuedAt = now();
+    return {
+      kind: 'access_token' as const,
+      kid: 'k1',
+      clientId: 'cli',
+      sessionId: SESSION,
+      grantType,
+      signingInput: input(
+        { alg: 'RS256', kid: 'k1', typ: 'at+jwt' },
+        {
+          iss: ISSUER,
+          sub: 'user-1',
+          aud: BUILT_IN,
+          iat: issuedAt,
+          exp: issuedAt + 60,
+          jti: 'jti-1',
+          client_id: 'cli',
+          scope: 'session:exchange',
+          ...claims,
+        },
+      ),
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(getSystemConfig).mockResolvedValue({
+      oidc_issuer: ISSUER,
+      session_idle_ttl: '8h',
+    } as never);
+    vi.mocked(getActiveOidcSigningKey).mockReturnValue(privateKey);
+    vi.mocked(findActiveOidcClient).mockResolvedValue({
+      id: 'cli',
+      grantTypes: ['authorization_code', DEVICE, 'refresh_token', 'client_credentials'],
+      firstParty: true,
+      deviceFlowEnabled: true,
+    } as never);
+    vi.mocked(getOidcClientResourceScopes).mockResolvedValue(
+      new Map([
+        [BUILT_IN, new Set(['session:exchange', 'notices:send'])],
+        [API, new Set(['session:exchange'])],
+      ]),
+    );
+    vi.mocked(resolveCurrentSession).mockResolvedValue(passkeySession as never);
+    vi.mocked(hasOidcGrantForSession).mockResolvedValue(true);
+    vi.mocked(recordSessionExchangeToken).mockResolvedValue(true);
+  });
+
+  it('is signed and recorded', async () => {
+    const outcome = await signForOidcEdge(exchangeRequest({}, DEVICE));
+
+    expect(outcome).toMatchObject({ ok: true });
+    expect(recordSessionExchangeToken).toHaveBeenCalledWith(
+      'jti-1',
+      SESSION,
+      { clientId: 'cli', accountId: 'user-1', grantType: DEVICE },
+      expect.any(Date),
+    );
+  });
+
+  it('is refused when the jti was seen before', async () => {
+    vi.mocked(recordSessionExchangeToken).mockResolvedValue(false);
+
+    expect(await signForOidcEdge(exchangeRequest())).toMatchObject({
+      ok: false,
+      code: 'malformed_signing_input',
+    });
+  });
+
+  it.each([
+    ['another scope', { scope: 'session:exchange notices:send' }, 'grant_not_allowed'],
+    ['another resource', { aud: API }, 'audience_mismatch'],
+    ['no jti', { jti: undefined }, 'malformed_signing_input'],
+    ['an empty jti', { jti: '' }, 'malformed_signing_input'],
+    ['no iat', { iat: undefined }, 'malformed_signing_input'],
+    ['a long lifetime', { exp: now() + 600 }, 'malformed_signing_input'],
+    ['a future iat', { iat: now() + 1000, exp: now() + 1100 }, 'malformed_signing_input'],
+  ] as [string, Record<string, unknown>, string][])(
+    'is refused with %s',
+    async (_name, claims, code) => {
+      expect(await signForOidcEdge(exchangeRequest(claims))).toMatchObject({ ok: false, code });
+      expect(recordSessionExchangeToken).not.toHaveBeenCalled();
+    },
+  );
+
+  it('is refused on a refresh grant', async () => {
+    expect(await signForOidcEdge(exchangeRequest({}, 'refresh_token'))).toMatchObject({
+      ok: false,
+      code: 'grant_not_allowed',
+    });
+  });
+
+  it('is refused on a client credentials token', async () => {
+    const issuedAt = now();
+    const outcome = await signForOidcEdge({
+      kind: 'client_credentials',
+      kid: 'k1',
+      clientId: 'cli',
+      signingInput: input(
+        { alg: 'RS256', kid: 'k1', typ: 'at+jwt' },
+        {
+          iss: ISSUER,
+          sub: 'cli',
+          aud: BUILT_IN,
+          iat: issuedAt,
+          exp: issuedAt + 60,
+          jti: 'jti-1',
+          client_id: 'cli',
+          scope: 'session:exchange',
+        },
+      ),
+    } as never);
+
+    expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
   });
 });

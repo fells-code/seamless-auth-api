@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/models/oidcPayloads', () => ({
   OidcPayload: {
+    create: vi.fn(),
     upsert: vi.fn(),
     findOne: vi.fn(),
     update: vi.fn(),
@@ -465,5 +466,40 @@ describe('startOidcPayloadPurge', () => {
       vi.clearAllTimers();
       vi.useRealTimers();
     }
+  });
+});
+
+describe('recordSessionExchangeToken', () => {
+  const payload = { clientId: 'cli', accountId: 'user-1', grantType: 'authorization_code' };
+  const expiresAt = new Date('2026-11-04T12:00:00.000Z');
+
+  it('inserts under a model the edge routes cannot name', async () => {
+    const { recordSessionExchangeToken } = await import('../../../src/services/oidcPayloadStore');
+
+    expect(await recordSessionExchangeToken('jti', 'session-1', payload, expiresAt)).toBe(true);
+    expect(OidcPayload.create).toHaveBeenCalledWith({
+      id: 'jti',
+      model: 'SessionExchangeToken',
+      payload,
+      sessionId: 'session-1',
+      expiresAt,
+    });
+  });
+
+  it('refuses a jti it has seen, without touching the record', async () => {
+    const { UniqueConstraintError } = await import('sequelize');
+    const { recordSessionExchangeToken } = await import('../../../src/services/oidcPayloadStore');
+    vi.mocked(OidcPayload.create).mockRejectedValue(new UniqueConstraintError({}));
+
+    expect(await recordSessionExchangeToken('jti', 'session-1', payload, expiresAt)).toBe(false);
+  });
+
+  it('lets any other failure surface', async () => {
+    const { recordSessionExchangeToken } = await import('../../../src/services/oidcPayloadStore');
+    vi.mocked(OidcPayload.create).mockRejectedValue(new Error('down'));
+
+    await expect(
+      recordSessionExchangeToken('jti', 'session-1', payload, expiresAt),
+    ).rejects.toThrow('down');
   });
 });
