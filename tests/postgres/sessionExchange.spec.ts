@@ -903,7 +903,10 @@ describe('POST /sessions/exchange', () => {
       ['disabled', { disabledAt: new Date() }],
       ['no longer enabled for exchange', { sessionExchangeEnabled: false }],
       ['no longer first-party', { firstParty: false }],
-      ['no longer public', { clientType: 'confidential' }],
+      [
+        'no longer public',
+        { clientType: 'confidential', tokenEndpointAuthMethod: 'private_key_jwt' },
+      ],
       ['no longer native', { redirectUris: ['https://app.example.com/cb'] }],
     ] as [string, Partial<OidcClientAttributes>][])('a client %s', async (_name, change) => {
       const { client, parent } = await signedInToCli();

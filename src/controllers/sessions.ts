@@ -9,6 +9,7 @@ import { Op } from 'sequelize';
 
 import { Session } from '../models/sessions.js';
 import { serializeSession } from '../services/apiResponseSerializers.js';
+import { exchangeSubjectToken } from '../services/sessionExchangeService.js';
 import { revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
 import { hardRevokeSession } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -83,4 +84,19 @@ export const revokeAllSessions = async (req: Request, res: Response) => {
   logger.info(`All sessions revoked for user ${user.id}`);
 
   return res.json({ message: 'Success' });
+};
+
+export const exchangeSession = async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+
+  const outcome = await exchangeSubjectToken(req.body.subject_token, req);
+
+  if (outcome.ok) {
+    return res.status(200).json(outcome.response);
+  }
+
+  return res.status(400).json({
+    error: 'invalid_request',
+    ...(outcome.replayed ? { error_description: 'token_already_used' } : {}),
+  });
 };

@@ -201,3 +201,15 @@ export function oauthIpLimiter(req: Request, res: Response, next: NextFunction) 
 export function oauthProviderLimiter(req: Request, res: Response, next: NextFunction) {
   return oauthProviderCachedLimiter(req, res, next);
 }
+
+// Not one of the shared `flow_rate_limits` keys, because a new key there needs a types
+// release. A client exchanges once per sign-in, so this is well above any real traffic.
+const SESSION_EXCHANGES_PER_WINDOW_PER_ADDRESS = 30;
+
+const sessionExchangeCachedLimiter = createFlowLimiter(
+  () => SESSION_EXCHANGES_PER_WINDOW_PER_ADDRESS,
+);
+
+export function sessionExchangeLimiter(req: Request, res: Response, next: NextFunction) {
+  return sessionExchangeCachedLimiter(req, res, next);
+}

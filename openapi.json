@@ -5359,6 +5359,8 @@
                     "service_token_rotated",
                     "service_token_success",
                     "session_evicted",
+                    "session_exchange_replayed",
+                    "session_exchanged",
                     "step_up_challenge",
                     "step_up_failed",
                     "step_up_success",
@@ -5485,6 +5487,8 @@
                           "service_token_rotated",
                           "service_token_success",
                           "session_evicted",
+                          "session_exchange_replayed",
+                          "session_exchanged",
                           "step_up_challenge",
                           "step_up_failed",
                           "step_up_success",
@@ -22472,6 +22476,154 @@
                 "schema": {
                   "type": "object",
                   "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/exchange": {
+      "post": {
+        "summary": "Exchange a provider sign-in for a first-party session",
+        "description": "For first-party public native clients signed in through the OpenID Provider (ADR 0003). Takes the provider access token for `<oidc_issuer>/seamless` with the single `session:exchange` scope, once, and returns the same session `/refresh` returns, for a new session linked to the provider sign-in. Every subject token failure answers the same `400 invalid_request`. A second presentation adds `error_description: token_already_used` and revokes the session the first one created.",
+        "tags": ["Sessions"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "grant_type": {
+                    "type": "string",
+                    "enum": ["urn:ietf:params:oauth:grant-type:token-exchange"]
+                  },
+                  "subject_token": { "type": "string", "minLength": 1, "maxLength": 8192 },
+                  "subject_token_type": {
+                    "type": "string",
+                    "enum": ["urn:ietf:params:oauth:token-type:access_token"]
+                  },
+                  "requested_token_type": {
+                    "type": "string",
+                    "enum": ["urn:ietf:params:oauth:token-type:refresh_token"]
+                  }
+                },
+                "required": ["grant_type", "subject_token", "subject_token_type"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "token": "string",
+                  "refreshToken": "string",
+                  "sub": "string",
+                  "sessionId": "string",
+                  "organizationId": "string",
+                  "roles": [null],
+                  "email": "string",
+                  "phone": "string",
+                  "ttl": 0,
+                  "refreshTtl": 0,
+                  "recovery": true,
+                  "issued_token_type": null
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "refreshToken": { "type": "string" },
+                    "sub": { "type": "string" },
+                    "sessionId": { "type": "string" },
+                    "organizationId": { "type": "string", "nullable": true },
+                    "roles": { "type": "array", "items": { "type": "string" } },
+                    "email": { "type": "string" },
+                    "phone": { "type": "string", "nullable": true },
+                    "ttl": { "type": "number" },
+                    "refreshTtl": { "type": "number" },
+                    "recovery": { "type": "boolean" },
+                    "issued_token_type": {
+                      "type": "string",
+                      "enum": ["urn:ietf:params:oauth:token-type:refresh_token"]
+                    }
+                  },
+                  "required": ["message", "issued_token_type"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": null,
+                  "error_description": null,
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["invalid_request"] },
+                    "error_description": { "type": "string", "enum": ["token_already_used"] },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
                   "required": ["error"]
                 }
               }

@@ -5048,6 +5048,8 @@ export interface paths {
                 | 'service_token_rotated'
                 | 'service_token_success'
                 | 'session_evicted'
+                | 'session_exchange_replayed'
+                | 'session_exchanged'
                 | 'step_up_challenge'
                 | 'step_up_failed'
                 | 'step_up_success'
@@ -5168,6 +5170,8 @@ export interface paths {
                     | 'service_token_rotated'
                     | 'service_token_success'
                     | 'session_evicted'
+                    | 'session_exchange_replayed'
+                    | 'session_exchanged'
                     | 'step_up_challenge'
                     | 'step_up_failed'
                     | 'step_up_success'
@@ -22020,6 +22024,161 @@ export interface paths {
         };
       };
     };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/sessions/exchange': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Exchange a provider sign-in for a first-party session
+     * @description For first-party public native clients signed in through the OpenID Provider (ADR 0003). Takes the provider access token for `<oidc_issuer>/seamless` with the single `session:exchange` scope, once, and returns the same session `/refresh` returns, for a new session linked to the provider sign-in. Every subject token failure answers the same `400 invalid_request`. A second presentation adds `error_description: token_already_used` and revokes the session the first one created.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange';
+            subject_token: string;
+            /** @enum {string} */
+            subject_token_type: 'urn:ietf:params:oauth:token-type:access_token';
+            /** @enum {string} */
+            requested_token_type?: 'urn:ietf:params:oauth:token-type:refresh_token';
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "refreshToken": "string",
+             *       "sub": "string",
+             *       "sessionId": "string",
+             *       "organizationId": "string",
+             *       "roles": [
+             *         null
+             *       ],
+             *       "email": "string",
+             *       "phone": "string",
+             *       "ttl": 0,
+             *       "refreshTtl": 0,
+             *       "recovery": true,
+             *       "issued_token_type": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              refreshToken?: string;
+              sub?: string;
+              sessionId?: string;
+              organizationId?: string | null;
+              roles?: string[];
+              email?: string;
+              phone?: string | null;
+              ttl?: number;
+              refreshTtl?: number;
+              recovery?: boolean;
+              /** @enum {string} */
+              issued_token_type: 'urn:ietf:params:oauth:token-type:refresh_token';
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": null,
+             *       "error_description": null,
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              /** @enum {string} */
+              error: 'invalid_request';
+              /** @enum {string} */
+              error_description?: 'token_already_used';
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;

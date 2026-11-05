@@ -100,6 +100,8 @@ export const AUTH_EVENT_TYPES = [
   'service_token_rotated',
   'service_token_success',
   'session_evicted',
+  'session_exchange_replayed',
+  'session_exchanged',
   'step_up_challenge',
   'step_up_failed',
   'step_up_success',

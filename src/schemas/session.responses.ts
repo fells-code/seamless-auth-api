@@ -4,4 +4,9 @@
  * See LICENSE file in the project root for full license information
  */
 
-export { SessionListResponseSchema } from '@seamless-auth/types';
+export {
+  SessionExchangeErrorSchema,
+  SessionExchangeRequestSchema,
+  SessionExchangeResponseSchema,
+  SessionListResponseSchema,
+} from '@seamless-auth/types';

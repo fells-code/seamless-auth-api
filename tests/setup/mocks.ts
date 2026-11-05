@@ -175,6 +175,7 @@ vi.mock('../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),
     findAll: vi.fn(),
+    findByPk: vi.fn(),
     findOne: vi.fn(),
     count: vi.fn(),
     update: vi.fn(async () => [0]),
@@ -278,6 +279,7 @@ vi.mock('../../src/middleware/rateLimit.js', () => ({
   magicLinkEmailLimiter: (_req: any, _res: any, next: any) => next(),
   oauthIpLimiter: (_req: any, _res: any, next: any) => next(),
   oauthProviderLimiter: (_req: any, _res: any, next: any) => next(),
+  sessionExchangeLimiter: (_req: any, _res: any, next: any) => next(),
   otpIpLimiter: (_req: any, _res: any, next: any) => next(),
   otpIdentityLimiter: (_req: any, _res: any, next: any) => next(),
   dynamicRateLimit: (_req: any, _res: any, next: any) => next(),
