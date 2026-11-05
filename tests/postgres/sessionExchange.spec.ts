@@ -429,3 +429,164 @@ describe('the sessionExchangeEnabled registry flag', () => {
     });
   });
 });
+
+describe('/oidc/sign for a session:exchange token', () => {
+  async function eligible(overrides: Partial<SessionAttributes> = {}) {
+    const client = await nativeClient();
+    const user = await createUser();
+    const parent = await providerSignIn(client, user, overrides);
+    return { client, user, parent };
+  }
+
+  it('signs it, and records which session and grant it came from', async () => {
+    const { client, user, parent } = await eligible();
+
+    const { outcome, jti } = await signSubject(client, parent, { grantType: DEVICE_CODE });
+
+    expect(outcome.ok).toBe(true);
+    const record = await OidcPayload.findOne({ where: { model: 'SessionExchangeToken', id: jti } });
+    expect(record?.sessionId).toBe(parent.id);
+    expect(record?.consumedAt).toBeNull();
+    expect(record?.payload).toEqual({
+      clientId: client.id,
+      accountId: user.id,
+      grantType: DEVICE_CODE,
+    });
+  });
+
+  it('expires the record with the token', async () => {
+    const { client, parent } = await eligible();
+    const exp = Math.floor(Date.now() / 1000) + 90;
+
+    const { jti } = await signSubject(client, parent, { claims: { exp } });
+
+    const record = await OidcPayload.findOne({ where: { model: 'SessionExchangeToken', id: jti } });
+    expect(record?.expiresAt.getTime()).toBe(exp * 1000);
+  });
+
+  it('records nothing for a token with no session:exchange scope', async () => {
+    const client = await nativeClient({ noticesEnabled: true });
+    const user = await createUser();
+    const parent = await providerSignIn(client, user);
+
+    const { outcome, jti } = await signSubject(client, parent, {
+      claims: { scope: 'notices:send' },
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(await OidcPayload.count({ where: { model: 'SessionExchangeToken', id: jti } })).toBe(0);
+  });
+
+  it.each([
+    ['another scope with it', { scope: `${SCOPE} notices:send` }, 'grant_not_allowed'],
+    ['an OIDC scope with it', { scope: `openid ${SCOPE}` }, 'grant_not_allowed'],
+    ['an audience list', { aud: [BUILT_IN_RESOURCE] }, 'audience_mismatch'],
+    ['another audience', { aud: 'https://api.example.com' }, 'audience_mismatch'],
+    ['no jti', { jti: undefined }, 'malformed_signing_input'],
+    ['no iat', { iat: undefined }, 'malformed_signing_input'],
+    [
+      'a lifetime over two minutes',
+      { exp: Math.floor(Date.now() / 1000) + 121 },
+      'malformed_signing_input',
+    ],
+    [
+      'an iat that hides a longer lifetime',
+      { iat: Math.floor(Date.now() / 1000) + 1000, exp: Math.floor(Date.now() / 1000) + 1100 },
+      'malformed_signing_input',
+    ],
+  ] as [string, Record<string, unknown>, string][])(
+    'refuses a token with %s',
+    async (_name, claims, code) => {
+      const { client, parent } = await eligible();
+
+      const { outcome } = await signSubject(client, parent, { claims });
+
+      expect(outcome).toMatchObject({ ok: false, code });
+    },
+  );
+
+  it('refuses another resource that happens to declare the scope', async () => {
+    const { client, parent } = await eligible();
+    const identifier = `https://api-${randomUUID()}.example.com`;
+    const { createOidcResource, setOidcApplicationResources } =
+      await import('../../src/services/oidcResourceService.js');
+    const resource = await createOidcResource({
+      identifier,
+      name: 'Lookalike',
+      scopes: [SCOPE],
+    } as never);
+    await setOidcApplicationResources(client.id, {
+      resources: [{ resourceId: resource.id, scopes: [SCOPE] }],
+    } as never);
+
+    const { outcome } = await signSubject(client, parent, { claims: { aud: identifier } });
+
+    expect(outcome).toMatchObject({ ok: false, code: 'audience_mismatch' });
+  });
+
+  it('refuses a refresh grant, which has no business minting one', async () => {
+    const client = await nativeClient({
+      grantTypes: [AUTHORIZATION_CODE, 'refresh_token', DEVICE_CODE],
+    });
+    const parent = await providerSignIn(client, await createUser());
+
+    const { outcome } = await signSubject(client, parent, { grantType: 'refresh_token' });
+
+    expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+  });
+
+  it.each([
+    ['exchange is off', { sessionExchangeEnabled: false }, 'audience_mismatch'],
+    ['it is a web client', { redirectUris: ['https://app.example.com/cb'] }, 'audience_mismatch'],
+    ['it is disabled', { disabledAt: new Date() }, 'client_inactive'],
+  ] as [string, Partial<OidcClientAttributes>, string][])(
+    'refuses a client when %s',
+    async (_name, overrides, code) => {
+      const client = await nativeClient(overrides);
+      const parent = await providerSignIn(client, await createUser());
+
+      const { outcome } = await signSubject(client, parent);
+
+      expect(outcome).toMatchObject({ ok: false, code });
+    },
+  );
+
+  it('never signs the scope onto a client credentials token', async () => {
+    const client = await nativeClient({
+      grantTypes: ['client_credentials', AUTHORIZATION_CODE],
+    });
+    const claims = subjectClaims(client, client.id);
+    const signingInput = jwtInput({ alg: 'RS256', kid: KID, typ: 'at+jwt' }, claims);
+
+    const outcome = await signing.signForOidcEdge({
+      kind: 'client_credentials',
+      kid: KID,
+      clientId: client.id,
+      grantType: 'client_credentials',
+      signingInput,
+    } as never);
+
+    expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+  });
+
+  it('refuses to sign the same jti twice, so a consumed record cannot be reset', async () => {
+    const { client, parent } = await eligible();
+    const { jti } = await signSubject(client, parent);
+    await OidcPayload.update(
+      { consumedAt: new Date() },
+      { where: { model: 'SessionExchangeToken', id: jti } },
+    );
+
+    const { outcome } = await signSubject(client, parent, { claims: { jti } });
+
+    expect(outcome).toMatchObject({ ok: false, code: 'malformed_signing_input' });
+    const record = await OidcPayload.findOne({ where: { model: 'SessionExchangeToken', id: jti } });
+    expect(record?.consumedAt).not.toBeNull();
+  });
+
+  it('keeps the record out of reach of the edge payload routes', async () => {
+    const { OidcPayloadModelSchema } = await import('@seamless-auth/types');
+
+    expect(OidcPayloadModelSchema.safeParse('SessionExchangeToken').success).toBe(false);
+  });
+});
