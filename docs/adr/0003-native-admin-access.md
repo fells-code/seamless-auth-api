@@ -1,7 +1,7 @@
 # ADR 0003: Admin API access for native clients signed in through the OpenID Provider
 
-- **Status:** Proposed
-- **Date:** 2026-11-03
+- **Status:** Accepted
+- **Date:** 2026-11-04
 - **Builds on:** [ADR 0001](0001-openid-provider.md) (D3, D4, D10, D11, D14), [ADR 0002](0002-native-and-desktop-apps.md) (N2, N7, N9)
 - **Issues:** #544, part of epic #551 (native apps), unblocks seamless-cli#316
 
@@ -198,14 +198,9 @@ The CLI's e2e covers both paths against a v0.23 API and edge.
 
 Edge work: X8, and DPoP on the exchange hop with #512 (X9).
 
-## Decisions for the maintainer to confirm
+## Decisions confirmed
 
-1. **Option C over A.** Accepts that admin calls use bearer first-party tokens until first-party DPoP exists, in exchange for one token family on admin routes and a device step-up that works.
-2. **X7.** Device-grant sessions need step-up for admin reads too, not only writes.
-3. **X4 lifetime coupling.** The CLI's session ends when the browser session it came from ends, and CLI activity keeps that browser session from idling out. The alternative is an independent session, which would outlive a browser logout.
-4. **X5 snapshot.** A loopback exchange inherits a step-up the browser earned in the last five minutes. The stricter alternative copies auth methods but never step-up, so every admin write from a new CLI session needs its own step-up.
-5. **X8.** Exchange-enabled clients always get a confirmation page at the edge, which means one extra click per CLI sign-in.
-6. **Names.** The scope `session:exchange`, the route `POST /sessions/exchange` and the flag `sessionExchangeEnabled`.
+The maintainer accepted option C on 2026-11-04, with the settings this record recommends: bearer first-party tokens on admin calls until first-party DPoP exists, X4 (the child's lifetime is tied to its parent and child refreshes count as parent activity), X5 (a loopback exchange inherits the parent's step-up from the last five minutes), X7 (device grant sessions need a fresh step-up before any admin call), X8 (no silent authorization for exchange-enabled clients), the names `session:exchange`, `POST /sessions/exchange` and `sessionExchangeEnabled`, and the narrow amendment to ADR 0001 D11.
 
 ## Security properties
 
