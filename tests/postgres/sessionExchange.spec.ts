@@ -4,7 +4,7 @@ import { SignJWT } from 'jose';
 import os from 'os';
 import path from 'path';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { invalidateSystemConfigCache } from '../../src/config/getSystemConfig.js';
 import { AuthEvent } from '../../src/models/authEvents.js';
@@ -588,5 +588,519 @@ describe('/oidc/sign for a session:exchange token', () => {
     const { OidcPayloadModelSchema } = await import('@seamless-auth/types');
 
     expect(OidcPayloadModelSchema.safeParse('SessionExchangeToken').success).toBe(false);
+  });
+});
+
+const GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:token-exchange';
+const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
+const REFRESH_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:refresh_token';
+const TOKEN_FAILURE = { error: 'invalid_request' };
+
+function exchange(subjectToken: string, overrides: Record<string, unknown> = {}) {
+  return request(app)
+    .post('/sessions/exchange')
+    .send({
+      grant_type: GRANT_TYPE,
+      subject_token: subjectToken,
+      subject_token_type: ACCESS_TOKEN_TYPE,
+      requested_token_type: REFRESH_TOKEN_TYPE,
+      ...overrides,
+    });
+}
+
+async function signedInToCli(
+  overrides: Partial<SessionAttributes> = {},
+  clientOverrides: Partial<OidcClientAttributes> = {},
+  roles: string[] = ['user'],
+) {
+  const client = await nativeClient(clientOverrides);
+  const user = await createUser(roles);
+  const parent = await providerSignIn(client, user, overrides);
+  return { client, user, parent };
+}
+
+/** A token signed with the provider key that `/oidc/sign` never saw. */
+function forge(claims: Record<string, unknown>, typ = 'at+jwt') {
+  return new SignJWT(claims).setProtectedHeader({ alg: 'RS256', kid: KID, typ }).sign(providerKey);
+}
+
+function me(token: string) {
+  return request(app).get('/users/me').set('Authorization', `Bearer ${token}`);
+}
+
+describe('POST /sessions/exchange', () => {
+  it('issues a linked child session the first-party routes accept', async () => {
+    const { client, user, parent } = await signedInToCli();
+    const { token, jti } = await signSubject(client, parent);
+
+    const res = await exchange(token);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body).toMatchObject({
+      message: 'Success',
+      sub: user.id,
+      email: user.email,
+      roles: user.roles,
+      issued_token_type: REFRESH_TOKEN_TYPE,
+    });
+    expect(res.body.ttl).toBeGreaterThan(0);
+    expect(res.body.refreshTtl).toBeGreaterThan(0);
+    expect(res.body.sessionId).not.toBe(parent.id);
+
+    const child = await Session.findByPk(res.body.sessionId);
+    expect(child).toMatchObject({
+      userId: user.id,
+      parentSessionId: parent.id,
+      exchangeClientId: client.id,
+      exchangeGrantType: AUTHORIZATION_CODE,
+      organizationId: parent.organizationId,
+    });
+    expect(child?.refreshTokenLookup).not.toBe(parent.refreshTokenLookup);
+
+    const record = await OidcPayload.findOne({ where: { model: 'SessionExchangeToken', id: jti } });
+    expect(record?.consumedAt).not.toBeNull();
+
+    expect((await me(res.body.token)).status).toBe(200);
+    expect((await me(await accessTokenFor(parent))).status).toBe(200);
+
+    const refreshed = await request(app)
+      .post('/refresh')
+      .set('Authorization', `Bearer ${res.body.refreshToken}`);
+    expect(refreshed.status).toBe(200);
+
+    const event = await AuthEvent.findOne({
+      where: { type: 'session_exchanged', session_id: res.body.sessionId },
+    });
+    expect(event?.user_id).toBe(user.id);
+    expect(event?.metadata).toMatchObject({
+      clientId: client.id,
+      grantType: AUTHORIZATION_CODE,
+      parentSessionId: parent.id,
+    });
+  });
+
+  it('accepts a request that leaves out the optional requested_token_type', async () => {
+    const { client, parent } = await signedInToCli();
+    const { token } = await signSubject(client, parent);
+
+    const res = await exchange(token, { requested_token_type: undefined });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('caps the child at what is left of the parent', async () => {
+    const parentExpiry = new Date(Date.now() + 30 * 60_000);
+    const { client, parent } = await signedInToCli({
+      expiresAt: parentExpiry,
+      idleExpiresAt: parentExpiry,
+    });
+    const { token } = await signSubject(client, parent);
+
+    const res = await exchange(token);
+
+    const child = await Session.findByPk(res.body.sessionId);
+    expect(child?.expiresAt.getTime()).toBeLessThanOrEqual(parentExpiry.getTime());
+    expect(child?.idleExpiresAt.getTime()).toBeLessThanOrEqual(parentExpiry.getTime());
+    expect(res.body.refreshTtl).toBeLessThanOrEqual(30 * 60);
+  });
+
+  it('resolves the parent forward through rotation', async () => {
+    const { client, user, parent } = await signedInToCli();
+    const { token } = await signSubject(client, parent);
+    const rotated = await createSession(user.id, { organizationId: null });
+    await Session.update({ replacedBySessionId: rotated.id }, { where: { id: parent.id } });
+
+    const res = await exchange(token);
+
+    expect(res.status).toBe(200);
+    expect((await Session.findByPk(res.body.sessionId))?.parentSessionId).toBe(rotated.id);
+  });
+
+  describe('single use', () => {
+    it('refuses a second presentation and revokes what the first one created', async () => {
+      const { client, user, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+
+      const first = await exchange(token);
+      const second = await exchange(token);
+
+      expect(second.status).toBe(400);
+      expect(second.body).toEqual({
+        error: 'invalid_request',
+        error_description: 'token_already_used',
+      });
+      expect((await me(first.body.token)).status).toBe(401);
+      const child = await Session.findByPk(first.body.sessionId);
+      expect(child?.revokedReason).toBe('session_exchange_replayed');
+      expect((await me(await accessTokenFor(parent))).status).toBe(200);
+      const event = await AuthEvent.findOne({
+        where: { type: 'session_exchange_replayed', user_id: user.id },
+      });
+      expect(event?.metadata).toMatchObject({ clientId: client.id });
+    });
+
+    it('revokes a child that has since rotated', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+      const first = await exchange(token);
+      const refreshed = await request(app)
+        .post('/refresh')
+        .set('Authorization', `Bearer ${first.body.refreshToken}`);
+
+      await exchange(token);
+
+      expect((await me(refreshed.body.token)).status).toBe(401);
+    });
+
+    it('lets one of many concurrent presentations win, then revokes it', async () => {
+      const { client, user, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+
+      const results = await Promise.all(Array.from({ length: 6 }, () => exchange(token)));
+
+      const winners = results.filter((res) => res.status === 200);
+      const losers = results.filter((res) => res.status === 400);
+      expect(winners).toHaveLength(1);
+      expect(losers).toHaveLength(5);
+      for (const loser of losers) {
+        expect(loser.body.error_description).toBe('token_already_used');
+      }
+      expect((await me(winners[0].body.token)).status).toBe(401);
+
+      const children = await Session.findAll({
+        where: { userId: user.id, parentSessionId: parent.id },
+      });
+      expect(children).toHaveLength(1);
+      expect(children[0].revokedAt).not.toBeNull();
+      const record = await OidcPayload.findOne({
+        where: { model: 'SessionExchangeToken', id: jti },
+      });
+      expect(record?.payload.childSessionId).toBe(children[0].id);
+    });
+  });
+
+  describe('refuses with one body', () => {
+    async function expectTokenFailure(token: string) {
+      const res = await exchange(token);
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual(TOKEN_FAILURE);
+    }
+
+    function goodClaims(client: OidcClient, userId: string) {
+      return subjectClaims(client, userId);
+    }
+
+    it.each([
+      ['with no signing record', {}],
+      ['with another audience', { aud: 'https://api.example.com' }],
+      ['with an audience list', { aud: [BUILT_IN_RESOURCE, 'https://api.example.com'] }],
+      ['with an extra scope', { scope: `${SCOPE} notices:send` }],
+      ['with another scope', { scope: 'notices:send' }],
+      ['from another issuer', { iss: 'https://elsewhere.example.com' }],
+      ['with no jti', { jti: undefined }],
+      ['with no client_id', { client_id: undefined }],
+    ] as [string, Record<string, unknown>][])('a token %s', async (_name, overrides) => {
+      const { client, parent } = await signedInToCli();
+
+      await expectTokenFailure(await forge({ ...goodClaims(client, parent.userId), ...overrides }));
+    });
+
+    it.each([
+      ['another audience', { aud: 'https://api.example.com' }],
+      ['an extra scope', { scope: `${SCOPE} notices:send` }],
+    ] as [string, Record<string, unknown>][])(
+      'a token with %s, even when its record exists',
+      async (_name, overrides) => {
+        const { client, parent } = await signedInToCli();
+        const { jti } = await signSubject(client, parent);
+
+        await expectTokenFailure(
+          await forge({ ...goodClaims(client, parent.userId), jti, ...overrides }),
+        );
+        const record = await OidcPayload.findOne({
+          where: { model: 'SessionExchangeToken', id: jti },
+        });
+        expect(record?.consumedAt).toBeNull();
+      },
+    );
+
+    it('a token whose subject is the client', async () => {
+      const { client, parent } = await signedInToCli();
+      const { jti } = await signSubject(client, parent);
+
+      await expectTokenFailure(await forge({ ...goodClaims(client, client.id), jti }));
+    });
+
+    it('a token that is not an at+jwt', async () => {
+      const { client, parent } = await signedInToCli();
+      const { jti } = await signSubject(client, parent);
+
+      await expectTokenFailure(await forge({ ...goodClaims(client, parent.userId), jti }, 'JWT'));
+    });
+
+    it('a token signed by someone else', async () => {
+      const { client, parent } = await signedInToCli();
+      const { jti } = await signSubject(client, parent);
+      const stranger = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey;
+      const token = await new SignJWT({ ...goodClaims(client, parent.userId), jti })
+        .setProtectedHeader({ alg: 'RS256', kid: KID, typ: 'at+jwt' })
+        .sign(stranger);
+
+      await expectTokenFailure(token);
+    });
+
+    it('a first-party access token', async () => {
+      const { parent } = await signedInToCli();
+
+      await expectTokenFailure(await accessTokenFor(parent));
+    });
+
+    it('an expired token', async () => {
+      const { client, parent } = await signedInToCli();
+      const { jti } = await signSubject(client, parent);
+      const now = Math.floor(Date.now() / 1000);
+
+      await expectTokenFailure(
+        await forge({ ...goodClaims(client, parent.userId), jti, iat: now - 90, exp: now - 30 }),
+      );
+    });
+
+    it('an expired record', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+      await OidcPayload.update(
+        { expiresAt: new Date(Date.now() - 1000) },
+        { where: { model: 'SessionExchangeToken', id: jti } },
+      );
+
+      await expectTokenFailure(token);
+    });
+
+    it('a record that names another user', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+      await OidcPayload.update(
+        { payload: { clientId: client.id, accountId: randomUUID(), grantType: DEVICE_CODE } },
+        { where: { model: 'SessionExchangeToken', id: jti } },
+      );
+
+      await expectTokenFailure(token);
+    });
+
+    it('a record that names another client', async () => {
+      const { client, user, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+      await OidcPayload.update(
+        { payload: { clientId: 'someone-else', accountId: user.id, grantType: DEVICE_CODE } },
+        { where: { model: 'SessionExchangeToken', id: jti } },
+      );
+
+      await expectTokenFailure(token);
+    });
+
+    it.each([
+      ['disabled', { disabledAt: new Date() }],
+      ['no longer enabled for exchange', { sessionExchangeEnabled: false }],
+      ['no longer first-party', { firstParty: false }],
+      ['no longer public', { clientType: 'confidential' }],
+      ['no longer native', { redirectUris: ['https://app.example.com/cb'] }],
+    ] as [string, Partial<OidcClientAttributes>][])('a client %s', async (_name, change) => {
+      const { client, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+      await OidcClient.update(change, { where: { id: client.id } });
+
+      await expectTokenFailure(token);
+      const record = await OidcPayload.findOne({
+        where: { model: 'SessionExchangeToken', id: jti },
+      });
+      expect(record?.consumedAt).toBeNull();
+    });
+
+    it('a recovery parent', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+      await Session.update({ recovery: true }, { where: { id: parent.id } });
+
+      await expectTokenFailure(token);
+    });
+
+    it('a parent that is no longer live', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+      await Session.update({ revokedAt: new Date() }, { where: { id: parent.id } });
+
+      await expectTokenFailure(token);
+    });
+
+    it('a parent that belongs to another user', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+      const stranger = await createUser();
+      const elsewhere = await createSession(stranger.id);
+      await OidcPayload.update(
+        { sessionId: elsewhere.id },
+        { where: { model: 'SessionExchangeToken', id: jti } },
+      );
+
+      await expectTokenFailure(token);
+    });
+
+    it('a parent that is itself an exchanged session', async () => {
+      const { client, user, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+      const grandparent = await createSession(user.id);
+      await Session.update(
+        { parentSessionId: grandparent.id, exchangeClientId: client.id },
+        { where: { id: parent.id } },
+      );
+
+      await expectTokenFailure(token);
+    });
+
+    it('a revoked user', async () => {
+      const { client, user, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+      await User.update({ revoked: true }, { where: { id: user.id } });
+
+      await expectTokenFailure(token);
+    });
+
+    it('a record with a grant that cannot exchange', async () => {
+      const { client, user, parent } = await signedInToCli();
+      const { token, jti } = await signSubject(client, parent);
+      await OidcPayload.update(
+        { payload: { clientId: client.id, accountId: user.id, grantType: 'refresh_token' } },
+        { where: { model: 'SessionExchangeToken', id: jti } },
+      );
+
+      await expectTokenFailure(token);
+    });
+  });
+
+  it.each([
+    ['another grant type', { grant_type: 'refresh_token' }],
+    ['another subject token type', { subject_token_type: 'urn:ietf:params:oauth:token-type:jwt' }],
+    ['another requested type', { requested_token_type: 'urn:ietf:params:oauth:token-type:jwt' }],
+    ['no subject token', { subject_token: undefined }],
+  ] as [string, Record<string, unknown>][])(
+    'answers invalid_request to a request with %s',
+    async (_name, overrides) => {
+      const res = await exchange('a.b.c', overrides);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('invalid_request');
+    },
+  );
+
+  it('is not a route adapters proxy', async () => {
+    const manifest = await request(app).get('/.well-known/seamless-adapter.json');
+
+    expect(JSON.stringify(manifest.body)).not.toContain('/sessions/exchange');
+  });
+
+  describe('assurance (X5)', () => {
+    const passkey = {
+      method: 'passkey',
+      at: '2026-11-04T12:00:00.000Z',
+      deviceBound: true,
+      userVerified: true,
+    };
+
+    it('copies the parent auth context for an authorization code grant', async () => {
+      const authTime = new Date(Date.now() - 60_000);
+      const stepUpVerifiedAt = new Date(Date.now() - 30_000);
+      const { client, parent } = await signedInToCli({
+        authMethods: [passkey] as never,
+        authTime,
+        stepUpVerifiedAt,
+        stepUpMethod: 'webauthn',
+      });
+      const { token } = await signSubject(client, parent);
+
+      const res = await exchange(token);
+
+      const child = await Session.findByPk(res.body.sessionId);
+      expect(child?.authMethods).toEqual([passkey]);
+      expect(child?.authTime?.getTime()).toBe(authTime.getTime());
+      expect(child?.stepUpVerifiedAt?.getTime()).toBe(stepUpVerifiedAt.getTime());
+      expect(child?.stepUpMethod).toBe('webauthn');
+    });
+
+    it('lets a stale step-up stay stale', async () => {
+      const { client, parent } = await signedInToCli({
+        stepUpVerifiedAt: new Date(Date.now() - 10 * 60_000),
+        stepUpMethod: 'webauthn',
+      });
+      const { token } = await signSubject(client, parent);
+
+      const res = await exchange(token);
+
+      const { getSessionStepUpStatus } = await import('../../src/services/stepUpService.js');
+      const status = await getSessionStepUpStatus({
+        sessionId: res.body.sessionId,
+        userId: parent.userId,
+      });
+      expect(status.fresh).toBe(false);
+    });
+
+    it('copies nothing for a device grant', async () => {
+      const { client, parent } = await signedInToCli({
+        authMethods: [passkey] as never,
+        authTime: new Date(),
+        stepUpVerifiedAt: new Date(),
+        stepUpMethod: 'webauthn',
+      });
+      const { token } = await signSubject(client, parent, { grantType: DEVICE_CODE });
+
+      const res = await exchange(token);
+
+      const child = await Session.findByPk(res.body.sessionId);
+      expect(child?.exchangeGrantType).toBe(DEVICE_CODE);
+      expect(child?.authMethods).toEqual([]);
+      expect(child?.authTime).toBeNull();
+      expect(child?.stepUpVerifiedAt).toBeNull();
+      expect(child?.stepUpMethod).toBeNull();
+    });
+
+    it('keeps later step-ups on either session to that session', async () => {
+      const { client, parent } = await signedInToCli();
+      const { token } = await signSubject(client, parent);
+      const res = await exchange(token);
+      const { recordStepUpVerification } = await import('../../src/services/stepUpService.js');
+
+      await recordStepUpVerification({
+        sessionId: res.body.sessionId,
+        userId: parent.userId,
+        method: 'totp',
+      });
+
+      await parent.reload();
+      expect(parent.stepUpVerifiedAt).toBeNull();
+    });
+  });
+
+  it('refuses when the client is switched off between the checks and the write', async () => {
+    // Stands in for an admin's write landing mid-exchange: the exchange's re-read after its
+    // commit, or the admin's revoke after the write, has to catch it either way.
+    const { client, parent } = await signedInToCli();
+    const { token } = await signSubject(client, parent);
+    const original = OidcClient.findByPk.bind(OidcClient);
+    let reads = 0;
+    const spy = vi.spyOn(OidcClient, 'findByPk').mockImplementation(async (...args) => {
+      reads += 1;
+      if (reads === 2) {
+        await OidcClient.update({ sessionExchangeEnabled: false }, { where: { id: client.id } });
+      }
+      return original(...args);
+    });
+
+    const res = await exchange(token);
+    spy.mockRestore();
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(TOKEN_FAILURE);
+    const children = await Session.findAll({ where: { parentSessionId: parent.id } });
+    expect(children.every((child) => child.revokedAt !== null)).toBe(true);
   });
 });
