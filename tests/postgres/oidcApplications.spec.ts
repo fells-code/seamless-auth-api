@@ -14,6 +14,7 @@ import {
   listOidcApplicationLinks,
 } from '../../src/services/oidcClientLinkService.js';
 import { getOidcClientResourceScopes } from '../../src/services/oidcClientRegistry.js';
+import { SystemConfig } from '../../src/models/systemConfig.js';
 import { upsertOidcPayload } from '../../src/services/oidcPayloadStore.js';
 import {
   createOidcResource,
@@ -21,9 +22,14 @@ import {
   setOidcApplicationResources,
   updateOidcResource,
 } from '../../src/services/oidcResourceService.js';
+import { buildSystemConfig } from '../factories/systemConfigFactory.js';
 
 beforeAll(async () => {
   await initializeModels();
+  await SystemConfig.bulkCreate(
+    Object.entries(buildSystemConfig()).map(([key, value]) => ({ key, value })) as never,
+    { ignoreDuplicates: true },
+  );
 });
 
 afterAll(async () => {
