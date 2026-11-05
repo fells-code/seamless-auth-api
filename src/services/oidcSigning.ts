@@ -4,7 +4,12 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { OidcSignRefusalCode, OidcSignRequest } from '@seamless-auth/types';
+import {
+  type OidcSignRefusalCode,
+  type OidcSignRequest,
+  seamlessBuiltInResource,
+  SESSION_EXCHANGE_SCOPE,
+} from '@seamless-auth/types';
 import { constants, sign } from 'crypto';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -16,7 +21,7 @@ import {
   getOidcAccountClaims,
   getOidcClientResourceScopes,
 } from './oidcClientRegistry.js';
-import { hasOidcGrantForSession } from './oidcPayloadStore.js';
+import { hasOidcGrantForSession, recordSessionExchangeToken } from './oidcPayloadStore.js';
 import { getActiveOidcSigningKey, OidcProviderKeysError } from './oidcProviderKeys.js';
 
 type JsonObject = Record<string, unknown>;
@@ -34,6 +39,12 @@ const ALLOWED_HEADER_MEMBERS = new Set(['alg', 'kid', 'typ']);
 const MAX_TOKEN_LIFETIME_SECONDS = 60 * 60 * 24;
 
 const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
+
+// ADR 0003, X2. The edge sets 60 seconds, and this is the most the API will sign.
+const MAX_SESSION_EXCHANGE_TOKEN_SECONDS = 120;
+// A token the user just signed in for. A refresh is not a sign-in, and the record has to
+// say which grant to treat the child as.
+const SESSION_EXCHANGE_GRANTS = new Set(['authorization_code', DEVICE_CODE_GRANT]);
 
 const PROTOCOL_CLAIMS = [
   'iss',
@@ -77,6 +88,10 @@ const IDENTITY_CLAIMS = [
   'roles',
   'org_id',
 ] as const;
+
+function isSessionExchangeToken(request: OidcSignRequest, claims: JsonObject) {
+  return request.kind === 'access_token' && scopesOf(claims).includes(SESSION_EXCHANGE_SCOPE);
+}
 
 function refuse(code: OidcSignRefusalCode, userId?: string): OidcSignOutcome {
   return { ok: false, code, ...(userId ? { userId } : {}) };
@@ -199,6 +214,7 @@ export async function signForOidcEdge(request: OidcSignRequest): Promise<OidcSig
       return refuse('subject_mismatch');
     }
     if (!client.grantTypes.includes('client_credentials')) return refuse('grant_not_allowed');
+    if (scopesOf(claims).includes(SESSION_EXCHANGE_SCOPE)) return refuse('grant_not_allowed');
 
     const audience = await checkResourceAudience(client.id, claims, oidc_issuer);
     if (audience) return refuse(audience);
@@ -211,6 +227,20 @@ export async function signForOidcEdge(request: OidcSignRequest): Promise<OidcSig
     key,
     padding: constants.RSA_PKCS1_PADDING,
   }).toString('base64url');
+
+  if (isSessionExchangeToken(request, claims)) {
+    const recorded = await recordSessionExchangeToken(
+      claims.jti as string,
+      request.sessionId as string,
+      {
+        clientId: client.id,
+        accountId: claims.sub as string,
+        grantType: request.grantType as string,
+      },
+      new Date((claims.exp as number) * 1000),
+    );
+    if (!recorded) return refuse('malformed_signing_input');
+  }
 
   if (request.kind !== 'client_credentials') {
     await recordProviderActivity(request.sessionId as string);
@@ -313,5 +343,36 @@ async function checkUserToken(
   if (claims.client_id !== client.id) return refuse('audience_mismatch', session.userId);
 
   const audience = await checkResourceAudience(client.id, claims, issuer);
-  return audience ? refuse(audience, session.userId) : null;
+  if (audience) return refuse(audience, session.userId);
+
+  return isSessionExchangeToken(request, claims)
+    ? checkSessionExchangeToken(request, claims, issuer, session.userId)
+    : null;
+}
+
+/** ADR 0003, X2: a token useful nowhere else, that lives briefly and can be told apart. */
+function checkSessionExchangeToken(
+  request: OidcSignRequest,
+  claims: JsonObject,
+  issuer: string,
+  userId: string,
+): OidcSignOutcome | null {
+  if (claims.aud !== seamlessBuiltInResource(issuer)) return refuse('audience_mismatch', userId);
+  if (claims.scope !== SESSION_EXCHANGE_SCOPE) return refuse('grant_not_allowed', userId);
+  if (!SESSION_EXCHANGE_GRANTS.has(request.grantType as string)) {
+    return refuse('grant_not_allowed', userId);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    typeof claims.jti !== 'string' ||
+    !claims.jti ||
+    typeof claims.iat !== 'number' ||
+    (claims.exp as number) - claims.iat > MAX_SESSION_EXCHANGE_TOKEN_SECONDS ||
+    (claims.exp as number) - now > MAX_SESSION_EXCHANGE_TOKEN_SECONDS
+  ) {
+    return refuse('malformed_signing_input', userId);
+  }
+
+  return null;
 }

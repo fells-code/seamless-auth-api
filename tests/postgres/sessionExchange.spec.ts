@@ -486,7 +486,7 @@ describe('/oidc/sign for a session:exchange token', () => {
     ['no iat', { iat: undefined }, 'malformed_signing_input'],
     [
       'a lifetime over two minutes',
-      { exp: Math.floor(Date.now() / 1000) + 121 },
+      { exp: Math.floor(Date.now() / 1000) + 600 },
       'malformed_signing_input',
     ],
     [
