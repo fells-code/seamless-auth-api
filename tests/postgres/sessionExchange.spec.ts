@@ -1842,3 +1842,266 @@ describe('factor changes on a device child', () => {
     expectStepUpRequired(await adminRead(res.body.token));
   });
 });
+
+describe('organization routes on a device child', () => {
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  async function organizationWith(ownerId: string | null) {
+    const { Organization } = await import('../../src/models/organizations.js');
+    const { OrganizationMembership } = await import('../../src/models/organizationMemberships.js');
+    const member = await createUser();
+    const organization = await Organization.create({
+      name: 'Before',
+      slug: `org-${randomUUID()}`,
+    } as never);
+    const membership = await OrganizationMembership.create({
+      userId: member.id,
+      organizationId: organization.id,
+      roles: ['member'],
+      scopes: [],
+    } as never);
+    if (ownerId) {
+      await OrganizationMembership.create({
+        userId: ownerId,
+        organizationId: organization.id,
+        roles: ['owner'],
+        scopes: [],
+      } as never);
+    }
+    return { organization, member, membership };
+  }
+
+  /** A child acting through a global admin role, with no membership of the organization. */
+  async function adminPersona(grantType: string) {
+    const { client, user, parent } = await signedInToCli({}, {}, ['admin:read', 'admin:write']);
+    const { token: subject } = await signSubject(client, parent, { grantType });
+    const res = await exchange(subject);
+    return { user, token: res.body.token as string, ...(await organizationWith(null)) };
+  }
+
+  /** A child acting as an ordinary owner of the organization, with no global admin role. */
+  async function ownerPersona(grantType: string) {
+    const { client, user, parent } = await signedInToCli();
+    const { token: subject } = await signSubject(client, parent, { grantType });
+    const res = await exchange(subject);
+    return { user, token: res.body.token as string, ...(await organizationWith(user.id)) };
+  }
+
+  const personas = [
+    ['a global admin', adminPersona],
+    ['an ordinary organization owner', ownerPersona],
+  ] as const;
+
+  function expectStepUpRequired(res: request.Response) {
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'step_up_required', fresh: false, method: null });
+  }
+
+  async function stepUpWithRealTotp(user: User, token: string) {
+    const { startTotpEnrollment, verifyTotpEnrollment } =
+      await import('../../src/services/totpService.js');
+    const { generateTotpCode, getTotpCounter } = await import('../../src/utils/totp.js');
+    const { secret } = await startTotpEnrollment({
+      userId: user.id,
+      email: user.email,
+      issuer: 'Test',
+    });
+    await verifyTotpEnrollment(
+      user.id,
+      generateTotpCode({ secret, counter: getTotpCounter() - 1 }),
+    );
+    const stepUp = await request(app)
+      .post('/totp/verify-mfa')
+      .set(bearer(token))
+      .send({ code: generateTotpCode({ secret }) });
+    expect(stepUp.status).toBe(200);
+  }
+
+  describe.each(personas)('acting as %s', (_name, persona) => {
+    it('cannot read the member list, with its emails', async () => {
+      const { token, organization } = await persona(DEVICE_CODE);
+
+      const res = await request(app)
+        .get(`/organizations/${organization.id}/members`)
+        .set(bearer(token));
+
+      expectStepUpRequired(res);
+      expect(JSON.stringify(res.body)).not.toContain('@session-exchange.test');
+    });
+
+    it('cannot change a member to owner', async () => {
+      const { token, organization, member, membership } = await persona(DEVICE_CODE);
+
+      expectStepUpRequired(
+        await request(app)
+          .patch(`/organizations/${organization.id}/members/${member.id}`)
+          .set(bearer(token))
+          .send({ roles: ['owner'] }),
+      );
+
+      await membership.reload();
+      expect(membership.roles).toEqual(['member']);
+    });
+
+    it('cannot remove a member', async () => {
+      const { token, organization, member, membership } = await persona(DEVICE_CODE);
+
+      expectStepUpRequired(
+        await request(app)
+          .delete(`/organizations/${organization.id}/members/${member.id}`)
+          .set(bearer(token)),
+      );
+
+      await expect(membership.reload()).resolves.toBeDefined();
+    });
+
+    it('cannot add a member', async () => {
+      const { token, organization } = await persona(DEVICE_CODE);
+      const stranger = await createUser();
+
+      expectStepUpRequired(
+        await request(app)
+          .post(`/organizations/${organization.id}/members`)
+          .set(bearer(token))
+          .send({ userId: stranger.id, roles: ['member'] }),
+      );
+    });
+
+    it('cannot get or change the organization', async () => {
+      const { token, organization } = await persona(DEVICE_CODE);
+
+      expectStepUpRequired(
+        await request(app).get(`/organizations/${organization.id}`).set(bearer(token)),
+      );
+      expectStepUpRequired(
+        await request(app)
+          .patch(`/organizations/${organization.id}`)
+          .set(bearer(token))
+          .send({ name: 'After' }),
+      );
+
+      await organization.reload();
+      expect(organization.name).toBe('Before');
+    });
+
+    it('cannot list or create organizations', async () => {
+      const { token } = await persona(DEVICE_CODE);
+
+      expectStepUpRequired(await request(app).get('/organizations').set(bearer(token)));
+      expectStepUpRequired(
+        await request(app)
+          .post('/organizations')
+          .set(bearer(token))
+          .send({ name: 'New', slug: `new-${randomUUID()}` }),
+      );
+    });
+
+    it('can still switch organization, and X7 still applies afterwards', async () => {
+      const { token, organization, user } = await persona(DEVICE_CODE);
+      const { OrganizationMembership } =
+        await import('../../src/models/organizationMemberships.js');
+      await OrganizationMembership.findOrCreate({
+        where: { userId: user.id, organizationId: organization.id },
+        defaults: {
+          userId: user.id,
+          organizationId: organization.id,
+          roles: ['member'],
+          scopes: [],
+        } as never,
+      });
+
+      const res = await request(app)
+        .post(`/organizations/${organization.id}/switch`)
+        .set(bearer(token));
+
+      expect(res.status).toBe(200);
+      expectStepUpRequired(
+        await request(app).get(`/organizations/${organization.id}`).set(bearer(res.body.token)),
+      );
+    });
+
+    it('proceeds once it steps up with the real TOTP', async () => {
+      const { user, token, organization, member, membership } = await persona(DEVICE_CODE);
+      await stepUpWithRealTotp(user, token);
+
+      const members = await request(app)
+        .get(`/organizations/${organization.id}/members`)
+        .set(bearer(token));
+      expect(members.status).toBe(200);
+      expect(JSON.stringify(members.body)).toContain(member.email);
+
+      expect((await request(app).get('/organizations').set(bearer(token))).status).toBe(200);
+      expect(
+        (await request(app).get(`/organizations/${organization.id}`).set(bearer(token))).status,
+      ).toBe(200);
+      expect(
+        (
+          await request(app)
+            .patch(`/organizations/${organization.id}`)
+            .set(bearer(token))
+            .send({ name: 'After' })
+        ).status,
+      ).toBe(200);
+      expect(
+        (
+          await request(app)
+            .patch(`/organizations/${organization.id}/members/${member.id}`)
+            .set(bearer(token))
+            .send({ roles: ['admin'] })
+        ).status,
+      ).toBe(200);
+      await membership.reload();
+      expect(membership.roles).toEqual(['admin']);
+      expect(
+        (
+          await request(app)
+            .delete(`/organizations/${organization.id}/members/${member.id}`)
+            .set(bearer(token))
+        ).status,
+      ).toBe(200);
+    });
+
+    it('does not change a loopback child', async () => {
+      const { token, organization, member } = await persona(AUTHORIZATION_CODE);
+
+      expect(
+        (await request(app).get(`/organizations/${organization.id}/members`).set(bearer(token)))
+          .status,
+      ).toBe(200);
+      expect(
+        (
+          await request(app)
+            .patch(`/organizations/${organization.id}/members/${member.id}`)
+            .set(bearer(token))
+            .send({ roles: ['admin'] })
+        ).status,
+      ).toBe(200);
+    });
+  });
+
+  it.each([
+    ['a global admin', ['admin:read', 'admin:write'], false],
+    ['an ordinary organization owner', ['user'], true],
+  ] as [string, string[], boolean][])(
+    'does not change a first-party session acting as %s',
+    async (_name, roles, owner) => {
+      const user = await createUser(roles);
+      const session = await createSession(user.id);
+      const token = await accessTokenFor(session, roles);
+      const { organization, member } = await organizationWith(owner ? user.id : null);
+
+      expect(
+        (await request(app).get(`/organizations/${organization.id}/members`).set(bearer(token)))
+          .status,
+      ).toBe(200);
+      expect(
+        (
+          await request(app)
+            .patch(`/organizations/${organization.id}/members/${member.id}`)
+            .set(bearer(token))
+            .send({ roles: ['admin'] })
+        ).status,
+      ).toBe(200);
+    },
+  );
+});
