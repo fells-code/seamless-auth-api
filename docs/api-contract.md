@@ -136,6 +136,26 @@ A first-party public native client signed in through the OpenID Provider reaches
 for the client, with `PATCH /admin/applications/:id`. It is off by default, and accepted only on a
 first-party public client with a loopback or private-use redirect URI.
 
+**Finding the provider.** An admin names the application with the `oidc_cli_client_id` system
+config key, through `PATCH /system-config/admin`. `GET /system-config/public` then answers with:
+
+```json
+{
+  "loginMethods": ["passkey", "email_otp"],
+  "recoveryCodes": true,
+  "accountRecovery": false,
+  "oidcProvider": { "issuer": "https://login.example.com", "cliClientId": "seamless-cli" }
+}
+```
+
+`oidcProvider` is sent whole or not at all. It is present only when `oidc_provider_enabled` is on,
+`oidc_issuer` and `oidc_cli_client_id` are set, and that application exists, is active and is
+eligible for exchange with it turned on. An API that predates the field does not send it either,
+so a client must read its absence as "this instance does not advertise" and offer email code
+sign-in. Endpoints come from the OIDC discovery document at
+`<issuer>/.well-known/openid-configuration`, not from this response. The route is
+`Cache-Control: no-store`.
+
 The client runs authorization code with PKCE, or the device grant, with
 `resource=<oidc_issuer>/seamless` and `scope=openid session:exchange`, and without
 `offline_access`. It then has 60 seconds to send the access token here, directly rather than
@@ -178,6 +198,11 @@ recovers: `/totp/enroll/*`, `/totp/disable`, `/webauthn/register/*`, `POST /reco
 `DELETE /recovery/requests/:id`. `DELETE /sessions/:id`, `DELETE /sessions` and `DELETE /logout/all`
 stay open: they gain no access, though they could slow the owner's response. As for any session, a
 refresh does not carry a step-up to the new row.
+
+A session from an authorization code grant steps up with a passkey by signing in again with
+`acr_values=phr` and `max_age=0`, then exchanging again and logging out the old session. With no
+browser session, that records a sign-in and not a step-up, so the command has to run a second
+time. It can also use `POST /totp/verify-mfa`.
 
 **A device sign-in with no TOTP cannot enroll one.** The user enrolls from a browser, then signs in
 on the device again. Without this, someone who phished a device approval could enroll their own

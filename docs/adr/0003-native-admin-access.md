@@ -76,7 +76,7 @@ Restricting the subject token to the built-in resource and a dedicated scope mat
 
 - **At the exchange, for an authorization code grant,** the child copies the parent's `authMethods`, `authTime`, `stepUpVerifiedAt` and `stepUpMethod` as they are at that instant. The API reads them from the parent row, the same source `/oidc/sign` already treats as the truth (D4, D9), so it does not depend on oidc#34. The five minute window still runs from the original step-up time, so a stale step-up stays stale. Later step-ups on either session never flow to the other.
 - **For a device grant,** the child copies nothing. It starts with no auth methods and no step-up, as D10 requires: the passkey proved who approved, not who holds the token (RFC 8628 section 5.4).
-- **A loopback CLI steps up with a passkey** by running a new loopback authorization with `acr_values=phr` and `max_age=300`. The hosted page runs `/step-up/*` on the parent (D3), the CLI exchanges the fresh subject token for a new child session with a fresh step-up, and logs out the old child. It can also use TOTP.
+- **A loopback CLI steps up with a passkey** by running a new loopback authorization with `acr_values=phr` and `max_age=0`. The hosted page runs `/step-up/*` on the parent (D3), the CLI exchanges the fresh subject token for a new child session with a fresh step-up, and logs out the old child. With no browser session, the same request records a sign-in and not a step-up, so the user runs the command a second time (see "Decisions confirmed"). It can also use TOTP.
 - **A device sign-in steps up with the user's own factor,** on its own child session: TOTP through the existing `/totp/verify-mfa`, or a real passkey assertion on the relying party's domain through `/step-up/webauthn/*`. A phisher can produce neither. The CLI itself uses TOTP, since a terminal cannot run a WebAuthn ceremony. So from the CLI, a user with no TOTP enrolled cannot do admin writes from a device sign-in, and cannot enroll TOTP from one either: they enroll from a browser, then sign in on the device again. That is a deliberate limit, not a gap: copying the approving browser's step-up to a headless machine would hand its assurance to whoever holds the device code, which is the attack D10 exists to stop.
 - **A device sign-in also needs step-up before admin reads** (decision X7). RFC 8628 section 5.4 describes an attacker who starts a device flow and gets a real user to approve it. Write step-up stops that attacker from changing anything only while they cannot produce a TOTP code, which is why X7 also covers every route that changes how the account signs in or recovers: an attacker able to enroll their own authenticator could then step up with it. Without X7 they could also list every user on the instance.
 
@@ -105,17 +105,17 @@ B has no usable revocation story: every event above that should end the CLI's ac
 
 ## Decision summary
 
-| #   | Decision                                                                                                                                                                                                                                                                          |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| X1  | Native clients reach the admin API through a token exchange into a linked child first-party session (Option C). Admin routes keep `auth: 'access'` only, and D11 stands.                                                                                                          |
-| X2  | The subject token is an RFC 9068 access token for `<oidc_issuer>/seamless` carrying only `session:exchange`, at most 120 seconds long, for a first-party public native client with `sessionExchangeEnabled`.                                                                      |
-| X3  | `/oidc/sign` records every `session:exchange` token it signs, and `POST /sessions/exchange` consumes that record once. A replay is refused and revokes the session the first use created.                                                                                         |
-| X4  | The child session has its own refresh chain and step-up state, is bounded by its parent's lifetime, and ends whenever its parent ends.                                                                                                                                            |
-| X5  | For an authorization code grant, the child copies the parent's auth context and step-up state at the exchange. For a device grant, it copies nothing.                                                                                                                             |
-| X6  | A device-grant child steps up with the user's own factor, TOTP or a real passkey assertion on the relying party's domain, and the CLI uses TOTP. A loopback child steps up with a passkey by signing in again with `acr_values` and `max_age` and exchanging again, or with TOTP. |
-| X7  | A device-grant child needs a fresh step-up before any `/admin/*` route and any organization route except switching, reads included, and before any route that changes how the account signs in or recovers. From the CLI it cannot enroll a first factor.                         |
-| X8  | The edge never completes an authorization for an exchange-enabled client without user interaction, even with a live browser session.                                                                                                                                              |
-| X9  | When #512 ships, the exchange verifies a DPoP proof against the subject token's `cnf.jkt`, and exchange-enabled clients can be set to require it.                                                                                                                                 |
+| #   | Decision                                                                                                                                                                                                                                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| X1  | Native clients reach the admin API through a token exchange into a linked child first-party session (Option C). Admin routes keep `auth: 'access'` only, and D11 stands.                                                                                                                |
+| X2  | The subject token is an RFC 9068 access token for `<oidc_issuer>/seamless` carrying only `session:exchange`, at most 120 seconds long, for a first-party public native client with `sessionExchangeEnabled`.                                                                            |
+| X3  | `/oidc/sign` records every `session:exchange` token it signs, and `POST /sessions/exchange` consumes that record once. A replay is refused and revokes the session the first use created.                                                                                               |
+| X4  | The child session has its own refresh chain and step-up state, is bounded by its parent's lifetime, and ends whenever its parent ends.                                                                                                                                                  |
+| X5  | For an authorization code grant, the child copies the parent's auth context and step-up state at the exchange. For a device grant, it copies nothing.                                                                                                                                   |
+| X6  | A device-grant child steps up with the user's own factor, TOTP or a real passkey assertion on the relying party's domain, and the CLI uses TOTP. A loopback child steps up with a passkey by signing in again with `acr_values=phr` and `max_age=0` and exchanging again, or with TOTP. |
+| X7  | A device-grant child needs a fresh step-up before any `/admin/*` route and any organization route except switching, reads included, and before any route that changes how the account signs in or recovers. From the CLI it cannot enroll a first factor.                               |
+| X8  | The edge never completes an authorization for an exchange-enabled client without user interaction, even with a live browser session.                                                                                                                                                    |
+| X9  | When #512 ships, the exchange verifies a DPoP proof against the subject token's `cnf.jkt`, and exchange-enabled clients can be set to require it.                                                                                                                                       |
 
 ## X2. The subject token
 
@@ -172,13 +172,13 @@ So for an exchange-enabled client, the edge always shows a confirmation that nam
 
 ## What seamless-cli#316 builds against
 
-1. **Discover.** Read `oidc_issuer` from the instance and fetch `<oidc_issuer>/.well-known/openid-configuration`. With no provider, keep email code sign-in.
+1. **Discover.** `GET <instanceUrl>/system-config/public`. Its optional `oidcProvider` names the instance's `issuer` and `cliClientId`, and `--oidc-issuer` and `--client-id` override them. Then fetch `<issuer>/.well-known/openid-configuration`, the OIDC discovery document, which stays the source for endpoints. An instance that does not advertise, including an API that predates the field, gets email code sign-in.
 2. **Sign in, loopback.** Authorization code with PKCE `S256` (RFC 8252 section 8.1), redirect to `http://127.0.0.1:<port>/callback` (section 7.3), `resource=<oidc_issuer>/seamless`, `scope=openid session:exchange`, no `offline_access`. The user confirms in the browser (X8).
 3. **Sign in, `--device`.** The device authorization request with the same `resource` and `scope` (RFC 8628 section 3.1), then poll the token endpoint (sections 3.4 and 3.5).
 4. **Exchange at once.** `POST <instanceUrl>/sessions/exchange` with the access token, within its 60 seconds. Store the returned first-party tokens in the OS keychain, as today. Keep no provider token.
 5. **Use the API as today.** `/refresh`, `/logout`, `/users/me`, `/admin/*` and `/totp/verify-mfa` are unchanged.
 6. **Step up on `403 step_up_required`.**
-   - Loopback session: offer a passkey (repeat step 2 with `acr_values=phr` and `max_age=300`, exchange, swap the keychain tokens, `/logout` the old child) or the authenticator app.
+   - Loopback session: offer a passkey (repeat step 2 with `acr_values=phr` and `max_age=0`, exchange, swap the keychain tokens, `/logout` the old child) or the authenticator app. With no browser session the passkey records a sign-in and not a step-up, the new child still answers `403 step_up_required`, and the user runs the command a second time.
    - Device session: offer the authenticator app. When TOTP is not enrolled, say so and send the user to a browser to enroll it, since a device session cannot, then sign in on the device again. `seamless org` commands need this step-up too, except switching.
 7. **On `invalid_request` from the exchange,** sign in again. If the description is `token_already_used`, tell the user their sign-in may have been intercepted.
 
@@ -195,6 +195,7 @@ The CLI's e2e covers both paths against a v0.23 API and edge.
 7. **Session lists.** `/sessions` and the admin session views show a child's client and grant. A types change.
 8. **Docs.** An amendment to ADR 0001 D11 naming `/sessions/exchange` as the one place a provider token is accepted, and only to mint a first-party session. `docs/architecture.md`, `docs/api-contract.md` and the native apps guide.
 9. **Tests.** Replay (sequential and concurrent), wrong `aud`, extra scope, expired record, disabled client, recovery parent, device child step-up, and each revoke path ending the child.
+10. **Advertisement.** The `oidc_cli_client_id` key and the optional `oidcProvider` on `GET /system-config/public`. A types change.
 
 Edge work: X8, and DPoP on the exchange hop with #512 (X9).
 
@@ -209,6 +210,14 @@ The maintainer accepted option C on 2026-11-04, with the settings this record re
 - **Organization routes are gated.** They check roles without `requireAdmin`, so a device child read member emails and changed a member to owner with no step-up, while `/admin/users` answered 403. Every `/organizations` route now needs the fresh step-up, reads included, whether the child acts through a global admin role or as an ordinary member or owner. `POST /organizations/:id/switch` stays open: it keeps the same session and grant, and X7 still applies afterwards.
 - **Signing out other sessions stays open.** `DELETE /sessions/:id`, `DELETE /sessions` and `DELETE /logout/all` take no step-up on a device child. They gain no access, and revoking the parent or everything also ends the child. The known cost is that someone holding a phished device session could sign the owner out of other sessions, which could slow the owner's response.
 - **A passkey step-up is allowed.** `/step-up/webauthn/*` accepts a device child, because a real assertion on the relying party's domain is the user's own factor, which a phisher cannot produce. An assertion from another origin or another key is refused. The CLI itself uses TOTP.
+
+**Confirmed by Brandon on 2026-11-05: how the CLI finds the provider.** Nothing public told a CLI the instance's issuer or client id, and the API's own `/.well-known/openid-configuration` answers 404. So `GET /system-config/public` gains an optional `oidcProvider: { issuer, cliClientId }`, and a new system config key, `oidc_cli_client_id`, names the application a native admin tool signs in with.
+
+- **Whole or not at all.** It is present only when `oidc_provider_enabled` is on, `oidc_issuer` and `oidc_cli_client_id` are set, and that application exists, is active and passes `isSessionExchangeClient`. Setting the key to an unknown or ineligible application is refused. Later disabling that application or turning its exchange off makes the advertisement disappear, and the key stays as it was.
+- **Nothing secret.** The issuer and client id are in the URL of every sign-in, and the issuer is the address of the public discovery document. `isSessionExchangeClient` holds the application to a public client with no secret. The client id was never a credential, and X8 is what handles a local program presenting it.
+- **Staleness.** The response is `Cache-Control: no-store`, and the application is read on every request, so a change to it shows at once. The config keys come through the in-process config cache: the replica that takes a write shows it at once, and any other replica within five minutes.
+
+**Confirmed by Brandon on 2026-11-05: a loopback passkey step-up sends `max_age=0`.** It was `max_age=300`. `acr_values=phr&max_age=300` usually records no step-up, because the hosted page writes `stepUpVerifiedAt` only when the requirements are unmet. With no browser session, even `max_age=0` records a sign-in and not a step-up, so the user runs the command a second time. That is a known cost. Treating a fresh passkey sign-in as a step-up was not adopted, because it changes what a step-up means.
 
 ## Security properties
 
@@ -240,6 +249,7 @@ The maintainer accepted option C on 2026-11-04, with the settings this record re
 - Until first-party DPoP exists, the CLI's refresh token is a bearer credential, as it is today.
 - Device sign-ins without TOTP can read nothing on `/admin/*` or `/organizations`, except switching, and cannot enroll TOTP (X7). The user enrolls from a browser, or uses the loopback flow or email code sign-in.
 - A phished device session can sign the owner out of other sessions, which could slow their response. It gains no access by doing so.
+- A loopback passkey step-up with no browser session takes two runs of the command: the first signs in, the second steps up.
 
 ## Issue map
 
