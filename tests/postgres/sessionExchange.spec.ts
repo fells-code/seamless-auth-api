@@ -1415,3 +1415,156 @@ describe('the child session lifecycle', () => {
     expect((await Session.findByPk(childId))?.revokedAt).toBeNull();
   });
 });
+
+describe('a device child on the admin routes (X7)', () => {
+  const ADMIN_ROLES = ['admin:read', 'admin:write'];
+
+  async function child(grantType: string, roles = ADMIN_ROLES) {
+    const { client, user, parent } = await signedInToCli(
+      { stepUpVerifiedAt: new Date(), stepUpMethod: 'webauthn' },
+      {},
+      roles,
+    );
+    const { token } = await signSubject(client, parent, { grantType });
+    const res = await exchange(token);
+    return { user, parent, token: res.body.token as string, sessionId: res.body.sessionId };
+  }
+
+  function adminRead(token: string) {
+    return request(app).get('/admin/users').set('Authorization', `Bearer ${token}`);
+  }
+
+  it('is refused on an admin read until it steps up, with the step-up body', async () => {
+    const { token } = await child(DEVICE_CODE);
+
+    const res = await adminRead(token);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'step_up_required', fresh: false, method: null });
+  });
+
+  it('borrows nothing from the approving browser', async () => {
+    const { parent, token, sessionId } = await child(DEVICE_CODE);
+
+    await parent.reload();
+    expect(parent.stepUpVerifiedAt).not.toBeNull();
+    expect((await adminRead(token)).status).toBe(403);
+    expect((await Session.findByPk(sessionId))?.stepUpVerifiedAt).toBeNull();
+  });
+
+  it('gets in after a TOTP step-up on its own session', async () => {
+    const { user, token, sessionId } = await child(DEVICE_CODE);
+    const { recordStepUpVerification } = await import('../../src/services/stepUpService.js');
+
+    await recordStepUpVerification({ sessionId, userId: user.id, method: 'totp' });
+
+    expect((await adminRead(token)).status).toBe(200);
+  });
+
+  it('is refused again once the step-up goes stale', async () => {
+    const { token, sessionId } = await child(DEVICE_CODE);
+    await Session.update(
+      { stepUpVerifiedAt: new Date(Date.now() - 6 * 60_000), stepUpMethod: 'totp' },
+      { where: { id: sessionId } },
+    );
+
+    expect((await adminRead(token)).status).toBe(403);
+  });
+
+  it('still needs the role, and says so before it asks for a step-up', async () => {
+    const { token } = await child(DEVICE_CODE, ['user']);
+
+    const res = await adminRead(token);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Forbidden');
+  });
+
+  it('can reach its own account without a step-up', async () => {
+    const { token } = await child(DEVICE_CODE);
+
+    expect((await me(token)).status).toBe(200);
+  });
+
+  it('does not apply to a loopback child, which inherited its step-up', async () => {
+    const { token } = await child(AUTHORIZATION_CODE);
+
+    expect((await adminRead(token)).status).toBe(200);
+  });
+
+  it('does not change a loopback child that has no step-up on an admin read', async () => {
+    const { client, parent } = await signedInToCli({}, {}, ADMIN_ROLES);
+    const { token: subject } = await signSubject(client, parent);
+    const res = await exchange(subject);
+
+    expect((await adminRead(res.body.token)).status).toBe(200);
+  });
+
+  it('applies to a rotated device child too', async () => {
+    const { client, parent } = await signedInToCli({}, {}, ADMIN_ROLES);
+    const { token: subject } = await signSubject(client, parent, { grantType: DEVICE_CODE });
+    const first = await exchange(subject);
+    const rotated = await request(app)
+      .post('/refresh')
+      .set('Authorization', `Bearer ${first.body.refreshToken}`);
+
+    expect((await adminRead(rotated.body.token)).status).toBe(403);
+  });
+});
+
+describe('session lists', () => {
+  async function family(grantType = DEVICE_CODE) {
+    const { client, user, parent } = await signedInToCli();
+    const { token } = await signSubject(client, parent, { grantType });
+    const res = await exchange(token);
+    return { client, user, parent, child: res.body as Record<string, string> };
+  }
+
+  it('labels a child with its client and grant in /sessions, and leaves the parent plain', async () => {
+    const { client, parent, child } = await family();
+
+    const res = await request(app).get('/sessions').set('Authorization', `Bearer ${child.token}`);
+
+    expect(res.status).toBe(200);
+    const listed = res.body.sessions.find((row: { id: string }) => row.id === child.sessionId);
+    expect(listed).toMatchObject({
+      current: true,
+      parentSessionId: parent.id,
+      exchangeClientId: client.id,
+      exchangeGrantType: DEVICE_CODE,
+    });
+    const plain = res.body.sessions.find((row: { id: string }) => row.id === parent.id);
+    expect(plain).not.toHaveProperty('exchangeClientId');
+    expect(plain).not.toHaveProperty('parentSessionId');
+  });
+
+  it.each([
+    ['the user sessions view', (userId: string) => `/admin/sessions/${userId}`],
+    ['the user detail view', (userId: string) => `/admin/users/${userId}`],
+  ])('labels a child in %s', async (_name, url) => {
+    const { client, user, child } = await family();
+    const { token } = await admin();
+
+    const res = await request(app).get(url(user.id)).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const listed = res.body.sessions.find((row: { id: string }) => row.id === child.sessionId);
+    expect(listed).toMatchObject({
+      exchangeClientId: client.id,
+      exchangeGrantType: DEVICE_CODE,
+    });
+  });
+
+  it('labels a child in the instance-wide view', async () => {
+    const { client, child } = await family();
+    const { token } = await admin();
+
+    const res = await request(app)
+      .get('/admin/sessions?limit=1000')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const listed = res.body.sessions.find((row: { id: string }) => row.id === child.sessionId);
+    expect(listed?.exchangeClientId).toBe(client.id);
+  });
+});
