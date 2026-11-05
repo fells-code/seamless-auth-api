@@ -91,6 +91,32 @@ flowchart LR
 Provider tokens carry `iss` equal to `oidc_issuer`, never `ISSUER`, and are signed with provider
 keys, so the first-party verifier rejects them.
 
+A first-party native client signed in through the edge reaches the admin API by exchanging, not
+by presenting a provider token to it ([ADR 0003](./adr/0003-native-admin-access.md)). An admin
+turns `sessionExchangeEnabled` on for the client, which adds the built-in resource with the
+`session:exchange` scope and a 60 second token lifetime to its resource list. `POST /oidc/sign`
+writes a `SessionExchangeToken` record in `oidc_payloads` for each such token, and
+`POST /sessions/exchange` consumes it once, in the transaction that creates the session. A
+second presentation is refused and revokes the session the first one created.
+
+The result is a child session: an ordinary `sessions` row with its own refresh chain and step-up
+state, plus `parentSessionId`, `exchangeClientId` and `exchangeGrantType`, carried across
+rotation. Its parent is the session the edge holds for the provider sign-in.
+
+- It ends with its parent. Validation and refresh follow `parentSessionId` forward through the
+  parent's rotations and refuse a child with no live parent, which covers a parent that expired
+  or idled out, and every revoke path also revokes the children, which keeps session lists
+  accurate. Ending a child leaves the parent alone.
+- It never outlives its parent, and refreshing it counts as activity on the parent.
+- An authorization code grant copies the parent's auth methods, auth time and step-up at the
+  exchange. A device grant copies nothing (ADR 0001, D10).
+- `requireAdmin` refuses a session exchanged from a device grant until it has a fresh step-up of
+  its own, reads included.
+- It is not counted against `max_concurrent_sessions`, since evicting a parent to make room for
+  its own child would end both.
+- Disabling or deleting the client, or turning `sessionExchangeEnabled` off, revokes every
+  session it exchanged for.
+
 For the full dependency and contract-coupling map across sibling repositories, see
 [ecosystem.md](./ecosystem.md).
 

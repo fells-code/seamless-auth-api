@@ -263,6 +263,8 @@ A passkey resists phishing because it is bound to an origin. Two flows can still
 
   The first-party verifier rejects all of these.
 
+  **Amendment, 2026-11-04: one exchange route ([ADR 0003](0003-native-admin-access.md)).** `POST /sessions/exchange` is the one place the API accepts a provider token, and only to mint a first-party session. It takes a single-use access token for the built-in resource with the `session:exchange` scope alone, which `/oidc/sign` recorded when it signed it. Admin routes and every other first-party route still accept first-party tokens only, and the first-party verifier still rejects every provider token.
+
 - **Claims.**
   - `sub` is the user id.
   - Standard `email`, `email_verified`, `phone_number` and `phone_number_verified` follow the requested scopes.
