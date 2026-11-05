@@ -270,9 +270,13 @@ vi.mock('../../src/middleware/authenticateServiceToken.js', () => ({
 }));
 
 vi.mock('../../src/middleware/requireAdmin.js', () => ({
-  requireAdmin: () => (_req: any, _res: any, next: any) => {
-    next();
-  },
+  requireAdmin: () =>
+    Object.assign(
+      (_req: any, _res: any, next: any) => {
+        next();
+      },
+      { seamlessDeviceStepUp: true },
+    ),
 }));
 
 vi.mock('../../src/middleware/rateLimit.js', () => ({

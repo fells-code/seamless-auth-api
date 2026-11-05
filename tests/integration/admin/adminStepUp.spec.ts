@@ -82,7 +82,7 @@ beforeEach(() => {
 });
 
 describe('admin writes require a fresh step-up', () => {
-  it('documents the step-up 403 on exactly the guarded routes', async () => {
+  it('documents the step-up 403 on the guarded routes and the device session gate', async () => {
     await loadRoutes(express());
 
     const documented = new Set<string>();
@@ -98,7 +98,17 @@ describe('admin writes require a fresh step-up', () => {
       }
     }
 
-    expect([...documented].sort()).toEqual([...GUARDED].sort());
+    for (const route of [
+      ...GUARDED,
+      'GET /admin/users',
+      'POST /totp/enroll/start',
+      'POST /recovery-codes/',
+    ]) {
+      expect(documented).toContain(route);
+    }
+    for (const route of ['GET /users/me', 'GET /sessions', 'POST /totp/verify-mfa']) {
+      expect(documented).not.toContain(route);
+    }
   });
 
   it.each(GUARDED)('%s refuses a session that never stepped up', async (route) => {

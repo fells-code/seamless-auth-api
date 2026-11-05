@@ -21,6 +21,7 @@ import {
 } from '../controllers/decoyResponders.js';
 import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
+import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
 import {
   AccountRecoveryCancelRequestSchema,
   AccountRecoveryRequestIdParamSchema,
@@ -184,6 +185,7 @@ accountRecoveryRouter.get(
 accountRecoveryRouter.delete(
   '/requests/:id',
   {
+    middleware: [requireDeviceSessionStepUp],
     auth: 'access',
     summary: 'Cancel an account recovery request from a session',
     description:

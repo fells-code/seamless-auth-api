@@ -12,9 +12,11 @@ import {
   AuthAwareRequestHandler,
   getSecuritySchemeName,
 } from '../middleware/attachAuthMiddleware.js';
+import type { DeviceStepUpAwareHandler } from '../middleware/requireDeviceSessionStepUp.js';
 import type { SecuritySchemeAwareHandler } from '../middleware/requireOidcEdge.js';
 import { registry } from '../openapi/registry.js';
 import { ErrorSchema, ValidationErrorSchema } from '../schemas/generic.responses.js';
+import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 import { AuthTokenType } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -143,6 +145,28 @@ function withValidationResponse(
   }
 
   return { ...responseMap, 400: ValidationErrorSchema };
+}
+
+/**
+ * The same for a 403 only middleware writes: `requireAdmin` and `requireDeviceSessionStepUp`
+ * answer `step_up_required` to a session from a device grant (ADR 0003, X7), on routes whose
+ * handlers never mention it.
+ */
+function withDeviceStepUpResponse(
+  response: ZodTypeAny | Record<number, ZodTypeAny> | undefined,
+  middleware: RequestHandler[] | undefined,
+): ZodTypeAny | Record<number, ZodTypeAny> | undefined {
+  const refuses = middleware?.some(
+    (handler) => (handler as DeviceStepUpAwareHandler).seamlessDeviceStepUp,
+  );
+  if (!refuses) return response;
+
+  const responseMap = response && isZodSchema(response) ? { 200: response } : (response ?? {});
+  const declared = (responseMap as Record<number, ZodTypeAny>)[403];
+
+  if (declared && declared !== ErrorSchema) return response;
+
+  return { ...responseMap, 403: StepUpRequiredErrorSchema };
 }
 
 /**
@@ -314,7 +338,12 @@ export function defineRoute<S extends RouteSchemas>(
           }
         : undefined,
     },
-    responses: buildResponses(withValidationResponse(response, validatesRequest)),
+    responses: buildResponses(
+      withValidationResponse(
+        withDeviceStepUpResponse(response, options.middleware),
+        validatesRequest,
+      ),
+    ),
   });
 
   const validate: RequestHandler = (req, res, next) => {
