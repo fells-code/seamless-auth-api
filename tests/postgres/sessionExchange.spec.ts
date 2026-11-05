@@ -2105,3 +2105,91 @@ describe('organization routes on a device child', () => {
     },
   );
 });
+
+describe('a passkey step-up on a device child', () => {
+  const RP_ID = 'localhost';
+  const ORIGIN = 'http://localhost:5174';
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /** The user's own passkey, registered from a first-party session, and a device sign-in. */
+  async function signedInWithPasskey() {
+    const { SoftwareAuthenticator } = await import('../factories/softwareAuthenticator.js');
+    const { client, user, parent } = await signedInToCli({}, {}, ['admin:read']);
+    const browser = await accessTokenFor(parent, ['admin:read']);
+    const passkey = new SoftwareAuthenticator();
+
+    const start = await request(app).get('/webauthn/register/start').set(bearer(browser));
+    expect(start.status).toBe(200);
+    const finish = await request(app)
+      .post('/webauthn/register/finish')
+      .set(bearer(browser))
+      .send({
+        attestationResponse: passkey.register({
+          challenge: start.body.challenge,
+          origin: ORIGIN,
+          rpId: RP_ID,
+        }),
+      });
+    expect(finish.status).toBe(200);
+
+    const { token: subject } = await signSubject(client, parent, { grantType: DEVICE_CODE });
+    const child = await exchange(subject);
+    return { passkey, token: child.body.token as string };
+  }
+
+  async function assertWith(
+    token: string,
+    authenticator: {
+      authenticate: (params: { challenge: string; origin: string; rpId: string }) => unknown;
+    },
+    origin = ORIGIN,
+  ) {
+    const start = await request(app).post('/step-up/webauthn/start').set(bearer(token)).send({});
+    expect(start.status).toBe(200);
+    return request(app)
+      .post('/step-up/webauthn/finish')
+      .set(bearer(token))
+      .send({
+        assertionResponse: authenticator.authenticate({
+          challenge: start.body.challenge,
+          origin,
+          rpId: RP_ID,
+        }),
+      });
+  }
+
+  function adminRead(token: string) {
+    return request(app).get('/admin/users').set(bearer(token));
+  }
+
+  it('is accepted with the user own passkey on the relying party domain', async () => {
+    const { passkey, token } = await signedInWithPasskey();
+    expect((await adminRead(token)).status).toBe(403);
+
+    const res = await assertWith(token, passkey);
+
+    expect(res.status).toBe(200);
+    expect(res.body.method).toBe('webauthn');
+    expect((await adminRead(token)).status).toBe(200);
+  });
+
+  it('is refused from another origin, which is what a phisher would have', async () => {
+    const { passkey, token } = await signedInWithPasskey();
+
+    const res = await assertWith(token, passkey, 'https://phish.example.com');
+
+    expect(res.status).not.toBe(200);
+    expect((await adminRead(token)).status).toBe(403);
+  });
+
+  it('is refused from a key that is not the registered one', async () => {
+    const { SoftwareAuthenticator } = await import('../factories/softwareAuthenticator.js');
+    const { passkey, token } = await signedInWithPasskey();
+    const forged = new SoftwareAuthenticator(Buffer.from(passkey.credentialId));
+
+    const res = await assertWith(token, forged);
+
+    expect(res.status).not.toBe(200);
+    expect((await adminRead(token)).status).toBe(403);
+  });
+});
