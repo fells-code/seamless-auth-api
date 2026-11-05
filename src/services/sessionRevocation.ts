@@ -9,6 +9,9 @@ import type { Transaction } from 'sequelize';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 
+/** What a session exchanged from another records when that parent ends (ADR 0003, X4). */
+export const PARENT_SESSION_ENDED = 'parent_session_ended';
+
 /**
  * Ends every session the given users hold, including one a refresh is creating right now.
  *

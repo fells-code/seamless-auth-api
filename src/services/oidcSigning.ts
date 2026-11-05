@@ -251,9 +251,10 @@ export async function signForOidcEdge(request: OidcSignRequest): Promise<OidcSig
 
 /**
  * An app refreshing its tokens is the user still using the session, so each provider token
- * signed for it moves the idle expiry forward, never past the absolute lifetime.
+ * signed for it, and each refresh of a session exchanged from it (ADR 0003, X4), moves the idle
+ * expiry forward, never past the absolute lifetime.
  */
-async function recordProviderActivity(sessionId: string) {
+export async function recordProviderActivity(sessionId: string) {
   const session = await resolveCurrentSession(sessionId);
   if (!session) return;
 

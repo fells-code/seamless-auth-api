@@ -10,6 +10,7 @@ import { Op } from 'sequelize';
 import { Session } from '../models/sessions.js';
 import getLogger from '../utils/logger.js';
 import { AuthEventService } from './authEventService.js';
+import { revokeOrphanedChildSessions } from './sessionService.js';
 
 const logger = getLogger('concurrentSessionPolicy');
 
@@ -31,6 +32,10 @@ export const EVICTION_REASON = 'concurrent_session_limit';
  * More than one may be revoked in a pass: a deployment that lowers the limit
  * leaves users above it, and they should converge on the next sign-in rather
  * than one session per login forever.
+ *
+ * An exchanged session does not count and is never evicted here. It ends with its parent, so
+ * the parent is what the limit counts, and evicting the parent to make room for its own child
+ * would end both.
  *
  * Never throws. A session that could not be revoked is logged and the sign-in
  * continues, because failing an authentication over a housekeeping step is worse
@@ -56,6 +61,7 @@ export async function enforceConcurrentSessionLimit(params: {
         userId,
         revokedAt: null,
         replacedBySessionId: null,
+        parentSessionId: null,
         expiresAt: { [Op.gt]: now },
       },
       order: [['createdAt', 'ASC']],
@@ -73,6 +79,7 @@ export async function enforceConcurrentSessionLimit(params: {
 
     for (const session of evicted) {
       await session.update({ revokedAt: now, revokedReason: EVICTION_REASON });
+      await revokeOrphanedChildSessions(session);
 
       await AuthEventService.log({
         userId,

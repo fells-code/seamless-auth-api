@@ -33,9 +33,15 @@ import {
   LoginMethod,
   resolveAvailableLoginMethods,
 } from '../services/loginPolicyService.js';
+import { resolveCurrentSession } from '../services/oidcAuthContext.js';
 import { sweepBackchannelLogoutInBackground } from '../services/oidcBackchannelLogout.js';
+import { recordProviderActivity } from '../services/oidcSigning.js';
 import { hasUsableRecoveryCode } from '../services/recoveryCodeService.js';
-import { isRevokedByCutoff, revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
+import {
+  isRevokedByCutoff,
+  PARENT_SESSION_ENDED,
+  revokeAllSessionsForUsers,
+} from '../services/sessionRevocation.js';
 import {
   claimSessionRotation,
   classifyExpiredRefreshToken,
@@ -618,13 +624,34 @@ export const refreshSession = async (req: Request, res: Response) => {
     return refuseRevokedRefresh(req, res, user.id, session);
   }
 
+  // An exchanged session ends with its parent (ADR 0003, X4), and is never refreshed past it.
+  const parent = session.parentSessionId
+    ? await resolveCurrentSession(session.parentSessionId)
+    : null;
+
+  if (session.parentSessionId && !parent) {
+    await hardRevokeSession(session, PARENT_SESSION_ENDED);
+    await AuthEventService.log({
+      userId: user.id,
+      sessionId: session.id,
+      type: 'refresh_token_failed',
+      req,
+      metadata: { reason: 'Parent session ended', refusal: PARENT_SESSION_ENDED },
+    });
+    return res.status(401).json({ error: 'invalid_refresh_token' });
+  }
+
   const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
   const chainStartedAt = session.chainStartedAt ?? session.createdAt ?? now;
-  const { expiresAt, idleExpiresAt } = computeRotatedSessionTimes(
+  const times = computeRotatedSessionTimes(
     { absoluteTtl: refresh_token_ttl || '1d', idleTtl: session_idle_ttl || '8h' },
     chainStartedAt,
     now,
   );
+  const expiresAt = parent
+    ? new Date(Math.min(times.expiresAt.getTime(), new Date(parent.expiresAt).getTime()))
+    : times.expiresAt;
+  const idleExpiresAt = new Date(Math.min(times.idleExpiresAt.getTime(), expiresAt.getTime()));
 
   // Only reachable when the absolute lifetime was shortened after this chain began, since
   // the lookup already refuses a session past its own expiry.
@@ -663,6 +690,9 @@ export const refreshSession = async (req: Request, res: Response) => {
     // the sign-in.
     authMethods: session.authMethods ?? [],
     authTime: session.authTime ?? null,
+    parentSessionId: session.parentSessionId ?? null,
+    exchangeClientId: session.exchangeClientId ?? null,
+    exchangeGrantType: session.exchangeGrantType ?? null,
   });
 
   // The read, the reuse check and this link are separate statements, so two refreshes
@@ -712,6 +742,13 @@ export const refreshSession = async (req: Request, res: Response) => {
 
   if (!owner || isRevokedByCutoff(session, owner.sessionsRevokedBefore)) {
     return refuseRevokedRefresh(req, res, user.id, newSession);
+  }
+
+  if (parent) {
+    // After the rotation, so a failure here cannot cost the client the tokens it just rotated.
+    await recordProviderActivity(parent.id).catch((error: unknown) => {
+      logger.error(`Could not record activity on a parent session: ${error}`);
+    });
   }
 
   const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId, {

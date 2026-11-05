@@ -224,6 +224,7 @@ vi.mock('../../src/services/sessionService.js', () => ({
   verifyJwtWithKid: vi.fn(),
   revokeSessionChain: vi.fn(),
   hardRevokeSession: vi.fn(),
+  revokeOrphanedChildSessions: vi.fn(),
   liftRecoveryRestriction: vi.fn(async () => true),
 }));
 
