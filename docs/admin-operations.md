@@ -86,6 +86,14 @@ within `access_token_ttl`. `GET /users/me/permissions` reads the database on eve
 that cannot wait. Removing someone from an organization works the same way: their next token drops
 the organization claims.
 
+### Switching to an organization
+
+Organization claims apply to the active organization only. A session starts in the user's oldest
+membership, and `POST /organizations/:organizationId/switch` changes it. Switching needs the
+`organization:read` membership scope unless the member is an `owner` or `admin`, and a member added
+without it gets `404`. So when adding someone who belongs to more than one organization, pass
+`scopes: ["organization:read"]`, or they cannot reach that organization's permissions.
+
 ### Who can change organization roles
 
 `PATCH /organizations/:organizationId/members/:userId` needs step-up. Only an owner or an instance
