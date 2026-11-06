@@ -15,12 +15,13 @@ import { createLocalJWKSet, type JSONWebKeySet, type JWTPayload, jwtVerify } fro
 import { Op, WhereOptions } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from '../lib/token.js';
+import { createRefreshTokenLookup, generateRefreshToken } from '../lib/token.js';
 import { OidcPayload, OidcPayloadAttributes } from '../models/oidcPayloads.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import getLogger from '../utils/logger.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
+import { mintAccessToken } from './accessTokenService.js';
 import { AuthEventService } from './authEventService.js';
 import { resolveCurrentSession } from './oidcAuthContext.js';
 import { findActiveOidcClient, isSessionExchangeClient } from './oidcClientRegistry.js';
@@ -207,7 +208,7 @@ async function consumeAndIssue(
     );
 
     // Inside, so a signing failure hands the token back rather than spending it.
-    const token = await signAccessToken(child.id, user.id, user.roles, parent.organizationId);
+    const token = await mintAccessToken({ session: child, user, transaction });
 
     return { child, token };
   });

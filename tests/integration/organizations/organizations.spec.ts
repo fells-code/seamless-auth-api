@@ -159,6 +159,7 @@ describe('organizations', () => {
       'user-1',
       ['user'],
       testOrganizationId,
+      { recovery: false, authorization: { permissions: [] } },
     );
   });
 });

@@ -37,6 +37,14 @@ import {
   updateMember,
   updateOrganization,
 } from '../controllers/organizations.js';
+import {
+  createPermission,
+  deletePermission,
+  listPermissions,
+  listRoles,
+  setRolePermissions,
+  updatePermission,
+} from '../controllers/permissions.js';
 import { getReviewAccountStatus } from '../controllers/reviewAccounts.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
@@ -94,6 +102,20 @@ import {
   OrganizationMembershipEnvelopeResponseSchema,
   OrganizationMembersResponseSchema,
 } from '../schemas/organization.responses.js';
+import {
+  CreatePermissionRequestSchema,
+  PermissionNameParamSchema,
+  RolePermissionsParamSchema,
+  SetRolePermissionsRequestSchema,
+  UpdatePermissionRequestSchema,
+} from '../schemas/permission.requests.js';
+import {
+  PermissionConflictErrorSchema,
+  PermissionEnvelopeResponseSchema,
+  PermissionListResponseSchema,
+  RoleEnvelopeResponseSchema,
+  RoleListResponseSchema,
+} from '../schemas/permission.responses.js';
 import {
   ReviewAccountsQuerySchema,
   ReviewAccountsResponseSchema,
@@ -320,6 +342,122 @@ adminRouter.delete(
     },
   },
   restoreOAuthProvider,
+);
+
+adminRouter.get(
+  '/permissions',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('read')],
+    tags: ['Admin'],
+    summary: 'List permissions',
+    schemas: {
+      response: {
+        200: PermissionListResponseSchema,
+      },
+    },
+  },
+  listPermissions,
+);
+
+adminRouter.post(
+  '/permissions',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: 'Create a permission',
+    schemas: {
+      body: CreatePermissionRequestSchema,
+      response: {
+        201: PermissionEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
+        409: InternalErrorSchema,
+      },
+    },
+  },
+  createPermission,
+);
+
+adminRouter.patch(
+  '/permissions/:permissionName',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: "Update a permission's description",
+    schemas: {
+      params: PermissionNameParamSchema,
+      body: UpdatePermissionRequestSchema,
+      response: {
+        200: PermissionEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  updatePermission,
+);
+
+adminRouter.delete(
+  '/permissions/:permissionName',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: 'Delete a permission',
+    description: 'Answers 409 with the roles that still grant it.',
+    schemas: {
+      params: PermissionNameParamSchema,
+      response: {
+        200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
+        404: InternalErrorSchema,
+        409: PermissionConflictErrorSchema,
+      },
+    },
+  },
+  deletePermission,
+);
+
+adminRouter.get(
+  '/roles',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('read')],
+    tags: ['Admin'],
+    summary: 'List roles and the permissions they grant',
+    schemas: {
+      response: {
+        200: RoleListResponseSchema,
+      },
+    },
+  },
+  listRoles,
+);
+
+adminRouter.put(
+  '/roles/:kind/:roleName/permissions',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: 'Replace the permissions a role grants',
+    description:
+      'Takes effect on the next access token each holder receives, and at once on ' +
+      '`GET /users/me/permissions`. Every permission has to exist.',
+    schemas: {
+      params: RolePermissionsParamSchema,
+      body: SetRolePermissionsRequestSchema,
+      response: {
+        200: RoleEnvelopeResponseSchema,
+        400: PermissionConflictErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  setRolePermissions,
 );
 
 adminRouter.get(

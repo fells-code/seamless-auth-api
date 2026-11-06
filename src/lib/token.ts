@@ -24,12 +24,23 @@ function getRefreshTokenLookupSecret() {
   return authSecret('REFRESH_TOKEN_LOOKUP_SECRET');
 }
 
+/** What a token grants beyond its roles. `accessTokenService` decides what goes in here. */
+export type AuthorizationClaims = {
+  permissions?: string[];
+  org_roles?: string[];
+  org_permissions?: string[];
+  permissions_omitted?: true;
+};
+
 export async function signAccessToken(
   sessionId: string,
   userId: string,
   roles?: string[],
   organizationId?: string | null,
-  { recovery = false }: { recovery?: boolean } = {},
+  {
+    recovery = false,
+    authorization = {},
+  }: { recovery?: boolean; authorization?: AuthorizationClaims } = {},
 ) {
   const { kid, privateKeyPem } = await getSigningKey();
 
@@ -42,6 +53,7 @@ export async function signAccessToken(
     iss: process.env.ISSUER,
     typ: 'access',
     roles,
+    ...authorization,
     ...(organizationId ? { org_id: organizationId } : {}),
     // Lets a server adapter refuse a half-recovered account without asking the API.
     ...(recovery ? { recovery: true } : {}),

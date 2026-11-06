@@ -13,12 +13,12 @@ import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
-  signAccessToken,
   signEphemeralToken,
 } from '../lib/token.js';
 import { Credential } from '../models/credentials.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
+import { mintAccessToken } from '../services/accessTokenService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { hasBreakGlassCodeFactor } from '../services/breakGlassService.js';
 import {
@@ -751,8 +751,13 @@ export const refreshSession = async (req: Request, res: Response) => {
     });
   }
 
-  const token = await signAccessToken(newSession.id, user.id, user.roles, session.organizationId, {
-    recovery: session.recovery === true,
+  const token = await mintAccessToken({
+    session: {
+      id: newSession.id,
+      organizationId: session.organizationId,
+      recovery: session.recovery,
+    },
+    user,
   });
 
   if (token && newRefreshToken) {

@@ -8,9 +8,10 @@ import { Request, Response } from 'express';
 
 import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { createRefreshTokenLookup, generateRefreshToken, signAccessToken } from '../lib/token.js';
+import { createRefreshTokenLookup, generateRefreshToken } from '../lib/token.js';
 import { Session, SessionAuthMethod } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
+import { mintAccessToken } from './accessTokenService.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
 import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
@@ -164,8 +165,9 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     authTime: now,
   });
 
-  const token = await signAccessToken(session.id, user.id, user.roles, organizationId, {
-    recovery,
+  const token = await mintAccessToken({
+    session: { id: session.id, organizationId, recovery },
+    user,
   });
 
   if (!token || !refreshToken) {

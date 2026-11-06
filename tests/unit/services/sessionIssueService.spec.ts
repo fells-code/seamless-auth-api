@@ -111,6 +111,7 @@ describe('issueSessionAndRespond', () => {
     );
     expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
       recovery: false,
+      authorization: { permissions: [] },
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -285,6 +286,7 @@ describe('issueSessionAndRespond', () => {
       expect(Session.create).toHaveBeenCalledWith(expect.objectContaining({ recovery: true }));
       expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
         recovery: true,
+        authorization: { permissions: [] },
       });
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ recovery: true, nextStep: 'enroll_passkey' }),
@@ -426,6 +428,7 @@ describe('issueSessionAndRespond', () => {
       'org-1',
       {
         recovery: false,
+        authorization: { permissions: [] },
       },
     );
   });

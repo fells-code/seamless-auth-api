@@ -172,6 +172,25 @@ vi.mock('../../src/models/organizationMemberships.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/permissions.js', () => ({
+  Permission: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findOne: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/models/rolePermissions.js', () => ({
+  RolePermission: {
+    sequelize: {
+      transaction: vi.fn((fn: any) => fn({ LOCK: { UPDATE: 'UPDATE' } })),
+    },
+    bulkCreate: vi.fn(),
+    destroy: vi.fn(),
+    findAll: vi.fn(async () => []),
+  },
+}));
+
 vi.mock('../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),
