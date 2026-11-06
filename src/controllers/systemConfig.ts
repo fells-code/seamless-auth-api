@@ -25,6 +25,7 @@ import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.j
 import { AuthEventService } from '../services/authEventService.js';
 import { getLoginPolicy } from '../services/loginPolicyService.js';
 import { findSessionExchangeClient } from '../services/oidcClientRegistry.js';
+import { deleteRoleMappings } from '../services/permissionService.js';
 import {
   isPolicyKey,
   lockPolicyForConfigPatch,
@@ -127,6 +128,8 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
 
   const touchesPolicy = Object.keys(updates).some(isPolicyKey);
 
+  let retiredRoles: string[] = [];
+
   const policyVersion = await SystemConfig.sequelize!.transaction(async (tx) => {
     if (touchesPolicy) {
       await lockPolicyForConfigPatch(tx);
@@ -150,6 +153,16 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
       );
     }
 
+    if (updates.available_roles) {
+      const remaining = new Set(updates.available_roles);
+
+      retiredRoles = await deleteRoleMappings(
+        'instance',
+        (existing.available_roles ?? []).filter((role) => !remaining.has(role)),
+        tx,
+      );
+    }
+
     // Drafts are optional, so a policy change made here is versioned like a publish and
     // can be rolled back the same way.
     return touchesPolicy ? recordConfigPatchPolicyVersion(tx, updatedBy) : null;
@@ -164,6 +177,7 @@ export async function updateSystemConfig(req: ServiceRequest, res: Response) {
       before: existingMap,
       after: updates,
       ...(policyVersion ? { policyVersion: policyVersion.version } : {}),
+      ...(retiredRoles.length ? { retiredRoleMappings: retiredRoles } : {}),
     },
   });
 

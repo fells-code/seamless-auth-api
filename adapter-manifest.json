@@ -70,6 +70,10 @@
       "path": "/admin/organizations/{organizationId}/oauth-providers/{providerId}/retirement",
       "credential": "access"
     },
+    { "method": "GET", "path": "/admin/permissions", "credential": "access" },
+    { "method": "POST", "path": "/admin/permissions", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/permissions/{permissionName}", "credential": "access" },
+    { "method": "PATCH", "path": "/admin/permissions/{permissionName}", "credential": "access" },
     { "method": "GET", "path": "/admin/reports/authentication-coverage", "credential": "access" },
     { "method": "GET", "path": "/admin/resources", "credential": "access" },
     { "method": "POST", "path": "/admin/resources", "credential": "access" },
@@ -77,6 +81,12 @@
     { "method": "GET", "path": "/admin/resources/{id}", "credential": "access" },
     { "method": "PATCH", "path": "/admin/resources/{id}", "credential": "access" },
     { "method": "GET", "path": "/admin/review-accounts", "credential": "access" },
+    { "method": "GET", "path": "/admin/roles", "credential": "access" },
+    {
+      "method": "PUT",
+      "path": "/admin/roles/{kind}/{roleName}/permissions",
+      "credential": "access"
+    },
     { "method": "GET", "path": "/admin/sessions", "credential": "access" },
     { "method": "GET", "path": "/admin/sessions/{userId}", "credential": "access" },
     { "method": "DELETE", "path": "/admin/sessions/{userId}/revoke-all", "credential": "access" },
@@ -278,6 +288,7 @@
       "clears": ["access", "registration", "refresh"]
     },
     { "method": "GET", "path": "/users/me", "credential": "access", "clears": ["preAuth"] },
+    { "method": "GET", "path": "/users/me/permissions", "credential": "access" },
     {
       "method": "POST",
       "path": "/webauthn/login/finish",

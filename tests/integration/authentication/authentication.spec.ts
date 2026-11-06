@@ -684,7 +684,7 @@ describe('POST /refresh', () => {
       expect.any(String),
       expect.any(Array),
       undefined,
-      { recovery: false },
+      { recovery: false, authorization: { permissions: [] } },
     );
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({

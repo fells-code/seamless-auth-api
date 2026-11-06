@@ -150,6 +150,7 @@ describe('refreshSession', () => {
     );
     expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, undefined, {
       recovery: false,
+      authorization: { permissions: [] },
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({

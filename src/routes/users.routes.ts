@@ -6,6 +6,7 @@
 
 import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@seamless-auth/types';
 
+import { getEffectivePermissions } from '../controllers/permissions.js';
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
 import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
@@ -13,6 +14,7 @@ import { requireStepUp } from '../middleware/requireStepUp.js';
 import { CredentialUpdateResponseSchema } from '../schemas/credential.responses.js';
 import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import { MeResponseSchema } from '../schemas/me.response.js';
+import { EffectivePermissionsResponseSchema } from '../schemas/permission.responses.js';
 import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 
 const usersRouter = createRouter('/users');
@@ -30,6 +32,22 @@ usersRouter.get(
     },
   },
   getUser,
+);
+
+usersRouter.get(
+  '/me/permissions',
+  {
+    auth: 'access',
+    tags: ['Users'],
+    summary: "Get the caller's live roles and permissions",
+    description:
+      'Read from the database on every call, so a change applies here before the access ' +
+      'token catches up. A guard reads this when a token carries `permissions_omitted`.',
+    schemas: {
+      response: EffectivePermissionsResponseSchema,
+    },
+  },
+  getEffectivePermissions,
 );
 
 usersRouter.post(

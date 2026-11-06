@@ -3795,6 +3795,990 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/permissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List permissions */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "permissions": [
+             *         null
+             *       ],
+             *       "total": 0
+             *     }
+             */
+            'application/json': {
+              permissions: {
+                id: string;
+                name: string;
+                description: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              }[];
+              total: number;
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Create a permission */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name: string;
+            description?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "permission": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "description": "string",
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              permission: {
+                id: string;
+                name: string;
+                description: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/permissions/{permissionName}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a permission
+     * @description Answers 409 with the roles that still grant it.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          permissionName: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "details": null
+             *     }
+             */
+            'application/json': {
+              error: string;
+              details?: {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Update a permission's description */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          permissionName: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            description: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "permission": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "description": "string",
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              permission: {
+                id: string;
+                name: string;
+                description: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/admin/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List roles and the permissions they grant */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "roles": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              roles: {
+                name: string;
+                /** @enum {string} */
+                kind: 'instance' | 'organization';
+                description: string | null;
+                builtIn: boolean;
+                permissions: string[];
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/roles/{kind}/{roleName}/permissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Replace the permissions a role grants
+     * @description Takes effect on the next access token each holder receives, and at once on `GET /users/me/permissions`. Every permission has to exist.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          kind: 'instance' | 'organization';
+          roleName: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            permissions: string[];
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "role": {
+             *         "name": "string",
+             *         "kind": null,
+             *         "description": "string",
+             *         "builtIn": true,
+             *         "permissions": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              role: {
+                name: string;
+                /** @enum {string} */
+                kind: 'instance' | 'organization';
+                description: string | null;
+                builtIn: boolean;
+                permissions: string[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "details": null
+             *     }
+             */
+            'application/json': {
+              error: string;
+              details?: {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/admin/enrollment': {
     parameters: {
       query?: never;
@@ -5224,6 +6208,10 @@ export interface paths {
                 | 'admin_oidc_resource_created'
                 | 'admin_oidc_resource_deleted'
                 | 'admin_oidc_resource_updated'
+                | 'admin_permission_created'
+                | 'admin_permission_deleted'
+                | 'admin_permission_updated'
+                | 'admin_role_permissions_updated'
                 | 'admin_session_revoked'
                 | 'admin_user_import_completed'
                 | 'admin_user_imported'
@@ -5346,6 +6334,10 @@ export interface paths {
                     | 'admin_oidc_resource_created'
                     | 'admin_oidc_resource_deleted'
                     | 'admin_oidc_resource_updated'
+                    | 'admin_permission_created'
+                    | 'admin_permission_deleted'
+                    | 'admin_permission_updated'
+                    | 'admin_role_permissions_updated'
                     | 'admin_session_revoked'
                     | 'admin_user_import_completed'
                     | 'admin_user_imported'
@@ -28942,7 +29934,16 @@ export interface paths {
              *           null
              *         ],
              *         "lastLogin": null,
-             *         "activeOrganizationId": "string"
+             *         "activeOrganizationId": "string",
+             *         "permissions": [
+             *           null
+             *         ],
+             *         "organizationRoles": [
+             *           null
+             *         ],
+             *         "organizationPermissions": [
+             *           null
+             *         ]
              *       },
              *       "credentials": [
              *         null
@@ -28997,6 +29998,9 @@ export interface paths {
                 /** Format: date-time */
                 lastLogin?: string | null;
                 activeOrganizationId?: string | null;
+                permissions?: string[];
+                organizationRoles?: string[];
+                organizationPermissions?: string[];
               };
               credentials: {
                 id: string;
@@ -29086,6 +30090,104 @@ export interface paths {
                 retiredOAuthProviders?: string[];
               } | null;
               recovery?: boolean;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/users/me/permissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the caller's live roles and permissions
+     * @description Read from the database on every call, so a change applies here before the access token catches up. A guard reads this when a token carries `permissions_omitted`.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "roles": [
+             *         null
+             *       ],
+             *       "permissions": [
+             *         null
+             *       ],
+             *       "organizationId": "string",
+             *       "organizationRoles": [
+             *         null
+             *       ],
+             *       "organizationPermissions": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              roles: string[];
+              permissions: string[];
+              organizationId: string | null;
+              organizationRoles: string[];
+              organizationPermissions: string[];
             };
           };
         };

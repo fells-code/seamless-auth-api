@@ -3,7 +3,9 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Application } from 'express';
 
 import { createApp } from '../../../src/app';
+import { RolePermission } from '../../../src/models/rolePermissions.js';
 import { SystemConfig } from '../../../src/models/systemConfig.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import { User } from '../../../src/models/users.js';
 import {
   getSystemConfig,
@@ -229,6 +231,41 @@ describe('PATCH /system-config/admin', () => {
     const res = await request(app).patch('/system-config/admin').send({ invalid: true });
 
     expect(res.status).toBe(400);
+  });
+
+  it('removes the mappings of a role leaving the instance, so adding it back grants nothing', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+    (RolePermission.findAll as any).mockResolvedValue([{ roleName: 'admin' }]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['user'] });
+
+    expect(res.status).toBe(200);
+    expect(RolePermission.destroy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ roleKind: 'instance' }),
+      }),
+    );
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'system_config_updated',
+        metadata: expect.objectContaining({ retiredRoleMappings: ['admin'] }),
+      }),
+    );
+  });
+
+  it('leaves mappings alone when no role leaves', async () => {
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ available_roles: ['user', 'admin', 'finance'] });
+
+    expect(res.status).toBe(200);
+    expect(RolePermission.destroy).not.toHaveBeenCalled();
   });
 
   it('rejects removing role in use', async () => {

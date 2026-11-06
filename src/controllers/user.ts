@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 
 import { Credential } from '../models/credentials.js';
 import { User } from '../models/users.js';
+import { resolveAuthorization } from '../services/accessTokenService.js';
 import { refuseLastAdminChange, wouldLeaveNoAdmin } from '../services/adminContinuity.js';
 import { serializeCredential } from '../services/apiResponseSerializers.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -24,7 +25,7 @@ export const getUser = async (req: Request, res: Response) => {
 
   try {
     if (authUser) {
-      const [credentials, organizations] = await Promise.all([
+      const [credentials, organizations, authorization] = await Promise.all([
         Credential.findAll({
           where: { userId: authUser.id },
           attributes: [
@@ -43,6 +44,10 @@ export const getUser = async (req: Request, res: Response) => {
           ],
         }),
         listOrganizationsForUser(authUser.id),
+        resolveAuthorization({
+          roles: authUser.roles,
+          recovery: authReq.recoverySession === true,
+        }),
       ]);
       const activeOrganizationId = authReq.organizationId ?? null;
 
@@ -54,6 +59,7 @@ export const getUser = async (req: Request, res: Response) => {
           roles: authUser.roles,
           lastLogin: authUser.lastLogin,
           activeOrganizationId,
+          permissions: authorization.permissions,
         },
         credentials: credentials.map(serializeCredential),
         organizations,

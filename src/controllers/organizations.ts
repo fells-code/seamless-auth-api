@@ -9,12 +9,12 @@ import { UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { hasScopedRole } from '../lib/scopedRoles.js';
-import { signAccessToken } from '../lib/token.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
 import { AdminOrganizationListQuerySchema } from '../schemas/organization.requests.js';
+import { mintAccessToken } from '../services/accessTokenService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
   countOwners,
@@ -169,7 +169,7 @@ export async function switchOrganization(req: RouteRequest, res: Response) {
   }
 
   await session.update({ organizationId: organization.id });
-  const token = await signAccessToken(session.id, user.id, user.roles, organization.id);
+  const token = await mintAccessToken({ session, user });
 
   const { access_token_ttl } = await getSystemConfig();
   return res.json({
