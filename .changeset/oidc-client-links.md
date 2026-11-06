@@ -1,5 +1,0 @@
----
-'seamless-auth-api': minor
----
-
-A confidential OpenID Provider application can send account notices for the public applications it acts for (ADR 0002, N4 and N5). An admin links them with `PUT /admin/applications/:id/links/:linkedId`, lists links with `GET /admin/applications/:id/links` and removes one with `DELETE`, each write with step-up and audited as `admin_oidc_application_link_added` or `admin_oidc_application_link_removed`. A link needs a confidential acting application and a different public linked one, both first-party or both third-party. `POST /applications/account-notices` takes an optional `clientId`: the caller must be linked to it, the grant check uses it and the template names it, and a client the caller is not linked to answers the same `404 notice_unknown_user` as an unknown user. Applications gain `noticeActionOrigins`, bare `https` origins that a notice's action link may point at besides the `https` redirect origins, and every application response lists `noticeActionOrigins`, `links` and `linkedFrom`. A new migration adds the `oidc_client_links` table and the column. ADR 0001 D14 is amended to match.
