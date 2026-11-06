@@ -25,6 +25,7 @@ import {
   OAuthProfileError,
   oauthProfileFromIdToken,
   OAuthProviderRetiredError,
+  OAuthRedirectNotAllowedError,
   resolveOAuthProvider,
   resolveOAuthRedirectUri,
   resolveOAuthUser,
@@ -98,11 +99,21 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
         ...(codeChallenge ? { codeChallenge } : {}),
       }),
     });
-  } catch {
+  } catch (error) {
+    // The client only ever sees a generic answer, so this is the one place an operator
+    // can learn why. A redirect refusal is a client or allowlist problem and anything
+    // else is the provider's configuration or discovery, and those are fixed differently.
+    const detail =
+      error instanceof OAuthRedirectNotAllowedError ? 'redirect_not_allowed' : 'provider_unusable';
+
+    // The provider is on the event below. The error names a refused redirect by its parsed
+    // scheme and host only, so nothing the caller sent reaches the log as written.
+    logger.warn(`OAuth start failed: ${String(error)}`);
+
     await AuthEventService.log({
       type: 'oauth_login_failed',
       req,
-      metadata: { providerId: provider.id, reason: 'start_failed' },
+      metadata: { providerId: provider.id, reason: 'start_failed', detail },
     });
 
     return res.status(400).json({

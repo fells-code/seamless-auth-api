@@ -570,6 +570,12 @@ describe('OAuth routes', () => {
     vi.unstubAllGlobals();
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('OAuth start failed');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'idp', reason: 'start_failed', detail: 'provider_unusable' },
+      }),
+    );
   });
 
   it('refuses an ID token minted for a different sign-in', async () => {
@@ -621,7 +627,22 @@ describe('OAuth routes', () => {
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'oauth_login_failed',
-        metadata: { providerId: 'google', reason: 'start_failed' },
+        metadata: { providerId: 'google', reason: 'start_failed', detail: 'redirect_not_allowed' },
+      }),
+    );
+  });
+
+  it('refuses an app scheme the provider does not allow, and says that is why', async () => {
+    const res = await request(app).post('/oauth/google/start').send({
+      redirectUri: 'myapp://oauth/callback?code=secret',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('OAuth start failed');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'oauth_login_failed',
+        metadata: { providerId: 'google', reason: 'start_failed', detail: 'redirect_not_allowed' },
       }),
     );
   });

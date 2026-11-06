@@ -87,6 +87,24 @@ export class OAuthProfileError extends Error {
   }
 }
 
+/**
+ * The client asked for a redirect the provider config does not allow. The message names
+ * the scheme and host only: the rest of the value is whatever the caller sent.
+ */
+export class OAuthRedirectNotAllowedError extends Error {
+  constructor(requestedRedirectUri: string) {
+    let target = 'an unparsable value';
+    try {
+      const url = new URL(requestedRedirectUri);
+      target = `${url.protocol}//${url.host}`;
+    } catch {
+      // Named as unparsable above.
+    }
+    super(`OAuth redirect URI is not allowed: ${target}`);
+    this.name = 'OAuthRedirectNotAllowedError';
+  }
+}
+
 export class OAuthProviderRetiredError extends Error {
   readonly code = 'oauth_provider_retired';
   readonly userId: string;
@@ -259,7 +277,7 @@ export async function resolveOAuthRedirectUri(
 
   if (requestedRedirectUri) {
     if (!allowedRedirect(requestedRedirectUri, providerAllowlist, config.origins)) {
-      throw new Error('OAuth redirect URI is not allowed');
+      throw new OAuthRedirectNotAllowedError(requestedRedirectUri);
     }
 
     return requestedRedirectUri;
