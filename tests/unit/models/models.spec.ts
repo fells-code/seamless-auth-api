@@ -13,6 +13,7 @@ vi.unmock('../../../src/models/magicLinks.js');
 vi.unmock('../../../src/models/oauthIdentities.js');
 vi.unmock('../../../src/models/organizations.js');
 vi.unmock('../../../src/models/organizationMemberships.js');
+vi.unmock('../../../src/models/organizationRoles.js');
 vi.unmock('../../../src/models/permissions.js');
 vi.unmock('../../../src/models/rolePermissions.js');
 vi.unmock('../../../src/models/webauthnChallenges.js');

@@ -172,6 +172,19 @@ vi.mock('../../src/models/organizationMemberships.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/organizationRoles.js', () => ({
+  OrganizationRole: {
+    sequelize: {
+      transaction: vi.fn((fn: any) => fn({ LOCK: { UPDATE: 'UPDATE' } })),
+    },
+    create: vi.fn(),
+    findAll: vi.fn(async ({ where }: any = {}) =>
+      (where?.name?.[Symbol.for('in')] ?? []).map((name: string) => ({ name })),
+    ),
+    findByPk: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/models/permissions.js', () => ({
   Permission: {
     create: vi.fn(),

@@ -2062,12 +2062,14 @@ describe('organization routes on a device child', () => {
     });
 
     it('does not change a loopback child', async () => {
-      const { token, organization, member } = await persona(AUTHORIZATION_CODE);
+      const { user, token, organization, member } = await persona(AUTHORIZATION_CODE);
 
       expect(
         (await request(app).get(`/organizations/${organization.id}/members`).set(bearer(token)))
           .status,
       ).toBe(200);
+      // Changing a member's roles needs step-up on every session (ADR 0004, P7).
+      await stepUpWithRealTotp(user, token);
       expect(
         (
           await request(app)
@@ -2094,6 +2096,8 @@ describe('organization routes on a device child', () => {
         (await request(app).get(`/organizations/${organization.id}/members`).set(bearer(token)))
           .status,
       ).toBe(200);
+      // Changing a member's roles needs step-up on every session (ADR 0004, P7).
+      await stepUpWithRealTotp(user, token);
       expect(
         (
           await request(app)

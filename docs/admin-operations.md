@@ -56,6 +56,53 @@ no one able to administer it.
 Instances whose `available_roles` predates scoped roles and lists only `admin` get `admin`
 instead, which is equivalent in power, so the grant never silently becomes a no-op.
 
+## Permissions
+
+Roles say who someone is. Permissions say what they can do, and a role grants a set of them. The
+design is in [ADR 0004](./adr/0004-permissions-and-organization-roles.md).
+
+- **Permissions** are a catalogue, managed at `/admin/permissions`. A name uses the role alphabet,
+  such as `invoices:read`. They match exactly: `invoices:write` does not satisfy `invoices:read`,
+  and there are no wildcards.
+- **Instance roles** are `available_roles`. Removing one also removes its mappings, so adding the
+  name back later grants nothing.
+- **Organization roles** are a catalogue at `/admin/organization-roles`, shared by every
+  organization on the instance. `owner`, `admin` and `member` are built in. Assigning a role
+  outside the catalogue answers `400`.
+- **Mappings** are replaced as a whole with `PUT /admin/roles/:kind/:roleName/permissions`, where
+  `kind` is `instance` or `organization`. `GET /admin/roles` lists both kinds with what they grant.
+  A role grants through its literal name: holding `billing` does not pick up a mapping on
+  `billing:read`.
+
+An instance `admin` and an organization `admin` are different roles and never share a grant.
+
+Deleting a permission a role still grants answers `409` with those roles. So does deleting a
+built-in organization role, or one a membership still holds.
+
+### When a change applies
+
+Access tokens carry permissions, so a change reaches a holder the next time a token is issued,
+within `access_token_ttl`. `GET /users/me/permissions` reads the database on every call, for a check
+that cannot wait. Removing someone from an organization works the same way: their next token drops
+the organization claims.
+
+### Switching to an organization
+
+Organization claims apply to the active organization only. A session starts in the user's oldest
+membership, and `POST /organizations/:organizationId/switch` changes it. Switching needs the
+`organization:read` membership scope unless the member is an `owner` or `admin`, and a member added
+without it gets `404`. So when adding someone who belongs to more than one organization, pass
+`scopes: ["organization:read"]`, or they cannot reach that organization's permissions.
+
+### Who can change organization roles
+
+`PATCH /organizations/:organizationId/members/:userId` needs step-up. Only an owner or an instance
+`admin:write` can grant or remove `owner`, or remove an owner from the organization. Any other
+manager can only grant a role whose permissions they hold, and can take away any role except
+`owner`. A refusal answers `403` naming the roles, and is audited as
+`organization_member_role_grant_refused`. Changes that succeed are audited as
+`organization_member_added`, `organization_member_updated` and `organization_member_removed`.
+
 ## Step-Up On Admin Writes
 
 Every admin write that changes who can sign in, or what an account can do, needs a fresh
@@ -75,6 +122,10 @@ Guarded routes:
   `/admin/organizations/:organizationId/members/:userId`
 - `PUT` and `DELETE /admin/organizations/:organizationId/oauth-providers/:providerId/retirement`
 - `POST /organizations/:organizationId/members` (the self-service route that requires `admin:write`)
+- `PATCH /organizations/:organizationId/members/:userId`, for any organization manager
+- `POST /admin/permissions`, `PATCH` and `DELETE /admin/permissions/:permissionName`
+- `PUT /admin/roles/:kind/:roleName/permissions`
+- `POST /admin/organization-roles`, `PATCH` and `DELETE /admin/organization-roles/:roleName`
 - `DELETE /users/delete`, a user deleting their own account: it cannot be undone, and an access
   session alone may be someone else's. An account with no passkey or TOTP cannot step up, so it
   cannot delete itself; an administrator can (`DELETE /admin/users`).

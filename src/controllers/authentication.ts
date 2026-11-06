@@ -751,7 +751,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     });
   }
 
-  const token = await mintAccessToken({
+  const { token, organizationId } = await mintAccessToken({
     session: {
       id: newSession.id,
       organizationId: session.organizationId,
@@ -772,7 +772,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       refreshToken: newRefreshToken,
       sub: user.id,
       sessionId: newSession.id,
-      organizationId: session.organizationId,
+      organizationId,
       roles: user.roles,
       email: user.email,
       phone: user.phone,

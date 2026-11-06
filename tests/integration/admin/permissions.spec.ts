@@ -5,6 +5,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { OrganizationMembership } from '../../../src/models/organizationMemberships.js';
+import { OrganizationRole } from '../../../src/models/organizationRoles.js';
 import { Permission } from '../../../src/models/permissions.js';
 import { RolePermission } from '../../../src/models/rolePermissions.js';
 import { Session } from '../../../src/models/sessions.js';
@@ -44,6 +46,7 @@ beforeEach(() => {
   });
   (Permission.findAll as any).mockResolvedValue([]);
   (RolePermission.findAll as any).mockResolvedValue([]);
+  (OrganizationRole.findAll as any).mockResolvedValue([]);
 });
 
 describe('permission catalogue', () => {
@@ -198,6 +201,7 @@ describe('role mappings', () => {
     ]);
     (RolePermission.findAll as any)
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ permissionName: 'invoices:read' }, { permissionName: 'old:read' }]);
 
     const res = await request(app)
@@ -255,6 +259,184 @@ describe('role mappings', () => {
     expect(res.status).toBe(400);
     expect(res.body.details.permissions).toEqual(['ghost:read']);
     expect(RolePermission.bulkCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('organization role catalogue', () => {
+  const role = (overrides: Partial<any> = {}) => ({
+    name: 'finance',
+    description: null,
+    builtIn: false,
+    update: vi.fn().mockImplementation(function update(this: any, values: any) {
+      Object.assign(this, values);
+      return Promise.resolve(this);
+    }),
+    destroy: vi.fn(),
+    ...overrides,
+  });
+
+  it('lists organization roles beside instance roles, which never share a grant', async () => {
+    (OrganizationRole.findAll as any).mockResolvedValue([
+      role({ name: 'admin', builtIn: true }),
+      role(),
+    ]);
+    (RolePermission.findAll as any).mockImplementation(async ({ where }: any) =>
+      where.roleKind === 'organization'
+        ? [{ roleName: 'admin', permissionName: 'projects:write' }]
+        : [],
+    );
+
+    const res = await request(app).get('/admin/roles');
+
+    expect(res.body.roles).toContainEqual({
+      name: 'admin',
+      kind: 'organization',
+      description: null,
+      builtIn: true,
+      permissions: ['projects:write'],
+    });
+    expect(res.body.roles).toContainEqual(
+      expect.objectContaining({ name: 'admin:write', kind: 'instance', permissions: [] }),
+    );
+  });
+
+  it('creates a role with its permissions and audits it', async () => {
+    (Permission.findAll as any).mockResolvedValue([{ name: 'invoices:read' }]);
+    (OrganizationRole.create as any).mockResolvedValue(role());
+
+    const res = await request(app)
+      .post('/admin/organization-roles')
+      .send({ name: 'finance', permissions: ['invoices:read'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.role).toMatchObject({
+      name: 'finance',
+      kind: 'organization',
+      permissions: ['invoices:read'],
+    });
+    expect(RolePermission.bulkCreate).toHaveBeenCalledWith(
+      [expect.objectContaining({ roleKind: 'organization', roleName: 'finance' })],
+      expect.anything(),
+    );
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'admin_organization_role_created' }),
+    );
+  });
+
+  it('holds a new role to the role name pattern', async () => {
+    const res = await request(app).post('/admin/organization-roles').send({ name: 'Team Lead' });
+
+    expect(res.status).toBe(400);
+    expect(OrganizationRole.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unknown permission on a new role', async () => {
+    const res = await request(app)
+      .post('/admin/organization-roles')
+      .send({ name: 'finance', permissions: ['ghost:read'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details.permissions).toEqual(['ghost:read']);
+    expect(OrganizationRole.create).not.toHaveBeenCalled();
+  });
+
+  it('answers 409 for a name already taken', async () => {
+    (OrganizationRole.create as any).mockRejectedValue(new UniqueConstraintError({}));
+
+    const res = await request(app).post('/admin/organization-roles').send({ name: 'finance' });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('updates a description', async () => {
+    (OrganizationRole.findByPk as any).mockResolvedValue(role());
+
+    const res = await request(app)
+      .patch('/admin/organization-roles/finance')
+      .send({ description: 'Finance team' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.role.description).toBe('Finance team');
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'admin_organization_role_updated' }),
+    );
+  });
+
+  it('answers 404 for a role that does not exist', async () => {
+    (OrganizationRole.findByPk as any).mockResolvedValue(null);
+
+    const patched = await request(app)
+      .patch('/admin/organization-roles/ghost')
+      .send({ description: null });
+    const deleted = await request(app).delete('/admin/organization-roles/ghost');
+
+    expect(patched.status).toBe(404);
+    expect(deleted.status).toBe(404);
+  });
+
+  it('addresses a legacy role whose name a new one could not use', async () => {
+    const legacy = role({ name: 'Team Lead' });
+    (OrganizationRole.findByPk as any).mockResolvedValue(legacy);
+    (OrganizationMembership.findAll as any).mockResolvedValue([]);
+
+    const res = await request(app).delete('/admin/organization-roles/Team%20Lead');
+
+    expect(res.status).toBe(200);
+    expect(legacy.destroy).toHaveBeenCalled();
+  });
+
+  it('deletes an unheld role along with its mappings, and audits it', async () => {
+    const unheld = role();
+    (OrganizationRole.findByPk as any).mockResolvedValue(unheld);
+    (OrganizationMembership.findAll as any).mockResolvedValue([{ roles: ['member'] }]);
+    (RolePermission.findAll as any).mockResolvedValue([{ roleName: 'finance' }]);
+
+    const res = await request(app).delete('/admin/organization-roles/finance');
+
+    expect(res.status).toBe(200);
+    expect(RolePermission.destroy).toHaveBeenCalled();
+    expect(unheld.destroy).toHaveBeenCalled();
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'admin_organization_role_deleted' }),
+    );
+  });
+
+  it('refuses to delete a built-in role', async () => {
+    const builtIn = role({ name: 'owner', builtIn: true });
+    (OrganizationRole.findByPk as any).mockResolvedValue(builtIn);
+
+    const res = await request(app).delete('/admin/organization-roles/owner');
+
+    expect(res.status).toBe(409);
+    expect(builtIn.destroy).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete a role still held', async () => {
+    const held = role();
+    (OrganizationRole.findByPk as any).mockResolvedValue(held);
+    (OrganizationMembership.findAll as any).mockResolvedValue([{ roles: ['finance'] }]);
+
+    const res = await request(app).delete('/admin/organization-roles/finance');
+
+    expect(res.status).toBe(409);
+    expect(res.body.details.holders).toBe(1);
+    expect(held.destroy).not.toHaveBeenCalled();
+  });
+
+  it('maps permissions onto an organization role', async () => {
+    (OrganizationRole.findAll as any).mockResolvedValue([role()]);
+    (Permission.findAll as any).mockResolvedValue([{ name: 'invoices:read' }]);
+
+    const res = await request(app)
+      .put('/admin/roles/organization/finance/permissions')
+      .send({ permissions: ['invoices:read'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.role.kind).toBe('organization');
+    expect(RolePermission.bulkCreate).toHaveBeenCalledWith(
+      [expect.objectContaining({ roleKind: 'organization', permissionName: 'invoices:read' })],
+      expect.anything(),
+    );
   });
 });
 

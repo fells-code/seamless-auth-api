@@ -4,12 +4,13 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { Op, UniqueConstraintError, WhereOptions } from 'sequelize';
+import { Op, Transaction, UniqueConstraintError, WhereOptions } from 'sequelize';
 
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
 import { User } from '../models/users.js';
+import { permissionsForRoles } from './permissionService.js';
 import { revokeAllSessionsForUsers } from './sessionRevocation.js';
 
 export type OrganizationRole = 'owner' | 'admin' | 'member';
@@ -213,18 +214,58 @@ export async function createOrganizationForUser({
   }
 }
 
-export async function findMembership(userId: string, organizationId: string) {
+export async function findMembership(
+  userId: string,
+  organizationId: string,
+  transaction?: Transaction,
+) {
   return OrganizationMembership.findOne({
     where: {
       organizationId,
       userId,
     },
+    ...(transaction ? { transaction } : {}),
   });
 }
 
 export function isOrganizationManager(user: User, membership?: OrganizationMembership | null) {
   if (hasScopedRole(user.roles, 'admin:write')) return true;
   return Boolean(membership?.roles?.some((role) => role === 'owner' || role === 'admin'));
+}
+
+/**
+ * ADR 0004, P7. Whether this manager may move a member from `current` to `next` roles. Owner
+ * is the only role that can touch owners, and otherwise a manager can only hand out what they
+ * hold themselves, so managing members is not a way to gain a permission. An instance
+ * `admin:write` and an owner are exempt: an instance is theirs to run, and an owner's
+ * permissions depend on whatever the role happens to be mapped to. Returns what stood in the way.
+ */
+export async function refusedRoleChanges(
+  user: User,
+  membership: OrganizationMembership | null | undefined,
+  current: string[],
+  next: string[],
+) {
+  if (hasScopedRole(user.roles, 'admin:write')) return [];
+
+  const held = membership?.roles ?? [];
+
+  if (held.includes('owner')) return [];
+
+  const added = next.filter((role) => !current.includes(role));
+  const removed = current.filter((role) => !next.includes(role));
+  const refused: string[] = [...added, ...removed].filter((role) => role === 'owner');
+  const heldPermissions = new Set(await permissionsForRoles('organization', held));
+
+  for (const role of added.filter((name) => name !== 'owner')) {
+    const granted = await permissionsForRoles('organization', [role]);
+
+    if (granted.some((permission) => !heldPermissions.has(permission))) {
+      refused.push(role);
+    }
+  }
+
+  return refused;
 }
 
 export function hasOrganizationScope(

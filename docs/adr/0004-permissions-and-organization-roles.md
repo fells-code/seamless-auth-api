@@ -51,7 +51,7 @@ This differs from `requireRole`, deliberately. Roles keep their scoped matching.
 
 ### P4. A set that does not fit is omitted whole
 
-The permission arrays get 1 KiB, serialized, together. A server adapter keeps the whole access token inside a signed cookie, so it is base64 encoded twice under the browser's 4 KiB cookie limit, and a test builds that cookie at the budget. Over the budget both arrays are replaced with `"permissions_omitted": true`.
+The organization roles and the two permission arrays get 1 KiB, serialized, together. A server adapter keeps the whole access token inside a signed cookie, so it is base64 encoded twice under the browser's 4 KiB cookie limit, and a test builds that cookie at the budget. Over the budget all three are replaced with `"permissions_omitted": true`.
 
 Nothing is trimmed, because a partial list looks complete and denies silently. A guard that sees the marker reads `GET /users/me/permissions` with the caller's token and fails closed if it cannot. A plain 403 would turn an organization growing past a limit into an outage.
 
@@ -76,6 +76,7 @@ Sign-in, refresh, organization switch and session exchange all call `mintAccessT
 ## Consequences
 
 - **Staleness.** Permissions are as fresh as the access token TTL, the same as `roles`. `GET /users/me/permissions` is live for a check that cannot wait.
+- **Switching still needs `organization:read`.** A member without the scope, unless an `owner` or `admin`, cannot switch to the organization, so cannot reach its permissions unless it is their default. Reviewed on 2026-11-06 and kept as is.
 - **Membership `scopes` stay out of the token.** They gate Seamless's own organization routes and are not app permissions.
 - **Assigning an unlisted organization role is now a 400**, which is a behavior change for callers that invented role names at runtime.
 - **Provider tokens are not covered.** `/oidc/sign` refuses unlisted claims, the provider's claims map replaces library defaults, `OidcAccountClaimsSchema` strips unknown keys, and its `org_id` is the default organization rather than the session's active one. seamless-auth-oidc-provider#47 takes that up and reuses these claim names.

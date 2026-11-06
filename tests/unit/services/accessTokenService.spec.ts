@@ -14,7 +14,9 @@ vi.mock('../../../src/utils/signingKeyStore.js', () => ({
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { signAccessToken } from '../../../src/lib/token.js';
+import { OrganizationMembership } from '../../../src/models/organizationMemberships.js';
 import { RolePermission } from '../../../src/models/rolePermissions.js';
+import { Session } from '../../../src/models/sessions.js';
 import {
   authorizationClaims,
   mintAccessToken,
@@ -37,6 +39,7 @@ beforeEach(() => {
   (getSigningKey as any).mockResolvedValue({ kid: 'k1', privateKeyPem });
   (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
   mappings();
+  (OrganizationMembership.findOne as any).mockResolvedValue(undefined);
 });
 
 const user = { id: '7b6f7a0e-52a4-4f1b-9d32-4c1a0f1e2d3c', roles: ['user'] };
@@ -56,13 +59,31 @@ function fittingPermissions() {
   }
 }
 
+const organizationId = '2c0d53c2-a541-452b-b71b-54c7f15e5877';
+const noOrganization = { organizationId: null, organizationRoles: [], organizationPermissions: [] };
+
+function mappingsByKind(instance: string[], organization: string[]) {
+  (RolePermission.findAll as any).mockImplementation(async ({ where }: any) =>
+    (where.roleKind === 'organization' ? organization : instance).map((permissionName) => ({
+      permissionName,
+    })),
+  );
+}
+
+function memberOf(roles: unknown) {
+  (OrganizationMembership.findOne as any).mockResolvedValue({ roles });
+}
+
 describe('resolveAuthorization', () => {
+  const base = { userId: user.id, recovery: false };
+
   it('reads what the roles grant, deduplicated and sorted', async () => {
     mappings('b:read', 'a:read', 'b:read');
 
-    await expect(resolveAuthorization({ roles: ['x', 'y'], recovery: false })).resolves.toEqual({
+    await expect(resolveAuthorization({ ...base, roles: ['x', 'y'] })).resolves.toEqual({
       roles: ['x', 'y'],
       permissions: ['a:read', 'b:read'],
+      ...noOrganization,
     });
     expect(RolePermission.findAll).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -71,72 +92,182 @@ describe('resolveAuthorization', () => {
     );
   });
 
+  it('keeps instance and organization grants apart', async () => {
+    mappingsByKind(['reports:read'], ['projects:write']);
+    memberOf(['admin']);
+
+    await expect(
+      resolveAuthorization({ ...base, roles: ['user'], organizationId }),
+    ).resolves.toEqual({
+      roles: ['user'],
+      permissions: ['reports:read'],
+      organizationId,
+      organizationRoles: ['admin'],
+      organizationPermissions: ['projects:write'],
+    });
+  });
+
+  it('holds nothing in an organization the user no longer belongs to', async () => {
+    mappingsByKind(['reports:read'], ['projects:write']);
+    (OrganizationMembership.findOne as any).mockResolvedValue(null);
+
+    await expect(
+      resolveAuthorization({ ...base, roles: ['user'], organizationId }),
+    ).resolves.toEqual({ roles: ['user'], permissions: ['reports:read'], ...noOrganization });
+  });
+
+  it('uses a membership the caller already read', async () => {
+    await resolveAuthorization({
+      ...base,
+      roles: [],
+      organizationId,
+      membership: { roles: ['admin'] } as any,
+    });
+
+    expect(OrganizationMembership.findOne).not.toHaveBeenCalled();
+  });
+
+  it('reads a malformed membership as holding no roles', async () => {
+    memberOf('admin');
+
+    const resolved = await resolveAuthorization({ ...base, roles: [], organizationId });
+
+    expect(resolved.organizationRoles).toEqual([]);
+  });
+
   it('grants a recovery session nothing, without reading the mappings', async () => {
     mappings('a:read');
+    memberOf(['admin']);
 
-    await expect(resolveAuthorization({ roles: ['x'], recovery: true })).resolves.toEqual({
-      roles: ['x'],
-      permissions: [],
-    });
+    await expect(
+      resolveAuthorization({ ...base, roles: ['x'], organizationId, recovery: true }),
+    ).resolves.toEqual({ roles: ['x'], permissions: [], ...noOrganization });
     expect(RolePermission.findAll).not.toHaveBeenCalled();
   });
 
   it('does not query for a user with no roles', async () => {
-    await expect(resolveAuthorization({ roles: [], recovery: false })).resolves.toEqual({
+    await expect(resolveAuthorization({ ...base, roles: [] })).resolves.toEqual({
       roles: [],
       permissions: [],
+      ...noOrganization,
     });
     expect(RolePermission.findAll).not.toHaveBeenCalled();
   });
 });
 
 describe('authorizationClaims', () => {
-  it('carries a set that fits', () => {
-    expect(authorizationClaims({ roles: [], permissions: ['a:read'] })).toEqual({
+  const resolved = { roles: [], permissions: [], ...noOrganization };
+
+  it('carries a set that fits, with no organization claims outside an organization', () => {
+    expect(authorizationClaims({ ...resolved, permissions: ['a:read'] })).toEqual({
       permissions: ['a:read'],
     });
+  });
+
+  it('carries the organization claims inside one, even when empty', () => {
+    expect(
+      authorizationClaims({ ...resolved, organizationId, organizationRoles: ['member'] }),
+    ).toEqual({ permissions: [], org_roles: ['member'], org_permissions: [] });
   });
 
   it('carries a set exactly at the budget', () => {
     const permissions = fittingPermissions();
 
-    expect(authorizationClaims({ roles: [], permissions })).toEqual({ permissions });
+    expect(authorizationClaims({ ...resolved, permissions })).toEqual({ permissions });
   });
 
   // A partial list looks complete and denies silently, so nothing is trimmed.
   it('replaces a set over the budget with the marker', () => {
     const permissions = [...fittingPermissions(), 'one-more:action'];
 
-    expect(authorizationClaims({ roles: [], permissions })).toEqual({
+    expect(authorizationClaims({ ...resolved, permissions })).toEqual({
       permissions_omitted: true,
     });
+  });
+
+  it('counts the organization claims against the budget', () => {
+    expect(
+      authorizationClaims({
+        ...resolved,
+        organizationId,
+        organizationRoles: ['member'],
+        organizationPermissions: fittingPermissions(),
+      }),
+    ).toEqual({ permissions_omitted: true });
   });
 });
 
 describe('mintAccessToken', () => {
   it('signs the claims into the token', async () => {
-    mappings('reports:read');
+    mappingsByKind(['reports:read'], ['projects:write']);
+    memberOf(['admin']);
 
-    const claims = decodeJwt(await mintAccessToken({ session, user }));
+    const minted = await mintAccessToken({
+      session: { ...session, organizationId },
+      user,
+    });
+    const claims = decodeJwt(minted.token);
 
+    expect(minted.organizationId).toBe(organizationId);
     expect(claims).toMatchObject({
       sub: user.id,
       sid: session.id,
       roles: ['user'],
       permissions: ['reports:read'],
+      org_id: organizationId,
+      org_roles: ['admin'],
+      org_permissions: ['projects:write'],
     });
     expect(claims.permissions_omitted).toBeUndefined();
   });
 
-  it('marks a recovery token and gives it no permissions', async () => {
-    mappings('reports:read');
+  // The reason the claims are separate: a guard on `admin` must not pass for an org admin.
+  it('never puts an organization role in roles', async () => {
+    memberOf(['admin', 'owner']);
 
-    const claims = decodeJwt(
-      await mintAccessToken({ session: { ...session, recovery: true }, user }),
+    const { token } = await mintAccessToken({ session: { ...session, organizationId }, user });
+
+    expect(decodeJwt(token).roles).toEqual(['user']);
+  });
+
+  it('carries no organization claims without an active organization', async () => {
+    const claims = decodeJwt((await mintAccessToken({ session, user })).token);
+
+    expect(claims).not.toHaveProperty('org_id');
+    expect(claims).not.toHaveProperty('org_roles');
+    expect(claims).not.toHaveProperty('org_permissions');
+    expect(Session.update).not.toHaveBeenCalled();
+  });
+
+  it('drops the claims and clears the session for a removed member', async () => {
+    (OrganizationMembership.findOne as any).mockResolvedValue(null);
+
+    const minted = await mintAccessToken({ session: { ...session, organizationId }, user });
+
+    expect(minted.organizationId).toBeNull();
+    expect(decodeJwt(minted.token)).not.toHaveProperty('org_id');
+    expect(Session.update).toHaveBeenCalledWith(
+      { organizationId: null },
+      expect.objectContaining({ where: { id: session.id } }),
     );
+  });
+
+  it('marks a recovery token and gives it no permissions or organization claims', async () => {
+    mappings('reports:read');
+    memberOf(['admin']);
+
+    const minted = await mintAccessToken({
+      session: { ...session, organizationId, recovery: true },
+      user,
+    });
+    const claims = decodeJwt(minted.token);
 
     expect(claims.recovery).toBe(true);
     expect(claims.permissions).toEqual([]);
+    expect(claims).not.toHaveProperty('org_id');
+    // The organization applies again once a factor is enrolled, so the session keeps it.
+    expect(minted.organizationId).toBe(organizationId);
+    expect(Session.update).not.toHaveBeenCalled();
   });
 
   /**
@@ -145,13 +276,17 @@ describe('mintAccessToken', () => {
    * which would sign the user out. This builds that cookie at the worst case the budget allows.
    */
   it('keeps the adapter session cookie under the browser limit at the budget', async () => {
-    mappings(...fittingPermissions());
-
     const longRoles = Array.from({ length: 5 }, (_, index) => `billing:invoices:role-${index}`);
-    const token = await signAccessToken(session.id, user.id, longRoles, session.id, {
-      authorization: authorizationClaims(
-        await resolveAuthorization({ roles: longRoles, recovery: false }),
-      ),
+    const authorization = authorizationClaims({
+      roles: longRoles,
+      permissions: fittingPermissions(),
+      ...noOrganization,
+    });
+
+    expect(authorization.permissions_omitted).toBeUndefined();
+
+    const token = await signAccessToken(session.id, user.id, longRoles, organizationId, {
+      authorization,
     });
 
     const cookie = await new SignJWT({
@@ -161,7 +296,7 @@ describe('mintAccessToken', () => {
       roles: longRoles,
       email: `${'a'.repeat(64)}@${'b'.repeat(40)}.example.com`,
       phone: '+15555550100',
-      organizationId: session.id,
+      organizationId,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()

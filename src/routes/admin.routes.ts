@@ -38,11 +38,14 @@ import {
   updateOrganization,
 } from '../controllers/organizations.js';
 import {
+  createOrganizationRole,
   createPermission,
+  deleteOrganizationRole,
   deletePermission,
   listPermissions,
   listRoles,
   setRolePermissions,
+  updateOrganizationRole,
   updatePermission,
 } from '../controllers/permissions.js';
 import { getReviewAccountStatus } from '../controllers/reviewAccounts.js';
@@ -103,10 +106,13 @@ import {
   OrganizationMembersResponseSchema,
 } from '../schemas/organization.responses.js';
 import {
+  CreateOrganizationRoleRequestSchema,
   CreatePermissionRequestSchema,
+  OrganizationRoleParamSchema,
   PermissionNameParamSchema,
   RolePermissionsParamSchema,
   SetRolePermissionsRequestSchema,
+  UpdateOrganizationRoleRequestSchema,
   UpdatePermissionRequestSchema,
 } from '../schemas/permission.requests.js';
 import {
@@ -458,6 +464,68 @@ adminRouter.put(
     },
   },
   setRolePermissions,
+);
+
+adminRouter.post(
+  '/organization-roles',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: 'Create an organization role',
+    description: 'Roles are instance-wide: any organization can assign one.',
+    schemas: {
+      body: CreateOrganizationRoleRequestSchema,
+      response: {
+        201: RoleEnvelopeResponseSchema,
+        400: PermissionConflictErrorSchema,
+        403: StepUpRequiredErrorSchema,
+        409: PermissionConflictErrorSchema,
+      },
+    },
+  },
+  createOrganizationRole,
+);
+
+adminRouter.patch(
+  '/organization-roles/:roleName',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: "Update an organization role's description",
+    schemas: {
+      params: OrganizationRoleParamSchema,
+      body: UpdateOrganizationRoleRequestSchema,
+      response: {
+        200: RoleEnvelopeResponseSchema,
+        403: StepUpRequiredErrorSchema,
+        404: InternalErrorSchema,
+      },
+    },
+  },
+  updateOrganizationRole,
+);
+
+adminRouter.delete(
+  '/organization-roles/:roleName',
+  {
+    auth: 'access',
+    middleware: [requireAdmin('write'), requireStepUp()],
+    tags: ['Admin'],
+    summary: 'Delete an organization role',
+    description: 'Answers 409 for a built-in role and for a role any membership still holds.',
+    schemas: {
+      params: OrganizationRoleParamSchema,
+      response: {
+        200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
+        404: InternalErrorSchema,
+        409: PermissionConflictErrorSchema,
+      },
+    },
+  },
+  deleteOrganizationRole,
 );
 
 adminRouter.get(

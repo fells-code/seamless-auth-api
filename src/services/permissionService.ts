@@ -8,6 +8,8 @@ import type { RoleDefinition, RoleKind } from '@seamless-auth/types';
 import { Op, Transaction, UniqueConstraintError } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import { OrganizationMembership } from '../models/organizationMemberships.js';
+import { OrganizationRole } from '../models/organizationRoles.js';
 import { Permission } from '../models/permissions.js';
 import { RolePermission } from '../models/rolePermissions.js';
 
@@ -101,15 +103,44 @@ function instanceRole(name: string, permissions: string[]): RoleDefinition {
   return { name, kind: 'instance', description: null, builtIn: false, permissions };
 }
 
-export async function listRoles(): Promise<RoleDefinition[]> {
-  const [{ available_roles }, instanceMappings] = await Promise.all([
-    getSystemConfig(),
-    mappingsByRole('instance'),
-  ]);
+function organizationRole(role: OrganizationRole, permissions: string[]): RoleDefinition {
+  return {
+    name: role.name,
+    kind: 'organization',
+    description: role.description ?? null,
+    builtIn: role.builtIn === true,
+    permissions,
+  };
+}
 
-  return (available_roles ?? []).map((name) =>
-    instanceRole(name, instanceMappings.get(name) ?? []),
-  );
+export async function listRoles(): Promise<RoleDefinition[]> {
+  const [{ available_roles }, instanceMappings, organizationRoles, organizationMappings] =
+    await Promise.all([
+      getSystemConfig(),
+      mappingsByRole('instance'),
+      OrganizationRole.findAll({ order: [['name', 'ASC']] }),
+      mappingsByRole('organization'),
+    ]);
+
+  return [
+    ...(available_roles ?? []).map((name) => instanceRole(name, instanceMappings.get(name) ?? [])),
+    ...organizationRoles.map((role) =>
+      organizationRole(role, organizationMappings.get(role.name) ?? []),
+    ),
+  ];
+}
+
+async function assertPermissionsExist(permissions: string[]) {
+  const names = Array.from(new Set(permissions)).sort();
+  const known = await Permission.findAll({ where: { name: { [Op.in]: names } } });
+  const knownNames = new Set(known.map((permission) => permission.name));
+  const unknown = names.filter((permission) => !knownNames.has(permission));
+
+  if (unknown.length > 0) {
+    throw new PermissionError(400, 'Unknown permissions', { permissions: unknown });
+  }
+
+  return names;
 }
 
 async function findRole(kind: RoleKind, name: string) {
@@ -140,14 +171,7 @@ export async function setRolePermissions({
     throw new PermissionError(404, 'Role not found');
   }
 
-  const next = Array.from(new Set(permissions)).sort();
-  const known = await Permission.findAll({ where: { name: { [Op.in]: next } } });
-  const knownNames = new Set(known.map((permission) => permission.name));
-  const unknown = next.filter((permission) => !knownNames.has(permission));
-
-  if (unknown.length > 0) {
-    throw new PermissionError(400, 'Unknown permissions', { permissions: unknown });
-  }
+  const next = await assertPermissionsExist(permissions);
 
   const previous = await RolePermission.sequelize!.transaction(async (transaction) => {
     const current = await RolePermission.findAll({
@@ -216,4 +240,95 @@ export async function permissionsForRoles(
   });
 
   return Array.from(new Set(mappings.map((mapping) => mapping.permissionName))).sort();
+}
+
+/** Refuses roles outside the catalogue, so a typo is not stored as a grant of nothing. */
+export async function assertOrganizationRolesExist(roles: string[]) {
+  const known = await OrganizationRole.findAll({ where: { name: { [Op.in]: roles } } });
+  const knownNames = new Set(known.map((role) => role.name));
+  const unknown = roles.filter((role) => !knownNames.has(role));
+
+  if (unknown.length > 0) {
+    throw new PermissionError(400, 'Unknown organization roles', { roles: unknown });
+  }
+}
+
+export async function createOrganizationRole({
+  name,
+  description,
+  permissions = [],
+  actorUserId,
+}: {
+  name: string;
+  description?: string;
+  permissions?: string[];
+  actorUserId: string | null;
+}) {
+  const names = await assertPermissionsExist(permissions);
+
+  try {
+    const role = await OrganizationRole.sequelize!.transaction(async (transaction) => {
+      const created = await OrganizationRole.create(
+        { name, description: description ?? null },
+        { transaction },
+      );
+
+      await RolePermission.bulkCreate(
+        names.map((permissionName) => ({
+          roleKind: 'organization' as const,
+          roleName: name,
+          permissionName,
+          createdBy: actorUserId,
+        })),
+        { transaction },
+      );
+
+      return created;
+    });
+
+    return organizationRole(role, names);
+  } catch (error) {
+    if (error instanceof UniqueConstraintError) {
+      throw new PermissionError(409, 'Organization role already exists');
+    }
+
+    throw error;
+  }
+}
+
+export async function updateOrganizationRole(name: string, description: string | null) {
+  const role = await OrganizationRole.findByPk(name);
+
+  if (!role) {
+    throw new PermissionError(404, 'Role not found');
+  }
+
+  await role.update({ description });
+
+  return organizationRole(role, await permissionsForRoles('organization', [name]));
+}
+
+/** Refused for a built-in, which the organization routes depend on, and for a role still held. */
+export async function deleteOrganizationRole(name: string) {
+  const role = await OrganizationRole.findByPk(name);
+
+  if (!role) {
+    throw new PermissionError(404, 'Role not found');
+  }
+
+  if (role.builtIn) {
+    throw new PermissionError(409, 'A built-in role cannot be deleted');
+  }
+
+  const memberships = await OrganizationMembership.findAll({ attributes: ['roles'] });
+  const holders = memberships.filter((membership) => membership.roles?.includes(name)).length;
+
+  if (holders > 0) {
+    throw new PermissionError(409, 'Organization role is still held', { holders });
+  }
+
+  await OrganizationRole.sequelize!.transaction(async (transaction) => {
+    await deleteRoleMappings('organization', [name], transaction);
+    await role.destroy({ transaction });
+  });
 }

@@ -11,13 +11,16 @@ import { ForeignKeyConstraintError } from 'sequelize';
 import { resolveAuthorization } from '../services/accessTokenService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
+  createOrganizationRole as createOrganizationRoleRecord,
   createPermission as createPermissionRecord,
+  deleteOrganizationRole as deleteOrganizationRoleRecord,
   deletePermission as deletePermissionRecord,
   listPermissions as listPermissionRecords,
   listRoles as listRoleRecords,
   PermissionError,
   serializePermission,
   setRolePermissions as setRolePermissionRecords,
+  updateOrganizationRole as updateOrganizationRoleRecord,
   updatePermission as updatePermissionRecord,
 } from '../services/permissionService.js';
 import { AuthenticatedRequest, RouteRequest } from '../types/types.js';
@@ -133,16 +136,71 @@ export async function setRolePermissions(req: RouteRequest, res: Response) {
 
 export async function getEffectivePermissions(req: Request, res: Response) {
   const authReq = req as AuthenticatedRequest;
-  const { roles, permissions } = await resolveAuthorization({
-    roles: authReq.user.roles,
-    recovery: authReq.recoverySession === true,
-  });
 
-  return res.json({
-    roles,
-    permissions,
-    organizationId: null,
-    organizationRoles: [],
-    organizationPermissions: [],
-  });
+  return res.json(
+    await resolveAuthorization({
+      userId: authReq.user.id,
+      roles: authReq.user.roles,
+      organizationId: authReq.organizationId,
+      recovery: authReq.recoverySession === true,
+    }),
+  );
+}
+
+export async function createOrganizationRole(req: Request, res: Response) {
+  try {
+    const role = await createOrganizationRoleRecord({
+      name: req.body.name,
+      description: req.body.description,
+      permissions: req.body.permissions,
+      actorUserId: actorUserId(req),
+    });
+
+    await AuthEventService.log({
+      actorUserId: actorUserId(req),
+      type: 'admin_organization_role_created',
+      req,
+      metadata: { role: role.name, permissions: role.permissions },
+    });
+
+    return res.status(201).json({ role });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+export async function updateOrganizationRole(req: RouteRequest, res: Response) {
+  try {
+    const role = await updateOrganizationRoleRecord(req.params.roleName, req.body.description);
+
+    await AuthEventService.log({
+      actorUserId: actorUserId(req),
+      type: 'admin_organization_role_updated',
+      req,
+      metadata: { role: role.name },
+    });
+
+    return res.json({ role });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+export async function deleteOrganizationRole(req: RouteRequest, res: Response) {
+  const { roleName } = req.params;
+
+  try {
+    await deleteOrganizationRoleRecord(roleName);
+
+    await AuthEventService.log({
+      actorUserId: actorUserId(req),
+      type: 'admin_organization_role_deleted',
+      req,
+      metadata: { role: roleName },
+    });
+
+    return res.json({ message: 'Success' });
+  } catch (error) {
+    return sendError(res, error);
+  }
 }

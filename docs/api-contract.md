@@ -30,7 +30,11 @@ All tokens are returned in the JSON body (the API never sets cookies). Present t
 ### Token shapes
 
 - **Access token** — a signed JWT (RS256). Claims include `sub` (user id), `sid` (session id),
-  `iss`, `typ: "access"`, `roles`, and `org_id` when the session has an active organization.
+  `iss`, `typ: "access"`, `roles` and `permissions`. In an active organization it also carries
+  `org_id`, `org_roles` and `org_permissions`, which apply to that organization only. When the
+  permission claims would not fit, `permissions_omitted: true` replaces `permissions`, `org_roles`
+  and `org_permissions`, and absent then means "ask" rather than "none": read the live set from
+  `GET /users/me/permissions`. See [Permissions](./admin-operations.md#permissions).
   Verify it against the JWKS at `GET /.well-known/jwks.json`.
 - **Ephemeral token** — a signed JWT scoped to the pre-auth step; treat it as opaque. Its `jti`
   is the attempt id every audit row written on the token carries, which is how one sign-in's
