@@ -142,6 +142,33 @@ describe('bootstrapSystemConfig', () => {
     expect(loggerWarn).not.toHaveBeenCalled();
   });
 
+  it('does not rewrite a row whose JSONB value only orders its keys differently', async () => {
+    const { SystemConfig } = await import('../../../src/models/systemConfig');
+    const { parseSystemConfigEnvValue } = await import('../../../src/utils/parseEnvConfigs');
+    const { SystemConfigSchema } = await import('../../../src/schemas/systemConfig.schema');
+
+    const update = vi.fn();
+    (SystemConfig.findByPk as any).mockResolvedValue({
+      value: { otp: { perIp: 500 }, magicLink: { perIp: 500 } },
+      updatedBy: null,
+      update,
+    });
+
+    process.env.APP_NAME = 'TestApp';
+    process.env.RATE_LIMIT = '100';
+    (parseSystemConfigEnvValue as any).mockReturnValue({
+      magicLink: { perIp: 500 },
+      otp: { perIp: 500 },
+    });
+    (SystemConfigSchema.safeParse as any).mockReturnValue({ success: true, data: {} });
+
+    const { bootstrapSystemConfig } = await import('../../../src/config/bootstrapSystemConfig');
+    await bootstrapSystemConfig();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(loggerWarn).not.toHaveBeenCalled();
+  });
+
   it('preserves a row that was changed via the admin API (updatedBy set)', async () => {
     const { SystemConfig } = await import('../../../src/models/systemConfig');
     const { parseSystemConfigEnvValue } = await import('../../../src/utils/parseEnvConfigs');
