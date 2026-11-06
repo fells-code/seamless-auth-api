@@ -159,7 +159,10 @@ describe('organizations', () => {
       'user-1',
       ['user'],
       testOrganizationId,
-      { recovery: false, authorization: { permissions: [] } },
+      {
+        recovery: false,
+        authorization: { permissions: [], org_roles: ['owner', 'admin'], org_permissions: [] },
+      },
     );
   });
 });

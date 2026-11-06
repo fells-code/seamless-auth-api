@@ -35,6 +35,7 @@ import {
   OrganizationMembersResponseSchema,
   OrganizationSwitchResponseSchema,
 } from '../schemas/organization.responses.js';
+import { PermissionConflictErrorSchema } from '../schemas/permission.responses.js';
 import { StepUpRequiredErrorSchema } from '../schemas/stepUp.responses.js';
 
 const organizationRouter = createRouter('/organizations');
@@ -162,6 +163,7 @@ organizationRouter.post(
       body: AddOrganizationMemberRequestSchema,
       response: {
         201: OrganizationMembershipEnvelopeResponseSchema,
+        400: PermissionConflictErrorSchema,
         403: StepUpRequiredErrorSchema,
         404: InternalErrorSchema,
         409: InternalErrorSchema,
@@ -174,16 +176,21 @@ organizationRouter.post(
 organizationRouter.patch(
   '/:organizationId/members/:userId',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireDeviceSessionStepUp, requireStepUp()],
     auth: 'access',
     tags: ['Organizations'],
     summary: 'Update organization member',
+    description:
+      'Only an owner or an instance `admin:write` can grant or remove `owner`, and any other ' +
+      'manager can only grant a role whose permissions they hold. Added roles have to be in ' +
+      'the catalogue.',
     schemas: {
       params: OrganizationMemberParamSchema,
       body: UpdateOrganizationMemberRequestSchema,
       response: {
         200: OrganizationMembershipEnvelopeResponseSchema,
-        400: InternalErrorSchema,
+        400: PermissionConflictErrorSchema,
+        403: StepUpRequiredErrorSchema.extend(PermissionConflictErrorSchema.shape),
         404: InternalErrorSchema,
       },
     },
@@ -203,6 +210,7 @@ organizationRouter.delete(
       response: {
         200: MessageSchema,
         400: InternalErrorSchema,
+        403: PermissionConflictErrorSchema,
         404: InternalErrorSchema,
       },
     },

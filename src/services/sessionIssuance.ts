@@ -165,7 +165,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     authTime: now,
   });
 
-  const token = await mintAccessToken({
+  const { token } = await mintAccessToken({
     session: { id: session.id, organizationId, recovery },
     user,
   });

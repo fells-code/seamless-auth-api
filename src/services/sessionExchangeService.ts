@@ -208,9 +208,13 @@ async function consumeAndIssue(
     );
 
     // Inside, so a signing failure hands the token back rather than spending it.
-    const token = await mintAccessToken({ session: child, user, transaction });
+    const minted = await mintAccessToken({
+      session: { id: child.id, organizationId: parent.organizationId, recovery: false },
+      user,
+      transaction,
+    });
 
-    return { child, token };
+    return { child, ...minted };
   });
 
   if (!issued) return null;
@@ -223,7 +227,7 @@ async function consumeAndIssue(
       refreshToken,
       sub: user.id,
       sessionId: issued.child.id,
-      organizationId: parent.organizationId,
+      organizationId: issued.organizationId,
       roles: user.roles,
       email: user.email,
       phone: user.phone,

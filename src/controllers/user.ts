@@ -45,7 +45,9 @@ export const getUser = async (req: Request, res: Response) => {
         }),
         listOrganizationsForUser(authUser.id),
         resolveAuthorization({
+          userId: authUser.id,
           roles: authUser.roles,
+          organizationId: authReq.organizationId,
           recovery: authReq.recoverySession === true,
         }),
       ]);
@@ -60,6 +62,8 @@ export const getUser = async (req: Request, res: Response) => {
           lastLogin: authUser.lastLogin,
           activeOrganizationId,
           permissions: authorization.permissions,
+          organizationRoles: authorization.organizationRoles,
+          organizationPermissions: authorization.organizationPermissions,
         },
         credentials: credentials.map(serializeCredential),
         organizations,

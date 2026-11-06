@@ -148,7 +148,7 @@ describe('refreshSession', () => {
         refreshTokenLookup: 'new-refresh-lookup',
       }),
     );
-    expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, undefined, {
+    expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, null, {
       recovery: false,
       authorization: { permissions: [] },
     });
@@ -159,7 +159,7 @@ describe('refreshSession', () => {
       refreshToken: 'new-raw-refresh-token',
       sub: user.id,
       roles: user.roles,
-      organizationId: undefined,
+      organizationId: null,
       sessionId: 'session-2',
       email: user.email,
       phone: user.phone,

@@ -28,12 +28,14 @@ import {
   normalizeMembershipValues,
   normalizeOrganizationRoles,
   normalizeOrganizationSlug,
+  refusedRoleChanges,
   requireOrganizationAccess,
   requireOrganizationManager,
   serializeMembership,
   serializeOrganization,
   setOAuthProviderRetired,
 } from '../services/organizationService.js';
+import { assertOrganizationRolesExist, PermissionError } from '../services/permissionService.js';
 import { AuthenticatedRequest, RouteRequest } from '../types/types.js';
 import { parseDurationToSeconds } from '../utils/utils.js';
 
@@ -47,6 +49,41 @@ function currentOrganizationId(req: Request) {
 
 function currentSessionId(req: Request) {
   return (req as AuthenticatedRequest).sessionId;
+}
+
+function sendPermissionError(res: Response, error: unknown) {
+  if (error instanceof PermissionError) {
+    return res.status(error.status).json({ error: error.message, details: error.details });
+  }
+
+  throw error;
+}
+
+/** ADR 0004, P7. Answers and audits the refusal, and returns whether it did. */
+async function refuseRoleChange(
+  req: RouteRequest,
+  res: Response,
+  managerMembership: OrganizationMembership | null,
+  targetUserId: string,
+  current: string[],
+  next: string[],
+) {
+  const user = authUser(req);
+  const refused = await refusedRoleChanges(user, managerMembership, current, next);
+
+  if (refused.length === 0) return false;
+
+  await AuthEventService.log({
+    actorUserId: user.id,
+    userId: targetUserId,
+    type: 'organization_member_role_grant_refused',
+    req,
+    metadata: { organizationId: req.params.organizationId, roles: refused },
+  });
+
+  res.status(403).json({ error: 'Not allowed to change these roles', details: { roles: refused } });
+
+  return true;
 }
 
 export async function listOrganizations(req: Request, res: Response) {
@@ -169,7 +206,11 @@ export async function switchOrganization(req: RouteRequest, res: Response) {
   }
 
   await session.update({ organizationId: organization.id });
-  const token = await mintAccessToken({ session, user });
+  const { token } = await mintAccessToken({
+    session: { id: session.id, organizationId: organization.id, recovery: session.recovery },
+    user,
+    membership,
+  });
 
   const { access_token_ttl } = await getSystemConfig();
   return res.json({
@@ -221,12 +262,24 @@ export async function addMember(req: RouteRequest, res: Response) {
     return res.status(409).json({ error: 'User is already an organization member' });
   }
 
+  const roles = normalizeOrganizationRoles(req.body.roles);
+
   try {
+    await assertOrganizationRolesExist(roles);
+
     const membership = await OrganizationMembership.create({
       organizationId,
       userId: memberUser.id,
-      roles: normalizeOrganizationRoles(req.body.roles),
+      roles,
       scopes: normalizeMembershipValues(req.body.scopes),
+    });
+
+    await AuthEventService.log({
+      actorUserId: user.id,
+      userId: memberUser.id,
+      type: 'organization_member_added',
+      req,
+      metadata: { organizationId, roles },
     });
 
     return res.status(201).json({
@@ -241,14 +294,17 @@ export async function addMember(req: RouteRequest, res: Response) {
       return res.status(409).json({ error: 'User is already an organization member' });
     }
 
-    throw error;
+    return sendPermissionError(res, error);
   }
 }
 
 export async function updateMember(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId, userId } = req.params;
-  const { organization } = await requireOrganizationManager(user, organizationId);
+  const { organization, membership: managerMembership } = await requireOrganizationManager(
+    user,
+    organizationId,
+  );
 
   if (!organization) {
     return res.status(404).json({ error: 'Organization not found' });
@@ -262,6 +318,16 @@ export async function updateMember(req: RouteRequest, res: Response) {
 
   const nextRoles =
     req.body.roles === undefined ? membership.roles : normalizeOrganizationRoles(req.body.roles);
+  const currentRoles = membership.roles ?? [];
+
+  if (await refuseRoleChange(req, res, managerMembership, userId, currentRoles, nextRoles)) return;
+
+  // Only what is being added: a member keeps a legacy role the catalogue has since lost.
+  try {
+    await assertOrganizationRolesExist(nextRoles.filter((role) => !currentRoles.includes(role)));
+  } catch (error) {
+    return sendPermissionError(res, error);
+  }
 
   if (membership.roles?.includes('owner') && !nextRoles.includes('owner')) {
     const ownerCount = await countOwners(organizationId);
@@ -278,6 +344,19 @@ export async function updateMember(req: RouteRequest, res: Response) {
         : normalizeMembershipValues(req.body.scopes),
   });
 
+  await AuthEventService.log({
+    actorUserId: user.id,
+    userId,
+    type: 'organization_member_updated',
+    req,
+    metadata: {
+      organizationId,
+      rolesAdded: nextRoles.filter((role) => !currentRoles.includes(role)),
+      rolesRemoved: currentRoles.filter((role) => !nextRoles.includes(role)),
+      ...(req.body.scopes === undefined ? {} : { scopes: membership.scopes }),
+    },
+  });
+
   const memberUser = await User.findByPk(userId);
 
   return res.json({
@@ -290,7 +369,10 @@ export async function updateMember(req: RouteRequest, res: Response) {
 export async function removeMember(req: RouteRequest, res: Response) {
   const user = authUser(req);
   const { organizationId, userId } = req.params;
-  const { organization } = await requireOrganizationManager(user, organizationId);
+  const { organization, membership: managerMembership } = await requireOrganizationManager(
+    user,
+    organizationId,
+  );
 
   if (!organization) {
     return res.status(404).json({ error: 'Organization not found' });
@@ -302,6 +384,11 @@ export async function removeMember(req: RouteRequest, res: Response) {
     return res.status(404).json({ error: 'Membership not found' });
   }
 
+  // Removing someone is the most complete way to take their roles, so the same rule holds.
+  if (await refuseRoleChange(req, res, managerMembership, userId, membership.roles ?? [], [])) {
+    return;
+  }
+
   if (membership.roles?.includes('owner')) {
     const ownerCount = await countOwners(organizationId);
     if (ownerCount <= 1) {
@@ -310,6 +397,14 @@ export async function removeMember(req: RouteRequest, res: Response) {
   }
 
   await membership.destroy();
+
+  await AuthEventService.log({
+    actorUserId: user.id,
+    userId,
+    type: 'organization_member_removed',
+    req,
+    metadata: { organizationId, roles: membership.roles ?? [] },
+  });
 
   return res.json({ message: 'Success' });
 }

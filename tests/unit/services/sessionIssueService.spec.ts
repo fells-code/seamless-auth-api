@@ -23,6 +23,7 @@ vi.mock('../../../src/config/getSystemConfig.js', () => ({
 }));
 
 vi.mock('../../../src/services/organizationService.js', () => ({
+  findMembership: vi.fn(async () => ({ roles: [] })),
   getDefaultOrganizationIdForUser: vi.fn(),
 }));
 
@@ -428,7 +429,7 @@ describe('issueSessionAndRespond', () => {
       'org-1',
       {
         recovery: false,
-        authorization: { permissions: [] },
+        authorization: { permissions: [], org_roles: [], org_permissions: [] },
       },
     );
   });

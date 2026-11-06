@@ -51,7 +51,7 @@ This differs from `requireRole`, deliberately. Roles keep their scoped matching.
 
 ### P4. A set that does not fit is omitted whole
 
-The permission arrays get 1 KiB, serialized, together. A server adapter keeps the whole access token inside a signed cookie, so it is base64 encoded twice under the browser's 4 KiB cookie limit, and a test builds that cookie at the budget. Over the budget both arrays are replaced with `"permissions_omitted": true`.
+The organization roles and the two permission arrays get 1 KiB, serialized, together. A server adapter keeps the whole access token inside a signed cookie, so it is base64 encoded twice under the browser's 4 KiB cookie limit, and a test builds that cookie at the budget. Over the budget all three are replaced with `"permissions_omitted": true`.
 
 Nothing is trimmed, because a partial list looks complete and denies silently. A guard that sees the marker reads `GET /users/me/permissions` with the caller's token and fails closed if it cannot. A plain 403 would turn an organization growing past a limit into an outage.
 

@@ -4779,6 +4779,594 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/organization-roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create an organization role
+     * @description Roles are instance-wide: any organization can assign one.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name: string;
+            description?: string;
+            permissions?: string[];
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "role": {
+             *         "name": "string",
+             *         "kind": null,
+             *         "description": "string",
+             *         "builtIn": true,
+             *         "permissions": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              role: {
+                name: string;
+                /** @enum {string} */
+                kind: 'instance' | 'organization';
+                description: string | null;
+                builtIn: boolean;
+                permissions: string[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "details": null
+             *     }
+             */
+            'application/json': {
+              error: string;
+              details?: {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "details": null
+             *     }
+             */
+            'application/json': {
+              error: string;
+              details?: {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/organization-roles/{roleName}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete an organization role
+     * @description Answers 409 for a built-in role and for a role any membership still holds.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          roleName: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "details": null
+             *     }
+             */
+            'application/json': {
+              error: string;
+              details?: {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Update an organization role's description */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          roleName: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            description: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "role": {
+             *         "name": "string",
+             *         "kind": null,
+             *         "description": "string",
+             *         "builtIn": true,
+             *         "permissions": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              role: {
+                name: string;
+                /** @enum {string} */
+                kind: 'instance' | 'organization';
+                description: string | null;
+                builtIn: boolean;
+                permissions: string[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
   '/admin/enrollment': {
     parameters: {
       query?: never;
@@ -6208,6 +6796,9 @@ export interface paths {
                 | 'admin_oidc_resource_created'
                 | 'admin_oidc_resource_deleted'
                 | 'admin_oidc_resource_updated'
+                | 'admin_organization_role_created'
+                | 'admin_organization_role_deleted'
+                | 'admin_organization_role_updated'
                 | 'admin_permission_created'
                 | 'admin_permission_deleted'
                 | 'admin_permission_updated'
@@ -6257,6 +6848,10 @@ export interface paths {
                 | 'oidc_token_issued'
                 | 'oidc_token_refreshed'
                 | 'oidc_token_revoked'
+                | 'organization_member_added'
+                | 'organization_member_removed'
+                | 'organization_member_role_grant_refused'
+                | 'organization_member_updated'
                 | 'otp_failed'
                 | 'otp_success'
                 | 'otp_suspicious'
@@ -6334,6 +6929,9 @@ export interface paths {
                     | 'admin_oidc_resource_created'
                     | 'admin_oidc_resource_deleted'
                     | 'admin_oidc_resource_updated'
+                    | 'admin_organization_role_created'
+                    | 'admin_organization_role_deleted'
+                    | 'admin_organization_role_updated'
                     | 'admin_permission_created'
                     | 'admin_permission_deleted'
                     | 'admin_permission_updated'
@@ -6383,6 +6981,10 @@ export interface paths {
                     | 'oidc_token_issued'
                     | 'oidc_token_refreshed'
                     | 'oidc_token_revoked'
+                    | 'organization_member_added'
+                    | 'organization_member_removed'
+                    | 'organization_member_role_grant_refused'
+                    | 'organization_member_updated'
                     | 'otp_failed'
                     | 'otp_success'
                     | 'otp_suspicious'
@@ -20297,23 +20899,13 @@ export interface paths {
             /**
              * @example {
              *       "error": "string",
-             *       "message": "string",
-             *       "details": {
-             *         "issues": [
-             *           null
-             *         ]
-             *       }
+             *       "details": null
              *     }
              */
             'application/json': {
               error: string;
-              message?: string;
               details?: {
-                issues: {
-                  path: (string | number)[];
-                  code: string;
-                  message: string;
-                }[];
+                [key: string]: unknown;
               };
             };
           };
@@ -20574,24 +21166,15 @@ export interface paths {
           content: {
             /**
              * @example {
-             *       "message": "string",
              *       "error": "string",
-             *       "fresh": true,
-             *       "method": null,
-             *       "verifiedAt": "string",
-             *       "expiresAt": "string",
-             *       "maxAgeSeconds": 0
+             *       "details": null
              *     }
              */
             'application/json': {
-              message?: string;
               error: string;
-              fresh?: boolean;
-              /** @enum {string|null} */
-              method?: 'webauthn' | 'totp' | null;
-              verifiedAt?: string | null;
-              expiresAt?: string | null;
-              maxAgeSeconds?: number;
+              details?: {
+                [key: string]: unknown;
+              };
             };
           };
         };
@@ -20653,7 +21236,10 @@ export interface paths {
     };
     options?: never;
     head?: never;
-    /** Update organization member */
+    /**
+     * Update organization member
+     * @description Only an owner or an instance `admin:write` can grant or remove `owner`, and any other manager can only grant a role whose permissions they hold. Added roles have to be in the catalogue.
+     */
     patch: {
       parameters: {
         query?: never;
@@ -20735,23 +21321,13 @@ export interface paths {
             /**
              * @example {
              *       "error": "string",
-             *       "message": "string",
-             *       "details": {
-             *         "issues": [
-             *           null
-             *         ]
-             *       }
+             *       "details": null
              *     }
              */
             'application/json': {
               error: string;
-              message?: string;
               details?: {
-                issues: {
-                  path: (string | number)[];
-                  code: string;
-                  message: string;
-                }[];
+                [key: string]: unknown;
               };
             };
           };
@@ -20770,7 +21346,8 @@ export interface paths {
              *       "method": null,
              *       "verifiedAt": "string",
              *       "expiresAt": "string",
-             *       "maxAgeSeconds": 0
+             *       "maxAgeSeconds": 0,
+             *       "details": null
              *     }
              */
             'application/json': {
@@ -20782,6 +21359,9 @@ export interface paths {
               verifiedAt?: string | null;
               expiresAt?: string | null;
               maxAgeSeconds?: number;
+              details?: {
+                [key: string]: unknown;
+              };
             };
           };
         };

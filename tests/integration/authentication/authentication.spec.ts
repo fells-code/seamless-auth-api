@@ -5,6 +5,7 @@ import { Application } from 'express';
 import { Credential } from '../../../src/models/credentials';
 import { createApp } from '../../../src/app';
 import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../../../src/lib/ephemeralTokenTtl';
+import { OrganizationMembership } from '../../../src/models/organizationMemberships';
 import { Session } from '../../../src/models/sessions';
 import { User } from '../../../src/models/users';
 import { buildUser } from '../../factories/userFactory';
@@ -683,7 +684,7 @@ describe('POST /refresh', () => {
       'new-session',
       expect.any(String),
       expect.any(Array),
-      undefined,
+      null,
       { recovery: false, authorization: { permissions: [] } },
     );
     expect(Session.create).toHaveBeenCalledWith(
@@ -694,6 +695,43 @@ describe('POST /refresh', () => {
       }),
     );
     expect(res.body.refreshToken).toBe('refresh');
+  });
+
+  it('stops issuing organization claims once the member has been removed', async () => {
+    const session = {
+      id: 'session-1',
+      replacedBySessionId: null,
+      revokedAt: null,
+      userId: 'user-1',
+      infraId: 'app',
+      mode: 'server',
+      userAgent: 'agent',
+      organizationId: '2c0d53c2-a541-452b-b71b-54c7f15e5877',
+      save: vi.fn(),
+    };
+
+    (findRefreshSessionByToken as any).mockResolvedValue(session);
+    (User.findOne as any).mockResolvedValue(buildUser());
+    (Session.create as any).mockResolvedValue({ id: 'new-session' });
+    (OrganizationMembership.findOne as any).mockResolvedValue(null);
+    (signAccessToken as any).mockResolvedValue('access');
+    (generateRefreshToken as any).mockReturnValue('refresh');
+    (createRefreshTokenLookup as any).mockReturnValue('refresh-lookup');
+    (getSystemConfig as any).mockResolvedValue({
+      access_token_ttl: '15m',
+      refresh_token_ttl: '1h',
+      session_idle_ttl: '8h',
+    });
+
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.organizationId).toBeNull();
+    expect((signAccessToken as any).mock.calls.at(-1)[3]).toBeNull();
+    expect(Session.update).toHaveBeenCalledWith(
+      { organizationId: null },
+      expect.objectContaining({ where: { id: 'new-session' } }),
+    );
   });
 
   describe('of an exchanged session', () => {

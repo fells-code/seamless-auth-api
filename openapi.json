@@ -4975,6 +4975,619 @@
         }
       }
     },
+    "/admin/organization-roles": {
+      "post": {
+        "summary": "Create an organization role",
+        "description": "Roles are instance-wide: any organization can assign one.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^(?!.*[_/\\\\\\s])(?=.{1,80}$)[A-Za-z0-9-]+(?::[A-Za-z0-9-]+)*$"
+                  },
+                  "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?!.*[_/\\\\\\s])(?=.{1,80}$)[A-Za-z0-9-]+(?::[A-Za-z0-9-]+)*$"
+                    },
+                    "maxItems": 200
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HTTP 201",
+            "content": {
+              "application/json": {
+                "example": {
+                  "role": {
+                    "name": "string",
+                    "kind": null,
+                    "description": "string",
+                    "builtIn": true,
+                    "permissions": [null]
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                        "kind": { "type": "string", "enum": ["instance", "organization"] },
+                        "description": { "type": "string", "nullable": true },
+                        "builtIn": { "type": "boolean" },
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^(?!.*[_/\\\\\\s])(?=.{1,80}$)[A-Za-z0-9-]+(?::[A-Za-z0-9-]+)*$"
+                          }
+                        }
+                      },
+                      "required": ["name", "kind", "description", "builtIn", "permissions"]
+                    }
+                  },
+                  "required": ["role"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "details": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "details": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/organization-roles/{roleName}": {
+      "patch": {
+        "summary": "Update an organization role's description",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "required": true,
+            "name": "roleName",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": ["description"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "role": {
+                    "name": "string",
+                    "kind": null,
+                    "description": "string",
+                    "builtIn": true,
+                    "permissions": [null]
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                        "kind": { "type": "string", "enum": ["instance", "organization"] },
+                        "description": { "type": "string", "nullable": true },
+                        "builtIn": { "type": "boolean" },
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^(?!.*[_/\\\\\\s])(?=.{1,80}$)[A-Za-z0-9-]+(?::[A-Za-z0-9-]+)*$"
+                          }
+                        }
+                      },
+                      "required": ["name", "kind", "description", "builtIn", "permissions"]
+                    }
+                  },
+                  "required": ["role"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an organization role",
+        "description": "Answers 409 for a built-in role and for a role any membership still holds.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "required": true,
+            "name": "roleName",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "error": "string", "details": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/enrollment": {
       "get": {
         "summary": "Passkey enrollment progress",
@@ -6577,6 +7190,9 @@
                     "admin_oidc_resource_created",
                     "admin_oidc_resource_deleted",
                     "admin_oidc_resource_updated",
+                    "admin_organization_role_created",
+                    "admin_organization_role_deleted",
+                    "admin_organization_role_updated",
                     "admin_permission_created",
                     "admin_permission_deleted",
                     "admin_permission_updated",
@@ -6626,6 +7242,10 @@
                     "oidc_token_issued",
                     "oidc_token_refreshed",
                     "oidc_token_revoked",
+                    "organization_member_added",
+                    "organization_member_removed",
+                    "organization_member_role_grant_refused",
+                    "organization_member_updated",
                     "otp_failed",
                     "otp_success",
                     "otp_suspicious",
@@ -6709,6 +7329,9 @@
                           "admin_oidc_resource_created",
                           "admin_oidc_resource_deleted",
                           "admin_oidc_resource_updated",
+                          "admin_organization_role_created",
+                          "admin_organization_role_deleted",
+                          "admin_organization_role_updated",
                           "admin_permission_created",
                           "admin_permission_deleted",
                           "admin_permission_updated",
@@ -6758,6 +7381,10 @@
                           "oidc_token_issued",
                           "oidc_token_refreshed",
                           "oidc_token_revoked",
+                          "organization_member_added",
+                          "organization_member_removed",
+                          "organization_member_role_grant_refused",
+                          "organization_member_updated",
                           "otp_failed",
                           "otp_success",
                           "otp_suspicious",
@@ -21069,37 +21696,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
-                },
+                "example": { "error": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": { "type": "string" },
-                    "message": { "type": "string" },
-                    "details": {
-                      "type": "object",
-                      "properties": {
-                        "issues": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "path": {
-                                "type": "array",
-                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
-                              },
-                              "code": { "type": "string" },
-                              "message": { "type": "string" }
-                            },
-                            "required": ["path", "code", "message"]
-                          }
-                        }
-                      },
-                      "required": ["issues"]
-                    }
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
                   },
                   "required": ["error"]
                 }
@@ -21197,6 +21799,7 @@
     "/organizations/{organizationId}/members/{userId}": {
       "patch": {
         "summary": "Update organization member",
+        "description": "Only an owner or an instance `admin:write` can grant or remove `owner`, and any other manager can only grant a role whose permissions they hold. Added roles have to be in the catalogue.",
         "tags": ["Organizations"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -21298,37 +21901,12 @@
             "description": "HTTP 400",
             "content": {
               "application/json": {
-                "example": {
-                  "error": "string",
-                  "message": "string",
-                  "details": { "issues": [null] }
-                },
+                "example": { "error": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": { "type": "string" },
-                    "message": { "type": "string" },
-                    "details": {
-                      "type": "object",
-                      "properties": {
-                        "issues": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "path": {
-                                "type": "array",
-                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
-                              },
-                              "code": { "type": "string" },
-                              "message": { "type": "string" }
-                            },
-                            "required": ["path", "code", "message"]
-                          }
-                        }
-                      },
-                      "required": ["issues"]
-                    }
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
                   },
                   "required": ["error"]
                 }
@@ -21346,7 +21924,8 @@
                   "method": null,
                   "verifiedAt": "string",
                   "expiresAt": "string",
-                  "maxAgeSeconds": 0
+                  "maxAgeSeconds": 0,
+                  "details": null
                 },
                 "schema": {
                   "type": "object",
@@ -21361,7 +21940,8 @@
                     },
                     "verifiedAt": { "type": "string", "nullable": true },
                     "expiresAt": { "type": "string", "nullable": true },
-                    "maxAgeSeconds": { "type": "number" }
+                    "maxAgeSeconds": { "type": "number" },
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
                   },
                   "required": ["error"]
                 }
@@ -21589,29 +22169,12 @@
             "description": "HTTP 403",
             "content": {
               "application/json": {
-                "example": {
-                  "message": "string",
-                  "error": "string",
-                  "fresh": true,
-                  "method": null,
-                  "verifiedAt": "string",
-                  "expiresAt": "string",
-                  "maxAgeSeconds": 0
-                },
+                "example": { "error": "string", "details": null },
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "message": { "type": "string" },
                     "error": { "type": "string" },
-                    "fresh": { "type": "boolean" },
-                    "method": {
-                      "type": "string",
-                      "nullable": true,
-                      "enum": ["webauthn", "totp", null]
-                    },
-                    "verifiedAt": { "type": "string", "nullable": true },
-                    "expiresAt": { "type": "string", "nullable": true },
-                    "maxAgeSeconds": { "type": "number" }
+                    "details": { "type": "object", "additionalProperties": { "nullable": true } }
                   },
                   "required": ["error"]
                 }

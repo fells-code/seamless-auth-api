@@ -50,6 +50,7 @@ const PREFIX_CATEGORIES: ReadonlyArray<[string, AuthEventCategory]> = [
   ['system_config_', 'system'],
   ['policy_', 'system'],
   ['admin_', 'system'],
+  ['organization_member_', 'system'],
   ['user_data_', 'system'],
 ];
 
