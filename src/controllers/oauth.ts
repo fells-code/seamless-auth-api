@@ -106,7 +106,7 @@ export async function startOAuthLogin(req: RouteRequest, res: Response) {
     const detail =
       error instanceof OAuthRedirectNotAllowedError ? 'redirect_not_allowed' : 'provider_unusable';
 
-    logger.warn(`OAuth start failed for provider ${provider.id}: ${String(error)}`);
+    logger.warn(`OAuth start failed for provider ${providerId}: ${String(error)}`);
 
     await AuthEventService.log({
       type: 'oauth_login_failed',
