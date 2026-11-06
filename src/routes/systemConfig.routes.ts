@@ -70,8 +70,9 @@ const systemConfigRouter = createRouter('/system-config');
 
 // Unauthenticated on purpose. The bundled sign-in screens render before anyone
 // has a session, and this is what lets them offer the methods an instance
-// actually has enabled instead of a hardcoded guess. It exposes only the login
-// method list, which the sign-in screens already reveal by their behaviour.
+// actually has enabled instead of a hardcoded guess. It exposes only what a sign-in
+// already reveals: the login method list, which the screens show by their behaviour,
+// and the provider's issuer and a public client's id, both in every authorization URL.
 systemConfigRouter.get(
   '/public',
   {

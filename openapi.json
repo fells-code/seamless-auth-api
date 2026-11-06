@@ -14847,7 +14847,7 @@
                           },
                           "deviceFlowEnabled": { "type": "boolean" },
                           "noticesEnabled": { "type": "boolean" },
-                          "sessionExchangeEnabled": { "type": "boolean" },
+                          "sessionExchangeEnabled": { "type": "boolean", "default": false },
                           "pkceRequired": { "type": "boolean" },
                           "nonceRequired": { "type": "boolean" },
                           "jwks": {
@@ -14898,7 +14898,6 @@
                           "grantTypes",
                           "deviceFlowEnabled",
                           "noticesEnabled",
-                          "sessionExchangeEnabled",
                           "pkceRequired",
                           "nonceRequired",
                           "jwks",
@@ -15106,7 +15105,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
-                    "sessionExchangeEnabled": true,
+                    "sessionExchangeEnabled": null,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -15159,7 +15158,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
-                        "sessionExchangeEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean", "default": false },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -15210,7 +15209,6 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
-                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -15369,7 +15367,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
-                    "sessionExchangeEnabled": true,
+                    "sessionExchangeEnabled": null,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -15421,7 +15419,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
-                        "sessionExchangeEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean", "default": false },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -15472,7 +15470,6 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
-                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -15713,7 +15710,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
-                    "sessionExchangeEnabled": true,
+                    "sessionExchangeEnabled": null,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -15765,7 +15762,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
-                        "sessionExchangeEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean", "default": false },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -15816,7 +15813,6 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
-                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -16233,7 +16229,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
-                    "sessionExchangeEnabled": true,
+                    "sessionExchangeEnabled": null,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -16286,7 +16282,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
-                        "sessionExchangeEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean", "default": false },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -16337,7 +16333,6 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
-                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -16557,7 +16552,7 @@
                     "grantTypes": [null],
                     "deviceFlowEnabled": true,
                     "noticesEnabled": true,
-                    "sessionExchangeEnabled": true,
+                    "sessionExchangeEnabled": null,
                     "pkceRequired": true,
                     "nonceRequired": true,
                     "jwks": { "keys": [null] },
@@ -16609,7 +16604,7 @@
                         },
                         "deviceFlowEnabled": { "type": "boolean" },
                         "noticesEnabled": { "type": "boolean" },
-                        "sessionExchangeEnabled": { "type": "boolean" },
+                        "sessionExchangeEnabled": { "type": "boolean", "default": false },
                         "pkceRequired": { "type": "boolean" },
                         "nonceRequired": { "type": "boolean" },
                         "jwks": {
@@ -16660,7 +16655,6 @@
                         "grantTypes",
                         "deviceFlowEnabled",
                         "noticesEnabled",
-                        "sessionExchangeEnabled",
                         "pkceRequired",
                         "nonceRequired",
                         "jwks",
@@ -24520,7 +24514,8 @@
                 "example": {
                   "loginMethods": [null],
                   "recoveryCodes": true,
-                  "accountRecovery": true
+                  "accountRecovery": true,
+                  "oidcProvider": { "issuer": null, "cliClientId": "string" }
                 },
                 "schema": {
                   "type": "object",
@@ -24534,7 +24529,15 @@
                       "minItems": 1
                     },
                     "recoveryCodes": { "type": "boolean" },
-                    "accountRecovery": { "type": "boolean" }
+                    "accountRecovery": { "type": "boolean" },
+                    "oidcProvider": {
+                      "type": "object",
+                      "properties": {
+                        "issuer": { "type": "string", "format": "uri" },
+                        "cliClientId": { "type": "string", "minLength": 1 }
+                      },
+                      "required": ["issuer", "cliClientId"]
+                    }
                   },
                   "required": ["loginMethods"]
                 }
@@ -24687,6 +24690,7 @@
                   "magic_link_redirect_uris": null,
                   "oidc_provider_enabled": null,
                   "oidc_issuer": null,
+                  "oidc_cli_client_id": null,
                   "allow_client_secrets": null,
                   "third_party_clients_enabled": null,
                   "hosted_ui": null
@@ -24973,6 +24977,12 @@
                       "type": "string",
                       "nullable": true,
                       "format": "uri",
+                      "default": null
+                    },
+                    "oidc_cli_client_id": {
+                      "type": "string",
+                      "nullable": true,
+                      "minLength": 1,
                       "default": null
                     },
                     "allow_client_secrets": { "type": "boolean", "default": false },
@@ -25378,6 +25388,7 @@
                   },
                   "oidc_provider_enabled": { "type": "boolean" },
                   "oidc_issuer": { "type": "string", "nullable": true, "format": "uri" },
+                  "oidc_cli_client_id": { "type": "string", "nullable": true, "minLength": 1 },
                   "allow_client_secrets": { "type": "boolean" },
                   "third_party_clients_enabled": { "type": "boolean" },
                   "hosted_ui": {

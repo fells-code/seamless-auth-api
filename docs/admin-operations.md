@@ -321,6 +321,8 @@ the API log.
 
 The applications (clients) of the OpenID Provider service ([ADR 0001](./adr/0001-openid-provider.md), D12) are managed under `/admin/applications`. Reads need `admin:read`. Every write needs `admin:write` and a fresh step-up, and writes an `admin_oidc_application_*` auth event. The routes work whether or not `oidc_provider_enabled` is on, so applications can be set up before the provider service is deployed.
 
+To offer provider sign-in to a native admin tool, turn `sessionExchangeEnabled` on for its application, then name it with `oidc_cli_client_id` through `PATCH /system-config/admin`. `GET /system-config/public` advertises it while the provider is on and the application stays eligible ([ADR 0003](./adr/0003-native-admin-access.md)).
+
 | Route                                 | What it does                                                               |
 | ------------------------------------- | -------------------------------------------------------------------------- |
 | `GET /admin/applications`             | List applications.                                                         |

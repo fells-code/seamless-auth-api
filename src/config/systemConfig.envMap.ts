@@ -30,6 +30,7 @@ export const SYSTEM_CONFIG_ENV_MAP = {
   app_name: 'APP_NAME',
   oidc_provider_enabled: 'OIDC_PROVIDER_ENABLED',
   oidc_issuer: 'OIDC_ISSUER',
+  oidc_cli_client_id: 'OIDC_CLI_CLIENT_ID',
   allow_client_secrets: 'OIDC_ALLOW_CLIENT_SECRETS',
   third_party_clients_enabled: 'OIDC_THIRD_PARTY_CLIENTS_ENABLED',
   hosted_ui: 'OIDC_HOSTED_UI',

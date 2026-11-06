@@ -9,9 +9,24 @@ import {
   getSystemConfig,
   invalidateSystemConfigCache,
 } from '../../../src/config/getSystemConfig.js';
+import { OidcClient } from '../../../src/models/oidcClients.js';
 import { Session } from '../../../src/models/sessions.js';
 import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
+
+vi.mock('../../../src/models/oidcClients.js', () => ({
+  OidcClient: { findByPk: vi.fn() },
+}));
+
+const CLI_CLIENT = {
+  id: 'seamless-cli',
+  firstParty: true,
+  clientType: 'public',
+  tokenEndpointAuthMethod: 'none',
+  redirectUris: ['http://127.0.0.1/callback'],
+  sessionExchangeEnabled: true,
+  disabledAt: null,
+};
 
 let app: Application;
 
@@ -341,5 +356,103 @@ describe('GET /system-config/public', () => {
       buildSystemConfig({ account_recovery: { enabled: true, delay: '24h' } }),
     );
     expect((await request(app).get('/system-config/public')).body.accountRecovery).toBe(true);
+  });
+
+  describe('oidcProvider', () => {
+    const advertising = {
+      oidc_provider_enabled: true,
+      oidc_issuer: 'https://login.example.com',
+      oidc_cli_client_id: CLI_CLIENT.id,
+    };
+
+    it('advertises the issuer and client when every condition holds', async () => {
+      (getSystemConfig as any).mockResolvedValue(buildSystemConfig(advertising));
+      (OidcClient.findByPk as any).mockResolvedValue(CLI_CLIENT);
+
+      const res = await request(app).get('/system-config/public');
+
+      expect(res.body.oidcProvider).toEqual({
+        issuer: 'https://login.example.com',
+        cliClientId: CLI_CLIENT.id,
+      });
+      expect(res.headers['cache-control']).toBe('no-store');
+    });
+
+    it.each([
+      ['the provider is off', { oidc_provider_enabled: false }],
+      ['there is no issuer', { oidc_issuer: null }],
+      ['there is no client', { oidc_cli_client_id: null }],
+    ])('is absent, and reads no application, when %s', async (_name, overrides) => {
+      (getSystemConfig as any).mockResolvedValue(
+        buildSystemConfig({ ...advertising, ...overrides }),
+      );
+
+      const res = await request(app).get('/system-config/public');
+
+      expect(res.body).not.toHaveProperty('oidcProvider');
+      expect(OidcClient.findByPk).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['does not exist', null],
+      ['is disabled', { ...CLI_CLIENT, disabledAt: new Date() }],
+      ['has exchange off', { ...CLI_CLIENT, sessionExchangeEnabled: false }],
+    ])('is absent when the application %s', async (_name, client) => {
+      (getSystemConfig as any).mockResolvedValue(buildSystemConfig(advertising));
+      (OidcClient.findByPk as any).mockResolvedValue(client);
+
+      const res = await request(app).get('/system-config/public');
+
+      expect(res.body).not.toHaveProperty('oidcProvider');
+    });
+  });
+});
+
+describe('PATCH /system-config/admin oidc_cli_client_id', () => {
+  beforeEach(() => {
+    (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
+    (User.findAll as any).mockResolvedValue([]);
+    (SystemConfig.findAll as any).mockResolvedValue([]);
+  });
+
+  it('stores an eligible application', async () => {
+    (OidcClient.findByPk as any).mockResolvedValue(CLI_CLIENT);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ oidc_cli_client_id: CLI_CLIENT.id });
+
+    expect(res.status).toBe(200);
+    expect(SystemConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'oidc_cli_client_id', value: CLI_CLIENT.id }),
+      expect.anything(),
+    );
+  });
+
+  it.each([
+    ['unknown', null],
+    ['ineligible', { ...CLI_CLIENT, sessionExchangeEnabled: false }],
+  ])('refuses an %s application', async (_name, client) => {
+    (OidcClient.findByPk as any).mockResolvedValue(client);
+
+    const res = await request(app)
+      .patch('/system-config/admin')
+      .send({ oidc_cli_client_id: 'nope' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid OpenID Provider config');
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  // system_config.value is NOT NULL, so a null is stored as no row at all.
+  it('removes the row to clear the key, without looking up an application', async () => {
+    const res = await request(app).patch('/system-config/admin').send({ oidc_cli_client_id: null });
+
+    expect(res.status).toBe(200);
+    expect(OidcClient.findByPk).not.toHaveBeenCalled();
+    expect(SystemConfig.upsert).not.toHaveBeenCalled();
+    expect(SystemConfig.destroy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { key: 'oidc_cli_client_id' } }),
+    );
   });
 });
