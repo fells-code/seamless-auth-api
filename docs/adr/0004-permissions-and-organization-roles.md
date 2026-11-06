@@ -76,7 +76,7 @@ Sign-in, refresh, organization switch and session exchange all call `mintAccessT
 ## Consequences
 
 - **Staleness.** Permissions are as fresh as the access token TTL, the same as `roles`. `GET /users/me/permissions` is live for a check that cannot wait.
-- **Switching still needs `organization:read`.** A member without the scope, unless an `owner` or `admin`, cannot switch to the organization, so cannot reach its permissions unless it is their default. Kept as is: what a member may do is decided by the scopes an admin grants, and membership alone does not widen it.
+- **Switching still needs `organization:read`.** A member without the scope, unless an `owner` or `admin`, cannot switch to the organization, so cannot reach its permissions unless it is their default. Reviewed on 2026-11-06 and kept as is.
 - **Membership `scopes` stay out of the token.** They gate Seamless's own organization routes and are not app permissions.
 - **Assigning an unlisted organization role is now a 400**, which is a behavior change for callers that invented role names at runtime.
 - **Provider tokens are not covered.** `/oidc/sign` refuses unlisted claims, the provider's claims map replaces library defaults, `OidcAccountClaimsSchema` strips unknown keys, and its `org_id` is the default organization rather than the session's active one. seamless-auth-oidc-provider#47 takes that up and reuses these claim names.
