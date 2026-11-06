@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { isDeepStrictEqual } from 'node:util';
+
 import { oidcProviderConfigProblems } from '../lib/oidcProviderPolicy.js';
 import { SystemConfig } from '../models/systemConfig.js';
 import { SystemConfigSchema } from '../schemas/systemConfig.schema.js';
@@ -45,7 +47,9 @@ export async function bootstrapSystemConfig() {
           envValue,
         );
 
-        if (JSON.stringify(existing.value) !== JSON.stringify(parsed)) {
+        // Not a comparison of the serialized values: JSONB does not keep key order, so an
+        // object read back from the row can spell the same value in a different order.
+        if (!isDeepStrictEqual(existing.value, parsed)) {
           logger.warn(
             `Overwriting system_config "${key}" from env ${envVar}: the stored value differs and ` +
               `the row is not marked admin-managed (updatedBy IS NULL). If this value was changed ` +
