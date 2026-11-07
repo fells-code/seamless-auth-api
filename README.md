@@ -31,6 +31,31 @@ flowchart LR
 
 [How the pieces connect](https://docs.seamlessauth.com/start/overview/#how-the-pieces-connect) explains each hop. [Compatibility matrix](https://docs.seamlessauth.com/build/ecosystem/#compatibility-matrix) lists which package versions work together.
 
+### Sign in to any OIDC app
+
+Since v0.21 this API can also act as an OpenID Provider, so any app that speaks OpenID Connect or
+OAuth 2.0 (Grafana, GitLab, Argo CD, Auth.js, Spring Security, a reverse proxy) signs users in with
+passkeys or the other methods you allow and gets standard ID and access tokens, with no Seamless
+SDK. The OIDC endpoints and hosted sign-in pages live in a separate public service,
+[seamless-auth-oidc-provider](https://github.com/fells-code/seamless-auth-oidc-provider) (the
+login edge, npm `@seamless-auth/oidc-provider`). This API stays private and keeps the provider's
+keys and state. The provider is off by default: turn it on with `OIDC_PROVIDER_ENABLED`, set the
+issuer and provider signing keys, and deploy the edge next to the API.
+
+```mermaid
+flowchart LR
+  rp["Any OIDC app"] -- "OpenID Connect" --> edge
+  edge["seamless-auth-oidc-provider<br/>public: OIDC endpoints,<br/>hosted pages, cookies"] -- "its own service token" --> api
+  api["seamless-auth-api<br/>private: keys and provider state"] --> db[("Postgres")]
+  style edge stroke-width:3px
+```
+
+The provider is new and is not OpenID certified yet. The OpenID Foundation conformance suite runs
+against the edge, this API and Postgres in the edge repo's CI, on pull requests and daily
+([workflow](https://github.com/fells-code/seamless-auth-oidc-provider/actions/workflows/conformance.yml)).
+Start with the [OpenID Provider guide](https://docs.seamlessauth.com/build/openid-provider/); the
+design is [ADR 0001](./docs/adr/0001-openid-provider.md).
+
 ## Contents
 
 - [Start here](#start-here)
@@ -63,6 +88,9 @@ Seamless Auth API is the **open-source authentication engine** that powers Seaml
 - JWKS and token verification endpoints
 - Database models and migrations required for auth
 - The self-hostable admin console, served at `/console` (see below)
+- The private side of the optional OpenID Provider: the `/oidc/*` routes, provider signing keys,
+  and provider storage used by the separate
+  [login edge](https://github.com/fells-code/seamless-auth-oidc-provider)
 - Local development and self-hosting support
 
 Everything in this repository can be audited, modified, self-hosted, and run without any
@@ -454,6 +482,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 - [docs/extending.md](./docs/extending.md) for message-delivery providers and extension points
 - [docs/telemetry.md](./docs/telemetry.md) for the dimensions recorded on every auth event, the sign-in query, and what can be published
 - [docs/oauth.md](./docs/oauth.md) for OAuth provider setup and security behavior
+- [docs/adr/0001-openid-provider.md](./docs/adr/0001-openid-provider.md) for the OpenID Provider design, and the [OpenID Provider guide](https://docs.seamlessauth.com/build/openid-provider/) for running it
 - [docs/webauthn-prf.md](./docs/webauthn-prf.md) for PRF-capable passkey usage
 - [docs/fido-conformance.md](./docs/fido-conformance.md) for running the FIDO2 conformance tools locally
 - [docs/admin-operations.md](./docs/admin-operations.md) for scoped admin, recovery operations and staged policy changes
