@@ -114,7 +114,9 @@ then daily, and each run also logs the audit chain head as an external anchor. S
 
 Retention never deletes an event an [audit sink](#siem-streaming) has yet to deliver, so a sink
 that has fallen behind, or is turned off, holds retention back until it catches up or is
-deleted. Retention logs a warning while it is held.
+deleted. An event deleted before a SIEM receives it cannot be recovered, so a disabled sink
+holds retention until it is deleted. Retention logs a warning naming the holding sink while it
+is held.
 
 ### SIEM streaming
 

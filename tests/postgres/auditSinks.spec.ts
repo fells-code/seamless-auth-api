@@ -225,7 +225,7 @@ describe('audit sinks against the chain', () => {
     expect(otlpLines).toHaveLength(0);
   });
 
-  it('keeps retention from deleting what a sink has yet to send', async () => {
+  it('keeps retention from deleting what a disabled sink has yet to send', async () => {
     await logEvents(4);
     const sink = await createSink(
       {

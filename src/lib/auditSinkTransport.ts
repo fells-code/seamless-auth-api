@@ -36,6 +36,7 @@ const MAX_RESPONSE_BYTES = 64 * 1024;
  * a private SD-ID to be `name@<IANA enterprise number>`. 32473 is the number RFC 5612 reserves
  * for documentation, a placeholder until Fells Code has its own.
  */
+// TODO(#586): replace 32473 with the Fells Code IANA enterprise number before release.
 export const SYSLOG_SD_ID = 'seamless@32473';
 
 export const AUDIT_SINK_SCOPE = 'seamless-auth.audit';
