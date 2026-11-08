@@ -2,7 +2,7 @@ import { Application } from 'express';
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { query } = vi.hoisted(() => ({ query: vi.fn() }));
+const { query, gate } = vi.hoisted(() => ({ query: vi.fn(), gate: { syslog: false } }));
 
 vi.mock('../../../src/models/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../src/models/index.js')>();
@@ -11,11 +11,17 @@ vi.mock('../../../src/models/index.js', async (importOriginal) => {
 
 vi.mock('../../../src/lib/auditSinkTransport.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../src/lib/auditSinkTransport.js')>();
-  return { ...actual, sendToSink: vi.fn() };
+  return {
+    ...actual,
+    sendToSink: vi.fn(),
+    get SYSLOG_SINKS_AVAILABLE() {
+      return gate.syslog;
+    },
+  };
 });
 
 import { createApp } from '../../../src/app';
-import { sendToSink } from '../../../src/lib/auditSinkTransport.js';
+import { sendToSink, SYSLOG_UNAVAILABLE } from '../../../src/lib/auditSinkTransport.js';
 import { AuditSink } from '../../../src/models/auditSinks.js';
 import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
@@ -62,6 +68,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  gate.syslog = false;
   (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   query.mockResolvedValue([{ head: '42', oldest: '1' }]);
 });
@@ -111,7 +118,29 @@ describe('audit sinks', () => {
     expect(AuditSink.create).not.toHaveBeenCalled();
   });
 
+  it('refuses a syslog sink until its SD-ID is registered', async () => {
+    const created = await request(app)
+      .post('/admin/audit-sinks')
+      .send({ name: 'SIEM', settings: { kind: 'syslog', host: 'collector.example.com' } });
+
+    expect(created.status).toBe(400);
+    expect(created.body.error).toBe(SYSLOG_UNAVAILABLE);
+    expect(AuditSink.create).not.toHaveBeenCalled();
+
+    const record = buildSink();
+    vi.mocked(AuditSink.findByPk).mockResolvedValue(record);
+
+    const updated = await request(app)
+      .patch(`/admin/audit-sinks/${sinkId}`)
+      .send({ settings: { kind: 'syslog', host: 'collector.example.com' } });
+
+    expect(updated.status).toBe(400);
+    expect(updated.body.error).toBe(SYSLOG_UNAVAILABLE);
+    expect(record.update).not.toHaveBeenCalled();
+  });
+
   it('refuses plain TCP syslog in production', async () => {
+    gate.syslog = true;
     vi.stubEnv('NODE_ENV', 'production');
 
     const res = await request(app)
@@ -138,6 +167,7 @@ describe('audit sinks', () => {
   });
 
   it('reads, updates and deletes a sink, auditing each write', async () => {
+    gate.syslog = true;
     const record = buildSink();
     vi.mocked(AuditSink.findByPk).mockResolvedValue(record);
 
