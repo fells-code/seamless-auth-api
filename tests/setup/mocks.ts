@@ -212,6 +212,15 @@ vi.mock('../../src/models/webhookDeliveries.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/customClaims.js', () => ({
+  CustomClaim: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findOne: vi.fn(async () => null),
+    destroy: vi.fn(async () => 0),
+  },
+}));
+
 vi.mock('../../src/models/loginHooks.js', () => ({
   LoginHook: {
     create: vi.fn(),
