@@ -17647,23 +17647,18 @@
                   "type": "object",
                   "properties": {
                     "error": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "malformed_signing_input",
-                            "unknown_key",
-                            "session_revoked",
-                            "subject_mismatch",
-                            "auth_context_mismatch",
-                            "claims_mismatch",
-                            "issuer_mismatch",
-                            "audience_mismatch",
-                            "client_inactive",
-                            "grant_not_allowed"
-                          ]
-                        },
-                        { "type": "string", "enum": ["claims_mismatch"] }
+                      "type": "string",
+                      "enum": [
+                        "malformed_signing_input",
+                        "unknown_key",
+                        "session_revoked",
+                        "subject_mismatch",
+                        "auth_context_mismatch",
+                        "claims_mismatch",
+                        "issuer_mismatch",
+                        "audience_mismatch",
+                        "client_inactive",
+                        "grant_not_allowed"
                       ]
                     },
                     "message": { "type": "string" }
@@ -17695,23 +17690,18 @@
                   "type": "object",
                   "properties": {
                     "error": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "malformed_signing_input",
-                            "unknown_key",
-                            "session_revoked",
-                            "subject_mismatch",
-                            "auth_context_mismatch",
-                            "claims_mismatch",
-                            "issuer_mismatch",
-                            "audience_mismatch",
-                            "client_inactive",
-                            "grant_not_allowed"
-                          ]
-                        },
-                        { "type": "string", "enum": ["claims_mismatch"] }
+                      "type": "string",
+                      "enum": [
+                        "malformed_signing_input",
+                        "unknown_key",
+                        "session_revoked",
+                        "subject_mismatch",
+                        "auth_context_mismatch",
+                        "claims_mismatch",
+                        "issuer_mismatch",
+                        "audience_mismatch",
+                        "client_inactive",
+                        "grant_not_allowed"
                       ]
                     },
                     "message": { "type": "string" }
@@ -18422,10 +18412,172 @@
                     "org_permissions": { "type": "array", "items": { "type": "string" } },
                     "customClaims": {
                       "type": "object",
-                      "additionalProperties": { "nullable": true }
+                      "additionalProperties": {
+                        "anyOf": [
+                          { "type": "string" },
+                          { "type": "number" },
+                          { "type": "boolean" },
+                          { "nullable": true },
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "number" },
+                                { "type": "boolean" },
+                                { "nullable": true },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "number" },
+                                { "type": "boolean" },
+                                { "nullable": true },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "default": {}
                     }
                   },
-                  "required": ["sub", "roles", "org_id", "customClaims"]
+                  "required": ["sub", "roles", "org_id"]
                 }
               }
             }

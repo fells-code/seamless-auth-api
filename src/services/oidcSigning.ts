@@ -29,18 +29,9 @@ import { getActiveOidcSigningKey, OidcProviderKeysError } from './oidcProviderKe
 
 type JsonObject = Record<string, unknown>;
 
-/**
- * `claims_mismatch`: the account claims in the signing input are not what the API computes for
- * the session and client now. A role or membership can change between the edge's account read
- * and its sign, so the edge reads the account again and retries once. Not yet in the shared
- * refusal codes.
- */
-export const CLAIMS_MISMATCH = 'claims_mismatch';
-export type SignRefusalCode = OidcSignRefusalCode | typeof CLAIMS_MISMATCH;
-
 export type OidcSignOutcome =
   | { ok: true; kid: string; signature: string }
-  | { ok: false; code: SignRefusalCode; userId?: string };
+  | { ok: false; code: OidcSignRefusalCode; userId?: string };
 
 // Anything else in the header (jku, x5u, jwk, crit) would let a verifier be pointed at a
 // key we do not control, so it is refused rather than signed.
@@ -131,7 +122,7 @@ function isSessionExchangeToken(request: OidcSignRequest, claims: JsonObject) {
   return request.kind === 'access_token' && scopesOf(claims).includes(SESSION_EXCHANGE_SCOPE);
 }
 
-function refuse(code: SignRefusalCode, userId?: string): OidcSignOutcome {
+function refuse(code: OidcSignRefusalCode, userId?: string): OidcSignOutcome {
   return { ok: false, code, ...(userId ? { userId } : {}) };
 }
 
@@ -408,7 +399,7 @@ async function checkAccountClaims(
         !sameJson(claims[claim], expected[claim]),
     )
   ) {
-    return refuse(CLAIMS_MISMATCH, session.userId);
+    return refuse('claims_mismatch', session.userId);
   }
 
   const sets = [
@@ -417,7 +408,7 @@ async function checkAccountClaims(
   ];
   for (const set of sets) {
     const carried = set.filter((claim) => claim in claims).length;
-    if (carried > 0 && carried < set.length) return refuse(CLAIMS_MISMATCH, session.userId);
+    if (carried > 0 && carried < set.length) return refuse('claims_mismatch', session.userId);
   }
 
   return null;

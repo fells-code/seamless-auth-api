@@ -16866,20 +16866,18 @@ export interface paths {
              *     }
              */
             'application/json': {
+              /** @enum {string} */
               error:
-                | (
-                    | 'malformed_signing_input'
-                    | 'unknown_key'
-                    | 'session_revoked'
-                    | 'subject_mismatch'
-                    | 'auth_context_mismatch'
-                    | 'claims_mismatch'
-                    | 'issuer_mismatch'
-                    | 'audience_mismatch'
-                    | 'client_inactive'
-                    | 'grant_not_allowed'
-                  )
-                | 'claims_mismatch';
+                | 'malformed_signing_input'
+                | 'unknown_key'
+                | 'session_revoked'
+                | 'subject_mismatch'
+                | 'auth_context_mismatch'
+                | 'claims_mismatch'
+                | 'issuer_mismatch'
+                | 'audience_mismatch'
+                | 'client_inactive'
+                | 'grant_not_allowed';
               message?: string;
             };
           };
@@ -16915,20 +16913,18 @@ export interface paths {
              *     }
              */
             'application/json': {
+              /** @enum {string} */
               error:
-                | (
-                    | 'malformed_signing_input'
-                    | 'unknown_key'
-                    | 'session_revoked'
-                    | 'subject_mismatch'
-                    | 'auth_context_mismatch'
-                    | 'claims_mismatch'
-                    | 'issuer_mismatch'
-                    | 'audience_mismatch'
-                    | 'client_inactive'
-                    | 'grant_not_allowed'
-                  )
-                | 'claims_mismatch';
+                | 'malformed_signing_input'
+                | 'unknown_key'
+                | 'session_revoked'
+                | 'subject_mismatch'
+                | 'auth_context_mismatch'
+                | 'claims_mismatch'
+                | 'issuer_mismatch'
+                | 'audience_mismatch'
+                | 'client_inactive'
+                | 'grant_not_allowed';
               message?: string;
             };
           };
@@ -17707,8 +17703,68 @@ export interface paths {
               permissions_omitted?: true;
               org_roles?: string[];
               org_permissions?: string[];
+              /** @default {} */
               customClaims: {
-                [key: string]: unknown;
+                [key: string]:
+                  | string
+                  | number
+                  | boolean
+                  | unknown
+                  | (
+                      | string
+                      | number
+                      | boolean
+                      | unknown
+                      | (
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (string | number | boolean | unknown)[]
+                          | {
+                              [key: string]: string | number | boolean | unknown;
+                            }
+                        )[]
+                      | {
+                          [key: string]:
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              };
+                        }
+                    )[]
+                  | {
+                      [key: string]:
+                        | string
+                        | number
+                        | boolean
+                        | unknown
+                        | (
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              }
+                          )[]
+                        | {
+                            [key: string]:
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                };
+                          };
+                    };
               };
             };
           };

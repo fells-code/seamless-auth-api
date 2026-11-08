@@ -5,6 +5,7 @@
  */
 
 import {
+  OidcAccountClaimsSchema,
   OidcAccountIdParamsSchema,
   OidcAccountQuerySchema,
   OidcAuthContextSchema,
@@ -26,6 +27,7 @@ import {
   OidcSessionIdParamsSchema,
   OidcSessionQuerySchema,
   OidcSessionRevokeRequestSchema,
+  OidcSignRefusalSchema,
   OidcSignRequestSchema,
   OidcSignResponseSchema,
   OidcVerifySecretRequestSchema,
@@ -60,10 +62,6 @@ import {
   requireOidcEdge,
 } from '../middleware/requireOidcEdge.js';
 import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
-import {
-  OidcAccountClaimsResponseSchema,
-  OidcSignRefusalSchema,
-} from '../schemas/oidcEdge.responses.js';
 
 /**
  * Service-token routes for the OpenID Provider service (ADR 0001, D2). Despite the path,
@@ -257,7 +255,7 @@ oidcRouter.get(
     schemas: {
       params: OidcAccountIdParamsSchema,
       query: OidcAccountQuerySchema,
-      response: { 200: OidcAccountClaimsResponseSchema, ...guarded },
+      response: { 200: OidcAccountClaimsSchema, ...guarded },
     },
   },
   getOidcAccount,

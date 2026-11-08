@@ -6,7 +6,6 @@
 
 import type { CustomClaimSet, OidcAccountClaims } from '@seamless-auth/types';
 
-import type { AuthorizationClaims } from '../lib/token.js';
 import { User } from '../models/users.js';
 import {
   AUTHORIZATION_CLAIMS_BUDGET_BYTES,
@@ -16,15 +15,6 @@ import {
 import { AuthEventService } from './authEventService.js';
 import { resolveCustomClaims } from './customClaimService.js';
 import { isUuid } from './oidcAuthContext.js';
-
-/**
- * What the API releases about the user behind a provider sign-in, for one client. The permission
- * claims and `org_id` use the first-party names (ADR 0004) and the session's active organization.
- * `customClaims` is the merged, budgeted set (ADR 0005 E6), kept apart so the edge can release it
- * under its own scope.
- */
-export type OidcProviderAccountClaims = OidcAccountClaims &
-  AuthorizationClaims & { customClaims: Record<string, unknown> };
 
 type ProviderSession = {
   id: string;
@@ -44,13 +34,14 @@ export const PERMISSION_CLAIMS = [
 
 /**
  * Computed the way `mintAccessToken` computes a first-party token, plus the client's own set,
- * so `/oidc/accounts/:id` and `/oidc/sign` arrive at the same values.
+ * so `/oidc/accounts/:id` and `/oidc/sign` arrive at the same values. `org_id` is the session's
+ * active organization, as in a first-party token.
  */
 export async function getOidcAccountClaims(
   session: ProviderSession,
   clientId: string,
   { recordOmission = false }: { recordOmission?: boolean } = {},
-): Promise<OidcProviderAccountClaims | null> {
+): Promise<OidcAccountClaims | null> {
   if (!isUuid(session.userId)) return null;
 
   const user = await User.findOne({ where: { id: session.userId } });
@@ -108,6 +99,6 @@ export async function getOidcAccountClaims(
 }
 
 /** Every claim a provider token for this account may carry, by the name it is signed under. */
-export function providerTokenClaims({ customClaims, ...claims }: OidcProviderAccountClaims) {
+export function providerTokenClaims({ customClaims, ...claims }: OidcAccountClaims) {
   return { ...customClaims, ...claims } as Record<string, unknown>;
 }
