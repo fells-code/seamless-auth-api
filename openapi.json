@@ -10737,7 +10737,168 @@
                           "sourceName": { "type": "string" },
                           "claims": {
                             "type": "object",
-                            "additionalProperties": { "nullable": true }
+                            "additionalProperties": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "number" },
+                                { "type": "boolean" },
+                                { "nullable": true },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": {
+                                                "anyOf": [
+                                                  { "type": "string" },
+                                                  { "type": "number" },
+                                                  { "type": "boolean" },
+                                                  { "nullable": true }
+                                                ]
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
                           },
                           "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
                         },
@@ -10863,7 +11024,168 @@
                         "sourceName": { "type": "string" },
                         "claims": {
                           "type": "object",
-                          "additionalProperties": { "nullable": true }
+                          "additionalProperties": {
+                            "anyOf": [
+                              { "type": "string" },
+                              { "type": "number" },
+                              { "type": "boolean" },
+                              { "nullable": true },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
                         },
                         "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
                       },
@@ -11018,7 +11340,171 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "claims": { "type": "object", "additionalProperties": { "nullable": true } }
+                  "claims": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        { "type": "string" },
+                        { "type": "number" },
+                        { "type": "boolean" },
+                        { "nullable": true },
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              { "type": "string" },
+                              { "type": "number" },
+                              { "type": "boolean" },
+                              { "nullable": true },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": {
+                            "anyOf": [
+                              { "type": "string" },
+                              { "type": "number" },
+                              { "type": "boolean" },
+                              { "nullable": true },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
                 },
                 "required": ["claims"]
               }
@@ -11051,7 +11537,168 @@
                         "sourceName": { "type": "string" },
                         "claims": {
                           "type": "object",
-                          "additionalProperties": { "nullable": true }
+                          "additionalProperties": {
+                            "anyOf": [
+                              { "type": "string" },
+                              { "type": "number" },
+                              { "type": "boolean" },
+                              { "nullable": true },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    { "type": "string" },
+                                    { "type": "number" },
+                                    { "type": "boolean" },
+                                    { "nullable": true },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          { "type": "string" },
+                                          { "type": "number" },
+                                          { "type": "boolean" },
+                                          { "nullable": true },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                              "anyOf": [
+                                                { "type": "string" },
+                                                { "type": "number" },
+                                                { "type": "boolean" },
+                                                { "nullable": true }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
                         },
                         "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
                       },
@@ -13945,6 +14592,7 @@
                       "nullable": true,
                       "enum": [
                         "refused",
+                        "misconfigured",
                         "timed_out",
                         "connection_failed",
                         "http_status",
@@ -14132,6 +14780,7 @@
                             "nullable": true,
                             "enum": [
                               "refused",
+                              "misconfigured",
                               "timed_out",
                               "connection_failed",
                               "http_status",
@@ -17007,6 +17656,7 @@
                             "session_revoked",
                             "subject_mismatch",
                             "auth_context_mismatch",
+                            "claims_mismatch",
                             "issuer_mismatch",
                             "audience_mismatch",
                             "client_inactive",
@@ -17054,6 +17704,7 @@
                             "session_revoked",
                             "subject_mismatch",
                             "auth_context_mismatch",
+                            "claims_mismatch",
                             "issuer_mismatch",
                             "audience_mismatch",
                             "client_inactive",
@@ -36278,6 +36929,7 @@
                       "nullable": true,
                       "enum": [
                         "refused",
+                        "misconfigured",
                         "timed_out",
                         "connection_failed",
                         "http_status",
@@ -36519,6 +37171,7 @@
                             "nullable": true,
                             "enum": [
                               "refused",
+                              "misconfigured",
                               "timed_out",
                               "connection_failed",
                               "http_status",
@@ -36735,6 +37388,7 @@
                           "nullable": true,
                           "enum": [
                             "refused",
+                            "misconfigured",
                             "timed_out",
                             "connection_failed",
                             "http_status",
@@ -37251,6 +37905,7 @@
                           "nullable": true,
                           "enum": [
                             "refused",
+                            "misconfigured",
                             "timed_out",
                             "connection_failed",
                             "http_status",

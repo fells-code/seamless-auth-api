@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import type { OidcAccountClaims } from '@seamless-auth/types';
+import type { CustomClaimSet, OidcAccountClaims } from '@seamless-auth/types';
 
 import type { AuthorizationClaims } from '../lib/token.js';
 import { User } from '../models/users.js';
@@ -102,7 +102,8 @@ export async function getOidcAccountClaims(
     roles: user.roles ?? [],
     org_id: authorization.organizationId,
     ...(recovery ? {} : budgeted.authorization),
-    customClaims: budgeted.customClaims,
+    // Every source is held to CustomClaimSetSchema when written, so the merged set is one.
+    customClaims: budgeted.customClaims as CustomClaimSet,
   };
 }
 

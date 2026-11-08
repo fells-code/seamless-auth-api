@@ -15,10 +15,12 @@ import {
   CUSTOM_CLAIMS_BUDGET_BYTES,
   customClaimsByteLength,
   isReservedClaimName,
+  type LoginDeniedError,
   LoginHookCallSchema,
   type LoginHookFailureMode,
   type LoginHookInvocationQuery,
   type LoginHookTrigger,
+  type LoginHookUnavailableError,
   PostLoginHookResultSchema,
   PreTokenHookResultSchema,
   type SetLoginHookRequest,
@@ -76,8 +78,7 @@ export type LoginHookVerdict =
   | { outcome: 'failed_closed' };
 
 export type LoginHookRefusal =
-  | { status: 403; body: { error: 'login_denied'; message?: string } }
-  | { status: 503; body: { error: 'login_hook_unavailable' } };
+  { status: 403; body: LoginDeniedError } | { status: 503; body: LoginHookUnavailableError };
 
 /**
  * What a sign-in answers when a hook stops it. A deny shows only the hook's `userMessage`, never

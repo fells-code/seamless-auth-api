@@ -10297,7 +10297,66 @@ export interface paths {
                 sourceKind: 'instance_role' | 'organization_role' | 'oidc_client';
                 sourceName: string;
                 claims: {
-                  [key: string]: unknown;
+                  [key: string]:
+                    | string
+                    | number
+                    | boolean
+                    | unknown
+                    | (
+                        | string
+                        | number
+                        | boolean
+                        | unknown
+                        | (
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              }
+                          )[]
+                        | {
+                            [key: string]:
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                };
+                          }
+                      )[]
+                    | {
+                        [key: string]:
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                }
+                            )[]
+                          | {
+                              [key: string]:
+                                | string
+                                | number
+                                | boolean
+                                | unknown
+                                | (string | number | boolean | unknown)[]
+                                | {
+                                    [key: string]: string | number | boolean | unknown;
+                                  };
+                            };
+                      };
                 };
                 /** Format: date-time */
                 updatedAt: string | null;
@@ -10425,7 +10484,66 @@ export interface paths {
                 sourceKind: 'instance_role' | 'organization_role' | 'oidc_client';
                 sourceName: string;
                 claims: {
-                  [key: string]: unknown;
+                  [key: string]:
+                    | string
+                    | number
+                    | boolean
+                    | unknown
+                    | (
+                        | string
+                        | number
+                        | boolean
+                        | unknown
+                        | (
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              }
+                          )[]
+                        | {
+                            [key: string]:
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                };
+                          }
+                      )[]
+                    | {
+                        [key: string]:
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                }
+                            )[]
+                          | {
+                              [key: string]:
+                                | string
+                                | number
+                                | boolean
+                                | unknown
+                                | (string | number | boolean | unknown)[]
+                                | {
+                                    [key: string]: string | number | boolean | unknown;
+                                  };
+                            };
+                      };
                 };
                 /** Format: date-time */
                 updatedAt: string | null;
@@ -10566,7 +10684,66 @@ export interface paths {
         content: {
           'application/json': {
             claims: {
-              [key: string]: unknown;
+              [key: string]:
+                | string
+                | number
+                | boolean
+                | unknown
+                | (
+                    | string
+                    | number
+                    | boolean
+                    | unknown
+                    | (
+                        | string
+                        | number
+                        | boolean
+                        | unknown
+                        | (string | number | boolean | unknown)[]
+                        | {
+                            [key: string]: string | number | boolean | unknown;
+                          }
+                      )[]
+                    | {
+                        [key: string]:
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (string | number | boolean | unknown)[]
+                          | {
+                              [key: string]: string | number | boolean | unknown;
+                            };
+                      }
+                  )[]
+                | {
+                    [key: string]:
+                      | string
+                      | number
+                      | boolean
+                      | unknown
+                      | (
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (string | number | boolean | unknown)[]
+                          | {
+                              [key: string]: string | number | boolean | unknown;
+                            }
+                        )[]
+                      | {
+                          [key: string]:
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              };
+                        };
+                  };
             };
           };
         };
@@ -10594,7 +10771,66 @@ export interface paths {
                 sourceKind: 'instance_role' | 'organization_role' | 'oidc_client';
                 sourceName: string;
                 claims: {
-                  [key: string]: unknown;
+                  [key: string]:
+                    | string
+                    | number
+                    | boolean
+                    | unknown
+                    | (
+                        | string
+                        | number
+                        | boolean
+                        | unknown
+                        | (
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              }
+                          )[]
+                        | {
+                            [key: string]:
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                };
+                          }
+                      )[]
+                    | {
+                        [key: string]:
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                }
+                            )[]
+                          | {
+                              [key: string]:
+                                | string
+                                | number
+                                | boolean
+                                | unknown
+                                | (string | number | boolean | unknown)[]
+                                | {
+                                    [key: string]: string | number | boolean | unknown;
+                                  };
+                            };
+                      };
                 };
                 /** Format: date-time */
                 updatedAt: string | null;
@@ -13514,6 +13750,7 @@ export interface paths {
               /** @enum {string|null} */
               failure:
                 | 'refused'
+                | 'misconfigured'
                 | 'timed_out'
                 | 'connection_failed'
                 | 'http_status'
@@ -13695,6 +13932,7 @@ export interface paths {
                 /** @enum {string|null} */
                 failure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
@@ -16635,6 +16873,7 @@ export interface paths {
                     | 'session_revoked'
                     | 'subject_mismatch'
                     | 'auth_context_mismatch'
+                    | 'claims_mismatch'
                     | 'issuer_mismatch'
                     | 'audience_mismatch'
                     | 'client_inactive'
@@ -16683,6 +16922,7 @@ export interface paths {
                     | 'session_revoked'
                     | 'subject_mismatch'
                     | 'auth_context_mismatch'
+                    | 'claims_mismatch'
                     | 'issuer_mismatch'
                     | 'audience_mismatch'
                     | 'client_inactive'
@@ -35482,6 +35722,7 @@ export interface paths {
               /** @enum {string|null} */
               failure:
                 | 'refused'
+                | 'misconfigured'
                 | 'timed_out'
                 | 'connection_failed'
                 | 'http_status'
@@ -35693,6 +35934,7 @@ export interface paths {
                 /** @enum {string|null} */
                 lastFailure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
@@ -35882,6 +36124,7 @@ export interface paths {
                 /** @enum {string|null} */
                 lastFailure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
@@ -36246,6 +36489,7 @@ export interface paths {
                 /** @enum {string|null} */
                 lastFailure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
