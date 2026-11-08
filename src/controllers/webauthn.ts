@@ -389,13 +389,17 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
       userId: user.id,
       type: 'registration_success',
       req,
-      metadata: breakGlassOverride
-        ? {
-            severity: 'high',
-            breakGlassWaived: ['authenticator_policy'],
-            authenticatorPolicyRefusal: verdict.detail,
-          }
-        : {},
+      metadata: {
+        credential: 'passkey',
+        credentialId: created.id,
+        ...(breakGlassOverride
+          ? {
+              severity: 'high',
+              breakGlassWaived: ['authenticator_policy'],
+              authenticatorPolicyRefusal: verdict.detail,
+            }
+          : {}),
+      },
     });
 
     if (breakGlassOverride) {

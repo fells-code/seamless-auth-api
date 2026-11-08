@@ -7293,7 +7293,14 @@
                     "webauthn_login_success",
                     "webauthn_registration_challenge",
                     "webauthn_registration_failed",
-                    "webauthn_registration_suspicious"
+                    "webauthn_registration_suspicious",
+                    "admin_webhook_created",
+                    "admin_webhook_deleted",
+                    "admin_webhook_redelivered",
+                    "admin_webhook_secret_rotated",
+                    "admin_webhook_updated",
+                    "session_created",
+                    "webhook_endpoint_disabled"
                   ]
                 },
                 { "type": "string" },
@@ -7432,7 +7439,14 @@
                           "webauthn_login_success",
                           "webauthn_registration_challenge",
                           "webauthn_registration_failed",
-                          "webauthn_registration_suspicious"
+                          "webauthn_registration_suspicious",
+                          "admin_webhook_created",
+                          "admin_webhook_deleted",
+                          "admin_webhook_redelivered",
+                          "admin_webhook_secret_rotated",
+                          "admin_webhook_updated",
+                          "session_created",
+                          "webhook_endpoint_disabled"
                         ]
                       },
                       { "type": "string" }
@@ -32709,6 +32723,2682 @@
           },
           "403": {
             "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhooks": {
+      "get": {
+        "summary": "List webhook endpoints",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "endpoints": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "url": { "type": "string" },
+                          "description": { "type": "string", "nullable": true },
+                          "eventTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "user.created",
+                                "user.deleted",
+                                "user.signed_in",
+                                "user.recovered",
+                                "session.revoked",
+                                "credential.added",
+                                "credential.removed",
+                                "organization.member_added",
+                                "organization.member_updated",
+                                "organization.member_removed"
+                              ]
+                            }
+                          },
+                          "enabled": { "type": "boolean" },
+                          "disabledReason": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": ["gone", "failing", "manual", null]
+                          },
+                          "version": { "type": "number", "enum": [1] },
+                          "previousSecretExpiresAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "description",
+                          "eventTypes",
+                          "enabled",
+                          "disabledReason",
+                          "version",
+                          "previousSecretExpiresAt",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["endpoints"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a webhook endpoint",
+        "description": "Returns the signing secret once. It cannot be read back.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string", "maxLength": 2048 },
+                  "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+                  "eventTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "user.created",
+                        "user.deleted",
+                        "user.signed_in",
+                        "user.recovered",
+                        "session.revoked",
+                        "credential.added",
+                        "credential.removed",
+                        "organization.member_added",
+                        "organization.member_updated",
+                        "organization.member_removed"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "enabled": { "type": "boolean" }
+                },
+                "required": ["url", "eventTypes"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HTTP 201",
+            "content": {
+              "application/json": {
+                "example": {
+                  "endpoint": {
+                    "id": "string",
+                    "url": "string",
+                    "description": "string",
+                    "eventTypes": [null],
+                    "enabled": true,
+                    "disabledReason": null,
+                    "version": null,
+                    "previousSecretExpiresAt": null,
+                    "createdAt": null,
+                    "updatedAt": null
+                  },
+                  "secret": "string"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "endpoint": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1 },
+                        "url": { "type": "string" },
+                        "description": { "type": "string", "nullable": true },
+                        "eventTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "user.created",
+                              "user.deleted",
+                              "user.signed_in",
+                              "user.recovered",
+                              "session.revoked",
+                              "credential.added",
+                              "credential.removed",
+                              "organization.member_added",
+                              "organization.member_updated",
+                              "organization.member_removed"
+                            ]
+                          }
+                        },
+                        "enabled": { "type": "boolean" },
+                        "disabledReason": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": ["gone", "failing", "manual", null]
+                        },
+                        "version": { "type": "number", "enum": [1] },
+                        "previousSecretExpiresAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": [
+                        "id",
+                        "url",
+                        "description",
+                        "eventTypes",
+                        "enabled",
+                        "disabledReason",
+                        "version",
+                        "previousSecretExpiresAt",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "secret": { "type": "string", "pattern": "^whsec_[A-Za-z0-9+/]{43}=$" }
+                  },
+                  "required": ["endpoint", "secret"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhooks/{id}": {
+      "get": {
+        "summary": "Get a webhook endpoint",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "endpoint": {
+                    "id": "string",
+                    "url": "string",
+                    "description": "string",
+                    "eventTypes": [null],
+                    "enabled": true,
+                    "disabledReason": null,
+                    "version": null,
+                    "previousSecretExpiresAt": null,
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "endpoint": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1 },
+                        "url": { "type": "string" },
+                        "description": { "type": "string", "nullable": true },
+                        "eventTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "user.created",
+                              "user.deleted",
+                              "user.signed_in",
+                              "user.recovered",
+                              "session.revoked",
+                              "credential.added",
+                              "credential.removed",
+                              "organization.member_added",
+                              "organization.member_updated",
+                              "organization.member_removed"
+                            ]
+                          }
+                        },
+                        "enabled": { "type": "boolean" },
+                        "disabledReason": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": ["gone", "failing", "manual", null]
+                        },
+                        "version": { "type": "number", "enum": [1] },
+                        "previousSecretExpiresAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": [
+                        "id",
+                        "url",
+                        "description",
+                        "eventTypes",
+                        "enabled",
+                        "disabledReason",
+                        "version",
+                        "previousSecretExpiresAt",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["endpoint"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update a webhook endpoint",
+        "description": "Turning an endpoint back on clears why it was disabled.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string", "maxLength": 2048 },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "eventTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "user.created",
+                        "user.deleted",
+                        "user.signed_in",
+                        "user.recovered",
+                        "session.revoked",
+                        "credential.added",
+                        "credential.removed",
+                        "organization.member_added",
+                        "organization.member_updated",
+                        "organization.member_removed"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "enabled": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "endpoint": {
+                    "id": "string",
+                    "url": "string",
+                    "description": "string",
+                    "eventTypes": [null],
+                    "enabled": true,
+                    "disabledReason": null,
+                    "version": null,
+                    "previousSecretExpiresAt": null,
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "endpoint": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1 },
+                        "url": { "type": "string" },
+                        "description": { "type": "string", "nullable": true },
+                        "eventTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "user.created",
+                              "user.deleted",
+                              "user.signed_in",
+                              "user.recovered",
+                              "session.revoked",
+                              "credential.added",
+                              "credential.removed",
+                              "organization.member_added",
+                              "organization.member_updated",
+                              "organization.member_removed"
+                            ]
+                          }
+                        },
+                        "enabled": { "type": "boolean" },
+                        "disabledReason": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": ["gone", "failing", "manual", null]
+                        },
+                        "version": { "type": "number", "enum": [1] },
+                        "previousSecretExpiresAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": [
+                        "id",
+                        "url",
+                        "description",
+                        "eventTypes",
+                        "enabled",
+                        "disabledReason",
+                        "version",
+                        "previousSecretExpiresAt",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["endpoint"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a webhook endpoint",
+        "description": "Also deletes its delivery history.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhooks/{id}/secret": {
+      "post": {
+        "summary": "Rotate a webhook signing secret",
+        "description": "Returns the new secret once. The previous one keeps signing beside it for 24 hours.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "secret": "string", "previousSecretExpiresAt": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": { "type": "string", "pattern": "^whsec_[A-Za-z0-9+/]{43}=$" },
+                    "previousSecretExpiresAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["secret", "previousSecretExpiresAt"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "HTTP 409",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhooks/{id}/test": {
+      "post": {
+        "summary": "Send a test event",
+        "description": "Sends `webhook.test` once, now, whatever the endpoint subscribes to.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "ok": true, "failure": null, "statusCode": 0, "durationMs": 0 },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "failure": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "refused",
+                        "timed_out",
+                        "connection_failed",
+                        "http_status",
+                        "invalid_response",
+                        "too_large",
+                        null
+                      ]
+                    },
+                    "statusCode": { "type": "integer", "nullable": true },
+                    "durationMs": { "type": "integer", "minimum": 0 }
+                  },
+                  "required": ["ok", "failure", "statusCode", "durationMs"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhook-deliveries": {
+      "get": {
+        "summary": "List webhook deliveries",
+        "description": "Newest first. `status=dead` is the dead letter view. Kept for 30 days.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": false,
+            "name": "endpointId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["pending", "succeeded", "failed", "dead"] },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user.created",
+                "user.deleted",
+                "user.signed_in",
+                "user.recovered",
+                "session.revoked",
+                "credential.added",
+                "credential.removed",
+                "organization.member_added",
+                "organization.member_updated",
+                "organization.member_removed"
+              ]
+            },
+            "required": false,
+            "name": "eventType",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "maxLength": 200 },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "deliveries": [null], "nextCursor": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deliveries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "endpointId": { "type": "string", "minLength": 1 },
+                          "eventType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "user.created",
+                                  "user.deleted",
+                                  "user.signed_in",
+                                  "user.recovered",
+                                  "session.revoked",
+                                  "credential.added",
+                                  "credential.removed",
+                                  "organization.member_added",
+                                  "organization.member_updated",
+                                  "organization.member_removed"
+                                ]
+                              },
+                              { "type": "string", "enum": ["webhook.test"] }
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["pending", "succeeded", "failed", "dead"]
+                          },
+                          "attempts": { "type": "integer", "minimum": 0 },
+                          "nextAttemptAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "lastAttemptAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "lastStatusCode": { "type": "integer", "nullable": true },
+                          "lastFailure": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "refused",
+                              "timed_out",
+                              "connection_failed",
+                              "http_status",
+                              "invalid_response",
+                              "too_large",
+                              null
+                            ]
+                          },
+                          "createdAt": { "type": "string", "nullable": true, "format": "date-time" }
+                        },
+                        "required": [
+                          "id",
+                          "endpointId",
+                          "eventType",
+                          "status",
+                          "attempts",
+                          "nextAttemptAt",
+                          "lastAttemptAt",
+                          "lastStatusCode",
+                          "lastFailure",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": { "type": "string", "nullable": true }
+                  },
+                  "required": ["deliveries", "nextCursor"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhook-deliveries/{deliveryId}": {
+      "get": {
+        "summary": "Get a webhook delivery and its event",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "deliveryId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "delivery": {
+                    "id": "string",
+                    "endpointId": "string",
+                    "eventType": null,
+                    "status": null,
+                    "attempts": 0,
+                    "nextAttemptAt": null,
+                    "lastAttemptAt": null,
+                    "lastStatusCode": 0,
+                    "lastFailure": null,
+                    "createdAt": null,
+                    "event": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "delivery": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1 },
+                        "endpointId": { "type": "string", "minLength": 1 },
+                        "eventType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "user.created",
+                                "user.deleted",
+                                "user.signed_in",
+                                "user.recovered",
+                                "session.revoked",
+                                "credential.added",
+                                "credential.removed",
+                                "organization.member_added",
+                                "organization.member_updated",
+                                "organization.member_removed"
+                              ]
+                            },
+                            { "type": "string", "enum": ["webhook.test"] }
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["pending", "succeeded", "failed", "dead"]
+                        },
+                        "attempts": { "type": "integer", "minimum": 0 },
+                        "nextAttemptAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "lastAttemptAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "lastStatusCode": { "type": "integer", "nullable": true },
+                        "lastFailure": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "refused",
+                            "timed_out",
+                            "connection_failed",
+                            "http_status",
+                            "invalid_response",
+                            "too_large",
+                            null
+                          ]
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "event": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.created"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "email": { "type": "string", "nullable": true },
+                                    "phone": { "type": "string", "nullable": true }
+                                  },
+                                  "required": ["userId", "email", "phone"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.deleted"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": { "userId": { "type": "string", "minLength": 1 } },
+                                  "required": ["userId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.signed_in"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "sessionId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    },
+                                    "method": { "type": "string", "nullable": true },
+                                    "organizationId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": ["userId", "sessionId", "method", "organizationId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.recovered"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": { "userId": { "type": "string", "minLength": 1 } },
+                                  "required": ["userId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["session.revoked"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    },
+                                    "sessionId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    },
+                                    "reason": {
+                                      "type": "string",
+                                      "enum": ["logout", "admin", "evicted", "provider"]
+                                    }
+                                  },
+                                  "required": ["userId", "sessionId", "reason"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["credential.added"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["passkey", "totp", "recovery_codes"]
+                                    },
+                                    "credentialId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": ["userId", "kind", "credentialId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["credential.removed"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["passkey", "totp", "recovery_codes"]
+                                    },
+                                    "credentialId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": ["userId", "kind", "credentialId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["organization.member_added"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "organizationId": { "type": "string", "minLength": 1 },
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "roles": { "type": "array", "items": { "type": "string" } }
+                                  },
+                                  "required": ["organizationId", "userId", "roles"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["organization.member_updated"]
+                                },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "organizationId": { "type": "string", "minLength": 1 },
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "roles": { "type": "array", "items": { "type": "string" } }
+                                  },
+                                  "required": ["organizationId", "userId", "roles"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["organization.member_removed"]
+                                },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "organizationId": { "type": "string", "minLength": 1 },
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "roles": { "type": "array", "items": { "type": "string" } }
+                                  },
+                                  "required": ["organizationId", "userId", "roles"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["webhook.test"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "endpointId": { "type": "string", "minLength": 1 }
+                                  },
+                                  "required": ["endpointId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "endpointId",
+                        "eventType",
+                        "status",
+                        "attempts",
+                        "nextAttemptAt",
+                        "lastAttemptAt",
+                        "lastStatusCode",
+                        "lastFailure",
+                        "createdAt",
+                        "event"
+                      ]
+                    }
+                  },
+                  "required": ["delivery"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/webhook-deliveries/{deliveryId}/redeliver": {
+      "post": {
+        "summary": "Redeliver a webhook",
+        "description": "One attempt now, with the same `webhook-id` and body and a fresh timestamp and signature.",
+        "tags": ["Admin", "Webhooks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "deliveryId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "delivery": {
+                    "id": "string",
+                    "endpointId": "string",
+                    "eventType": null,
+                    "status": null,
+                    "attempts": 0,
+                    "nextAttemptAt": null,
+                    "lastAttemptAt": null,
+                    "lastStatusCode": 0,
+                    "lastFailure": null,
+                    "createdAt": null,
+                    "event": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "delivery": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1 },
+                        "endpointId": { "type": "string", "minLength": 1 },
+                        "eventType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "user.created",
+                                "user.deleted",
+                                "user.signed_in",
+                                "user.recovered",
+                                "session.revoked",
+                                "credential.added",
+                                "credential.removed",
+                                "organization.member_added",
+                                "organization.member_updated",
+                                "organization.member_removed"
+                              ]
+                            },
+                            { "type": "string", "enum": ["webhook.test"] }
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["pending", "succeeded", "failed", "dead"]
+                        },
+                        "attempts": { "type": "integer", "minimum": 0 },
+                        "nextAttemptAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "lastAttemptAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "lastStatusCode": { "type": "integer", "nullable": true },
+                        "lastFailure": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "refused",
+                            "timed_out",
+                            "connection_failed",
+                            "http_status",
+                            "invalid_response",
+                            "too_large",
+                            null
+                          ]
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "event": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.created"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "email": { "type": "string", "nullable": true },
+                                    "phone": { "type": "string", "nullable": true }
+                                  },
+                                  "required": ["userId", "email", "phone"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.deleted"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": { "userId": { "type": "string", "minLength": 1 } },
+                                  "required": ["userId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.signed_in"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "sessionId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    },
+                                    "method": { "type": "string", "nullable": true },
+                                    "organizationId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": ["userId", "sessionId", "method", "organizationId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["user.recovered"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": { "userId": { "type": "string", "minLength": 1 } },
+                                  "required": ["userId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["session.revoked"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    },
+                                    "sessionId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    },
+                                    "reason": {
+                                      "type": "string",
+                                      "enum": ["logout", "admin", "evicted", "provider"]
+                                    }
+                                  },
+                                  "required": ["userId", "sessionId", "reason"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["credential.added"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["passkey", "totp", "recovery_codes"]
+                                    },
+                                    "credentialId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": ["userId", "kind", "credentialId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["credential.removed"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["passkey", "totp", "recovery_codes"]
+                                    },
+                                    "credentialId": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": ["userId", "kind", "credentialId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["organization.member_added"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "organizationId": { "type": "string", "minLength": 1 },
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "roles": { "type": "array", "items": { "type": "string" } }
+                                  },
+                                  "required": ["organizationId", "userId", "roles"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["organization.member_updated"]
+                                },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "organizationId": { "type": "string", "minLength": 1 },
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "roles": { "type": "array", "items": { "type": "string" } }
+                                  },
+                                  "required": ["organizationId", "userId", "roles"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["organization.member_removed"]
+                                },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "organizationId": { "type": "string", "minLength": 1 },
+                                    "userId": { "type": "string", "minLength": 1 },
+                                    "roles": { "type": "array", "items": { "type": "string" } }
+                                  },
+                                  "required": ["organizationId", "userId", "roles"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "string", "minLength": 1 },
+                                "type": { "type": "string", "enum": ["webhook.test"] },
+                                "version": { "type": "number", "enum": [1] },
+                                "timestamp": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "format": "date-time"
+                                },
+                                "data": {
+                                  "type": "object",
+                                  "properties": {
+                                    "endpointId": { "type": "string", "minLength": 1 }
+                                  },
+                                  "required": ["endpointId"]
+                                }
+                              },
+                              "required": ["id", "type", "version", "timestamp", "data"]
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "endpointId",
+                        "eventType",
+                        "status",
+                        "attempts",
+                        "nextAttemptAt",
+                        "lastAttemptAt",
+                        "lastStatusCode",
+                        "lastFailure",
+                        "createdAt",
+                        "event"
+                      ]
+                    }
+                  },
+                  "required": ["delivery"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

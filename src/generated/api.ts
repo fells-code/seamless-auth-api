@@ -6900,6 +6900,13 @@ export interface paths {
                 | 'webauthn_registration_challenge'
                 | 'webauthn_registration_failed'
                 | 'webauthn_registration_suspicious'
+                | 'admin_webhook_created'
+                | 'admin_webhook_deleted'
+                | 'admin_webhook_redelivered'
+                | 'admin_webhook_secret_rotated'
+                | 'admin_webhook_updated'
+                | 'session_created'
+                | 'webhook_endpoint_disabled'
               )
             | string
             | (
@@ -7033,6 +7040,13 @@ export interface paths {
                     | 'webauthn_registration_challenge'
                     | 'webauthn_registration_failed'
                     | 'webauthn_registration_suspicious'
+                    | 'admin_webhook_created'
+                    | 'admin_webhook_deleted'
+                    | 'admin_webhook_redelivered'
+                    | 'admin_webhook_secret_rotated'
+                    | 'admin_webhook_updated'
+                    | 'session_created'
+                    | 'webhook_endpoint_disabled'
                   )
                 | string
               )[];
@@ -32018,6 +32032,2241 @@ export interface paths {
         };
         /** @description HTTP 403 */
         403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/webhooks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List webhook endpoints */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "endpoints": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              endpoints: {
+                id: string;
+                url: string;
+                description: string | null;
+                eventTypes: (
+                  | 'user.created'
+                  | 'user.deleted'
+                  | 'user.signed_in'
+                  | 'user.recovered'
+                  | 'session.revoked'
+                  | 'credential.added'
+                  | 'credential.removed'
+                  | 'organization.member_added'
+                  | 'organization.member_updated'
+                  | 'organization.member_removed'
+                )[];
+                enabled: boolean;
+                /** @enum {string|null} */
+                disabledReason: 'gone' | 'failing' | 'manual' | null;
+                /** @enum {number} */
+                version: 1;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create a webhook endpoint
+     * @description Returns the signing secret once. It cannot be read back.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            url: string;
+            description?: string;
+            eventTypes: (
+              | 'user.created'
+              | 'user.deleted'
+              | 'user.signed_in'
+              | 'user.recovered'
+              | 'session.revoked'
+              | 'credential.added'
+              | 'credential.removed'
+              | 'organization.member_added'
+              | 'organization.member_updated'
+              | 'organization.member_removed'
+            )[];
+            enabled?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "endpoint": {
+             *         "id": "string",
+             *         "url": "string",
+             *         "description": "string",
+             *         "eventTypes": [
+             *           null
+             *         ],
+             *         "enabled": true,
+             *         "disabledReason": null,
+             *         "version": null,
+             *         "previousSecretExpiresAt": null,
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       },
+             *       "secret": "string"
+             *     }
+             */
+            'application/json': {
+              endpoint: {
+                id: string;
+                url: string;
+                description: string | null;
+                eventTypes: (
+                  | 'user.created'
+                  | 'user.deleted'
+                  | 'user.signed_in'
+                  | 'user.recovered'
+                  | 'session.revoked'
+                  | 'credential.added'
+                  | 'credential.removed'
+                  | 'organization.member_added'
+                  | 'organization.member_updated'
+                  | 'organization.member_removed'
+                )[];
+                enabled: boolean;
+                /** @enum {string|null} */
+                disabledReason: 'gone' | 'failing' | 'manual' | null;
+                /** @enum {number} */
+                version: 1;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+              secret: string;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/webhooks/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a webhook endpoint */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "endpoint": {
+             *         "id": "string",
+             *         "url": "string",
+             *         "description": "string",
+             *         "eventTypes": [
+             *           null
+             *         ],
+             *         "enabled": true,
+             *         "disabledReason": null,
+             *         "version": null,
+             *         "previousSecretExpiresAt": null,
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              endpoint: {
+                id: string;
+                url: string;
+                description: string | null;
+                eventTypes: (
+                  | 'user.created'
+                  | 'user.deleted'
+                  | 'user.signed_in'
+                  | 'user.recovered'
+                  | 'session.revoked'
+                  | 'credential.added'
+                  | 'credential.removed'
+                  | 'organization.member_added'
+                  | 'organization.member_updated'
+                  | 'organization.member_removed'
+                )[];
+                enabled: boolean;
+                /** @enum {string|null} */
+                disabledReason: 'gone' | 'failing' | 'manual' | null;
+                /** @enum {number} */
+                version: 1;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    /**
+     * Delete a webhook endpoint
+     * @description Also deletes its delivery history.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /**
+     * Update a webhook endpoint
+     * @description Turning an endpoint back on clears why it was disabled.
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            url?: string;
+            description?: string | null;
+            eventTypes?: (
+              | 'user.created'
+              | 'user.deleted'
+              | 'user.signed_in'
+              | 'user.recovered'
+              | 'session.revoked'
+              | 'credential.added'
+              | 'credential.removed'
+              | 'organization.member_added'
+              | 'organization.member_updated'
+              | 'organization.member_removed'
+            )[];
+            enabled?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "endpoint": {
+             *         "id": "string",
+             *         "url": "string",
+             *         "description": "string",
+             *         "eventTypes": [
+             *           null
+             *         ],
+             *         "enabled": true,
+             *         "disabledReason": null,
+             *         "version": null,
+             *         "previousSecretExpiresAt": null,
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              endpoint: {
+                id: string;
+                url: string;
+                description: string | null;
+                eventTypes: (
+                  | 'user.created'
+                  | 'user.deleted'
+                  | 'user.signed_in'
+                  | 'user.recovered'
+                  | 'session.revoked'
+                  | 'credential.added'
+                  | 'credential.removed'
+                  | 'organization.member_added'
+                  | 'organization.member_updated'
+                  | 'organization.member_removed'
+                )[];
+                enabled: boolean;
+                /** @enum {string|null} */
+                disabledReason: 'gone' | 'failing' | 'manual' | null;
+                /** @enum {number} */
+                version: 1;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/admin/webhooks/{id}/secret': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rotate a webhook signing secret
+     * @description Returns the new secret once. The previous one keeps signing beside it for 24 hours.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "secret": "string",
+             *       "previousSecretExpiresAt": null
+             *     }
+             */
+            'application/json': {
+              secret: string;
+              /** Format: date-time */
+              previousSecretExpiresAt: string | null;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/webhooks/{id}/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send a test event
+     * @description Sends `webhook.test` once, now, whatever the endpoint subscribes to.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "ok": true,
+             *       "failure": null,
+             *       "statusCode": 0,
+             *       "durationMs": 0
+             *     }
+             */
+            'application/json': {
+              ok: boolean;
+              /** @enum {string|null} */
+              failure:
+                | 'refused'
+                | 'timed_out'
+                | 'connection_failed'
+                | 'http_status'
+                | 'invalid_response'
+                | 'too_large'
+                | null;
+              statusCode: number | null;
+              durationMs: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/webhook-deliveries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List webhook deliveries
+     * @description Newest first. `status=dead` is the dead letter view. Kept for 30 days.
+     */
+    get: {
+      parameters: {
+        query?: {
+          endpointId?: string;
+          status?: 'pending' | 'succeeded' | 'failed' | 'dead';
+          eventType?:
+            | 'user.created'
+            | 'user.deleted'
+            | 'user.signed_in'
+            | 'user.recovered'
+            | 'session.revoked'
+            | 'credential.added'
+            | 'credential.removed'
+            | 'organization.member_added'
+            | 'organization.member_updated'
+            | 'organization.member_removed';
+          limit?: number;
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "deliveries": [
+             *         null
+             *       ],
+             *       "nextCursor": "string"
+             *     }
+             */
+            'application/json': {
+              deliveries: {
+                id: string;
+                endpointId: string;
+                eventType:
+                  | (
+                      | 'user.created'
+                      | 'user.deleted'
+                      | 'user.signed_in'
+                      | 'user.recovered'
+                      | 'session.revoked'
+                      | 'credential.added'
+                      | 'credential.removed'
+                      | 'organization.member_added'
+                      | 'organization.member_updated'
+                      | 'organization.member_removed'
+                    )
+                  | 'webhook.test';
+                /** @enum {string} */
+                status: 'pending' | 'succeeded' | 'failed' | 'dead';
+                attempts: number;
+                /** Format: date-time */
+                nextAttemptAt: string | null;
+                /** Format: date-time */
+                lastAttemptAt: string | null;
+                lastStatusCode: number | null;
+                /** @enum {string|null} */
+                lastFailure:
+                  | 'refused'
+                  | 'timed_out'
+                  | 'connection_failed'
+                  | 'http_status'
+                  | 'invalid_response'
+                  | 'too_large'
+                  | null;
+                /** Format: date-time */
+                createdAt: string | null;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/webhook-deliveries/{deliveryId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a webhook delivery and its event */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          deliveryId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "delivery": {
+             *         "id": "string",
+             *         "endpointId": "string",
+             *         "eventType": null,
+             *         "status": null,
+             *         "attempts": 0,
+             *         "nextAttemptAt": null,
+             *         "lastAttemptAt": null,
+             *         "lastStatusCode": 0,
+             *         "lastFailure": null,
+             *         "createdAt": null,
+             *         "event": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              delivery: {
+                id: string;
+                endpointId: string;
+                eventType:
+                  | (
+                      | 'user.created'
+                      | 'user.deleted'
+                      | 'user.signed_in'
+                      | 'user.recovered'
+                      | 'session.revoked'
+                      | 'credential.added'
+                      | 'credential.removed'
+                      | 'organization.member_added'
+                      | 'organization.member_updated'
+                      | 'organization.member_removed'
+                    )
+                  | 'webhook.test';
+                /** @enum {string} */
+                status: 'pending' | 'succeeded' | 'failed' | 'dead';
+                attempts: number;
+                /** Format: date-time */
+                nextAttemptAt: string | null;
+                /** Format: date-time */
+                lastAttemptAt: string | null;
+                lastStatusCode: number | null;
+                /** @enum {string|null} */
+                lastFailure:
+                  | 'refused'
+                  | 'timed_out'
+                  | 'connection_failed'
+                  | 'http_status'
+                  | 'invalid_response'
+                  | 'too_large'
+                  | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                event:
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.created';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        email: string | null;
+                        phone: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.deleted';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.signed_in';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        sessionId: string | null;
+                        method: string | null;
+                        organizationId: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.recovered';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'session.revoked';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string | null;
+                        sessionId: string | null;
+                        /** @enum {string} */
+                        reason: 'logout' | 'admin' | 'evicted' | 'provider';
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'credential.added';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        /** @enum {string} */
+                        kind: 'passkey' | 'totp' | 'recovery_codes';
+                        credentialId: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'credential.removed';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        /** @enum {string} */
+                        kind: 'passkey' | 'totp' | 'recovery_codes';
+                        credentialId: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'organization.member_added';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        organizationId: string;
+                        userId: string;
+                        roles: string[];
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'organization.member_updated';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        organizationId: string;
+                        userId: string;
+                        roles: string[];
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'organization.member_removed';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        organizationId: string;
+                        userId: string;
+                        roles: string[];
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'webhook.test';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        endpointId: string;
+                      };
+                    };
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/webhook-deliveries/{deliveryId}/redeliver': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Redeliver a webhook
+     * @description One attempt now, with the same `webhook-id` and body and a fresh timestamp and signature.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          deliveryId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "delivery": {
+             *         "id": "string",
+             *         "endpointId": "string",
+             *         "eventType": null,
+             *         "status": null,
+             *         "attempts": 0,
+             *         "nextAttemptAt": null,
+             *         "lastAttemptAt": null,
+             *         "lastStatusCode": 0,
+             *         "lastFailure": null,
+             *         "createdAt": null,
+             *         "event": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              delivery: {
+                id: string;
+                endpointId: string;
+                eventType:
+                  | (
+                      | 'user.created'
+                      | 'user.deleted'
+                      | 'user.signed_in'
+                      | 'user.recovered'
+                      | 'session.revoked'
+                      | 'credential.added'
+                      | 'credential.removed'
+                      | 'organization.member_added'
+                      | 'organization.member_updated'
+                      | 'organization.member_removed'
+                    )
+                  | 'webhook.test';
+                /** @enum {string} */
+                status: 'pending' | 'succeeded' | 'failed' | 'dead';
+                attempts: number;
+                /** Format: date-time */
+                nextAttemptAt: string | null;
+                /** Format: date-time */
+                lastAttemptAt: string | null;
+                lastStatusCode: number | null;
+                /** @enum {string|null} */
+                lastFailure:
+                  | 'refused'
+                  | 'timed_out'
+                  | 'connection_failed'
+                  | 'http_status'
+                  | 'invalid_response'
+                  | 'too_large'
+                  | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                event:
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.created';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        email: string | null;
+                        phone: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.deleted';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.signed_in';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        sessionId: string | null;
+                        method: string | null;
+                        organizationId: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'user.recovered';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'session.revoked';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string | null;
+                        sessionId: string | null;
+                        /** @enum {string} */
+                        reason: 'logout' | 'admin' | 'evicted' | 'provider';
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'credential.added';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        /** @enum {string} */
+                        kind: 'passkey' | 'totp' | 'recovery_codes';
+                        credentialId: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'credential.removed';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        userId: string;
+                        /** @enum {string} */
+                        kind: 'passkey' | 'totp' | 'recovery_codes';
+                        credentialId: string | null;
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'organization.member_added';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        organizationId: string;
+                        userId: string;
+                        roles: string[];
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'organization.member_updated';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        organizationId: string;
+                        userId: string;
+                        roles: string[];
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'organization.member_removed';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        organizationId: string;
+                        userId: string;
+                        roles: string[];
+                      };
+                    }
+                  | {
+                      id: string;
+                      /** @enum {string} */
+                      type: 'webhook.test';
+                      /** @enum {number} */
+                      version: 1;
+                      /** Format: date-time */
+                      timestamp: string | null;
+                      data: {
+                        endpointId: string;
+                      };
+                    };
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
           headers: {
             [name: string]: unknown;
           };

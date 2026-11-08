@@ -23,6 +23,7 @@ export const AUTH_SECRETS = {
   DECOY_SUBJECT_SECRET: 'the decoy subjects /login answers for unknown identifiers',
   TOTP_SECRET_ENCRYPTION_KEY: 'every stored TOTP secret',
   OAUTH_STATE_SECRET: 'OAuth sign-ins in progress',
+  CALLOUT_SECRET_ENCRYPTION_KEY: 'every stored webhook and login hook signing secret',
 } as const;
 
 export type AuthSecretName = keyof typeof AUTH_SECRETS;
@@ -53,6 +54,8 @@ function devFallback(name: AuthSecretName, env: EnvSource) {
       return `dev-oauth-state:${app}`;
     case 'DECOY_SUBJECT_SECRET':
       return `dev-decoy-subject:${app}`;
+    case 'CALLOUT_SECRET_ENCRYPTION_KEY':
+      return `dev-callout-secret:${app}:${env.ISSUER ?? 'local'}`;
   }
 }
 
@@ -78,10 +81,16 @@ export function isAuthSecretSet(name: AuthSecretName, env: EnvSource = process.e
   return Boolean(env[name]?.trim());
 }
 
-/** The secrets a configuration needs, given whether any TOTP credential is stored. */
+export type StoredSecrets = {
+  totpCredentialsExist: boolean;
+  /** Any webhook endpoint or login hook, each of which holds an encrypted signing secret. */
+  calloutSecretsExist?: boolean;
+};
+
+/** The secrets a configuration needs, given which encrypted secrets are stored. */
 export function authSecretsRequiredBy(
   config: Pick<SystemConfig, 'oauth_providers'>,
-  { totpCredentialsExist }: { totpCredentialsExist: boolean },
+  { totpCredentialsExist, calloutSecretsExist = false }: StoredSecrets,
 ): AuthSecretName[] {
   const required: AuthSecretName[] = ['REFRESH_TOKEN_LOOKUP_SECRET', 'DECOY_SUBJECT_SECRET'];
 
@@ -93,6 +102,10 @@ export function authSecretsRequiredBy(
 
   if ((config.oauth_providers ?? []).length > 0) {
     required.push('OAUTH_STATE_SECRET');
+  }
+
+  if (calloutSecretsExist) {
+    required.push('CALLOUT_SECRET_ENCRYPTION_KEY');
   }
 
   return required;
@@ -114,16 +127,27 @@ export function productionSecretMissing(name: AuthSecretName, env: EnvSource = p
  */
 export function assertAuthSecrets(
   config: Pick<SystemConfig, 'oauth_providers'>,
-  totpCredentialsExist: boolean,
+  stored: StoredSecrets,
   env: EnvSource = process.env,
 ) {
   if (!isProduction(env)) return;
 
-  const missing = authSecretsRequiredBy(config, { totpCredentialsExist }).filter(
+  const missing = authSecretsRequiredBy(config, stored).filter(
     (name) => !isAuthSecretSet(name, env),
   );
 
   if (missing.length === 0) return;
+
+  // This key never had a service token fallback: a webhook or login hook cannot be created in
+  // production without it, so it is only missing here if it was removed, and the service token
+  // would not read the stored secrets either.
+  if (missing.length === 1 && missing[0] === 'CALLOUT_SECRET_ENCRYPTION_KEY') {
+    throw new Error(
+      'Refusing to start: CALLOUT_SECRET_ENCRYPTION_KEY is not set, and webhook or login hook ' +
+        'signing secrets are stored under it. Restore the value they were created with, or ' +
+        'delete the webhooks and hooks and create them again. See docs/production-operations.md.',
+    );
+  }
 
   throw new Error(
     `Refusing to start: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} not set. ` +

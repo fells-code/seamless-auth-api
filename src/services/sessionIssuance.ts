@@ -12,6 +12,7 @@ import { createRefreshTokenLookup, generateRefreshToken } from '../lib/token.js'
 import { Session, SessionAuthMethod } from '../models/sessions.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { mintAccessToken } from './accessTokenService.js';
+import { AuthEventService } from './authEventService.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
 import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
@@ -168,6 +169,16 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const { token } = await mintAccessToken({
     session: { id: session.id, organizationId, recovery },
     user,
+  });
+
+  // The one record that a sign-in completed, whatever the factor: the factor events before it
+  // can be steps of a flow that still fails. The `user.signed_in` webhook is built from it.
+  await AuthEventService.log({
+    userId: user.id,
+    sessionId: session.id,
+    type: 'session_created',
+    req,
+    metadata: { method, organizationId, ...(recovery ? { recovery: true } : {}) },
   });
 
   if (!token || !refreshToken) {

@@ -64,11 +64,13 @@ const EXACT_CATEGORIES: Readonly<Record<string, AuthEventCategory>> = {
   notification_sent: 'system',
   // Session lifecycle sits with login, which is where logout_ already lands, and
   // an eviction is a direct consequence of a sign-in rather than an admin action.
+  session_created: 'login',
   session_evicted: 'login',
   session_exchange_replayed: 'login',
   session_exchanged: 'login',
   user_created: 'registration',
   user_deleted: 'system',
+  webhook_endpoint_disabled: 'system',
 };
 
 // `suspicious` is checked first so security signals stay in one bucket rather than
