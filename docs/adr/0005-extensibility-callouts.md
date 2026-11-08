@@ -133,6 +133,12 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
   - Separate 1 KiB budgets for permissions and custom claims did not fit the server adapter's session cookie: 5670 bytes against 4096 at both, with only about 136 bytes of custom claims fitting beside a full permission set. Brandon chose the shared budget and the order in E6 on 2026-11-07. At the shared budget the worst-case cookie measures 3868 bytes.
   - A set can only be written for a role or client that exists, and retiring the role or deleting the client deletes its set.
   - `z.json()` in the shared claim schemas overflows the OpenAPI generator, so the API's route schemas wrap them and document a claim value as any JSON.
+- Provider tokens (seamless-auth-oidc-provider#47):
+  - Brandon chose the scope names on 2026-11-07: `permissions` releases `roles`, `permissions`, `org_id`, `org_roles` and `org_permissions` (or `permissions_omitted`), and `custom_claims` releases every custom claim the API resolves for the user and the client. They apply to ID tokens, userinfo, and a user's access token for a resource when the grant holds the scope. `seamless` still releases `roles` and `org_id` alone.
+  - The API computes the claims for the session and client (`GET /oidc/accounts/:id`), with the client's set after the role sets and before the session's hook claims and the shared budget applied, and `/oidc/sign` computes them again and signs only an exact match. The edge never reads custom claim tables.
+  - `org_id` in a provider token is now the session's active organization, as in a first-party token, rather than the user's oldest membership.
+  - A role or membership can change between the edge's read and its sign. `/oidc/sign` answers that, and any other account claim that does not match, with `claims_mismatch`, a new refusal code, and the edge reads the account again and retries once. A second mismatch fails the token request with `server_error`. Brandon chose this on 2026-11-07.
+  - The budget is applied to everything the account has, whatever the scopes, so a client that asks only for `permissions` can see `permissions_omitted` because of custom claims it did not ask for.
 
 ## Consequences
 

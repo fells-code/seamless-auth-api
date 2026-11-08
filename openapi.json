@@ -16998,17 +16998,22 @@
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "string",
-                      "enum": [
-                        "malformed_signing_input",
-                        "unknown_key",
-                        "session_revoked",
-                        "subject_mismatch",
-                        "auth_context_mismatch",
-                        "issuer_mismatch",
-                        "audience_mismatch",
-                        "client_inactive",
-                        "grant_not_allowed"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "malformed_signing_input",
+                            "unknown_key",
+                            "session_revoked",
+                            "subject_mismatch",
+                            "auth_context_mismatch",
+                            "issuer_mismatch",
+                            "audience_mismatch",
+                            "client_inactive",
+                            "grant_not_allowed"
+                          ]
+                        },
+                        { "type": "string", "enum": ["claims_mismatch"] }
                       ]
                     },
                     "message": { "type": "string" }
@@ -17040,17 +17045,22 @@
                   "type": "object",
                   "properties": {
                     "error": {
-                      "type": "string",
-                      "enum": [
-                        "malformed_signing_input",
-                        "unknown_key",
-                        "session_revoked",
-                        "subject_mismatch",
-                        "auth_context_mismatch",
-                        "issuer_mismatch",
-                        "audience_mismatch",
-                        "client_inactive",
-                        "grant_not_allowed"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "malformed_signing_input",
+                            "unknown_key",
+                            "session_revoked",
+                            "subject_mismatch",
+                            "auth_context_mismatch",
+                            "issuer_mismatch",
+                            "audience_mismatch",
+                            "client_inactive",
+                            "grant_not_allowed"
+                          ]
+                        },
+                        { "type": "string", "enum": ["claims_mismatch"] }
                       ]
                     },
                     "message": { "type": "string" }

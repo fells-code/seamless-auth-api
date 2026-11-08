@@ -229,13 +229,13 @@ describe('provider token claims on the deployed schema', () => {
     expect((await sign('access_token', member, carried)).ok).toBe(true);
 
     expect(await sign('id_token', member, { ...carried, plan: 'enterprise' })).toMatchObject({
-      code: 'subject_mismatch',
+      code: 'claims_mismatch',
     });
     expect(
       await sign('access_token', member, { ...carried, permissions: [permission, 'admin:write'] }),
-    ).toMatchObject({ code: 'subject_mismatch' });
+    ).toMatchObject({ code: 'claims_mismatch' });
     expect(await sign('id_token', member, { ...carried, is_admin: true })).toMatchObject({
-      code: 'malformed_signing_input',
+      code: 'claims_mismatch',
     });
     expect(await sign('id_token', member, { ...carried, act: { sub: 'x' } })).toMatchObject({
       code: 'malformed_signing_input',
@@ -249,8 +249,9 @@ describe('provider token claims on the deployed schema', () => {
     );
 
     await claims.deleteCustomClaimSource('oidc_client', member.client.id);
+    // What a role or client change between the edge's read and its sign looks like.
     expect(await sign('access_token', member, { tenant: before.tenant })).toMatchObject({
-      code: 'malformed_signing_input',
+      code: 'claims_mismatch',
     });
 
     await models.OrganizationMembership.destroy({ where: { userId: member.user.id } });
@@ -261,7 +262,7 @@ describe('provider token claims on the deployed schema', () => {
         org_roles: before.org_roles,
         org_permissions: before.org_permissions,
       }),
-    ).toMatchObject({ code: 'subject_mismatch' });
+    ).toMatchObject({ code: 'claims_mismatch' });
 
     const after = await accountClaims.getOidcAccountClaims(member.session, member.client.id);
     expect(after).toMatchObject({ org_id: null, customClaims: { plan: 'free', region: 'us' } });

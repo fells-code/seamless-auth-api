@@ -4,7 +4,11 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { OidcAccountClaimsSchema } from '@seamless-auth/types';
+import {
+  OidcAccountClaimsSchema,
+  OidcSignRefusalCodeSchema,
+  OidcSignRefusalSchema as SharedSignRefusalSchema,
+} from '@seamless-auth/types';
 import { z } from 'zod';
 
 /**
@@ -19,4 +23,9 @@ export const OidcAccountClaimsResponseSchema = OidcAccountClaimsSchema.extend({
   org_roles: z.array(z.string()).optional(),
   org_permissions: z.array(z.string()).optional(),
   customClaims: z.record(z.string(), z.unknown()),
+});
+
+/** The shared refusal codes, and `claims_mismatch` (see `oidcSigning.ts`). */
+export const OidcSignRefusalSchema = SharedSignRefusalSchema.extend({
+  error: z.union([OidcSignRefusalCodeSchema, z.literal('claims_mismatch')]),
 });

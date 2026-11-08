@@ -29,9 +29,18 @@ import { getActiveOidcSigningKey, OidcProviderKeysError } from './oidcProviderKe
 
 type JsonObject = Record<string, unknown>;
 
+/**
+ * `claims_mismatch`: the account claims in the signing input are not what the API computes for
+ * the session and client now. A role or membership can change between the edge's account read
+ * and its sign, so the edge reads the account again and retries once. Not yet in the shared
+ * refusal codes.
+ */
+export const CLAIMS_MISMATCH = 'claims_mismatch';
+export type SignRefusalCode = OidcSignRefusalCode | typeof CLAIMS_MISMATCH;
+
 export type OidcSignOutcome =
   | { ok: true; kid: string; signature: string }
-  | { ok: false; code: OidcSignRefusalCode; userId?: string };
+  | { ok: false; code: SignRefusalCode; userId?: string };
 
 // Anything else in the header (jku, x5u, jwk, crit) would let a verifier be pointed at a
 // key we do not control, so it is refused rather than signed.
@@ -122,7 +131,7 @@ function isSessionExchangeToken(request: OidcSignRequest, claims: JsonObject) {
   return request.kind === 'access_token' && scopesOf(claims).includes(SESSION_EXCHANGE_SCOPE);
 }
 
-function refuse(code: OidcSignRefusalCode, userId?: string): OidcSignOutcome {
+function refuse(code: SignRefusalCode, userId?: string): OidcSignOutcome {
   return { ok: false, code, ...(userId ? { userId } : {}) };
 }
 
@@ -379,7 +388,8 @@ async function checkUserToken(
  * again here for this session and client, the same way `/oidc/accounts/:id` did, and signs
  * only what matches. A custom claim name it did not compute is one it never checked. The
  * permission claims and the custom claims are each carried whole or not at all (ADR 0005 E6),
- * since a partial list looks complete.
+ * since a partial list looks complete. Each is `claims_mismatch`: a change since the edge's
+ * read looks the same as a forgery, so the edge reads the account again and retries once.
  */
 async function checkAccountClaims(
   session: NonNullable<Awaited<ReturnType<typeof resolveCurrentSession>>>,
@@ -391,11 +401,14 @@ async function checkAccountClaims(
   if (!account) return refuse('subject_mismatch', session.userId);
 
   const expected = providerTokenClaims(account);
-  if (released.some((claim) => !ACCOUNT_CLAIMS.has(claim) && !(claim in account.customClaims))) {
-    return refuse('malformed_signing_input', session.userId);
-  }
-  if (released.some((claim) => !sameJson(claims[claim], expected[claim]))) {
-    return refuse('subject_mismatch', session.userId);
+  if (
+    released.some(
+      (claim) =>
+        (!ACCOUNT_CLAIMS.has(claim) && !(claim in expected)) ||
+        !sameJson(claims[claim], expected[claim]),
+    )
+  ) {
+    return refuse(CLAIMS_MISMATCH, session.userId);
   }
 
   const sets = [
@@ -404,7 +417,7 @@ async function checkAccountClaims(
   ];
   for (const set of sets) {
     const carried = set.filter((claim) => claim in claims).length;
-    if (carried > 0 && carried < set.length) return refuse('subject_mismatch', session.userId);
+    if (carried > 0 && carried < set.length) return refuse(CLAIMS_MISMATCH, session.userId);
   }
 
   return null;

@@ -16628,17 +16628,19 @@ export interface paths {
              *     }
              */
             'application/json': {
-              /** @enum {string} */
               error:
-                | 'malformed_signing_input'
-                | 'unknown_key'
-                | 'session_revoked'
-                | 'subject_mismatch'
-                | 'auth_context_mismatch'
-                | 'issuer_mismatch'
-                | 'audience_mismatch'
-                | 'client_inactive'
-                | 'grant_not_allowed';
+                | (
+                    | 'malformed_signing_input'
+                    | 'unknown_key'
+                    | 'session_revoked'
+                    | 'subject_mismatch'
+                    | 'auth_context_mismatch'
+                    | 'issuer_mismatch'
+                    | 'audience_mismatch'
+                    | 'client_inactive'
+                    | 'grant_not_allowed'
+                  )
+                | 'claims_mismatch';
               message?: string;
             };
           };
@@ -16674,17 +16676,19 @@ export interface paths {
              *     }
              */
             'application/json': {
-              /** @enum {string} */
               error:
-                | 'malformed_signing_input'
-                | 'unknown_key'
-                | 'session_revoked'
-                | 'subject_mismatch'
-                | 'auth_context_mismatch'
-                | 'issuer_mismatch'
-                | 'audience_mismatch'
-                | 'client_inactive'
-                | 'grant_not_allowed';
+                | (
+                    | 'malformed_signing_input'
+                    | 'unknown_key'
+                    | 'session_revoked'
+                    | 'subject_mismatch'
+                    | 'auth_context_mismatch'
+                    | 'issuer_mismatch'
+                    | 'audience_mismatch'
+                    | 'client_inactive'
+                    | 'grant_not_allowed'
+                  )
+                | 'claims_mismatch';
               message?: string;
             };
           };

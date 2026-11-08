@@ -388,7 +388,7 @@ describe('signForOidcEdge', () => {
     ['other roles', { roles: ['admin'] }],
   ])('refuses identity claims with %s', async (_label, identity) => {
     expect(await signForOidcEdge(idTokenRequest(idTokenClaims(identity)))).toMatchObject({
-      code: 'subject_mismatch',
+      code: 'claims_mismatch',
     });
   });
 
@@ -468,10 +468,10 @@ describe('signForOidcEdge', () => {
     ])('refuses %s', async (_label, forged) => {
       expect(
         await signForOidcEdge(idTokenRequest(idTokenClaims({ ...carried, ...forged }))),
-      ).toEqual({ ok: false, code: 'subject_mismatch', userId: 'user-1' });
+      ).toEqual({ ok: false, code: 'claims_mismatch', userId: 'user-1' });
       expect(await signForOidcEdge(accessTokenRequest({ ...carried, ...forged }))).toEqual({
         ok: false,
-        code: 'subject_mismatch',
+        code: 'claims_mismatch',
         userId: 'user-1',
       });
     });
@@ -479,7 +479,13 @@ describe('signForOidcEdge', () => {
     it('refuses a custom claim name the API did not compute', async () => {
       expect(
         await signForOidcEdge(idTokenRequest(idTokenClaims({ ...carried, is_admin: true }))),
-      ).toEqual({ ok: false, code: 'malformed_signing_input', userId: 'user-1' });
+      ).toEqual({ ok: false, code: 'claims_mismatch', userId: 'user-1' });
+    });
+
+    it('refuses a null value under a name the API did not compute', async () => {
+      expect(
+        await signForOidcEdge(idTokenRequest(idTokenClaims({ ...carried, is_admin: null }))),
+      ).toEqual({ ok: false, code: 'claims_mismatch', userId: 'user-1' });
     });
 
     it.each(['act', 'may_act', 'name', 'recovery', 'seamless_admin', 'org_tier', 'Tier'])(
@@ -503,7 +509,7 @@ describe('signForOidcEdge', () => {
     ])('refuses %s, since a partial set looks complete', async (_label, dropped) => {
       const claims = { ...carried, ...dropped };
       expect(await signForOidcEdge(accessTokenRequest(JSON.parse(JSON.stringify(claims))))).toEqual(
-        { ok: false, code: 'subject_mismatch', userId: 'user-1' },
+        { ok: false, code: 'claims_mismatch', userId: 'user-1' },
       );
     });
 
@@ -520,7 +526,7 @@ describe('signForOidcEdge', () => {
       ).toBe(true);
       expect(
         await signForOidcEdge(accessTokenRequest({ permissions: ['orders:read'], tier: 'gold' })),
-      ).toMatchObject({ code: 'subject_mismatch' });
+      ).toMatchObject({ code: 'claims_mismatch' });
     });
 
     it('refuses custom claims on a client credentials token', async () => {

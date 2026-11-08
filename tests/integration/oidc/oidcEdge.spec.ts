@@ -333,6 +333,19 @@ describe('POST /oidc/sign', () => {
     );
   });
 
+  it('answers 403 claims_mismatch, which the edge retries once', async () => {
+    vi.mocked(signForOidcEdge).mockResolvedValue({
+      ok: false,
+      code: 'claims_mismatch',
+      userId: 'user-1',
+    });
+
+    const res = await edge('post', '/oidc/sign').send(body);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'claims_mismatch' });
+  });
+
   it('answers 400 for a malformed signing input', async () => {
     vi.mocked(signForOidcEdge).mockResolvedValue({ ok: false, code: 'malformed_signing_input' });
 
