@@ -135,7 +135,7 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
   - Roles of one kind apply in role-name order (E6), rather than the order they are held in. Brandon confirmed this on 2026-11-07.
   - Separate 1 KiB budgets for permissions and custom claims did not fit the server adapter's session cookie: 5670 bytes against 4096 at both, with only about 136 bytes of custom claims fitting beside a full permission set. Brandon chose the shared budget and the order in E6 on 2026-11-07. At the shared budget the worst-case cookie measures 3868 bytes.
   - A set can only be written for a role or client that exists, and retiring the role or deleting the client deletes its set.
-  - `z.json()` in the shared claim schemas overflows the OpenAPI generator, so the API's route schemas wrap them and document a claim value as any JSON.
+  - `z.json()` in the shared claim schemas overflowed the OpenAPI generator. `@seamless-auth/types` 0.40.0 describes a claim value as a union bounded at the claim depth, so the route schemas use the shared ones directly.
 
 ## Consequences
 
