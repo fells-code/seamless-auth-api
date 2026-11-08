@@ -12,7 +12,11 @@ vi.mock('../../../src/utils/signingKeyStore.js', () => ({
   getSigningKey: vi.fn(),
 }));
 
+import { CUSTOM_CLAIMS_BUDGET_BYTES, customClaimsByteLength } from '@seamless-auth/types';
+
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { CustomClaim } from '../../../src/models/customClaims.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import { signAccessToken } from '../../../src/lib/token.js';
 import { OrganizationMembership } from '../../../src/models/organizationMemberships.js';
 import { RolePermission } from '../../../src/models/rolePermissions.js';
@@ -324,6 +328,123 @@ describe('mintAccessToken', () => {
     );
 
     expect(claims).not.toHaveProperty('plan');
+  });
+
+  it('carries instance role claims, then organization role claims, then hook claims', async () => {
+    memberOf(['admin']);
+    vi.mocked(CustomClaim.findAll).mockResolvedValue([
+      { sourceKind: 'instance_role', sourceName: 'user', claims: { plan: 'free', region: 'us' } },
+      { sourceKind: 'organization_role', sourceName: 'admin', claims: { plan: 'team', seats: 5 } },
+    ] as never);
+
+    const claims = decodeJwt(
+      (
+        await mintAccessToken({
+          session: { ...session, organizationId, hookClaims: { seats: 10 } },
+          user,
+        })
+      ).token,
+    );
+
+    expect(claims).toMatchObject({ plan: 'team', region: 'us', seats: 10 });
+  });
+
+  it('applies organization role claims only while the membership exists', async () => {
+    (OrganizationMembership.findOne as any).mockResolvedValue(null);
+    vi.mocked(CustomClaim.findAll).mockResolvedValue([
+      { sourceKind: 'organization_role', sourceName: 'admin', claims: { plan: 'team' } },
+    ] as never);
+
+    await mintAccessToken({ session: { ...session, organizationId }, user });
+
+    const where = vi.mocked(CustomClaim.findAll).mock.calls[0][0]!.where as any;
+    const sources = where[Object.getOwnPropertySymbols(where)[0]];
+    expect(sources.map((source: any) => source.sourceKind)).toEqual(['instance_role']);
+  });
+
+  it('gives a recovery token no custom claims and reads none', async () => {
+    await mintAccessToken({ session: { ...session, recovery: true }, user });
+    expect(CustomClaim.findAll).not.toHaveBeenCalled();
+  });
+
+  it('carries no custom claims, and records why, when the sources together exceed the budget', async () => {
+    vi.mocked(CustomClaim.findAll).mockResolvedValue([
+      { sourceKind: 'instance_role', sourceName: 'user', claims: { a: 'x'.repeat(700) } },
+    ] as never);
+
+    const claims = decodeJwt(
+      (
+        await mintAccessToken({
+          session: { ...session, hookClaims: { b: 'y'.repeat(700) } },
+          user,
+        })
+      ).token,
+    );
+
+    expect(claims).not.toHaveProperty('a');
+    expect(claims).not.toHaveProperty('b');
+    expect(claims.roles).toEqual(['user']);
+    expect(AuthEventService.logContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: user.id,
+        sessionId: session.id,
+        type: 'custom_claims_omitted',
+        metadata: expect.objectContaining({ budgetBytes: 1024 }),
+      }),
+    );
+  });
+
+  /**
+   * ADR 0005 gives custom claims 1 KiB on top of ADR 0004's 1 KiB for permissions, and the
+   * adapter cookie would have to hold a token at both. It cannot: only about 136 bytes of custom
+   * claims fit beside a full permission set. Pinned as an overflow so the gap stays visible
+   * until the budgets or the adapter change, at which point this asserts the cookie fits.
+   */
+  it('overflows the adapter session cookie at both budgets (open decision)', async () => {
+    const longRoles = Array.from({ length: 5 }, (_, index) => `billing:invoices:role-${index}`);
+    const authorization = authorizationClaims({
+      roles: longRoles,
+      permissions: fittingPermissions(),
+      ...noOrganization,
+    });
+    const customClaims: Record<string, string> = {};
+    for (let index = 0; ; index++) {
+      const next = { ...customClaims, [`claim_${index}`]: 'v'.repeat(40) };
+      if (customClaimsByteLength(next) > CUSTOM_CLAIMS_BUDGET_BYTES - 16) break;
+      Object.assign(customClaims, next);
+    }
+    customClaims.pad = '';
+    customClaims.pad = 'p'.repeat(
+      CUSTOM_CLAIMS_BUDGET_BYTES - customClaimsByteLength(customClaims),
+    );
+
+    expect(authorization.permissions_omitted).toBeUndefined();
+    expect(customClaimsByteLength(customClaims)).toBe(CUSTOM_CLAIMS_BUDGET_BYTES);
+
+    const token = await signAccessToken(session.id, user.id, longRoles, organizationId, {
+      authorization,
+      customClaims,
+    });
+
+    const cookie = await new SignJWT({
+      sub: user.id,
+      sessionId: session.id,
+      token,
+      roles: longRoles,
+      email: `${'a'.repeat(64)}@${'b'.repeat(40)}.example.com`,
+      phone: '+15555550100',
+      organizationId,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .sign(new TextEncoder().encode('cookie-secret-cookie-secret-cookie'));
+
+    const setCookie = `seamless-access=${cookie}; Max-Age=900; Path=/; HttpOnly; Secure; SameSite=Lax`;
+
+    expect(Buffer.byteLength(token)).toBe(3663);
+    expect(Buffer.byteLength(setCookie)).toBe(5670);
+    expect(Buffer.byteLength(setCookie)).toBeGreaterThan(4096);
   });
 
   /**

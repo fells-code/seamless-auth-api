@@ -16,6 +16,7 @@ vi.unmock('../../../src/models/organizationMemberships.js');
 vi.unmock('../../../src/models/organizationRoles.js');
 vi.unmock('../../../src/models/permissions.js');
 vi.unmock('../../../src/models/rolePermissions.js');
+vi.unmock('../../../src/models/customClaims.js');
 vi.unmock('../../../src/models/loginHookInvocations.js');
 vi.unmock('../../../src/models/loginHooks.js');
 vi.unmock('../../../src/models/webhookDeliveries.js');

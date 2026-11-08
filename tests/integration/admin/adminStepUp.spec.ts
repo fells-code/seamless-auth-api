@@ -53,6 +53,8 @@ const GUARDED = [
   'DELETE /admin/login-hooks/{trigger}',
   'POST /admin/login-hooks/{trigger}/secret',
   'POST /admin/login-hooks/{trigger}/test',
+  'PUT /admin/custom-claims/{sourceKind}/{sourceName}',
+  'DELETE /admin/custom-claims/{sourceKind}/{sourceName}',
   'POST /admin/users',
   'POST /admin/users/import',
   'DELETE /admin/users',

@@ -59,6 +59,7 @@ const EXACT_CATEGORIES: Readonly<Record<string, AuthEventCategory>> = {
   break_glass_enrollment: 'webauthn',
   break_glass_sign_in: 'login',
   credentials_deleted: 'webauthn',
+  custom_claims_omitted: 'token',
   informational: 'system',
   internal_user_updated_by_owner: 'system',
   notification_sent: 'system',

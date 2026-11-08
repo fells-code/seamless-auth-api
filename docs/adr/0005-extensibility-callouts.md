@@ -123,6 +123,12 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
   - When a mint finds the user has left the session's organization, the session's hook claims are cleared with the organization, since the hook decided them for it.
   - `client` in the call is always null for now: no first-party sign-in knows which OpenID Provider client it is for. The provider can fill it in seamless-auth-oidc-provider#47.
   - A test call sends a placeholder user and no request details, and is not recorded as an invocation.
+- Custom claims (#417):
+  - Roles of one kind apply in name order, so which of two instance roles wins a name does not depend on the order they were granted in.
+  - When the sources together exceed 1 KiB, the token carries no custom claims and the mint writes `custom_claims_omitted`. This is an interim behavior, pending a decision on how a combined overflow should surface.
+  - At both budgets the token does not fit the server adapter's session cookie: measured at 5670 bytes against 4096, with only about 136 bytes of custom claims fitting beside a full permission set. `tests/unit/services/accessTokenService.spec.ts` pins the overflow until the budgets or the adapter change.
+  - A set can only be written for a role or client that exists, and retiring the role or deleting the client deletes its set.
+  - `z.json()` in the shared claim schemas overflows the OpenAPI generator, so the API's route schemas wrap them and document a claim value as any JSON.
 
 ## Consequences
 

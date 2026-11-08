@@ -4,12 +4,14 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { isReservedClaimName } from '@seamless-auth/types';
+import { CUSTOM_CLAIMS_BUDGET_BYTES } from '@seamless-auth/types';
 import type { Transaction } from 'sequelize';
 
 import { type AuthorizationClaims, signAccessToken } from '../lib/token.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Session } from '../models/sessions.js';
+import { AuthEventService } from './authEventService.js';
+import { resolveCustomClaims } from './customClaimService.js';
 import { findMembership } from './organizationService.js';
 import { permissionsForRoles } from './permissionService.js';
 
@@ -108,13 +110,6 @@ export function authorizationClaims({
   return claims;
 }
 
-/** Reserved names are refused when written and stripped from hooks; this is the last line. */
-export function withoutReservedClaims(claims: Record<string, unknown> | null | undefined) {
-  return Object.fromEntries(
-    Object.entries(claims ?? {}).filter(([name]) => !isReservedClaimName(name)),
-  );
-}
-
 /**
  * Every first-party access token is minted here, so sign-in, refresh, organization switch and
  * session exchange cannot disagree about what a token grants. Returns the organization the
@@ -160,8 +155,24 @@ export async function mintAccessToken({
     );
   }
 
-  const customClaims =
-    recovery || leftOrganization ? {} : withoutReservedClaims(session.hookClaims);
+  const custom = recovery
+    ? null
+    : await resolveCustomClaims({
+        roles: user.roles ?? [],
+        organizationRoles: authorization.organizationRoles,
+        hookClaims: leftOrganization ? null : session.hookClaims,
+        transaction,
+      });
+
+  if (custom?.omitted) {
+    await AuthEventService.logContext({
+      userId: user.id,
+      sessionId: session.id,
+      type: 'custom_claims_omitted',
+      metadata: { bytes: custom.bytes, budgetBytes: CUSTOM_CLAIMS_BUDGET_BYTES },
+    });
+  }
+  const customClaims = custom?.claims ?? {};
 
   const token = await signAccessToken(
     session.id,

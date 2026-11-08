@@ -25,6 +25,7 @@ import type {
   OidcApplicationUpdateRequest,
 } from '../schemas/oidcApplications.requests.js';
 import type { OidcApplicationView } from '../schemas/oidcApplications.responses.js';
+import { deleteCustomClaimsFor } from './customClaimService.js';
 import { createOidcClientSecretLookup, isNativeRedirectUri } from './oidcClientRegistry.js';
 import { revokeSessionsExchangedBy } from './sessionRevocation.js';
 
@@ -309,9 +310,9 @@ export async function rotateOidcApplicationSecret(id: string) {
 }
 
 /**
- * Deletes the application with its resource grants, its links in both directions, every
- * provider record issued to it (grants, codes and tokens) and the sessions it exchanged for,
- * so nothing it was given outlives it.
+ * Deletes the application with its resource grants, its custom claims, its links in both
+ * directions, every provider record issued to it (grants, codes and tokens) and the sessions it
+ * exchanged for, so nothing it was given outlives it.
  */
 export async function deleteOidcApplication(id: string) {
   const client = await findOidcApplication(id);
@@ -320,6 +321,7 @@ export async function deleteOidcApplication(id: string) {
     await revokeSessionsExchangedBy(id, 'oidc_client_deleted', transaction);
     await OidcPayload.destroy({ where: { payload: { clientId: id } }, transaction });
     await OidcClientResource.destroy({ where: { clientId: id }, transaction });
+    await deleteCustomClaimsFor('oidc_client', [id], transaction);
     await OidcClientLink.destroy({
       where: { [Op.or]: [{ clientId: id }, { linkedClientId: id }] },
       transaction,

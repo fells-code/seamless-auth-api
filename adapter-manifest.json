@@ -33,6 +33,22 @@
     { "method": "GET", "path": "/admin/auth-events/export", "credential": "access" },
     { "method": "GET", "path": "/admin/auth-events/integrity", "credential": "access" },
     { "method": "GET", "path": "/admin/credential-count", "credential": "access" },
+    { "method": "GET", "path": "/admin/custom-claims", "credential": "access" },
+    {
+      "method": "DELETE",
+      "path": "/admin/custom-claims/{sourceKind}/{sourceName}",
+      "credential": "access"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/custom-claims/{sourceKind}/{sourceName}",
+      "credential": "access"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/custom-claims/{sourceKind}/{sourceName}",
+      "credential": "access"
+    },
     { "method": "GET", "path": "/admin/enrollment", "credential": "access" },
     { "method": "POST", "path": "/admin/enrollment/invites", "credential": "access" },
     { "method": "GET", "path": "/admin/login-hooks", "credential": "access" },
