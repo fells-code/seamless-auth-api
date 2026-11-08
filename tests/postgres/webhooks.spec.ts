@@ -7,7 +7,12 @@ import { getSequelize, initializeModels } from '../../src/models/index.js';
 import { WebhookDelivery } from '../../src/models/webhookDeliveries.js';
 import { WebhookEndpoint } from '../../src/models/webhookEndpoints.js';
 import { AuthEventService } from '../../src/services/authEventService.js';
-import { createEndpoint, deliverDue, dispatchWebhooks } from '../../src/services/webhookService.js';
+import {
+  createEndpoint,
+  deliverDue,
+  dispatchWebhooks,
+  updateEndpoint,
+} from '../../src/services/webhookService.js';
 
 let server: Server;
 let port: number;
@@ -125,6 +130,33 @@ describe('webhook dispatch against the audit chain', () => {
 
     const [endpoint] = await WebhookEndpoint.findAll();
     expect(endpoint.failingSince).not.toBeNull();
+  });
+
+  it('holds events for a disabled endpoint and delivers them once it is turned back on', async () => {
+    const { endpoint } = await createEndpoint(
+      { url: `http://127.0.0.1:${port}/hook`, eventTypes: ['user.deleted'] },
+      null,
+    );
+    await dispatchWebhooks();
+    await updateEndpoint(endpoint.id, { enabled: false });
+
+    await logEvent('user_deleted', '55555555-5555-4555-8555-555555555555');
+    await dispatchWebhooks();
+
+    // Queued, but nothing is due while the endpoint is off.
+    expect(await WebhookDelivery.count()).toBe(1);
+    expect(await deliverDue()).toBe(0);
+    expect(received).toHaveLength(0);
+
+    const { released } = await updateEndpoint(endpoint.id, { enabled: true });
+    expect(released).toBe(1);
+
+    expect(await deliverDue()).toBe(1);
+    expect(received).toHaveLength(1);
+    expect(JSON.parse(received[0].body)).toMatchObject({
+      type: 'user.deleted',
+      data: { userId: '55555555-5555-4555-8555-555555555555' },
+    });
   });
 
   it('deletes an endpoint with its deliveries', async () => {

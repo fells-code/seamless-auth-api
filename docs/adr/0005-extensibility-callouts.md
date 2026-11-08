@@ -65,7 +65,8 @@ The chain trigger updates the chain head row on every insert and holds that lock
 - Attempts at 0 s, then 5 s, 5 min, 30 min, 2 h, 5 h, 10 h and 24 h after the previous one, with up to 10% jitter: eight attempts, dead just under 42 hours after the event. A longer `Retry-After` is honored, up to 24 hours.
 - `410 Gone` disables the endpoint. So do three days in which every delivery failed. Both write `webhook_endpoint_disabled`.
 - A delivery stores the exact body sent, so a retry or redelivery sends the same bytes. Responses are read for the status alone, and only the status and a coarse failure reason are kept. Deliveries are pruned after 30 days.
-- Redeliver is one attempt now with the same `webhook-id` and body and a fresh timestamp and signature. A delivery whose endpoint was disabled after it was queued is held, and redeliver can still send it.
+- Redeliver is one attempt now with the same `webhook-id` and body and a fresh timestamp and signature.
+- A disabled endpoint still gets its deliveries, held with no attempt due, and a delivery already queued when its endpoint is disabled is held the same way. Turning the endpoint back on releases everything held, so it catches up on what happened while it was off instead of losing it. Deliveries are pruned after 30 days, so that is how far a catch-up reaches. A dead delivery stays dead; redeliver sends it. Decided by Brandon on 2026-11-07, after the webhooks guide found that events during a disable were never queued.
 
 ### E5. Login hooks
 

@@ -82,13 +82,17 @@ export async function createWebhook(req: Request, res: Response) {
 
 export async function updateWebhook(req: RouteRequest, res: Response) {
   try {
-    const endpoint = await updateEndpoint(req.params.id, req.body);
+    const { endpoint, released } = await updateEndpoint(req.params.id, req.body);
 
     await AuthEventService.log({
       actorUserId: actorUserId(req),
       type: 'admin_webhook_updated',
       req,
-      metadata: { endpointId: endpoint.id, changed: Object.keys(req.body) },
+      metadata: {
+        endpointId: endpoint.id,
+        changed: Object.keys(req.body),
+        ...(released ? { releasedDeliveries: released } : {}),
+      },
     });
 
     return res.json({ endpoint: serializeEndpoint(endpoint) });
