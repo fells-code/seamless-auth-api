@@ -6,6 +6,7 @@ import { createApp } from '../../../src/app';
 import { Credential } from '../../../src/models/credentials.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import { buildCredential } from '../../factories/credentialFactory.js';
 import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
@@ -175,6 +176,26 @@ describe('DELETE /users/credentials', () => {
 
     expect(res.status).toBe(200);
     expect(cred.destroy).toHaveBeenCalled();
+  });
+
+  // Removing a passkey changes what the account can sign in with, so it has to leave an
+  // audit record, and the credential.removed webhook is built from it.
+  it('audits the removal of a passkey', async () => {
+    const cred = buildCredential();
+
+    (Credential.findOne as any).mockResolvedValue(cred);
+    (Credential.count as any).mockResolvedValue(2);
+
+    const res = await request(app).delete('/users/credentials').send({ id: 'cred-1' });
+
+    expect(res.status).toBe(200);
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'credentials_deleted',
+        metadata: expect.objectContaining({ credential: 'passkey', credentialId: cred.id }),
+      }),
+    );
   });
 
   it('rejects deleting last credential', async () => {

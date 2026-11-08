@@ -15,6 +15,7 @@ import { assertServiceTokenConfig } from './config/serviceToken.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
 import { TotpCredential } from './models/totpCredentials.js';
+import { WebhookEndpoint } from './models/webhookEndpoints.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { warnOnBreakGlassMisconfiguration } from './services/breakGlassService.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
@@ -23,6 +24,7 @@ import { startBackchannelLogoutSweep } from './services/oidcBackchannelLogout.js
 import { startOidcPayloadPurge } from './services/oidcPayloadStore.js';
 import { recordBootstrapPolicyVersion } from './services/policyVersionService.js';
 import { assertSchemaCurrent } from './services/schemaGuard.js';
+import { startWebhookDelivery } from './services/webhookService.js';
 import getLogger from './utils/logger.js';
 import { initDevSigningKey } from './utils/signingKeyStore.js';
 
@@ -46,7 +48,10 @@ async function startServer() {
     await recordBootstrapPolicyVersion();
 
     // After bootstrap, since which secrets are needed depends on the stored config.
-    assertAuthSecrets(await getSystemConfig(), (await TotpCredential.count()) > 0);
+    assertAuthSecrets(await getSystemConfig(), {
+      totpCredentialsExist: (await TotpCredential.count()) > 0,
+      calloutSecretsExist: (await WebhookEndpoint.count()) > 0,
+    });
     await warnOnBreakGlassMisconfiguration();
 
     // After config is bootstrapped, since it decides whether attestation is
@@ -67,6 +72,7 @@ async function startServer() {
     startAuditMaintenance();
     startOidcPayloadPurge();
     startBackchannelLogoutSweep();
+    startWebhookDelivery();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

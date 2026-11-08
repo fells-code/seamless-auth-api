@@ -137,6 +137,13 @@ export const AUTH_EVENT_TYPES = [
   'webauthn_registration_challenge',
   'webauthn_registration_failed',
   'webauthn_registration_suspicious',
+  'admin_webhook_created',
+  'admin_webhook_deleted',
+  'admin_webhook_redelivered',
+  'admin_webhook_secret_rotated',
+  'admin_webhook_updated',
+  'session_created',
+  'webhook_endpoint_disabled',
 ] as const;
 
 export const AuthEventTypeEnum = z.enum(AUTH_EVENT_TYPES);

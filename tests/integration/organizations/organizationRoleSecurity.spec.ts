@@ -209,6 +209,7 @@ describe('organization membership audit', () => {
         userId: memberId,
         metadata: {
           organizationId: testOrganizationId,
+          roles: ['admin'],
           rolesAdded: ['admin'],
           rolesRemoved: ['member'],
         },

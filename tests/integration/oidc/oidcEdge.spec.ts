@@ -406,7 +406,7 @@ describe('keys, clients and accounts', () => {
   });
 
   it('returns account claims only for the user behind a grant-bound session', async () => {
-    const claims = { sub: USER, roles: [], org_id: null };
+    const claims = { sub: USER, roles: [], org_id: null, customClaims: {} };
     const path = `/oidc/accounts/${USER}?clientId=app&sessionId=${SESSION}`;
     vi.mocked(findGrantBoundSession).mockResolvedValue({ id: SESSION, userId: USER } as never);
     vi.mocked(getOidcAccountClaims).mockResolvedValueOnce(claims);

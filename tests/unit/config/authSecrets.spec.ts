@@ -28,6 +28,7 @@ describe('authSecret', () => {
     );
     expect(authSecret('TOTP_SECRET_ENCRYPTION_KEY', {})).toBe('dev-totp-secret:local:local');
     expect(authSecret('OAUTH_STATE_SECRET', {})).toBe('dev-oauth-state:local');
+    expect(authSecret('CALLOUT_SECRET_ENCRYPTION_KEY', {})).toBe('dev-callout-secret:local:local');
     expect(authSecret('DECOY_SUBJECT_SECRET', {})).toBe('dev-decoy-subject:local');
   });
 });
@@ -51,6 +52,48 @@ describe('authSecretsRequiredBy', () => {
   });
 });
 
+describe('the callout secret key', () => {
+  it('is needed once a webhook or login hook stores a signing secret', () => {
+    expect(
+      authSecretsRequiredBy(
+        { oauth_providers: [] },
+        { totpCredentialsExist: false, calloutSecretsExist: true },
+      ),
+    ).toContain('CALLOUT_SECRET_ENCRYPTION_KEY');
+    expect(
+      authSecretsRequiredBy({ oauth_providers: [] }, { totpCredentialsExist: false }),
+    ).not.toContain('CALLOUT_SECRET_ENCRYPTION_KEY');
+  });
+});
+
+describe('assertAuthSecrets for the callout key', () => {
+  const production = {
+    NODE_ENV: 'production',
+    REFRESH_TOKEN_LOOKUP_SECRET: 'a',
+    DECOY_SUBJECT_SECRET: 'b',
+  };
+
+  it('refuses to start without it once webhooks exist, and does not suggest the service token', () => {
+    expect(() =>
+      assertAuthSecrets(
+        { oauth_providers: [] },
+        { totpCredentialsExist: false, calloutSecretsExist: true },
+        production,
+      ),
+    ).toThrow(/Restore the value they were created with/);
+  });
+
+  it('starts with it set', () => {
+    expect(() =>
+      assertAuthSecrets(
+        { oauth_providers: [] },
+        { totpCredentialsExist: false, calloutSecretsExist: true },
+        { ...production, CALLOUT_SECRET_ENCRYPTION_KEY: 'c' },
+      ),
+    ).not.toThrow();
+  });
+});
+
 describe('productionSecretMissing', () => {
   it('is true only in production without the secret', () => {
     expect(productionSecretMissing('OAUTH_STATE_SECRET', production)).toBe(true);
@@ -63,28 +106,44 @@ describe('productionSecretMissing', () => {
 
 describe('assertAuthSecrets', () => {
   it('passes outside production and when everything needed is set', () => {
-    expect(() => assertAuthSecrets({ oauth_providers: [provider] }, true, {})).not.toThrow();
     expect(() =>
-      assertAuthSecrets({ oauth_providers: [] }, false, {
-        ...production,
-        REFRESH_TOKEN_LOOKUP_SECRET: 'a',
-        DECOY_SUBJECT_SECRET: 'b',
-      }),
+      assertAuthSecrets({ oauth_providers: [provider] }, { totpCredentialsExist: true }, {}),
+    ).not.toThrow();
+    expect(() =>
+      assertAuthSecrets(
+        { oauth_providers: [] },
+        { totpCredentialsExist: false },
+        {
+          ...production,
+          REFRESH_TOKEN_LOOKUP_SECRET: 'a',
+          DECOY_SUBJECT_SECRET: 'b',
+        },
+      ),
     ).not.toThrow();
   });
 
   it('names every missing secret and how to keep existing data valid', () => {
-    expect(() => assertAuthSecrets({ oauth_providers: [provider] }, true, production)).toThrow(
+    expect(() =>
+      assertAuthSecrets(
+        { oauth_providers: [provider] },
+        { totpCredentialsExist: true },
+        production,
+      ),
+    ).toThrow(
       /REFRESH_TOKEN_LOOKUP_SECRET, DECOY_SUBJECT_SECRET, TOTP_SECRET_ENCRYPTION_KEY, OAUTH_STATE_SECRET are not set[\s\S]*current SEAMLESS_SERVICE_TOKEN value/,
     );
   });
 
   it('uses the singular for one missing secret', () => {
     expect(() =>
-      assertAuthSecrets({ oauth_providers: [] }, false, {
-        ...production,
-        REFRESH_TOKEN_LOOKUP_SECRET: 'a',
-      }),
+      assertAuthSecrets(
+        { oauth_providers: [] },
+        { totpCredentialsExist: false },
+        {
+          ...production,
+          REFRESH_TOKEN_LOOKUP_SECRET: 'a',
+        },
+      ),
     ).toThrow('DECOY_SUBJECT_SECRET is not set');
   });
 });

@@ -38,6 +38,7 @@ vi.mock('../../../src/utils/utils.js', () => ({
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { Credential } from '../../../src/models/credentials.js';
+import { AuthEventService } from '../../../src/services/authEventService.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -127,6 +128,39 @@ describe('issueSessionAndRespond', () => {
       ttl: 900,
       refreshTtl: 3600,
     });
+  });
+
+  // The one record that a sign-in completed, which the user.signed_in webhook is built from.
+  it('records that a session was created, with the method and organization', async () => {
+    const req = mockReq();
+
+    await issueSessionAndRespond({ user: mockUser, req, res: mockRes(), method: 'email_otp' });
+
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: mockUser.id,
+        sessionId: 'session-1',
+        type: 'session_created',
+        metadata: { method: 'email_otp', organizationId: null },
+      }),
+    );
+  });
+
+  it('marks a recovery session in the record', async () => {
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res: mockRes(),
+      method: 'account_recovery',
+      recovery: true,
+    });
+
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'session_created',
+        metadata: expect.objectContaining({ recovery: true }),
+      }),
+    );
   });
 
   it('records the sign-in method and time for the provider auth context', async () => {

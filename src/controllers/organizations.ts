@@ -351,6 +351,7 @@ export async function updateMember(req: RouteRequest, res: Response) {
     req,
     metadata: {
       organizationId,
+      roles: nextRoles,
       rolesAdded: nextRoles.filter((role) => !currentRoles.includes(role)),
       rolesRemoved: currentRoles.filter((role) => !nextRoles.includes(role)),
       ...(req.body.scopes === undefined ? {} : { scopes: membership.scopes }),

@@ -220,5 +220,6 @@ export async function getOidcAccountClaims(userId: string): Promise<OidcAccountC
       : {}),
     roles: user.roles ?? [],
     org_id: await getDefaultOrganizationIdForUser(user.id),
+    customClaims: {},
   };
 }

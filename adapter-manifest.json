@@ -106,6 +106,20 @@
       "credential": "access"
     },
     { "method": "POST", "path": "/admin/users/import", "credential": "access" },
+    { "method": "GET", "path": "/admin/webhook-deliveries", "credential": "access" },
+    { "method": "GET", "path": "/admin/webhook-deliveries/{deliveryId}", "credential": "access" },
+    {
+      "method": "POST",
+      "path": "/admin/webhook-deliveries/{deliveryId}/redeliver",
+      "credential": "access"
+    },
+    { "method": "GET", "path": "/admin/webhooks", "credential": "access" },
+    { "method": "POST", "path": "/admin/webhooks", "credential": "access" },
+    { "method": "DELETE", "path": "/admin/webhooks/{id}", "credential": "access" },
+    { "method": "GET", "path": "/admin/webhooks/{id}", "credential": "access" },
+    { "method": "PATCH", "path": "/admin/webhooks/{id}", "credential": "access" },
+    { "method": "POST", "path": "/admin/webhooks/{id}/secret", "credential": "access" },
+    { "method": "POST", "path": "/admin/webhooks/{id}/test", "credential": "access" },
     { "method": "GET", "path": "/internal/auth-events/grouped", "credential": "access" },
     { "method": "GET", "path": "/internal/auth-events/login-stats", "credential": "access" },
     { "method": "GET", "path": "/internal/auth-events/summary", "credential": "access" },

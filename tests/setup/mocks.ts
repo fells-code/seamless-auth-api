@@ -193,6 +193,25 @@ vi.mock('../../src/models/permissions.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/webhookEndpoints.js', () => ({
+  WebhookEndpoint: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findByPk: vi.fn(async () => null),
+    count: vi.fn(async () => 0),
+  },
+}));
+
+vi.mock('../../src/models/webhookDeliveries.js', () => ({
+  WebhookDelivery: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findByPk: vi.fn(async () => null),
+    update: vi.fn(),
+    destroy: vi.fn(async () => 0),
+  },
+}));
+
 vi.mock('../../src/models/rolePermissions.js', () => ({
   RolePermission: {
     sequelize: {
@@ -359,6 +378,7 @@ vi.mock('bcrypt-ts', () => ({
 vi.mock('../../src/services/authEventService.js', () => ({
   AuthEventService: {
     log: vi.fn(),
+    logContext: vi.fn(),
     notificationSent: vi.fn(),
     refreshTokenFailed: vi.fn(),
     requestSuspicious: vi.fn(),
