@@ -193,6 +193,14 @@ vi.mock('../../src/models/permissions.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/auditSinks.js', () => ({
+  AuditSink: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findByPk: vi.fn(async () => null),
+  },
+}));
+
 vi.mock('../../src/models/webhookEndpoints.js', () => ({
   WebhookEndpoint: {
     create: vi.fn(),

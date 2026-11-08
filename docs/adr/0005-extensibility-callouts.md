@@ -97,7 +97,10 @@ Among roles of one kind, sets apply in role-name order, so the last name alphabe
 - OTLP/HTTP with JSON encoding to `<endpoint>/v1/logs`, and syslog (RFC 5424) over TLS (RFC 5425) with octet counting. Plain TCP only outside production, never UDP.
 - Every record carries the event's `seamless-auth-events/1` line, with `seq`, `prevHash`, `hash` and `payload`, so the chain verifies downstream as an export does.
 - Each sink has its own cursor and retries until its destination takes the events, backing off to one minute. There is no dead letter: a sink falls behind and reports its lag.
-- Credentials are never stored. A sink names env vars ending `_AUDIT_SINK_SECRET`, the same pattern OAuth providers use.
+- Credentials are never stored. A sink names env vars ending `_AUDIT_SINK_SECRET`, the same pattern OAuth providers use. A send whose named env var is unset or unusable, or whose settings production does not allow (plain TCP syslog), fails as `misconfigured` before any connection.
+- Retention never deletes past the oldest sink cursor, and a disabled sink holds it too (decided 2026-11-07). An audit event deleted before a SIEM receives it cannot be recovered, so a disabled sink holds retention until it is deleted. Retention logs a warning naming the holding sink and saying to delete it to release retention.
+- An OTLP 2xx counts as delivered, including one whose `partialSuccess` reports rejected records (decided 2026-11-07). A collector rejects such records for their content, so retrying them would stall the sink forever.
+- Syslog records carry `seq` and `hash` in the SD-ID `seamless@32473`. 32473 is the RFC 5612 documentation number, a placeholder until Fells Code has an IANA Private Enterprise Number (#586). A release must not ship with it.
 
 ### E8. Every callout follows the same reachability rules
 
@@ -109,7 +112,7 @@ Among roles of one kind, sets apply in role-name order, so the last name alphabe
 - Other private and loopback addresses are refused in production unless the host is listed in `CALLOUT_PRIVATE_HOSTS`. It is an env var, so nothing written through the API can widen it, and it is separate from `OAUTH_PROVIDER_PRIVATE_HOSTS`, so allowing an internal hook service does not also allow it as an identity provider.
 - Redirects are never followed. Responses are capped at 64 KiB. The deadline covers the whole request, so a destination that trickles bytes cannot hold a sign-in open.
 - URLs are checked when written and again at connect time.
-- Failures are reported as `refused`, `timed_out`, `connection_failed`, `http_status`, `invalid_response` or `too_large`, never with the resolved address or the socket's error text, so the delivery log cannot be used to map the internal network.
+- Failures are reported as `refused`, `misconfigured`, `timed_out`, `connection_failed`, `http_status`, `invalid_response` or `too_large`, never with the resolved address or the socket's error text, so the delivery log cannot be used to map the internal network. `refused` means the API would not connect to the destination's address; `misconfigured` means the destination's own settings cannot be used, so no call was attempted.
 
 ### E9. Signing secrets are encrypted at rest
 
@@ -120,6 +123,7 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
 - `login_success` is written when `/login` resolves which methods an identifier may use, before any factor is proven, so it cannot be the source of `user.signed_in`. No event recorded that a session was created. `issueSessionAndRespond` now writes `session_created`, with the method and organization.
 - Deleting a passkey (`DELETE /users/credentials`) wrote no audit event. It now writes `credentials_deleted` naming the passkey. Reproducing test first.
 - Passkey registration and account registration both write `registration_success`. The passkey path now names the credential in metadata, which is how the catalog tells them apart.
+- Audit retention deleted by age alone, so a sink that fell behind for longer than the retention period would have lost events it never sent. Retention now stops at the oldest sink cursor, enabled or disabled, and a sink cannot be created to replay from before the oldest event still held. Decided 2026-11-07: an audit event deleted before a SIEM receives it cannot be recovered, so a disabled sink holds retention until it is deleted.
 - `organization_member_updated` recorded only what was added and removed. It now records the roles after the change too, which the webhook carries.
 - Login hooks (#419):
   - A denied sign-in answers 403 `login_denied`, with the hook's `userMessage` as `message`. A hook that fails closed answers 503 `login_hook_unavailable`, since the user did nothing wrong and can retry.

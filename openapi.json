@@ -7301,6 +7301,9 @@
                     "admin_webhook_updated",
                     "session_created",
                     "webhook_endpoint_disabled",
+                    "admin_audit_sink_created",
+                    "admin_audit_sink_updated",
+                    "admin_audit_sink_deleted",
                     "admin_login_hook_deleted",
                     "admin_login_hook_secret_rotated",
                     "admin_login_hook_set",
@@ -7457,6 +7460,9 @@
                           "admin_webhook_updated",
                           "session_created",
                           "webhook_endpoint_disabled",
+                          "admin_audit_sink_created",
+                          "admin_audit_sink_updated",
+                          "admin_audit_sink_deleted",
                           "admin_login_hook_deleted",
                           "admin_login_hook_secret_rotated",
                           "admin_login_hook_set",
@@ -10148,6 +10154,1623 @@
                     },
                     "message": { "type": "string" }
                   },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit-sinks": {
+      "get": {
+        "summary": "List audit sinks",
+        "description": "Each with its cursor and how many events it is behind the chain head.",
+        "tags": ["Admin", "Audit sinks"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "sinks": [null] },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sinks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "enabled": { "type": "boolean" },
+                          "settings": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["otlp"] },
+                                  "endpoint": { "type": "string", "maxLength": 2048 },
+                                  "headersFromEnv": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                    },
+                                    "default": {}
+                                  },
+                                  "serviceName": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100,
+                                    "default": "seamless-auth"
+                                  }
+                                },
+                                "required": ["kind", "endpoint"]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": { "type": "string", "enum": ["syslog"] },
+                                  "host": { "type": "string", "minLength": 1, "maxLength": 253 },
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535,
+                                    "default": 6514
+                                  },
+                                  "transport": {
+                                    "type": "string",
+                                    "enum": ["tls", "tcp"],
+                                    "default": "tls"
+                                  },
+                                  "appName": {
+                                    "type": "string",
+                                    "pattern": "^[!-~]{1,48}$",
+                                    "default": "seamless-auth"
+                                  },
+                                  "facility": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 23,
+                                    "default": 10
+                                  },
+                                  "tlsCaEnv": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                  },
+                                  "tlsClientCertEnv": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                  },
+                                  "tlsClientKeyEnv": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                  }
+                                },
+                                "required": ["kind", "host"]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "type": "object",
+                            "properties": {
+                              "cursorSeq": { "type": "integer", "nullable": true },
+                              "lagEvents": { "type": "integer", "nullable": true, "minimum": 0 },
+                              "lastDeliveredAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "lastFailure": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "refused",
+                                  "misconfigured",
+                                  "timed_out",
+                                  "connection_failed",
+                                  "http_status",
+                                  "invalid_response",
+                                  "too_large",
+                                  null
+                                ]
+                              },
+                              "lastFailureAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "cursorSeq",
+                              "lagEvents",
+                              "lastDeliveredAt",
+                              "lastFailure",
+                              "lastFailureAt"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "enabled",
+                          "settings",
+                          "status",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["sinks"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an audit sink",
+        "description": "Starts after the newest event unless `startAfterSeq` replays from an earlier one. Credentials are named as `_AUDIT_SINK_SECRET` env vars, never stored.",
+        "tags": ["Admin", "Audit sinks"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "settings": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "enum": ["otlp"] },
+                          "endpoint": { "type": "string", "maxLength": 2048 },
+                          "headersFromEnv": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string",
+                              "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                            },
+                            "default": {}
+                          },
+                          "serviceName": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "default": "seamless-auth"
+                          }
+                        },
+                        "required": ["kind", "endpoint"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "enum": ["syslog"] },
+                          "host": { "type": "string", "minLength": 1, "maxLength": 253 },
+                          "port": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535,
+                            "default": 6514
+                          },
+                          "transport": {
+                            "type": "string",
+                            "enum": ["tls", "tcp"],
+                            "default": "tls"
+                          },
+                          "appName": {
+                            "type": "string",
+                            "pattern": "^[!-~]{1,48}$",
+                            "default": "seamless-auth"
+                          },
+                          "facility": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 23,
+                            "default": 10
+                          },
+                          "tlsCaEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                          },
+                          "tlsClientCertEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                          },
+                          "tlsClientKeyEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                          }
+                        },
+                        "required": ["kind", "host"]
+                      }
+                    ]
+                  },
+                  "enabled": { "type": "boolean", "default": true },
+                  "startAfterSeq": { "type": "integer", "minimum": 0 }
+                },
+                "required": ["name", "settings"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HTTP 201",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sink": {
+                    "id": "string",
+                    "name": "string",
+                    "enabled": true,
+                    "settings": null,
+                    "status": {
+                      "cursorSeq": 0,
+                      "lagEvents": 0,
+                      "lastDeliveredAt": null,
+                      "lastFailure": null,
+                      "lastFailureAt": null
+                    },
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sink": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "enabled": { "type": "boolean" },
+                        "settings": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "enum": ["otlp"] },
+                                "endpoint": { "type": "string", "maxLength": 2048 },
+                                "headersFromEnv": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                  },
+                                  "default": {}
+                                },
+                                "serviceName": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100,
+                                  "default": "seamless-auth"
+                                }
+                              },
+                              "required": ["kind", "endpoint"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "enum": ["syslog"] },
+                                "host": { "type": "string", "minLength": 1, "maxLength": 253 },
+                                "port": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535,
+                                  "default": 6514
+                                },
+                                "transport": {
+                                  "type": "string",
+                                  "enum": ["tls", "tcp"],
+                                  "default": "tls"
+                                },
+                                "appName": {
+                                  "type": "string",
+                                  "pattern": "^[!-~]{1,48}$",
+                                  "default": "seamless-auth"
+                                },
+                                "facility": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23,
+                                  "default": 10
+                                },
+                                "tlsCaEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                },
+                                "tlsClientCertEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                },
+                                "tlsClientKeyEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                }
+                              },
+                              "required": ["kind", "host"]
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "object",
+                          "properties": {
+                            "cursorSeq": { "type": "integer", "nullable": true },
+                            "lagEvents": { "type": "integer", "nullable": true, "minimum": 0 },
+                            "lastDeliveredAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastFailure": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "refused",
+                                "misconfigured",
+                                "timed_out",
+                                "connection_failed",
+                                "http_status",
+                                "invalid_response",
+                                "too_large",
+                                null
+                              ]
+                            },
+                            "lastFailureAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "cursorSeq",
+                            "lagEvents",
+                            "lastDeliveredAt",
+                            "lastFailure",
+                            "lastFailureAt"
+                          ]
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "enabled",
+                        "settings",
+                        "status",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["sink"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit-sinks/{id}": {
+      "get": {
+        "summary": "Get an audit sink",
+        "tags": ["Admin", "Audit sinks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sink": {
+                    "id": "string",
+                    "name": "string",
+                    "enabled": true,
+                    "settings": null,
+                    "status": {
+                      "cursorSeq": 0,
+                      "lagEvents": 0,
+                      "lastDeliveredAt": null,
+                      "lastFailure": null,
+                      "lastFailureAt": null
+                    },
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sink": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "enabled": { "type": "boolean" },
+                        "settings": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "enum": ["otlp"] },
+                                "endpoint": { "type": "string", "maxLength": 2048 },
+                                "headersFromEnv": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                  },
+                                  "default": {}
+                                },
+                                "serviceName": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100,
+                                  "default": "seamless-auth"
+                                }
+                              },
+                              "required": ["kind", "endpoint"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "enum": ["syslog"] },
+                                "host": { "type": "string", "minLength": 1, "maxLength": 253 },
+                                "port": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535,
+                                  "default": 6514
+                                },
+                                "transport": {
+                                  "type": "string",
+                                  "enum": ["tls", "tcp"],
+                                  "default": "tls"
+                                },
+                                "appName": {
+                                  "type": "string",
+                                  "pattern": "^[!-~]{1,48}$",
+                                  "default": "seamless-auth"
+                                },
+                                "facility": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23,
+                                  "default": 10
+                                },
+                                "tlsCaEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                },
+                                "tlsClientCertEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                },
+                                "tlsClientKeyEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                }
+                              },
+                              "required": ["kind", "host"]
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "object",
+                          "properties": {
+                            "cursorSeq": { "type": "integer", "nullable": true },
+                            "lagEvents": { "type": "integer", "nullable": true, "minimum": 0 },
+                            "lastDeliveredAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastFailure": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "refused",
+                                "misconfigured",
+                                "timed_out",
+                                "connection_failed",
+                                "http_status",
+                                "invalid_response",
+                                "too_large",
+                                null
+                              ]
+                            },
+                            "lastFailureAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "cursorSeq",
+                            "lagEvents",
+                            "lastDeliveredAt",
+                            "lastFailure",
+                            "lastFailureAt"
+                          ]
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "enabled",
+                        "settings",
+                        "status",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["sink"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update an audit sink",
+        "description": "The cursor is kept, so a sink turned back on resumes where it stopped.",
+        "tags": ["Admin", "Audit sinks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "settings": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "enum": ["otlp"] },
+                          "endpoint": { "type": "string", "maxLength": 2048 },
+                          "headersFromEnv": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string",
+                              "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                            },
+                            "default": {}
+                          },
+                          "serviceName": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "default": "seamless-auth"
+                          }
+                        },
+                        "required": ["kind", "endpoint"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "enum": ["syslog"] },
+                          "host": { "type": "string", "minLength": 1, "maxLength": 253 },
+                          "port": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535,
+                            "default": 6514
+                          },
+                          "transport": {
+                            "type": "string",
+                            "enum": ["tls", "tcp"],
+                            "default": "tls"
+                          },
+                          "appName": {
+                            "type": "string",
+                            "pattern": "^[!-~]{1,48}$",
+                            "default": "seamless-auth"
+                          },
+                          "facility": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 23,
+                            "default": 10
+                          },
+                          "tlsCaEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                          },
+                          "tlsClientCertEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                          },
+                          "tlsClientKeyEnv": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                          }
+                        },
+                        "required": ["kind", "host"]
+                      }
+                    ]
+                  },
+                  "enabled": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sink": {
+                    "id": "string",
+                    "name": "string",
+                    "enabled": true,
+                    "settings": null,
+                    "status": {
+                      "cursorSeq": 0,
+                      "lagEvents": 0,
+                      "lastDeliveredAt": null,
+                      "lastFailure": null,
+                      "lastFailureAt": null
+                    },
+                    "createdAt": null,
+                    "updatedAt": null
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sink": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "enabled": { "type": "boolean" },
+                        "settings": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "enum": ["otlp"] },
+                                "endpoint": { "type": "string", "maxLength": 2048 },
+                                "headersFromEnv": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "string",
+                                    "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                  },
+                                  "default": {}
+                                },
+                                "serviceName": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100,
+                                  "default": "seamless-auth"
+                                }
+                              },
+                              "required": ["kind", "endpoint"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "enum": ["syslog"] },
+                                "host": { "type": "string", "minLength": 1, "maxLength": 253 },
+                                "port": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535,
+                                  "default": 6514
+                                },
+                                "transport": {
+                                  "type": "string",
+                                  "enum": ["tls", "tcp"],
+                                  "default": "tls"
+                                },
+                                "appName": {
+                                  "type": "string",
+                                  "pattern": "^[!-~]{1,48}$",
+                                  "default": "seamless-auth"
+                                },
+                                "facility": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23,
+                                  "default": 10
+                                },
+                                "tlsCaEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                },
+                                "tlsClientCertEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                },
+                                "tlsClientKeyEnv": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z][A-Z0-9_]{0,59}_AUDIT_SINK_SECRET$"
+                                }
+                              },
+                              "required": ["kind", "host"]
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "object",
+                          "properties": {
+                            "cursorSeq": { "type": "integer", "nullable": true },
+                            "lagEvents": { "type": "integer", "nullable": true, "minimum": 0 },
+                            "lastDeliveredAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastFailure": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "refused",
+                                "misconfigured",
+                                "timed_out",
+                                "connection_failed",
+                                "http_status",
+                                "invalid_response",
+                                "too_large",
+                                null
+                              ]
+                            },
+                            "lastFailureAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "cursorSeq",
+                            "lagEvents",
+                            "lastDeliveredAt",
+                            "lastFailure",
+                            "lastFailureAt"
+                          ]
+                        },
+                        "createdAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "updatedAt": { "type": "string", "nullable": true, "format": "date-time" }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "enabled",
+                        "settings",
+                        "status",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["sink"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an audit sink",
+        "tags": ["Admin", "Audit sinks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "token": "string", "delivery": null },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "token": { "type": "string" },
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["otp_sms"] },
+                            "to": { "type": "string" },
+                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
+                            "purpose": { "type": "string", "enum": ["account_recovery"] }
+                          },
+                          "required": ["kind", "to", "token"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["magic_link_email"] },
+                            "to": { "type": "string" },
+                            "token": { "type": "string" },
+                            "magicLinkUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "magicLinkUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
+                            "to": { "type": "string" },
+                            "signInUrl": { "type": "string" }
+                          },
+                          "required": ["kind", "to", "signInUrl"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_email"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "subject": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "subject", "text"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
+                            "notice": {
+                              "type": "string",
+                              "enum": [
+                                "account_recovery_opened",
+                                "account_recovery_completed",
+                                "recovery_code_used",
+                                "identity_changed",
+                                "application_notice"
+                              ]
+                            },
+                            "to": { "type": "string" },
+                            "text": { "type": "string" },
+                            "cancelUrl": { "type": "string" },
+                            "application": {
+                              "type": "object",
+                              "properties": {
+                                "clientId": { "type": "string" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["clientId", "name"]
+                            }
+                          },
+                          "required": ["kind", "notice", "to", "text"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit-sinks/{id}/test": {
+      "post": {
+        "summary": "Send a test record",
+        "description": "Sends one record marked as a test, now. It is not part of the chain and does not move the cursor.",
+        "tags": ["Admin", "Audit sinks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "uuid" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTTP 200",
+            "content": {
+              "application/json": {
+                "example": { "ok": true, "failure": null, "statusCode": 0, "durationMs": 0 },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "failure": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "refused",
+                        "misconfigured",
+                        "timed_out",
+                        "connection_failed",
+                        "http_status",
+                        "invalid_response",
+                        "too_large",
+                        null
+                      ]
+                    },
+                    "statusCode": { "type": "integer", "nullable": true },
+                    "durationMs": { "type": "integer", "minimum": 0 }
+                  },
+                  "required": ["ok", "failure", "statusCode", "durationMs"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "string",
+                  "message": "string",
+                  "details": { "issues": [null] }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "array",
+                                "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+                              },
+                              "code": { "type": "string" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["path", "code", "message"]
+                          }
+                        }
+                      },
+                      "required": ["issues"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HTTP 403",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "string",
+                  "error": "string",
+                  "fresh": true,
+                  "method": null,
+                  "verifiedAt": "string",
+                  "expiresAt": "string",
+                  "maxAgeSeconds": 0
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" },
+                    "fresh": { "type": "boolean" },
+                    "method": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": ["webauthn", "totp", null]
+                    },
+                    "verifiedAt": { "type": "string", "nullable": true },
+                    "expiresAt": { "type": "string", "nullable": true },
+                    "maxAgeSeconds": { "type": "number" }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
                   "required": ["error"]
                 }
               }

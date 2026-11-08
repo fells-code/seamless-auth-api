@@ -16,6 +16,12 @@ vi.mock('../../../src/models/index.js', () => ({
   getSequelize: vi.fn(),
 }));
 
+const { warn } = vi.hoisted(() => ({ warn: vi.fn() }));
+
+vi.mock('../../../src/utils/logger.js', () => ({
+  default: () => ({ error: vi.fn(), info: vi.fn(), warn, debug: vi.fn() }),
+}));
+
 const { retentionQuery, retentionTransaction, SequelizeMock } = vi.hoisted(() => {
   const retentionQuery = vi.fn();
   const retentionTransaction = vi.fn(async (fn: (t: unknown) => unknown) => fn({ id: 'rtx' }));
@@ -120,6 +126,54 @@ describe('runAuditRetention', () => {
     await expect(runAuditRetention({ retentionDays: 30, archiveDir })).resolves.toEqual({
       status: 'busy',
     });
+    expect(query).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'), expect.anything());
+  });
+
+  it('never deletes past the oldest audit sink cursor', async () => {
+    respondTo({
+      pg_try_advisory_xact_lock: [{ locked: true }],
+      'AS max_seq': [{ max_seq: '3' }],
+      audit_sinks: [{ id: 'sink-behind', cursorSeq: '2' }],
+    });
+    vi.mocked(readExportBatch).mockResolvedValueOnce([event(1), event(2)]);
+
+    await runAuditRetention({ retentionDays: 30, archiveDir }, new Date('2026-06-01T00:00:00Z'));
+
+    expect(readExportBatch).toHaveBeenCalledWith(expect.objectContaining({ maxSeq: 2 }));
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('held at seq 2 by audit sink sink-behind'),
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('delete the sink to release it'));
+    expect(query).toHaveBeenCalledWith('DELETE FROM public.auth_events WHERE seq <= :lastSeq', {
+      replacements: { lastSeq: 2 },
+      transaction: expect.anything(),
+    });
+  });
+
+  it('stays quiet when no sink is behind the retention cutoff', async () => {
+    respondTo({
+      pg_try_advisory_xact_lock: [{ locked: true }],
+      'AS max_seq': [{ max_seq: '3' }],
+      audit_sinks: [{ id: 'sink-current', cursorSeq: '9' }],
+    });
+    vi.mocked(readExportBatch).mockResolvedValueOnce([event(1), event(2), event(3)]);
+
+    await runAuditRetention({ retentionDays: 30, archiveDir }, new Date('2026-06-01T00:00:00Z'));
+
+    expect(readExportBatch).toHaveBeenCalledWith(expect.objectContaining({ maxSeq: 3 }));
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('deletes nothing while a sink has sent no event at all', async () => {
+    respondTo({
+      pg_try_advisory_xact_lock: [{ locked: true }],
+      'AS max_seq': [{ max_seq: '3' }],
+      audit_sinks: [{ id: 'sink-new', cursorSeq: '0' }],
+    });
+
+    await runAuditRetention({ retentionDays: 30, archiveDir }, new Date('2026-06-01T00:00:00Z'));
+
+    expect(readExportBatch).not.toHaveBeenCalled();
     expect(query).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'), expect.anything());
   });
 
@@ -257,9 +311,17 @@ describe('separate retention connection', () => {
     retentionQuery.mockImplementation(async (sql: string) =>
       sql.includes('pg_try_advisory_xact_lock') ? [{ locked: true }] : [{ max_seq: null }],
     );
+    query.mockResolvedValue([]);
 
     await runAuditRetention({ retentionDays: 30, archiveDir });
     await runAuditRetention({ retentionDays: 30, archiveDir });
+
+    // The sinks' hold is read as the application, since the retention role need not see them.
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('audit_sinks'), expect.anything());
+    expect(retentionQuery).not.toHaveBeenCalledWith(
+      expect.stringContaining('audit_sinks'),
+      expect.anything(),
+    );
 
     expect(SequelizeMock).toHaveBeenCalledTimes(1);
     expect(SequelizeMock).toHaveBeenCalledWith(
