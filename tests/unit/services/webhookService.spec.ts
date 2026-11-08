@@ -198,6 +198,7 @@ describe('endpoints', () => {
   it('updates fields, and turning an endpoint on clears why it was off', async () => {
     const record = endpoint({ enabled: false, disabledReason: 'failing', failingSince: at });
     vi.mocked(WebhookEndpoint.findByPk).mockResolvedValue(record);
+    vi.mocked(WebhookDelivery.update).mockResolvedValue([0] as never);
 
     await updateEndpoint('endpoint-1', {
       url: 'https://hooks.example.com/b',
@@ -213,6 +214,31 @@ describe('endpoints', () => {
       disabledReason: null,
       failingSince: null,
     });
+  });
+
+  // Events that happened while it was off were queued on hold; turning it back on sends them.
+  it('releases the deliveries held while it was off when it is turned back on', async () => {
+    vi.mocked(WebhookEndpoint.findByPk).mockResolvedValue(endpoint({ enabled: false }));
+    vi.mocked(WebhookDelivery.update).mockResolvedValue([4] as never);
+
+    const { released } = await updateEndpoint('endpoint-1', { enabled: true });
+
+    expect(released).toBe(4);
+    const [values, options] = vi.mocked(WebhookDelivery.update).mock.calls[0] as any;
+    expect(values.nextAttemptAt).toMatchObject({ fn: 'now' });
+    expect(options.where).toMatchObject({ endpointId: 'endpoint-1', nextAttemptAt: null });
+    const [statusOp] = Object.getOwnPropertySymbols(options.where.status);
+    expect(options.where.status[statusOp]).toEqual(['pending', 'failed']);
+  });
+
+  it('releases nothing for an endpoint that was already on, or is being turned off', async () => {
+    vi.mocked(WebhookEndpoint.findByPk).mockResolvedValue(endpoint());
+    expect((await updateEndpoint('endpoint-1', { enabled: true })).released).toBe(0);
+
+    vi.mocked(WebhookEndpoint.findByPk).mockResolvedValue(endpoint());
+    expect((await updateEndpoint('endpoint-1', { enabled: false })).released).toBe(0);
+
+    expect(WebhookDelivery.update).not.toHaveBeenCalled();
   });
 
   it('records a manual disable', async () => {
@@ -620,7 +646,7 @@ describe('dispatchWebhooks', () => {
     query.mockResolvedValue(undefined);
     vi.mocked(WebhookEndpoint.findAll).mockResolvedValue([
       endpoint({ id: 'a', eventTypes: ['user.created', 'credential.added'] }),
-      endpoint({ id: 'b', eventTypes: ['user.created'] }),
+      endpoint({ id: 'b', eventTypes: ['user.created'], enabled: false }),
     ]);
     vi.mocked(User.findByPk).mockResolvedValue({ email: 'a@example.com', phone: null } as any);
 
@@ -631,6 +657,9 @@ describe('dispatchWebhooks', () => {
     );
     expect(inserts).toHaveLength(2);
     expect(inserts.map(([, options]) => options.replacements.endpointId)).toEqual(['a', 'b']);
+    // A disabled endpoint's delivery is queued on hold, with no attempt due.
+    expect(inserts.map(([, options]) => options.replacements.held)).toEqual([false, true]);
+    expect(inserts[0][0]).toContain('CASE WHEN :held THEN NULL ELSE now() END');
     const payload = JSON.parse(inserts[0][1].replacements.payload);
     expect(payload).toEqual({
       id: inserts[0][1].replacements.id,
