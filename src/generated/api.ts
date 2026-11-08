@@ -17436,7 +17436,18 @@ export interface paths {
              *       "roles": [
              *         null
              *       ],
-             *       "org_id": "string"
+             *       "org_id": "string",
+             *       "permissions": [
+             *         null
+             *       ],
+             *       "permissions_omitted": null,
+             *       "org_roles": [
+             *         null
+             *       ],
+             *       "org_permissions": [
+             *         null
+             *       ],
+             *       "customClaims": null
              *     }
              */
             'application/json': {
@@ -17447,6 +17458,14 @@ export interface paths {
               phone_number_verified?: boolean;
               roles: string[];
               org_id: string | null;
+              permissions?: string[];
+              /** @enum {boolean} */
+              permissions_omitted?: true;
+              org_roles?: string[];
+              org_permissions?: string[];
+              customClaims: {
+                [key: string]: unknown;
+              };
             };
           };
         };

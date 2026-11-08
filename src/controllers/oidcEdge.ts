@@ -30,11 +30,11 @@ import { OidcPayload } from '../models/oidcPayloads.js';
 import { Session } from '../models/sessions.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { getOidcAccountClaims } from '../services/oidcAccountClaims.js';
 import { getOidcAuthContext, isUuid } from '../services/oidcAuthContext.js';
 import { sendBackchannelLogout } from '../services/oidcBackchannelLogout.js';
 import {
   findActiveOidcClient,
-  getOidcAccountClaims,
   getOidcClientMetadata,
   getOidcClientResources,
   verifyOidcClientSecret,
@@ -200,7 +200,7 @@ export async function getOidcAccount(req: Req<OidcAccountIdParams>, res: Respons
   // read the claims of anyone who is not signing in through it.
   if (!session || session.userId !== req.params.id) return res.status(404).json(NOT_FOUND);
 
-  const claims = await getOidcAccountClaims(req.params.id);
+  const claims = await getOidcAccountClaims(session, clientId, { recordOmission: true });
   return claims ? res.status(200).json(claims) : res.status(404).json(NOT_FOUND);
 }
 

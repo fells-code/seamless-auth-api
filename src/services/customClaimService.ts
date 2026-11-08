@@ -118,18 +118,21 @@ function setsFor(rows: CustomClaim[], kind: CustomClaimSourceKind, names: string
 
 /**
  * Instance role sets, then organization role sets (only while the membership exists), then the
- * session's hook claims. A later source wins per name, and roles of one kind apply in name order,
+ * OpenID Provider client's set (provider tokens only), then the session's hook claims. A later
+ * source wins per name, and roles of one kind apply in name order,
  * so the result does not depend on the order roles were granted in. Reserved names are filtered
  * again here, whatever was stored. The token budget is applied by `authorizationClaims`.
  */
 export async function resolveCustomClaims({
   roles,
   organizationRoles,
+  clientId,
   hookClaims,
   transaction,
 }: {
   roles: string[];
   organizationRoles: string[];
+  clientId?: string | null;
   hookClaims: ClaimSet | null | undefined;
   transaction?: Transaction;
 }): Promise<ClaimSet> {
@@ -138,6 +141,7 @@ export async function resolveCustomClaims({
     ...(organizationRoles.length
       ? [{ sourceKind: 'organization_role', sourceName: { [Op.in]: organizationRoles } }]
       : []),
+    ...(clientId ? [{ sourceKind: 'oidc_client', sourceName: clientId }] : []),
   ];
   const rows = wanted.length
     ? await CustomClaim.findAll({ where: { [Op.or]: wanted }, transaction })
@@ -147,6 +151,7 @@ export async function resolveCustomClaims({
   for (const set of [
     ...setsFor(rows, 'instance_role', roles),
     ...setsFor(rows, 'organization_role', organizationRoles),
+    ...(clientId ? setsFor(rows, 'oidc_client', [clientId]) : []),
     hookClaims ?? {},
   ]) {
     for (const [name, value] of Object.entries(set)) {

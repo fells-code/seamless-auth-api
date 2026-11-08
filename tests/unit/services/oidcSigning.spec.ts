@@ -4,8 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/services/oidcClientRegistry', () => ({
   findActiveOidcClient: vi.fn(),
-  getOidcAccountClaims: vi.fn(),
   getOidcClientResourceScopes: vi.fn(),
+}));
+
+vi.mock('../../../src/services/oidcAccountClaims', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/services/oidcAccountClaims')>()),
+  getOidcAccountClaims: vi.fn(),
 }));
 
 vi.mock('../../../src/services/oidcPayloadStore', () => ({
@@ -25,10 +29,10 @@ vi.mock('../../../src/services/oidcProviderKeys', async (importOriginal) => ({
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
 import { Session } from '../../../src/models/sessions';
+import { getOidcAccountClaims } from '../../../src/services/oidcAccountClaims';
 import { resolveCurrentSession } from '../../../src/services/oidcAuthContext';
 import {
   findActiveOidcClient,
-  getOidcAccountClaims,
   getOidcClientResourceScopes,
 } from '../../../src/services/oidcClientRegistry';
 import {
@@ -161,6 +165,8 @@ describe('signForOidcEdge', () => {
       email_verified: true,
       roles: ['user'],
       org_id: null,
+      permissions: [],
+      customClaims: {},
     });
   });
 
@@ -394,13 +400,138 @@ describe('signForOidcEdge', () => {
   });
 
   it('refuses a claim the library does not put in that token', async () => {
-    expect(await signForOidcEdge(idTokenRequest(idTokenClaims({ is_admin: true })))).toEqual({
+    expect(await signForOidcEdge(idTokenRequest(idTokenClaims({ 'is-admin': true })))).toEqual({
       ok: false,
       code: 'malformed_signing_input',
     });
     expect(await signForOidcEdge(clientCredentialsRequest({ email: 'a@example.com' }))).toEqual({
       ok: false,
       code: 'malformed_signing_input',
+    });
+  });
+
+  describe('authorization and custom claims (seamless-auth-oidc-provider#47)', () => {
+    const account = {
+      sub: 'user-1',
+      email: 'a@example.com',
+      email_verified: true,
+      roles: ['user'],
+      org_id: 'org-1',
+      permissions: ['orders:read'],
+      org_roles: ['member'],
+      org_permissions: ['projects:read'],
+      customClaims: { tier: 'gold', limits: { seats: 5, regions: ['us', 'eu'] } },
+    };
+    const carried = {
+      roles: ['user'],
+      org_id: 'org-1',
+      permissions: ['orders:read'],
+      org_roles: ['member'],
+      org_permissions: ['projects:read'],
+      tier: 'gold',
+      limits: { seats: 5, regions: ['us', 'eu'] },
+    };
+
+    beforeEach(() => {
+      vi.mocked(getOidcAccountClaims).mockResolvedValue(account);
+    });
+
+    it('signs the values the API computes for the session and client', async () => {
+      expect((await signForOidcEdge(idTokenRequest(idTokenClaims(carried)))).ok).toBe(true);
+      expect((await signForOidcEdge(accessTokenRequest(carried))).ok).toBe(true);
+      expect(getOidcAccountClaims).toHaveBeenCalledWith(
+        expect.objectContaining({ id: SESSION, userId: 'user-1' }),
+        'app',
+      );
+    });
+
+    it('compares custom values whatever their key order', async () => {
+      const reordered = { ...carried, limits: { regions: ['us', 'eu'], seats: 5 } };
+      expect((await signForOidcEdge(idTokenRequest(idTokenClaims(reordered)))).ok).toBe(true);
+    });
+
+    it('signs either set alone, and neither', async () => {
+      const { tier: _tier, limits: _limits, ...permissionsOnly } = carried;
+      expect((await signForOidcEdge(idTokenRequest(idTokenClaims(permissionsOnly)))).ok).toBe(true);
+      const customOnly = { tier: 'gold', limits: carried.limits };
+      expect((await signForOidcEdge(accessTokenRequest(customOnly))).ok).toBe(true);
+      expect((await signForOidcEdge(idTokenRequest())).ok).toBe(true);
+    });
+
+    it.each([
+      ['a forged custom value', { tier: 'platinum' }],
+      ['a forged nested custom value', { limits: { seats: 500, regions: ['us', 'eu'] } }],
+      ['an extra permission', { permissions: ['orders:read', 'orders:write'] }],
+      ['another organization', { org_id: 'org-2' }],
+      ['raised organization roles', { org_roles: ['owner'] }],
+      ['the omission marker the API did not set', { permissions_omitted: true }],
+    ])('refuses %s', async (_label, forged) => {
+      expect(
+        await signForOidcEdge(idTokenRequest(idTokenClaims({ ...carried, ...forged }))),
+      ).toEqual({ ok: false, code: 'subject_mismatch', userId: 'user-1' });
+      expect(await signForOidcEdge(accessTokenRequest({ ...carried, ...forged }))).toEqual({
+        ok: false,
+        code: 'subject_mismatch',
+        userId: 'user-1',
+      });
+    });
+
+    it('refuses a custom claim name the API did not compute', async () => {
+      expect(
+        await signForOidcEdge(idTokenRequest(idTokenClaims({ ...carried, is_admin: true }))),
+      ).toEqual({ ok: false, code: 'malformed_signing_input', userId: 'user-1' });
+    });
+
+    it.each(['act', 'may_act', 'name', 'recovery', 'seamless_admin', 'org_tier', 'Tier'])(
+      'refuses the reserved or unlisted name %s before reading the account',
+      async (name) => {
+        vi.mocked(getOidcAccountClaims).mockResolvedValue({
+          ...account,
+          customClaims: { ...account.customClaims, [name]: true },
+        });
+        expect(await signForOidcEdge(idTokenRequest(idTokenClaims({ [name]: true })))).toEqual({
+          ok: false,
+          code: 'malformed_signing_input',
+        });
+        expect(getOidcAccountClaims).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['permissions without the organization claims', { org_roles: undefined }],
+      ['part of the custom claims', { limits: undefined }],
+    ])('refuses %s, since a partial set looks complete', async (_label, dropped) => {
+      const claims = { ...carried, ...dropped };
+      expect(await signForOidcEdge(accessTokenRequest(JSON.parse(JSON.stringify(claims))))).toEqual(
+        { ok: false, code: 'subject_mismatch', userId: 'user-1' },
+      );
+    });
+
+    it('signs the omission marker when the API omitted permissions, and refuses the lists', async () => {
+      vi.mocked(getOidcAccountClaims).mockResolvedValue({
+        sub: 'user-1',
+        roles: ['user'],
+        org_id: 'org-1',
+        permissions_omitted: true,
+        customClaims: { tier: 'gold' },
+      });
+      expect(
+        (await signForOidcEdge(accessTokenRequest({ permissions_omitted: true, tier: 'gold' }))).ok,
+      ).toBe(true);
+      expect(
+        await signForOidcEdge(accessTokenRequest({ permissions: ['orders:read'], tier: 'gold' })),
+      ).toMatchObject({ code: 'subject_mismatch' });
+    });
+
+    it('refuses custom claims on a client credentials token', async () => {
+      expect(await signForOidcEdge(clientCredentialsRequest({ tier: 'gold' }))).toEqual({
+        ok: false,
+        code: 'malformed_signing_input',
+      });
+      expect(await signForOidcEdge(clientCredentialsRequest({ permissions: [] }))).toEqual({
+        ok: false,
+        code: 'malformed_signing_input',
+      });
     });
   });
 

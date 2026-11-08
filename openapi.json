@@ -17738,7 +17738,12 @@
                   "phone_number": "string",
                   "phone_number_verified": true,
                   "roles": [null],
-                  "org_id": "string"
+                  "org_id": "string",
+                  "permissions": [null],
+                  "permissions_omitted": null,
+                  "org_roles": [null],
+                  "org_permissions": [null],
+                  "customClaims": null
                 },
                 "schema": {
                   "type": "object",
@@ -17749,9 +17754,17 @@
                     "phone_number": { "type": "string" },
                     "phone_number_verified": { "type": "boolean" },
                     "roles": { "type": "array", "items": { "type": "string" } },
-                    "org_id": { "type": "string", "nullable": true }
+                    "org_id": { "type": "string", "nullable": true },
+                    "permissions": { "type": "array", "items": { "type": "string" } },
+                    "permissions_omitted": { "type": "boolean", "enum": [true] },
+                    "org_roles": { "type": "array", "items": { "type": "string" } },
+                    "org_permissions": { "type": "array", "items": { "type": "string" } },
+                    "customClaims": {
+                      "type": "object",
+                      "additionalProperties": { "nullable": true }
+                    }
                   },
-                  "required": ["sub", "roles", "org_id"]
+                  "required": ["sub", "roles", "org_id", "customClaims"]
                 }
               }
             }

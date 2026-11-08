@@ -5,6 +5,8 @@
  */
 
 import {
+  CUSTOM_CLAIM_NAME_PATTERN,
+  isReservedClaimName,
   type OidcSignRefusalCode,
   type OidcSignRequest,
   seamlessBuiltInResource,
@@ -15,12 +17,13 @@ import { constants, sign } from 'crypto';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { Session } from '../models/sessions.js';
 import { parseDurationToSeconds } from '../utils/utils.js';
-import { deriveAcrAmr, resolveCurrentSession, sessionAuthTime } from './oidcAuthContext.js';
 import {
-  findActiveOidcClient,
   getOidcAccountClaims,
-  getOidcClientResourceScopes,
-} from './oidcClientRegistry.js';
+  PERMISSION_CLAIMS,
+  providerTokenClaims,
+} from './oidcAccountClaims.js';
+import { deriveAcrAmr, resolveCurrentSession, sessionAuthTime } from './oidcAuthContext.js';
+import { findActiveOidcClient, getOidcClientResourceScopes } from './oidcClientRegistry.js';
 import { hasOidcGrantForSession, recordSessionExchangeToken } from './oidcPayloadStore.js';
 import { getActiveOidcSigningKey, OidcProviderKeysError } from './oidcProviderKeys.js';
 
@@ -79,15 +82,41 @@ const ALLOWED_CLAIMS: Record<OidcSignRequest['kind'], ReadonlySet<string>> = {
   ]),
 };
 
-// Released by scope, so they may be present, but only with the account's own values.
-const IDENTITY_CLAIMS = [
+// Released by scope, so they may be present, but only with the values the API computes for the
+// account and client. Custom claims (ADR 0005 E6) are any other name a custom claim may have.
+const ACCOUNT_CLAIMS = new Set<string>([
   'email',
   'email_verified',
   'phone_number',
   'phone_number_verified',
   'roles',
   'org_id',
-] as const;
+  ...PERMISSION_CLAIMS,
+]);
+
+function isAccountClaimName(claim: string) {
+  return (
+    ACCOUNT_CLAIMS.has(claim) ||
+    (CUSTOM_CLAIM_NAME_PATTERN.test(claim) && !isReservedClaimName(claim))
+  );
+}
+
+/** JSON equality that ignores object key order, which a JSONB round trip does not keep. */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonical((value as JsonObject)[key])]),
+    );
+  }
+  return value;
+}
+
+function sameJson(a: unknown, b: unknown) {
+  return JSON.stringify(canonical(a ?? null)) === JSON.stringify(canonical(b ?? null));
+}
 
 function isSessionExchangeToken(request: OidcSignRequest, claims: JsonObject) {
   return request.kind === 'access_token' && scopesOf(claims).includes(SESSION_EXCHANGE_SCOPE);
@@ -186,9 +215,7 @@ export async function signForOidcEdge(request: OidcSignRequest): Promise<OidcSig
   const allowsIdentity = request.kind !== 'client_credentials';
   if (
     Object.keys(claims).some(
-      (claim) =>
-        !allowed.has(claim) &&
-        !(allowsIdentity && (IDENTITY_CLAIMS as readonly string[]).includes(claim)),
+      (claim) => !allowed.has(claim) && !(allowsIdentity && isAccountClaimName(claim)),
     )
   ) {
     return refuse('malformed_signing_input');
@@ -323,14 +350,10 @@ async function checkUserToken(
     return refuse('auth_context_mismatch', session.userId);
   }
 
-  if (IDENTITY_CLAIMS.some((claim) => claim in claims)) {
-    const account = await getOidcAccountClaims(session.userId);
-    const mismatch = IDENTITY_CLAIMS.some(
-      (claim) =>
-        claim in claims &&
-        JSON.stringify(claims[claim]) !== JSON.stringify(account?.[claim] ?? null),
-    );
-    if (!account || mismatch) return refuse('subject_mismatch', session.userId);
+  const released = Object.keys(claims).filter((claim) => !ALLOWED_CLAIMS[request.kind].has(claim));
+  if (released.length > 0) {
+    const refusal = await checkAccountClaims(session, client.id, claims, released);
+    if (refusal) return refusal;
   }
 
   if (request.kind === 'id_token') {
@@ -349,6 +372,42 @@ async function checkUserToken(
   return isSessionExchangeToken(request, claims)
     ? checkSessionExchangeToken(request, claims, issuer, session.userId)
     : null;
+}
+
+/**
+ * The edge releases account claims by scope, but every value is the API's: it computes them
+ * again here for this session and client, the same way `/oidc/accounts/:id` did, and signs
+ * only what matches. A custom claim name it did not compute is one it never checked. The
+ * permission claims and the custom claims are each carried whole or not at all (ADR 0005 E6),
+ * since a partial list looks complete.
+ */
+async function checkAccountClaims(
+  session: NonNullable<Awaited<ReturnType<typeof resolveCurrentSession>>>,
+  clientId: string,
+  claims: JsonObject,
+  released: string[],
+): Promise<OidcSignOutcome | null> {
+  const account = await getOidcAccountClaims(session, clientId);
+  if (!account) return refuse('subject_mismatch', session.userId);
+
+  const expected = providerTokenClaims(account);
+  if (released.some((claim) => !ACCOUNT_CLAIMS.has(claim) && !(claim in account.customClaims))) {
+    return refuse('malformed_signing_input', session.userId);
+  }
+  if (released.some((claim) => !sameJson(claims[claim], expected[claim]))) {
+    return refuse('subject_mismatch', session.userId);
+  }
+
+  const sets = [
+    PERMISSION_CLAIMS.filter((claim) => claim in expected),
+    Object.keys(account.customClaims),
+  ];
+  for (const set of sets) {
+    const carried = set.filter((claim) => claim in claims).length;
+    if (carried > 0 && carried < set.length) return refuse('subject_mismatch', session.userId);
+  }
+
+  return null;
 }
 
 /** ADR 0003, X2: a token useful nowhere else, that lives briefly and can be told apart. */

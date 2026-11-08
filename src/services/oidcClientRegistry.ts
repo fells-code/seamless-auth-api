@@ -6,7 +6,6 @@
 
 import {
   APPLICATION_NOTICE_SCOPE,
-  type OidcAccountClaims,
   type OidcClientMetadata,
   type OidcPublicJwk,
   oidcRedirectUriKind,
@@ -21,9 +20,6 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import { OidcClientResource } from '../models/oidcClientResources.js';
 import { OidcClient } from '../models/oidcClients.js';
 import { OidcResource } from '../models/oidcResources.js';
-import { User } from '../models/users.js';
-import { isUuid } from './oidcAuthContext.js';
-import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
 const SHARED_SECRET_METHODS = new Set(['client_secret_basic', 'client_secret_post']);
 const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
@@ -202,23 +198,4 @@ export async function getOidcClientResources(clientId: string) {
 export async function getOidcClientResourceScopes(clientId: string) {
   const resources = await getOidcClientResources(clientId);
   return new Map(resources.map((resource) => [resource.identifier, new Set(resource.scopes)]));
-}
-
-export async function getOidcAccountClaims(userId: string): Promise<OidcAccountClaims | null> {
-  if (!isUuid(userId)) return null;
-
-  const user = await User.findOne({ where: { id: userId } });
-
-  if (!user || user.revoked) return null;
-
-  return {
-    sub: user.id,
-    email: user.email,
-    email_verified: user.emailVerified === true,
-    ...(user.phone
-      ? { phone_number: user.phone, phone_number_verified: user.phoneVerified === true }
-      : {}),
-    roles: user.roles ?? [],
-    org_id: await getDefaultOrganizationIdForUser(user.id),
-  };
 }
