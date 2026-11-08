@@ -93,7 +93,7 @@ describe('resolveCustomClaims', () => {
     ).toEqual({});
   });
 
-  it('applies roles of one kind in name order, whatever order they were granted in', async () => {
+  it('applies instance roles in name order, whatever order they were granted in', async () => {
     stored(
       row('instance_role', 'zeta', { plan: 'z' }),
       row('instance_role', 'alpha', { plan: 'a' }),
@@ -112,6 +112,22 @@ describe('resolveCustomClaims', () => {
 
     expect(first).toEqual({ plan: 'z' });
     expect(second).toEqual({ plan: 'z' });
+  });
+
+  it('applies organization roles in name order, whatever order they were granted in', async () => {
+    stored(
+      row('organization_role', 'owner', { plan: 'owner' }),
+      row('organization_role', 'billing', { plan: 'billing' }),
+    );
+
+    for (const organizationRoles of [
+      ['owner', 'billing'],
+      ['billing', 'owner'],
+    ]) {
+      expect(await resolveCustomClaims({ roles: [], organizationRoles, hookClaims: null })).toEqual(
+        { plan: 'owner' },
+      );
+    }
   });
 
   it('never lets an organization role set apply as an instance one', async () => {
