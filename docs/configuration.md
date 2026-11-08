@@ -127,6 +127,10 @@ export does. A sink retries until its collector takes the events, backing off to
 reports how far behind the chain head it is. Destinations follow the same rules as webhooks,
 including `CALLOUT_PRIVATE_HOSTS`, and plain TCP syslog is refused in production.
 
+Syslog sinks arrive in 0.23.1. Until then the API refuses to create or update one with a 400,
+because the syslog records' SD-ID needs the Fells Code IANA enterprise number first (#586). Use an
+OTLP sink in the meantime.
+
 | Variable                   | Required | Default | Notes                                                                                                                                                                                                                                                                                 |
 | -------------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `<NAME>_AUDIT_SINK_SECRET` | No       | -       | Credentials a sink names rather than stores: an OTLP header value (`headersFromEnv`), or a PEM CA, client certificate or client key for syslog TLS. Names must end in `_AUDIT_SINK_SECRET`. Read at send time; a sink whose variable is unset fails with `refused` and sends nothing. |
