@@ -373,6 +373,7 @@ describe('getOidcAccountClaims', () => {
       phone_number_verified: false,
       roles: ['user'],
       org_id: 'org-1',
+      customClaims: {},
     });
   });
 
