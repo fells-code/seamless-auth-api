@@ -13212,6 +13212,7 @@
                       "nullable": true,
                       "enum": [
                         "refused",
+                        "misconfigured",
                         "timed_out",
                         "connection_failed",
                         "http_status",
@@ -13399,6 +13400,7 @@
                             "nullable": true,
                             "enum": [
                               "refused",
+                              "misconfigured",
                               "timed_out",
                               "connection_failed",
                               "http_status",
