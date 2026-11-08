@@ -38,6 +38,9 @@ vi.mock('../../../src/services/oidcClientRegistry.js', () => ({
   getOidcClientResources: vi.fn(),
   getOidcClientMetadata: vi.fn(),
   verifyOidcClientSecret: vi.fn(),
+}));
+
+vi.mock('../../../src/services/oidcAccountClaims.js', () => ({
   getOidcAccountClaims: vi.fn(),
 }));
 
@@ -53,9 +56,9 @@ import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { getOidcAuthContext } from '../../../src/services/oidcAuthContext.js';
 import { sendBackchannelLogout } from '../../../src/services/oidcBackchannelLogout.js';
+import { getOidcAccountClaims } from '../../../src/services/oidcAccountClaims.js';
 import {
   findActiveOidcClient,
-  getOidcAccountClaims,
   getOidcClientMetadata,
   getOidcClientResources,
   verifyOidcClientSecret,
@@ -330,6 +333,19 @@ describe('POST /oidc/sign', () => {
     );
   });
 
+  it('answers 403 claims_mismatch, which the edge retries once', async () => {
+    vi.mocked(signForOidcEdge).mockResolvedValue({
+      ok: false,
+      code: 'claims_mismatch',
+      userId: 'user-1',
+    });
+
+    const res = await edge('post', '/oidc/sign').send(body);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'claims_mismatch' });
+  });
+
   it('answers 400 for a malformed signing input', async () => {
     vi.mocked(signForOidcEdge).mockResolvedValue({ ok: false, code: 'malformed_signing_input' });
 
@@ -406,13 +422,24 @@ describe('keys, clients and accounts', () => {
   });
 
   it('returns account claims only for the user behind a grant-bound session', async () => {
-    const claims = { sub: USER, roles: [], org_id: null, customClaims: {} };
+    const claims = {
+      sub: USER,
+      roles: [],
+      org_id: 'org-1',
+      permissions: ['orders:read'],
+      org_roles: ['member'],
+      org_permissions: [],
+      customClaims: { tier: 'gold' },
+    };
     const path = `/oidc/accounts/${USER}?clientId=app&sessionId=${SESSION}`;
-    vi.mocked(findGrantBoundSession).mockResolvedValue({ id: SESSION, userId: USER } as never);
+    const session = { id: SESSION, userId: USER };
+    vi.mocked(findGrantBoundSession).mockResolvedValue(session as never);
     vi.mocked(getOidcAccountClaims).mockResolvedValueOnce(claims);
 
     expect((await edge('get', path)).body).toEqual(claims);
     expect(findGrantBoundSession).toHaveBeenCalledWith(SESSION, 'app');
+    // Computed for the session and client the lookup names, not just the user.
+    expect(getOidcAccountClaims).toHaveBeenCalledWith(session, 'app', { recordOmission: true });
 
     vi.mocked(getOidcAccountClaims).mockResolvedValueOnce(null);
     expect((await edge('get', path)).status).toBe(404);

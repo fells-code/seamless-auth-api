@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../src/models/oidcClients.js', () => ({
@@ -57,6 +58,39 @@ describe('resolveCustomClaims', () => {
     });
 
     expect(resolved).toEqual({ plan: 'enterprise', region: 'us', tier: 1, seats: 5 });
+  });
+
+  it('applies the OpenID Provider client after roles and before the hook', async () => {
+    stored(
+      row('instance_role', 'user', { plan: 'free', region: 'us' }),
+      row('organization_role', 'admin', { plan: 'team', seats: 5 }),
+      row('oidc_client', 'other-app', { tenant: 'other' }),
+      row('oidc_client', 'app', { plan: 'client', tenant: 'acme', seats: 9 }),
+    );
+
+    const resolved = await resolveCustomClaims({
+      roles: ['user'],
+      organizationRoles: ['admin'],
+      clientId: 'app',
+      hookClaims: { seats: 10 },
+    });
+
+    expect(resolved).toEqual({ plan: 'client', region: 'us', seats: 10, tenant: 'acme' });
+    expect(CustomClaim.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          [Op.or]: expect.arrayContaining([{ sourceKind: 'oidc_client', sourceName: 'app' }]),
+        }),
+      }),
+    );
+  });
+
+  it('never applies a client set to a token for no client', async () => {
+    stored(row('oidc_client', 'app', { tenant: 'acme' }));
+
+    expect(
+      await resolveCustomClaims({ roles: ['user'], organizationRoles: [], hookClaims: null }),
+    ).toEqual({});
   });
 
   it('applies instance roles in name order, whatever order they were granted in', async () => {

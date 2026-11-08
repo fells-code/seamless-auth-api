@@ -12,19 +12,13 @@ vi.mock('../../../src/models/oidcResources', () => ({
   OidcResource: { findAll: vi.fn() },
 }));
 
-vi.mock('../../../src/services/organizationService', () => ({
-  getDefaultOrganizationIdForUser: vi.fn(async () => 'org-1'),
-}));
-
 import { getSystemConfig } from '../../../src/config/getSystemConfig';
 import { OidcClient } from '../../../src/models/oidcClients';
 import { OidcClientResource } from '../../../src/models/oidcClientResources';
 import { OidcResource } from '../../../src/models/oidcResources';
-import { User } from '../../../src/models/users';
 import {
   createOidcClientSecretLookup,
   findActiveOidcClient,
-  getOidcAccountClaims,
   getOidcClientMetadata,
   getOidcClientResources,
   getOidcClientResourceScopes,
@@ -350,54 +344,5 @@ describe('getOidcClientResources', () => {
       { identifier: 'https://api.example.com', scopes: ['read'], accessTokenTtlSeconds: 300 },
       { identifier: 'https://other.example.com', scopes: ['x'], accessTokenTtlSeconds: null },
     ]);
-  });
-});
-
-describe('getOidcAccountClaims', () => {
-  it('returns the standard and Seamless claims', async () => {
-    vi.mocked(User.findOne).mockResolvedValue({
-      id: USER,
-      email: 'a@example.com',
-      emailVerified: true,
-      phone: '+14155552671',
-      phoneVerified: false,
-      roles: ['user'],
-      revoked: false,
-    } as never);
-
-    expect(await getOidcAccountClaims(USER)).toEqual({
-      sub: USER,
-      email: 'a@example.com',
-      email_verified: true,
-      phone_number: '+14155552671',
-      phone_number_verified: false,
-      roles: ['user'],
-      org_id: 'org-1',
-      customClaims: {},
-    });
-  });
-
-  it('leaves the phone out when there is none, and defaults roles', async () => {
-    vi.mocked(User.findOne).mockResolvedValue({
-      id: USER,
-      email: 'a@example.com',
-      emailVerified: false,
-      phone: null,
-      revoked: false,
-    } as never);
-
-    const claims = await getOidcAccountClaims(USER);
-    expect(claims).not.toHaveProperty('phone_number');
-    expect(claims?.roles).toEqual([]);
-  });
-
-  it('returns null for a malformed id, an unknown user or a revoked one', async () => {
-    expect(await getOidcAccountClaims('nope')).toBeNull();
-
-    vi.mocked(User.findOne).mockResolvedValue(null);
-    expect(await getOidcAccountClaims(USER)).toBeNull();
-
-    vi.mocked(User.findOne).mockResolvedValue({ id: USER, revoked: true } as never);
-    expect(await getOidcAccountClaims(USER)).toBeNull();
   });
 });
