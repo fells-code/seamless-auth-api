@@ -154,6 +154,24 @@ describe('webhook endpoints', () => {
     expect(types).toEqual(['admin_webhook_updated', 'admin_webhook_deleted']);
   });
 
+  it('records how many held deliveries turning an endpoint back on released', async () => {
+    vi.mocked(WebhookEndpoint.findByPk).mockResolvedValue(
+      buildEndpoint({ enabled: false, disabledReason: 'gone' }),
+    );
+    vi.mocked(WebhookDelivery.update).mockResolvedValue([2] as never);
+
+    const res = await request(app).patch(`/admin/webhooks/${endpointId}`).send({ enabled: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.endpoint).toMatchObject({ enabled: true, disabledReason: null });
+    expect(AuthEventService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'admin_webhook_updated',
+        metadata: expect.objectContaining({ releasedDeliveries: 2 }),
+      }),
+    );
+  });
+
   it('answers 404 for an endpoint that does not exist', async () => {
     for (const send of [
       () => request(app).get(`/admin/webhooks/${endpointId}`),
