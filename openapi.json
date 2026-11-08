@@ -13945,6 +13945,7 @@
                       "nullable": true,
                       "enum": [
                         "refused",
+                        "misconfigured",
                         "timed_out",
                         "connection_failed",
                         "http_status",
@@ -14132,6 +14133,7 @@
                             "nullable": true,
                             "enum": [
                               "refused",
+                              "misconfigured",
                               "timed_out",
                               "connection_failed",
                               "http_status",
@@ -17005,6 +17007,7 @@
                         "session_revoked",
                         "subject_mismatch",
                         "auth_context_mismatch",
+                        "claims_mismatch",
                         "issuer_mismatch",
                         "audience_mismatch",
                         "client_inactive",
@@ -17047,6 +17050,7 @@
                         "session_revoked",
                         "subject_mismatch",
                         "auth_context_mismatch",
+                        "claims_mismatch",
                         "issuer_mismatch",
                         "audience_mismatch",
                         "client_inactive",
@@ -17738,7 +17742,12 @@
                   "phone_number": "string",
                   "phone_number_verified": true,
                   "roles": [null],
-                  "org_id": "string"
+                  "org_id": "string",
+                  "permissions": [null],
+                  "permissions_omitted": null,
+                  "org_roles": [null],
+                  "org_permissions": [null],
+                  "customClaims": null
                 },
                 "schema": {
                   "type": "object",
@@ -17749,7 +17758,177 @@
                     "phone_number": { "type": "string" },
                     "phone_number_verified": { "type": "boolean" },
                     "roles": { "type": "array", "items": { "type": "string" } },
-                    "org_id": { "type": "string", "nullable": true }
+                    "org_id": { "type": "string", "nullable": true },
+                    "permissions": { "type": "array", "items": { "type": "string" } },
+                    "permissions_omitted": { "type": "boolean", "enum": [true] },
+                    "org_roles": { "type": "array", "items": { "type": "string" } },
+                    "org_permissions": { "type": "array", "items": { "type": "string" } },
+                    "customClaims": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          { "type": "string" },
+                          { "type": "number" },
+                          { "type": "boolean" },
+                          { "nullable": true },
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "number" },
+                                { "type": "boolean" },
+                                { "nullable": true },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": {
+                              "anyOf": [
+                                { "type": "string" },
+                                { "type": "number" },
+                                { "type": "boolean" },
+                                { "nullable": true },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      { "type": "string" },
+                                      { "type": "number" },
+                                      { "type": "boolean" },
+                                      { "nullable": true },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            { "type": "string" },
+                                            { "type": "number" },
+                                            { "type": "boolean" },
+                                            { "nullable": true }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "default": {}
+                    }
                   },
                   "required": ["sub", "roles", "org_id"]
                 }
@@ -36255,6 +36434,7 @@
                       "nullable": true,
                       "enum": [
                         "refused",
+                        "misconfigured",
                         "timed_out",
                         "connection_failed",
                         "http_status",
@@ -36496,6 +36676,7 @@
                             "nullable": true,
                             "enum": [
                               "refused",
+                              "misconfigured",
                               "timed_out",
                               "connection_failed",
                               "http_status",
@@ -36712,6 +36893,7 @@
                           "nullable": true,
                           "enum": [
                             "refused",
+                            "misconfigured",
                             "timed_out",
                             "connection_failed",
                             "http_status",
@@ -37228,6 +37410,7 @@
                           "nullable": true,
                           "enum": [
                             "refused",
+                            "misconfigured",
                             "timed_out",
                             "connection_failed",
                             "http_status",
