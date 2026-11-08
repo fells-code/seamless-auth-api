@@ -53,6 +53,8 @@ This differs from `requireRole`, deliberately. Roles keep their scoped matching.
 
 The organization roles and the two permission arrays get 1 KiB, serialized, together. A server adapter keeps the whole access token inside a signed cookie, so it is base64 encoded twice under the browser's 4 KiB cookie limit, and a test builds that cookie at the budget. Over the budget all three are replaced with `"permissions_omitted": true`.
 
+The 1 KiB is now shared with custom claims (ADR 0005, E6), and permissions are the first to give way when both do not fit.
+
 Nothing is trimmed, because a partial list looks complete and denies silently. A guard that sees the marker reads `GET /users/me/permissions` with the caller's token and fails closed if it cannot. A plain 403 would turn an organization growing past a limit into an outage.
 
 ### P5. Organization roles are a catalogue

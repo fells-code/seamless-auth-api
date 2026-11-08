@@ -4,12 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import {
-  CUSTOM_CLAIMS_BUDGET_BYTES,
-  customClaimsByteLength,
-  type CustomClaimSourceKind,
-  isReservedClaimName,
-} from '@seamless-auth/types';
+import { type CustomClaimSourceKind, isReservedClaimName } from '@seamless-auth/types';
 import { Op, type Transaction } from 'sequelize';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
@@ -121,18 +116,11 @@ function setsFor(rows: CustomClaim[], kind: CustomClaimSourceKind, names: string
     .map((row) => row.claims ?? {});
 }
 
-export type ResolvedCustomClaims =
-  | { claims: ClaimSet; omitted: false }
-  | { claims: Record<string, never>; omitted: true; bytes: number };
-
 /**
  * Instance role sets, then organization role sets (only while the membership exists), then the
  * session's hook claims. A later source wins per name, and roles of one kind apply in name order,
  * so the result does not depend on the order roles were granted in. Reserved names are filtered
- * again here, whatever was stored.
- *
- * Each source fits the budget alone but together they can exceed it. Nothing is trimmed, since a
- * partial set looks complete: over the budget the token carries no custom claims at all.
+ * again here, whatever was stored. The token budget is applied by `authorizationClaims`.
  */
 export async function resolveCustomClaims({
   roles,
@@ -144,7 +132,7 @@ export async function resolveCustomClaims({
   organizationRoles: string[];
   hookClaims: ClaimSet | null | undefined;
   transaction?: Transaction;
-}): Promise<ResolvedCustomClaims> {
+}): Promise<ClaimSet> {
   const wanted = [
     ...(roles.length ? [{ sourceKind: 'instance_role', sourceName: { [Op.in]: roles } }] : []),
     ...(organizationRoles.length
@@ -166,8 +154,5 @@ export async function resolveCustomClaims({
     }
   }
 
-  const bytes = customClaimsByteLength(merged);
-  if (bytes > CUSTOM_CLAIMS_BUDGET_BYTES) return { claims: {}, omitted: true, bytes };
-
-  return { claims: merged, omitted: false };
+  return merged;
 }

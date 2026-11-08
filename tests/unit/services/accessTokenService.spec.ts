@@ -12,8 +12,6 @@ vi.mock('../../../src/utils/signingKeyStore.js', () => ({
   getSigningKey: vi.fn(),
 }));
 
-import { CUSTOM_CLAIMS_BUDGET_BYTES, customClaimsByteLength } from '@seamless-auth/types';
-
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { CustomClaim } from '../../../src/models/customClaims.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
@@ -22,9 +20,9 @@ import { OrganizationMembership } from '../../../src/models/organizationMembersh
 import { RolePermission } from '../../../src/models/rolePermissions.js';
 import { Session } from '../../../src/models/sessions.js';
 import {
+  AUTHORIZATION_CLAIMS_BUDGET_BYTES,
   authorizationClaims,
   mintAccessToken,
-  PERMISSION_CLAIMS_BUDGET_BYTES,
   resolveAuthorization,
 } from '../../../src/services/accessTokenService.js';
 import { getSigningKey } from '../../../src/utils/signingKeyStore.js';
@@ -55,12 +53,23 @@ function fittingPermissions() {
   for (let index = 0; ; index += 1) {
     const next = [...permissions, `resource-${index}:action`];
 
-    if (Buffer.byteLength(JSON.stringify({ permissions: next })) > PERMISSION_CLAIMS_BUDGET_BYTES) {
+    if (
+      Buffer.byteLength(JSON.stringify({ permissions: next })) > AUTHORIZATION_CLAIMS_BUDGET_BYTES
+    ) {
       return permissions;
     }
 
     permissions.push(next[next.length - 1]);
   }
+}
+
+/** One string claim padded so the set serializes to exactly `bytes`. */
+function claimsOf(bytes: number, name = 'pad') {
+  return { [name]: 'x'.repeat(bytes - JSON.stringify({ [name]: '' }).length) };
+}
+
+function bytesOf(claims: Record<string, unknown>) {
+  return Buffer.byteLength(JSON.stringify(claims));
 }
 
 const organizationId = '2c0d53c2-a541-452b-b71b-54c7f15e5877';
@@ -161,31 +170,39 @@ describe('resolveAuthorization', () => {
 
 describe('authorizationClaims', () => {
   const resolved = { roles: [], permissions: [], ...noOrganization };
+  const marker = { permissions_omitted: true };
 
   it('carries a set that fits, with no organization claims outside an organization', () => {
     expect(authorizationClaims({ ...resolved, permissions: ['a:read'] })).toEqual({
-      permissions: ['a:read'],
+      authorization: { permissions: ['a:read'] },
+      customClaims: {},
+      customClaimsOmitted: null,
     });
   });
 
   it('carries the organization claims inside one, even when empty', () => {
     expect(
-      authorizationClaims({ ...resolved, organizationId, organizationRoles: ['member'] }),
+      authorizationClaims({ ...resolved, organizationId, organizationRoles: ['member'] })
+        .authorization,
     ).toEqual({ permissions: [], org_roles: ['member'], org_permissions: [] });
   });
 
-  it('carries a set exactly at the budget', () => {
+  it('carries permissions exactly at the budget', () => {
     const permissions = fittingPermissions();
 
-    expect(authorizationClaims({ ...resolved, permissions })).toEqual({ permissions });
+    expect(authorizationClaims({ ...resolved, permissions }).authorization).toEqual({
+      permissions,
+    });
   });
 
   // A partial list looks complete and denies silently, so nothing is trimmed.
-  it('replaces a set over the budget with the marker', () => {
+  it('replaces permissions over the budget with the marker', () => {
     const permissions = [...fittingPermissions(), 'one-more:action'];
 
     expect(authorizationClaims({ ...resolved, permissions })).toEqual({
-      permissions_omitted: true,
+      authorization: marker,
+      customClaims: {},
+      customClaimsOmitted: null,
     });
   });
 
@@ -196,8 +213,66 @@ describe('authorizationClaims', () => {
         organizationId,
         organizationRoles: ['member'],
         organizationPermissions: fittingPermissions(),
-      }),
-    ).toEqual({ permissions_omitted: true });
+      }).authorization,
+    ).toEqual(marker);
+  });
+
+  describe('shared with custom claims', () => {
+    const permissions = ['reports:read', 'projects:write'];
+    const permissionBytes = bytesOf({ permissions });
+    // `{...custom, permissions}` joins the two objects with one comma, losing a brace each.
+    const customRoom = AUTHORIZATION_CLAIMS_BUDGET_BYTES - permissionBytes + 1;
+
+    it('carries everything when permissions and custom claims together are exactly at the budget', () => {
+      const custom = claimsOf(customRoom);
+      expect(bytesOf({ ...custom, permissions })).toBe(AUTHORIZATION_CLAIMS_BUDGET_BYTES);
+
+      expect(authorizationClaims({ ...resolved, permissions }, custom)).toEqual({
+        authorization: { permissions },
+        customClaims: custom,
+        customClaimsOmitted: null,
+      });
+    });
+
+    it('omits the permissions first, keeping the custom claims, one byte over', () => {
+      const custom = claimsOf(customRoom + 1);
+
+      expect(authorizationClaims({ ...resolved, permissions }, custom)).toEqual({
+        authorization: marker,
+        customClaims: custom,
+        customClaimsOmitted: null,
+      });
+    });
+
+    it('keeps custom claims that fit exactly beside the marker', () => {
+      const room = AUTHORIZATION_CLAIMS_BUDGET_BYTES - bytesOf(marker) + 1;
+      const custom = claimsOf(room);
+      expect(bytesOf({ ...custom, ...marker })).toBe(AUTHORIZATION_CLAIMS_BUDGET_BYTES);
+
+      expect(
+        authorizationClaims({ ...resolved, permissions: fittingPermissions() }, custom),
+      ).toMatchObject({ authorization: marker, customClaims: custom, customClaimsOmitted: null });
+    });
+
+    it('omits both when the custom claims do not fit even beside the marker', () => {
+      const room = AUTHORIZATION_CLAIMS_BUDGET_BYTES - bytesOf(marker) + 1;
+      const custom = claimsOf(room + 1);
+
+      expect(authorizationClaims({ ...resolved, permissions }, custom)).toEqual({
+        authorization: marker,
+        customClaims: {},
+        customClaimsOmitted: { bytes: AUTHORIZATION_CLAIMS_BUDGET_BYTES + 1 },
+      });
+    });
+
+    it('omits only the custom claims when there are no permissions to give way', () => {
+      const custom = claimsOf(1100);
+
+      expect(authorizationClaims(resolved, custom)).toMatchObject({
+        authorization: marker,
+        customClaims: {},
+      });
+    });
   });
 });
 
@@ -367,7 +442,7 @@ describe('mintAccessToken', () => {
     expect(CustomClaim.findAll).not.toHaveBeenCalled();
   });
 
-  it('carries no custom claims, and records why, when the sources together exceed the budget', async () => {
+  it('omits the custom claims, and records why, when they do not fit even beside the marker', async () => {
     vi.mocked(CustomClaim.findAll).mockResolvedValue([
       { sourceKind: 'instance_role', sourceName: 'user', claims: { a: 'x'.repeat(700) } },
     ] as never);
@@ -383,105 +458,100 @@ describe('mintAccessToken', () => {
 
     expect(claims).not.toHaveProperty('a');
     expect(claims).not.toHaveProperty('b');
+    expect(claims).not.toHaveProperty('permissions');
+    expect(claims.permissions_omitted).toBe(true);
     expect(claims.roles).toEqual(['user']);
     expect(AuthEventService.logContext).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: user.id,
         sessionId: session.id,
         type: 'custom_claims_omitted',
-        metadata: expect.objectContaining({ budgetBytes: 1024 }),
+        metadata: { bytes: expect.any(Number), budgetBytes: 1024 },
       }),
     );
   });
 
-  /**
-   * ADR 0005 gives custom claims 1 KiB on top of ADR 0004's 1 KiB for permissions, and the
-   * adapter cookie would have to hold a token at both. It cannot: only about 136 bytes of custom
-   * claims fit beside a full permission set. Pinned as an overflow so the gap stays visible
-   * until the budgets or the adapter change, at which point this asserts the cookie fits.
-   */
-  it('overflows the adapter session cookie at both budgets (open decision)', async () => {
-    const longRoles = Array.from({ length: 5 }, (_, index) => `billing:invoices:role-${index}`);
-    const authorization = authorizationClaims({
-      roles: longRoles,
-      permissions: fittingPermissions(),
-      ...noOrganization,
-    });
-    const customClaims: Record<string, string> = {};
-    for (let index = 0; ; index++) {
-      const next = { ...customClaims, [`claim_${index}`]: 'v'.repeat(40) };
-      if (customClaimsByteLength(next) > CUSTOM_CLAIMS_BUDGET_BYTES - 16) break;
-      Object.assign(customClaims, next);
-    }
-    customClaims.pad = '';
-    customClaims.pad = 'p'.repeat(
-      CUSTOM_CLAIMS_BUDGET_BYTES - customClaimsByteLength(customClaims),
-    );
+  it('omits the permissions and keeps the custom claims when only the custom claims fit', async () => {
+    mappings(...fittingPermissions());
+    vi.mocked(CustomClaim.findAll).mockResolvedValue([
+      { sourceKind: 'instance_role', sourceName: 'user', claims: { plan: 'pro' } },
+    ] as never);
 
-    expect(authorization.permissions_omitted).toBeUndefined();
-    expect(customClaimsByteLength(customClaims)).toBe(CUSTOM_CLAIMS_BUDGET_BYTES);
+    const claims = decodeJwt((await mintAccessToken({ session, user })).token);
 
-    const token = await signAccessToken(session.id, user.id, longRoles, organizationId, {
-      authorization,
-      customClaims,
-    });
-
-    const cookie = await new SignJWT({
-      sub: user.id,
-      sessionId: session.id,
-      token,
-      roles: longRoles,
-      email: `${'a'.repeat(64)}@${'b'.repeat(40)}.example.com`,
-      phone: '+15555550100',
-      organizationId,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(new TextEncoder().encode('cookie-secret-cookie-secret-cookie'));
-
-    const setCookie = `seamless-access=${cookie}; Max-Age=900; Path=/; HttpOnly; Secure; SameSite=Lax`;
-
-    expect(Buffer.byteLength(token)).toBe(3663);
-    expect(Buffer.byteLength(setCookie)).toBe(5670);
-    expect(Buffer.byteLength(setCookie)).toBeGreaterThan(4096);
+    expect(claims.plan).toBe('pro');
+    expect(claims.permissions_omitted).toBe(true);
+    expect(claims).not.toHaveProperty('permissions');
+    expect(AuthEventService.logContext).not.toHaveBeenCalled();
   });
 
   /**
    * A server adapter signs the whole access token into a cookie alongside the user's details
    * (`issueSessionCookies` in seamless-auth-server), and browsers drop a cookie over 4 KiB,
-   * which would sign the user out. This builds that cookie at the worst case the budget allows.
+   * which would sign the user out. This builds that cookie at the worst case the shared budget
+   * allows, however the budget is split between permissions and custom claims.
    */
-  it('keeps the adapter session cookie under the browser limit at the budget', async () => {
-    const longRoles = Array.from({ length: 5 }, (_, index) => `billing:invoices:role-${index}`);
-    const authorization = authorizationClaims({
-      roles: longRoles,
-      permissions: fittingPermissions(),
-      ...noOrganization,
-    });
+  it.each([
+    ['all permissions', () => ({ permissions: fittingPermissions(), custom: {} })],
+    [
+      'permissions and custom claims together',
+      () => {
+        const permissions = fittingPermissions().slice(0, 20);
+        return {
+          permissions,
+          custom: claimsOf(AUTHORIZATION_CLAIMS_BUDGET_BYTES - bytesOf({ permissions }) + 1),
+        };
+      },
+    ],
+    [
+      'custom claims beside the marker',
+      () => ({
+        permissions: [...fittingPermissions(), 'one-more:action'],
+        custom: claimsOf(
+          AUTHORIZATION_CLAIMS_BUDGET_BYTES - bytesOf({ permissions_omitted: true }) + 1,
+        ),
+      }),
+    ],
+  ])(
+    'keeps the adapter session cookie under the browser limit at the budget: %s',
+    async (_name, build) => {
+      const { permissions, custom } = build();
+      const longRoles = Array.from({ length: 5 }, (_, index) => `billing:invoices:role-${index}`);
+      const budgeted = authorizationClaims(
+        { roles: longRoles, permissions, ...noOrganization },
+        custom,
+      );
 
-    expect(authorization.permissions_omitted).toBeUndefined();
+      expect(budgeted.customClaimsOmitted).toBeNull();
+      expect(bytesOf({ ...budgeted.customClaims, ...budgeted.authorization })).toBeLessThanOrEqual(
+        AUTHORIZATION_CLAIMS_BUDGET_BYTES,
+      );
+      expect(
+        bytesOf({ ...budgeted.customClaims, ...budgeted.authorization }),
+      ).toBeGreaterThanOrEqual(AUTHORIZATION_CLAIMS_BUDGET_BYTES - 32);
 
-    const token = await signAccessToken(session.id, user.id, longRoles, organizationId, {
-      authorization,
-    });
+      const token = await signAccessToken(session.id, user.id, longRoles, organizationId, {
+        authorization: budgeted.authorization,
+        customClaims: budgeted.customClaims,
+      });
 
-    const cookie = await new SignJWT({
-      sub: user.id,
-      sessionId: session.id,
-      token,
-      roles: longRoles,
-      email: `${'a'.repeat(64)}@${'b'.repeat(40)}.example.com`,
-      phone: '+15555550100',
-      organizationId,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(new TextEncoder().encode('cookie-secret-cookie-secret-cookie'));
+      const cookie = await new SignJWT({
+        sub: user.id,
+        sessionId: session.id,
+        token,
+        roles: longRoles,
+        email: `${'a'.repeat(64)}@${'b'.repeat(40)}.example.com`,
+        phone: '+15555550100',
+        organizationId,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('15m')
+        .sign(new TextEncoder().encode('cookie-secret-cookie-secret-cookie'));
 
-    const setCookie = `seamless-access=${cookie}; Max-Age=900; Path=/; HttpOnly; Secure; SameSite=Lax`;
+      const setCookie = `seamless-access=${cookie}; Max-Age=900; Path=/; HttpOnly; Secure; SameSite=Lax`;
 
-    expect(Buffer.byteLength(setCookie)).toBeLessThanOrEqual(4096);
-  });
+      expect(Buffer.byteLength(setCookie)).toBeLessThanOrEqual(4096);
+    },
+  );
 });

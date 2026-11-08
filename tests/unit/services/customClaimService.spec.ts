@@ -40,7 +40,7 @@ describe('resolveCustomClaims', () => {
   it('reads nothing when there are no roles', async () => {
     expect(
       await resolveCustomClaims({ roles: [], organizationRoles: [], hookClaims: null }),
-    ).toEqual({ claims: {}, omitted: false });
+    ).toEqual({});
     expect(CustomClaim.findAll).not.toHaveBeenCalled();
   });
 
@@ -56,10 +56,7 @@ describe('resolveCustomClaims', () => {
       hookClaims: { plan: 'enterprise' },
     });
 
-    expect(resolved).toEqual({
-      claims: { plan: 'enterprise', region: 'us', tier: 1, seats: 5 },
-      omitted: false,
-    });
+    expect(resolved).toEqual({ plan: 'enterprise', region: 'us', tier: 1, seats: 5 });
   });
 
   it('applies roles of one kind in name order, whatever order they were granted in', async () => {
@@ -79,16 +76,15 @@ describe('resolveCustomClaims', () => {
       hookClaims: null,
     });
 
-    expect(first.claims).toEqual({ plan: 'z' });
-    expect(second.claims).toEqual({ plan: 'z' });
+    expect(first).toEqual({ plan: 'z' });
+    expect(second).toEqual({ plan: 'z' });
   });
 
   it('never lets an organization role set apply as an instance one', async () => {
     stored(row('organization_role', 'admin', { plan: 'team' }));
 
     expect(
-      (await resolveCustomClaims({ roles: ['admin'], organizationRoles: [], hookClaims: null }))
-        .claims,
+      await resolveCustomClaims({ roles: ['admin'], organizationRoles: [], hookClaims: null }),
     ).toEqual({});
   });
 
@@ -96,34 +92,30 @@ describe('resolveCustomClaims', () => {
     stored(row('instance_role', 'user', { sub: 'x', org_id: 'y', email: 'z', plan: 'pro' }));
 
     expect(
-      (
-        await resolveCustomClaims({
-          roles: ['user'],
-          organizationRoles: [],
-          hookClaims: { iss: 'h' },
-        })
-      ).claims,
+      await resolveCustomClaims({
+        roles: ['user'],
+        organizationRoles: [],
+        hookClaims: { iss: 'h' },
+      }),
     ).toEqual({ plan: 'pro' });
   });
 
-  it('omits every custom claim when the sources together exceed the budget', async () => {
+  it('merges sources whole, leaving the budget to the mint', async () => {
     stored(row('instance_role', 'user', { a: 'x'.repeat(600) }));
 
-    const resolved = await resolveCustomClaims({
-      roles: ['user'],
-      organizationRoles: [],
-      hookClaims: { b: 'y'.repeat(600) },
-    });
-
-    expect(resolved).toMatchObject({ claims: {}, omitted: true });
-    expect((resolved as { bytes: number }).bytes).toBeGreaterThan(1024);
+    expect(
+      await resolveCustomClaims({
+        roles: ['user'],
+        organizationRoles: [],
+        hookClaims: { b: 'y'.repeat(600) },
+      }),
+    ).toEqual({ a: 'x'.repeat(600), b: 'y'.repeat(600) });
   });
 
   it('treats a stored set with no claims as empty', async () => {
     stored(row('instance_role', 'user', null as never));
     expect(
-      (await resolveCustomClaims({ roles: ['user'], organizationRoles: [], hookClaims: undefined }))
-        .claims,
+      await resolveCustomClaims({ roles: ['user'], organizationRoles: [], hookClaims: undefined }),
     ).toEqual({});
   });
 });

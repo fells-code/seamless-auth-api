@@ -82,7 +82,12 @@ Sources, lowest precedence first: an instance role, an organization role (while 
 
 Reserved, refused when written and stripped (and audited) when a hook returns them: JWT registered claims, OpenID and OAuth protocol claims including `act` and `may_act`, Seamless's own claims, the OpenID standard identity claims (so no source can assert an email address the user never proved), and any name starting `seamless_` or `org_`. The list lives in `@seamless-auth/types/customClaim/reserved`, shared with the provider.
 
-All custom claims together get 1 KiB serialized, on top of ADR 0004's permission budget. Unlike permissions they are never dropped: a static set over the budget is refused when written, and a hook over it has failed.
+Each static set gets 1 KiB serialized, refused when written over it, and a hook over it has failed. In the token, custom claims share one 1 KiB budget with ADR 0004's permission claims (`permissions`, `org_roles`, `org_permissions`), serialized together, so the adapter cookie holds the worst case. Brandon chose this rule on 2026-11-07:
+
+1. If the permission claims and the merged custom claims fit together, the token carries both.
+2. Otherwise permissions give way first, since a guard has a live fallback for them and custom claims have none: the three are replaced with `"permissions_omitted": true` and the custom claims stay, if the custom claims and the marker fit.
+3. Only when they do not fit even beside the marker are all custom claims dropped, and the mint writes `custom_claims_omitted`. The token then carries just the marker.
+4. Nothing is ever trimmed partially. Recovery tokens carry neither.
 
 ### E7. SIEM streaming
 
@@ -125,8 +130,7 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
   - A test call sends a placeholder user and no request details, and is not recorded as an invocation.
 - Custom claims (#417):
   - Roles of one kind apply in name order, so which of two instance roles wins a name does not depend on the order they were granted in.
-  - When the sources together exceed 1 KiB, the token carries no custom claims and the mint writes `custom_claims_omitted`. This is an interim behavior, pending a decision on how a combined overflow should surface.
-  - At both budgets the token does not fit the server adapter's session cookie: measured at 5670 bytes against 4096, with only about 136 bytes of custom claims fitting beside a full permission set. `tests/unit/services/accessTokenService.spec.ts` pins the overflow until the budgets or the adapter change.
+  - Separate 1 KiB budgets for permissions and custom claims did not fit the server adapter's session cookie: 5670 bytes against 4096 at both, with only about 136 bytes of custom claims fitting beside a full permission set. Brandon chose the shared budget and the order in E6 on 2026-11-07. At the shared budget the worst-case cookie measures 3868 bytes.
   - A set can only be written for a role or client that exists, and retiring the role or deleting the client deletes its set.
   - `z.json()` in the shared claim schemas overflows the OpenAPI generator, so the API's route schemas wrap them and document a claim value as any JSON.
 

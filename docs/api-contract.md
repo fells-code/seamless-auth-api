@@ -31,8 +31,9 @@ All tokens are returned in the JSON body (the API never sets cookies). Present t
 
 - **Access token** — a signed JWT (RS256). Claims include `sub` (user id), `sid` (session id),
   `iss`, `typ: "access"`, `roles` and `permissions`. In an active organization it also carries
-  `org_id`, `org_roles` and `org_permissions`, which apply to that organization only. When the
-  permission claims would not fit, `permissions_omitted: true` replaces `permissions`, `org_roles`
+  `org_id`, `org_roles` and `org_permissions`, which apply to that organization only, and any
+  custom claims (ADR 0005). The permission claims and custom claims share one 1 KiB budget. When
+  they would not fit together, `permissions_omitted: true` replaces `permissions`, `org_roles`
   and `org_permissions`, and absent then means "ask" rather than "none": read the live set from
   `GET /users/me/permissions`. See [Permissions](./admin-operations.md#permissions).
   Verify it against the JWKS at `GET /.well-known/jwks.json`.
