@@ -90,7 +90,7 @@ All custom claims together get 1 KiB serialized, on top of ADR 0004's permission
 - OTLP/HTTP with JSON encoding to `<endpoint>/v1/logs`, and syslog (RFC 5424) over TLS (RFC 5425) with octet counting. Plain TCP only outside production, never UDP.
 - Every record carries the event's `seamless-auth-events/1` line, with `seq`, `prevHash`, `hash` and `payload`, so the chain verifies downstream as an export does.
 - Each sink has its own cursor and retries until its destination takes the events, backing off to one minute. There is no dead letter: a sink falls behind and reports its lag.
-- Credentials are never stored. A sink names env vars ending `_AUDIT_SINK_SECRET`, the same pattern OAuth providers use.
+- Credentials are never stored. A sink names env vars ending `_AUDIT_SINK_SECRET`, the same pattern OAuth providers use. A send whose named env var is unset or unusable, or whose settings production does not allow (plain TCP syslog), fails as `misconfigured` before any connection.
 - Retention never deletes past the oldest sink cursor, and a disabled sink holds it too (decided 2026-11-07). An audit event deleted before a SIEM receives it cannot be recovered, so a disabled sink holds retention until it is deleted. Retention logs a warning naming the holding sink and saying to delete it to release retention.
 - An OTLP 2xx counts as delivered, including one whose `partialSuccess` reports rejected records (decided 2026-11-07). A collector rejects such records for their content, so retrying them would stall the sink forever.
 - Syslog records carry `seq` and `hash` in the SD-ID `seamless@32473`. 32473 is the RFC 5612 documentation number, a placeholder until Fells Code has an IANA Private Enterprise Number (#586). A release must not ship with it.
@@ -105,7 +105,7 @@ All custom claims together get 1 KiB serialized, on top of ADR 0004's permission
 - Other private and loopback addresses are refused in production unless the host is listed in `CALLOUT_PRIVATE_HOSTS`. It is an env var, so nothing written through the API can widen it, and it is separate from `OAUTH_PROVIDER_PRIVATE_HOSTS`, so allowing an internal hook service does not also allow it as an identity provider.
 - Redirects are never followed. Responses are capped at 64 KiB. The deadline covers the whole request, so a destination that trickles bytes cannot hold a sign-in open.
 - URLs are checked when written and again at connect time.
-- Failures are reported as `refused`, `timed_out`, `connection_failed`, `http_status`, `invalid_response` or `too_large`, never with the resolved address or the socket's error text, so the delivery log cannot be used to map the internal network.
+- Failures are reported as `refused`, `misconfigured`, `timed_out`, `connection_failed`, `http_status`, `invalid_response` or `too_large`, never with the resolved address or the socket's error text, so the delivery log cannot be used to map the internal network. `refused` means the API would not connect to the destination's address; `misconfigured` means the destination's own settings cannot be used, so no call was attempted.
 
 ### E9. Signing secrets are encrypted at rest
 

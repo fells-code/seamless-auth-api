@@ -199,7 +199,7 @@ describe('audit sinks', () => {
     vi.mocked(AuditSink.findByPk).mockResolvedValue(buildSink());
     vi.mocked(sendToSink).mockResolvedValue({
       ok: false,
-      failure: 'refused',
+      failure: 'misconfigured',
       statusCode: null,
       durationMs: 3,
     });
@@ -207,7 +207,12 @@ describe('audit sinks', () => {
     const res = await request(app).post(`/admin/audit-sinks/${sinkId}/test`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: false, failure: 'refused', statusCode: null, durationMs: 3 });
+    expect(res.body).toEqual({
+      ok: false,
+      failure: 'misconfigured',
+      statusCode: null,
+      durationMs: 3,
+    });
     const [, records] = vi.mocked(sendToSink).mock.calls[0];
     expect(records).toHaveLength(1);
     expect(records[0].event).toBeNull();

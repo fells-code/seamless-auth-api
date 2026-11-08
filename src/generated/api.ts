@@ -9730,6 +9730,7 @@ export interface paths {
                   /** @enum {string|null} */
                   lastFailure:
                     | 'refused'
+                    | 'misconfigured'
                     | 'timed_out'
                     | 'connection_failed'
                     | 'http_status'
@@ -9937,6 +9938,7 @@ export interface paths {
                   /** @enum {string|null} */
                   lastFailure:
                     | 'refused'
+                    | 'misconfigured'
                     | 'timed_out'
                     | 'connection_failed'
                     | 'http_status'
@@ -10145,6 +10147,7 @@ export interface paths {
                   /** @enum {string|null} */
                   lastFailure:
                     | 'refused'
+                    | 'misconfigured'
                     | 'timed_out'
                     | 'connection_failed'
                     | 'http_status'
@@ -10616,6 +10619,7 @@ export interface paths {
                   /** @enum {string|null} */
                   lastFailure:
                     | 'refused'
+                    | 'misconfigured'
                     | 'timed_out'
                     | 'connection_failed'
                     | 'http_status'
@@ -10793,6 +10797,7 @@ export interface paths {
               /** @enum {string|null} */
               failure:
                 | 'refused'
+                | 'misconfigured'
                 | 'timed_out'
                 | 'connection_failed'
                 | 'http_status'

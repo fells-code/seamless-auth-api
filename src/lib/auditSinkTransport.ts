@@ -62,9 +62,9 @@ export function testRecord(sinkId: string, at: Date = new Date()): SinkRecord {
 }
 
 /** Thrown before any connection for a sink whose settings or env cannot be used. */
-class SinkRefused extends CalloutError {
+class SinkMisconfigured extends CalloutError {
   constructor(message: string) {
-    super('refused', message);
+    super('misconfigured', message);
   }
 }
 
@@ -75,34 +75,50 @@ function isProduction(env: EnvSource) {
 const HOST_NAME =
   /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 
+type DestinationProblem = { problem: string; failure: 'refused' | 'misconfigured' };
+
+function destinationProblem(
+  settings: OtlpSinkSettings | SyslogSinkSettings,
+  env: EnvSource,
+): DestinationProblem | null {
+  if (settings.kind === 'otlp') {
+    const problem = calloutUrlProblem(settings.endpoint, env);
+    return problem ? { problem: `endpoint ${problem}`, failure: 'refused' } : null;
+  }
+
+  const misconfigured = (problem: string): DestinationProblem => ({
+    problem,
+    failure: 'misconfigured',
+  });
+  if (!isIP(settings.host) && !HOST_NAME.test(settings.host)) {
+    return misconfigured('host is not a host name');
+  }
+  if (settings.transport === 'tcp' && isProduction(env)) {
+    return misconfigured('transport must be tls in production');
+  }
+  if (Boolean(settings.tlsClientCertEnv) !== Boolean(settings.tlsClientKeyEnv)) {
+    return misconfigured('tlsClientCertEnv and tlsClientKeyEnv must be set together');
+  }
+
+  const problem = calloutHostProblem(settings.host, env);
+  return problem ? { problem: `host ${problem}`, failure: 'refused' } : null;
+}
+
 /** What is wrong with a sink's destination, checked when written and again before each send. */
 export function sinkDestinationProblem(
   settings: OtlpSinkSettings | SyslogSinkSettings,
   env: EnvSource = process.env,
 ): string | null {
-  if (settings.kind === 'otlp') {
-    const problem = calloutUrlProblem(settings.endpoint, env);
-    return problem ? `endpoint ${problem}` : null;
-  }
-
-  if (!isIP(settings.host) && !HOST_NAME.test(settings.host)) return 'host is not a host name';
-  if (settings.transport === 'tcp' && isProduction(env)) {
-    return 'transport must be tls in production';
-  }
-  if (Boolean(settings.tlsClientCertEnv) !== Boolean(settings.tlsClientKeyEnv)) {
-    return 'tlsClientCertEnv and tlsClientKeyEnv must be set together';
-  }
-
-  const problem = calloutHostProblem(settings.host, env);
-  return problem ? `host ${problem}` : null;
+  return destinationProblem(settings, env)?.problem ?? null;
 }
 
 function secretFromEnv(name: string, env: EnvSource): string {
   // The schema already holds names to the pattern; checked again so nothing that bypasses it
   // can read a secret the server keeps for something else.
-  if (!AUDIT_SINK_SECRET_ENV_PATTERN.test(name)) throw new SinkRefused(`${name} is not allowed`);
+  if (!AUDIT_SINK_SECRET_ENV_PATTERN.test(name))
+    throw new SinkMisconfigured(`${name} is not allowed`);
   const value = env[name];
-  if (!value) throw new SinkRefused(`${name} is not set`);
+  if (!value) throw new SinkMisconfigured(`${name} is not set`);
   return value;
 }
 
@@ -113,7 +129,7 @@ function otlpHeaders(settings: OtlpSinkSettings, env: EnvSource) {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   for (const [name, envName] of Object.entries(settings.headersFromEnv)) {
     const value = secretFromEnv(envName, env);
-    if (!HEADER_VALUE.test(value)) throw new SinkRefused(`${envName} is not a header value`);
+    if (!HEADER_VALUE.test(value)) throw new SinkMisconfigured(`${envName} is not a header value`);
     headers[name] = value;
   }
   return headers;
@@ -244,8 +260,12 @@ function writeSyslog(
   env: EnvSource,
   timeoutMs: number,
 ): Promise<void> {
-  const problem = sinkDestinationProblem(settings, env);
-  if (problem) return Promise.reject(new SinkRefused(`Audit sink ${problem}`));
+  const destination = destinationProblem(settings, env);
+  if (destination) {
+    return Promise.reject(
+      new CalloutError(destination.failure, `Audit sink ${destination.problem}`),
+    );
+  }
 
   let material: ReturnType<typeof tlsMaterial>;
   try {

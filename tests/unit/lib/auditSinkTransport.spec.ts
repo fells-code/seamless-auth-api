@@ -215,7 +215,7 @@ describe('OTLP', () => {
 
     for (const env of [{}, { OTEL_AUDIT_SINK_SECRET: '' }]) {
       const attempt = await sendToSink(settings, chain(1).map(eventRecord), env);
-      expect(attempt).toMatchObject({ ok: false, failure: 'refused', statusCode: null });
+      expect(attempt).toMatchObject({ ok: false, failure: 'misconfigured', statusCode: null });
     }
     expect(received).toHaveLength(0);
   });
@@ -227,7 +227,7 @@ describe('OTLP', () => {
       { SEAMLESS_SERVICE_TOKEN: 'the-service-token' },
     );
 
-    expect(attempt.failure).toBe('refused');
+    expect(attempt.failure).toBe('misconfigured');
     expect(received).toHaveLength(0);
   });
 
@@ -238,7 +238,7 @@ describe('OTLP', () => {
       { OTEL_AUDIT_SINK_SECRET: 'a\r\nx-injected: 1' },
     );
 
-    expect(attempt.failure).toBe('refused');
+    expect(attempt.failure).toBe('misconfigured');
     expect(received).toHaveLength(0);
   });
 
@@ -399,7 +399,7 @@ describe('syslog', () => {
 
     expect(sinkDestinationProblem(syslog(port), env)).toBe('transport must be tls in production');
     expect((await sendToSink(syslog(port), chain(1).map(eventRecord), env)).failure).toBe(
-      'refused',
+      'misconfigured',
     );
     expect(connected).toBe(false);
   });
@@ -546,7 +546,7 @@ describe('syslog', () => {
         {},
       );
 
-      expect(attempt.failure).toBe('refused');
+      expect(attempt.failure).toBe('misconfigured');
       expect(streams).toHaveLength(0);
     });
 
