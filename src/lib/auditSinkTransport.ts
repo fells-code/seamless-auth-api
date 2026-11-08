@@ -39,6 +39,16 @@ const MAX_RESPONSE_BYTES = 64 * 1024;
 // TODO(#586): replace 32473 with the Fells Code IANA enterprise number before release.
 export const SYSLOG_SD_ID = 'seamless@32473';
 
+/**
+ * Collectors key their parsing rules on the SD-ID, so changing it once adopters have written
+ * those rules is a breaking change. Syslog sinks stay refused until the real number is in.
+ */
+// TODO(#586): set to true in 0.23.1 together with the real SD-ID.
+export const SYSLOG_SINKS_AVAILABLE = false;
+
+export const SYSLOG_UNAVAILABLE =
+  'Syslog audit sinks are not available in this release; they arrive in Seamless Auth 0.23.1. Use an OTLP sink until then.';
+
 export const AUDIT_SINK_SCOPE = 'seamless-auth.audit';
 
 /**

@@ -101,6 +101,7 @@ Among roles of one kind, sets apply in role-name order, so the last name alphabe
 - Retention never deletes past the oldest sink cursor, and a disabled sink holds it too (decided 2026-11-07). An audit event deleted before a SIEM receives it cannot be recovered, so a disabled sink holds retention until it is deleted. Retention logs a warning naming the holding sink and saying to delete it to release retention.
 - An OTLP 2xx counts as delivered, including one whose `partialSuccess` reports rejected records (decided 2026-11-07). A collector rejects such records for their content, so retrying them would stall the sink forever.
 - Syslog records carry `seq` and `hash` in the SD-ID `seamless@32473`. 32473 is the RFC 5612 documentation number, a placeholder until Fells Code has an IANA Private Enterprise Number (#586). A release must not ship with it.
+- 0.23.0 ships with OTLP only (decided 2026-11-08). Collectors key their parsing rules on the SD-ID, so shipping the placeholder and changing it later would break those rules. The syslog transport is in the code, but creating or updating a syslog sink is refused with a 400 until 0.23.1 sets the real SD-ID and lifts the refusal (#586).
 
 ### E8. Every callout follows the same reachability rules
 
