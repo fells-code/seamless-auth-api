@@ -15893,6 +15893,7 @@ export interface paths {
                 | 'session_revoked'
                 | 'subject_mismatch'
                 | 'auth_context_mismatch'
+                | 'claims_mismatch'
                 | 'issuer_mismatch'
                 | 'audience_mismatch'
                 | 'client_inactive'
@@ -15939,6 +15940,7 @@ export interface paths {
                 | 'session_revoked'
                 | 'subject_mismatch'
                 | 'auth_context_mismatch'
+                | 'claims_mismatch'
                 | 'issuer_mismatch'
                 | 'audience_mismatch'
                 | 'client_inactive'
@@ -16694,7 +16696,18 @@ export interface paths {
              *       "roles": [
              *         null
              *       ],
-             *       "org_id": "string"
+             *       "org_id": "string",
+             *       "permissions": [
+             *         null
+             *       ],
+             *       "permissions_omitted": null,
+             *       "org_roles": [
+             *         null
+             *       ],
+             *       "org_permissions": [
+             *         null
+             *       ],
+             *       "customClaims": null
              *     }
              */
             'application/json': {
@@ -16705,6 +16718,74 @@ export interface paths {
               phone_number_verified?: boolean;
               roles: string[];
               org_id: string | null;
+              permissions?: string[];
+              /** @enum {boolean} */
+              permissions_omitted?: true;
+              org_roles?: string[];
+              org_permissions?: string[];
+              /** @default {} */
+              customClaims: {
+                [key: string]:
+                  | string
+                  | number
+                  | boolean
+                  | unknown
+                  | (
+                      | string
+                      | number
+                      | boolean
+                      | unknown
+                      | (
+                          | string
+                          | number
+                          | boolean
+                          | unknown
+                          | (string | number | boolean | unknown)[]
+                          | {
+                              [key: string]: string | number | boolean | unknown;
+                            }
+                        )[]
+                      | {
+                          [key: string]:
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              };
+                        }
+                    )[]
+                  | {
+                      [key: string]:
+                        | string
+                        | number
+                        | boolean
+                        | unknown
+                        | (
+                            | string
+                            | number
+                            | boolean
+                            | unknown
+                            | (string | number | boolean | unknown)[]
+                            | {
+                                [key: string]: string | number | boolean | unknown;
+                              }
+                          )[]
+                        | {
+                            [key: string]:
+                              | string
+                              | number
+                              | boolean
+                              | unknown
+                              | (string | number | boolean | unknown)[]
+                              | {
+                                  [key: string]: string | number | boolean | unknown;
+                                };
+                          };
+                    };
+              };
             };
           };
         };
@@ -34555,6 +34636,7 @@ export interface paths {
               /** @enum {string|null} */
               failure:
                 | 'refused'
+                | 'misconfigured'
                 | 'timed_out'
                 | 'connection_failed'
                 | 'http_status'
@@ -34766,6 +34848,7 @@ export interface paths {
                 /** @enum {string|null} */
                 lastFailure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
@@ -34955,6 +35038,7 @@ export interface paths {
                 /** @enum {string|null} */
                 lastFailure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
@@ -35319,6 +35403,7 @@ export interface paths {
                 /** @enum {string|null} */
                 lastFailure:
                   | 'refused'
+                  | 'misconfigured'
                   | 'timed_out'
                   | 'connection_failed'
                   | 'http_status'
