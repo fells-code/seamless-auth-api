@@ -31,6 +31,11 @@ vi.mock('../../../src/services/concurrentSessionPolicy.js', () => ({
   enforceConcurrentSessionLimit: vi.fn(),
 }));
 
+vi.mock('../../../src/services/loginHookService.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/services/loginHookService.js')>();
+  return { ...actual, runLoginHook: vi.fn(async () => ({ outcome: 'skipped' })) };
+});
+
 vi.mock('../../../src/utils/utils.js', () => ({
   computeSessionTimes: vi.fn(),
   parseDurationToSeconds: vi.fn(),
@@ -46,6 +51,7 @@ import {
 } from '../../../src/lib/token.js';
 import { Session } from '../../../src/models/sessions.js';
 import { enforceConcurrentSessionLimit } from '../../../src/services/concurrentSessionPolicy.js';
+import { runLoginHook } from '../../../src/services/loginHookService.js';
 import { getDefaultOrganizationIdForUser } from '../../../src/services/organizationService.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../../../src/utils/utils.js';
 
@@ -92,6 +98,7 @@ beforeEach(() => {
 
   (parseDurationToSeconds as any).mockImplementation((v: string) => (v === '15m' ? 900 : 3600));
   (getDefaultOrganizationIdForUser as any).mockResolvedValue(null);
+  vi.mocked(runLoginHook).mockResolvedValue({ outcome: 'skipped' });
 });
 
 describe('issueSessionAndRespond', () => {
@@ -114,6 +121,7 @@ describe('issueSessionAndRespond', () => {
     expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
       recovery: false,
       authorization: { permissions: [] },
+      customClaims: {},
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -322,6 +330,7 @@ describe('issueSessionAndRespond', () => {
       expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
         recovery: true,
         authorization: { permissions: [] },
+        customClaims: {},
       });
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ recovery: true, nextStep: 'enroll_passkey' }),
@@ -464,6 +473,7 @@ describe('issueSessionAndRespond', () => {
       {
         recovery: false,
         authorization: { permissions: [], org_roles: [], org_permissions: [] },
+        customClaims: {},
       },
     );
   });
@@ -548,5 +558,152 @@ describe('concurrent session limit', () => {
     expect(enforceConcurrentSessionLimit).toHaveBeenCalledWith(
       expect.objectContaining({ limit: null }),
     );
+  });
+});
+
+describe('login hooks', () => {
+  function hooksAnswer(
+    postLogin: Awaited<ReturnType<typeof runLoginHook>>,
+    preToken: Awaited<ReturnType<typeof runLoginHook>> = { outcome: 'skipped' },
+  ) {
+    vi.mocked(runLoginHook).mockImplementation(async (trigger) =>
+      trigger === 'post_login' ? postLogin : preToken,
+    );
+  }
+
+  it('calls post_login then pre_token with the user, method and organization', async () => {
+    (getDefaultOrganizationIdForUser as any).mockResolvedValue('org-1');
+    const req = mockReq();
+
+    expect(
+      await issueSessionAndRespond({ user: mockUser, req, res: mockRes(), method: 'passkey' }),
+    ).toBe(true);
+
+    expect(vi.mocked(runLoginHook).mock.calls.map(([trigger]) => trigger)).toEqual([
+      'post_login',
+      'pre_token',
+    ]);
+    expect(runLoginHook).toHaveBeenCalledWith('post_login', {
+      user: mockUser,
+      method: 'passkey',
+      organizationId: 'org-1',
+      req,
+    });
+  });
+
+  it('answers a deny with 403 and the hook message, and creates no session', async () => {
+    hooksAnswer({ outcome: 'denied', userMessage: 'Your account is on hold.' });
+    const res = mockRes();
+
+    const issued = await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res,
+      method: 'passkey',
+    });
+
+    expect(issued).toBe(false);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'login_denied',
+      message: 'Your account is on hold.',
+    });
+    expect(runLoginHook).toHaveBeenCalledTimes(1);
+    expect(enforceConcurrentSessionLimit).not.toHaveBeenCalled();
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(signAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('answers a closed failure with 503 and creates no session', async () => {
+    hooksAnswer({ outcome: 'allowed', claims: null }, { outcome: 'failed_closed' });
+    const res = mockRes();
+
+    expect(
+      await issueSessionAndRespond({ user: mockUser, req: mockReq(), res, method: 'totp' }),
+    ).toBe(false);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({ error: 'login_hook_unavailable' });
+    expect(Session.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps the pre_token claims on the session and puts them in the token', async () => {
+    hooksAnswer(
+      { outcome: 'allowed', claims: null },
+      { outcome: 'allowed', claims: { plan: 'pro' } },
+    );
+
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res: mockRes(),
+      method: 'passkey',
+    });
+
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({ hookClaims: { plan: 'pro' } }),
+    );
+    expect(signAccessToken).toHaveBeenCalledWith('session-1', mockUser.id, mockUser.roles, null, {
+      recovery: false,
+      authorization: { permissions: [] },
+      customClaims: { plan: 'pro' },
+    });
+  });
+
+  it('signs in without claims when pre_token fails open', async () => {
+    hooksAnswer({ outcome: 'allowed', claims: null }, { outcome: 'failed_open' });
+
+    expect(
+      await issueSessionAndRespond({
+        user: mockUser,
+        req: mockReq(),
+        res: mockRes(),
+        method: 'passkey',
+      }),
+    ).toBe(true);
+    expect(Session.create).toHaveBeenCalledWith(expect.objectContaining({ hookClaims: null }));
+  });
+
+  it('still calls hooks for the session that completes account verification', async () => {
+    await issueSessionAndRespond({
+      user: mockUser,
+      req: mockReq(),
+      res: mockRes(),
+      method: 'email_otp',
+      accountVerification: true,
+    });
+
+    expect(runLoginHook).toHaveBeenCalledTimes(2);
+  });
+
+  it('never calls a hook for a recovery session', async () => {
+    hooksAnswer({ outcome: 'failed_closed' }, { outcome: 'failed_closed' });
+
+    expect(
+      await issueSessionAndRespond({
+        user: mockUser,
+        req: mockReq(),
+        res: mockRes(),
+        method: 'account_recovery',
+        recovery: true,
+      }),
+    ).toBe(true);
+    expect(runLoginHook).not.toHaveBeenCalled();
+    expect(Session.create).toHaveBeenCalledWith(expect.objectContaining({ hookClaims: null }));
+  });
+
+  it('never calls a hook for a break-glass administrator', async () => {
+    vi.stubEnv('BREAK_GLASS_EMAILS', 'root@example.com');
+    hooksAnswer({ outcome: 'failed_closed' }, { outcome: 'failed_closed' });
+
+    expect(
+      await issueSessionAndRespond({
+        user: { ...mockUser, email: 'root@example.com', roles: ['admin:write'] },
+        req: mockReq(),
+        res: mockRes(),
+        method: 'passkey',
+      }),
+    ).toBe(true);
+    expect(runLoginHook).not.toHaveBeenCalled();
   });
 });

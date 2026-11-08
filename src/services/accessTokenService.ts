@@ -9,16 +9,21 @@ import type { Transaction } from 'sequelize';
 import { type AuthorizationClaims, signAccessToken } from '../lib/token.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Session } from '../models/sessions.js';
+import { AuthEventService } from './authEventService.js';
+import { resolveCustomClaims } from './customClaimService.js';
 import { findMembership } from './organizationService.js';
 import { permissionsForRoles } from './permissionService.js';
 
 /**
- * How much of an access token the organization roles and permission arrays may take,
- * serialized. A server adapter keeps the whole token inside a signed cookie, so it is base64
- * encoded twice under the browser's 4 KiB limit. `tests/unit/services/accessTokenService.spec.ts`
- * builds that cookie at this budget and holds it under the limit.
+ * How much of an access token its authorization claims may take together, serialized: the
+ * permission claims (`permissions`, `org_roles`, `org_permissions`) and the custom claims
+ * (ADR 0004 P4, ADR 0005 E6). A server adapter keeps the whole token inside a signed cookie, so
+ * it is base64 encoded twice under the browser's 4 KiB limit.
+ * `tests/unit/services/accessTokenService.spec.ts` builds that cookie at this budget and holds
+ * it under the limit. Each custom claim set is separately held to `CUSTOM_CLAIMS_BUDGET_BYTES`
+ * when written.
  */
-export const PERMISSION_CLAIMS_BUDGET_BYTES = 1024;
+export const AUTHORIZATION_CLAIMS_BUDGET_BYTES = 1024;
 
 type AuthorizationInput = {
   userId: string;
@@ -83,28 +88,53 @@ export async function resolveAuthorization({
   };
 }
 
+export type BudgetedClaims = {
+  authorization: AuthorizationClaims;
+  customClaims: Record<string, unknown>;
+  /** Set when the custom claims had to go, with the size that did not fit. */
+  customClaimsOmitted: { bytes: number } | null;
+};
+
+function serializedBytes(claims: Record<string, unknown>) {
+  return Buffer.byteLength(JSON.stringify(claims));
+}
+
 /**
- * All or nothing. A partial list looks complete and denies silently, so a set that does not
- * fit is replaced with a marker that sends a guard to `GET /users/me/permissions`.
+ * One budget for every authorization claim, each set kept whole or not at all, since a partial
+ * list looks complete and denies silently. Permissions give way first: a guard that sees
+ * `permissions_omitted` reads `GET /users/me/permissions`, and custom claims have no such
+ * fallback. Custom claims go only when they do not fit even beside the marker.
  */
-export function authorizationClaims({
-  permissions,
-  organizationId,
-  organizationRoles,
-  organizationPermissions,
-}: ResolvedAuthorization): AuthorizationClaims {
-  const claims = {
+export function authorizationClaims(
+  {
+    permissions,
+    organizationId,
+    organizationRoles,
+    organizationPermissions,
+  }: ResolvedAuthorization,
+  customClaims: Record<string, unknown> = {},
+): BudgetedClaims {
+  const permissionClaims = {
     permissions,
     ...(organizationId
       ? { org_roles: organizationRoles, org_permissions: organizationPermissions }
       : {}),
   };
 
-  if (Buffer.byteLength(JSON.stringify(claims)) > PERMISSION_CLAIMS_BUDGET_BYTES) {
-    return { permissions_omitted: true };
+  if (
+    serializedBytes({ ...customClaims, ...permissionClaims }) <= AUTHORIZATION_CLAIMS_BUDGET_BYTES
+  ) {
+    return { authorization: permissionClaims, customClaims, customClaimsOmitted: null };
   }
 
-  return claims;
+  const marker = { permissions_omitted: true } as const;
+  const withMarker = serializedBytes({ ...customClaims, ...marker });
+
+  if (withMarker <= AUTHORIZATION_CLAIMS_BUDGET_BYTES) {
+    return { authorization: marker, customClaims, customClaimsOmitted: null };
+  }
+
+  return { authorization: marker, customClaims: {}, customClaimsOmitted: { bytes: withMarker } };
 }
 
 /**
@@ -120,7 +150,12 @@ export async function mintAccessToken({
   membership,
   transaction,
 }: {
-  session: { id: string; organizationId?: string | null; recovery?: boolean | null };
+  session: {
+    id: string;
+    organizationId?: string | null;
+    recovery?: boolean | null;
+    hookClaims?: Record<string, unknown> | null;
+  };
   user: { id: string; roles?: string[] | null };
   membership?: OrganizationMembership | null;
   transaction?: Transaction;
@@ -135,8 +170,40 @@ export async function mintAccessToken({
     transaction,
   });
 
-  if (session.organizationId && !authorization.organizationId && !recovery) {
-    await Session.update({ organizationId: null }, { where: { id: session.id }, transaction });
+  const leftOrganization = Boolean(
+    session.organizationId && !authorization.organizationId && !recovery,
+  );
+
+  // The hook's claims were decided for that organization, so they go with it.
+  if (leftOrganization) {
+    await Session.update(
+      { organizationId: null, hookClaims: null },
+      { where: { id: session.id }, transaction },
+    );
+  }
+
+  const budgeted = authorizationClaims(
+    authorization,
+    recovery
+      ? {}
+      : await resolveCustomClaims({
+          roles: user.roles ?? [],
+          organizationRoles: authorization.organizationRoles,
+          hookClaims: leftOrganization ? null : session.hookClaims,
+          transaction,
+        }),
+  );
+
+  if (budgeted.customClaimsOmitted) {
+    await AuthEventService.logContext({
+      userId: user.id,
+      sessionId: session.id,
+      type: 'custom_claims_omitted',
+      metadata: {
+        bytes: budgeted.customClaimsOmitted.bytes,
+        budgetBytes: AUTHORIZATION_CLAIMS_BUDGET_BYTES,
+      },
+    });
   }
 
   const token = await signAccessToken(
@@ -144,7 +211,7 @@ export async function mintAccessToken({
     user.id,
     user.roles ?? [],
     authorization.organizationId,
-    { recovery, authorization: authorizationClaims(authorization) },
+    { recovery, authorization: budgeted.authorization, customClaims: budgeted.customClaims },
   );
 
   return {

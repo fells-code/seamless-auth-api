@@ -147,6 +147,16 @@ export const AUTH_EVENT_TYPES = [
   'admin_audit_sink_created',
   'admin_audit_sink_updated',
   'admin_audit_sink_deleted',
+  'admin_login_hook_deleted',
+  'admin_login_hook_secret_rotated',
+  'admin_login_hook_set',
+  'login_hook_claims_stripped',
+  'login_hook_denied',
+  'login_hook_failed',
+  'login_hook_success',
+  'admin_custom_claims_deleted',
+  'admin_custom_claims_updated',
+  'custom_claims_omitted',
 ] as const;
 
 export const AuthEventTypeEnum = z.enum(AUTH_EVENT_TYPES);

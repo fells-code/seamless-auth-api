@@ -12,6 +12,7 @@ import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { OrganizationRole } from '../models/organizationRoles.js';
 import { Permission } from '../models/permissions.js';
 import { RolePermission } from '../models/rolePermissions.js';
+import { deleteCustomClaimsFor } from './customClaimService.js';
 
 export class PermissionError extends Error {
   constructor(
@@ -203,7 +204,7 @@ export async function setRolePermissions({
 
 /**
  * For a role leaving the instance. Without this, adding the name back later would silently
- * restore whatever it used to grant. Returns the roles that held any mapping, for the audit.
+ * restore whatever it used to grant, permissions and custom claims alike. Returns the roles that held any mapping, for the audit.
  */
 export async function deleteRoleMappings(
   kind: RoleKind,
@@ -211,6 +212,12 @@ export async function deleteRoleMappings(
   transaction?: Transaction,
 ) {
   if (names.length === 0) return [];
+
+  await deleteCustomClaimsFor(
+    kind === 'instance' ? 'instance_role' : 'organization_role',
+    names,
+    transaction,
+  );
 
   const where = { roleKind: kind, roleName: { [Op.in]: names } };
   const mappings = await RolePermission.findAll({ where, transaction });

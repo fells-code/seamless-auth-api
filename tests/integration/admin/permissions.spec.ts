@@ -10,6 +10,9 @@ import { OrganizationRole } from '../../../src/models/organizationRoles.js';
 import { Permission } from '../../../src/models/permissions.js';
 import { RolePermission } from '../../../src/models/rolePermissions.js';
 import { Session } from '../../../src/models/sessions.js';
+import { CustomClaim } from '../../../src/models/customClaims.js';
+import { signAccessToken } from '../../../src/lib/token.js';
+import { mintAccessToken } from '../../../src/services/accessTokenService.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { buildFreshStepUpSession, buildSession } from '../../factories/sessionFactory';
 
@@ -441,6 +444,35 @@ describe('organization role catalogue', () => {
 });
 
 describe('GET /users/me/permissions', () => {
+  it('returns the full set when the token gave its permissions way to custom claims', async () => {
+    const permissions = Array.from({ length: 50 }, (_, index) => `resource-${index}:read`).sort();
+    const plan = 'x'.repeat(200);
+    // The permissions fit alone; only beside the custom claims do they go over.
+    expect(Buffer.byteLength(JSON.stringify({ permissions }))).toBeLessThan(1024);
+    (RolePermission.findAll as any).mockResolvedValue(
+      permissions.map((permissionName) => ({ permissionName })),
+    );
+    vi.mocked(CustomClaim.findAll).mockResolvedValue([
+      { sourceKind: 'instance_role', sourceName: 'user', claims: { plan } },
+    ] as never);
+
+    await mintAccessToken({
+      session: { id: 'session-1' },
+      user: { id: 'user-1', roles: ['user'] },
+    });
+
+    const [, , , , options] = vi.mocked(signAccessToken).mock.calls[0];
+    expect(options).toMatchObject({
+      authorization: { permissions_omitted: true },
+      customClaims: { plan },
+    });
+
+    const res = await request(app).get('/users/me/permissions');
+
+    expect(res.status).toBe(200);
+    expect(res.body.permissions).toEqual(permissions);
+  });
+
   it('answers with what the caller holds now', async () => {
     (RolePermission.findAll as any).mockResolvedValue([{ permissionName: 'invoices:read' }]);
 

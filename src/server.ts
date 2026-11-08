@@ -14,11 +14,13 @@ import { getSystemConfig } from './config/getSystemConfig.js';
 import { assertServiceTokenConfig } from './config/serviceToken.js';
 import { connectToDb } from './db.js';
 import { initializeModels } from './models/index.js';
+import { LoginHook } from './models/loginHooks.js';
 import { TotpCredential } from './models/totpCredentials.js';
 import { WebhookEndpoint } from './models/webhookEndpoints.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { startAuditSinkDelivery } from './services/auditSinkService.js';
 import { warnOnBreakGlassMisconfiguration } from './services/breakGlassService.js';
+import { startLoginHookMaintenance } from './services/loginHookService.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { warnIfUnboundOAuthStateSet } from './services/oauthService.js';
 import { startBackchannelLogoutSweep } from './services/oidcBackchannelLogout.js';
@@ -51,7 +53,7 @@ async function startServer() {
     // After bootstrap, since which secrets are needed depends on the stored config.
     assertAuthSecrets(await getSystemConfig(), {
       totpCredentialsExist: (await TotpCredential.count()) > 0,
-      calloutSecretsExist: (await WebhookEndpoint.count()) > 0,
+      calloutSecretsExist: (await WebhookEndpoint.count()) + (await LoginHook.count()) > 0,
     });
     await warnOnBreakGlassMisconfiguration();
 
@@ -75,6 +77,7 @@ async function startServer() {
     startBackchannelLogoutSweep();
     startWebhookDelivery();
     startAuditSinkDelivery();
+    startLoginHookMaintenance();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

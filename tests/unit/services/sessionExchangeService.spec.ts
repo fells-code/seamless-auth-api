@@ -178,6 +178,27 @@ describe('exchangeSubjectToken', () => {
     });
   });
 
+  it("carries the parent's pre_token claims, since an exchange calls no hook", async () => {
+    const { signAccessToken } = await import('../../../src/lib/token.js');
+    const { LoginHook } = await import('../../../src/models/loginHooks.js');
+    vi.mocked(resolveCurrentSession).mockResolvedValue(
+      parent({ organizationId: null, hookClaims: { plan: 'pro' } }) as never,
+    );
+
+    await exchangeSubjectToken(await sign(), req);
+
+    expect(created().hookClaims).toEqual({ plan: 'pro' });
+    expect(vi.mocked(signAccessToken).mock.calls[0][4]).toMatchObject({
+      customClaims: { plan: 'pro' },
+    });
+    expect(LoginHook.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('gives the child no hook claims when the parent has none', async () => {
+    await exchangeSubjectToken(await sign(), req);
+    expect(created().hookClaims).toBeNull();
+  });
+
   it('falls back to the chain start for a parent with no recorded auth time', async () => {
     const chainStartedAt = new Date('2026-11-01T00:00:00.000Z');
     vi.mocked(resolveCurrentSession).mockResolvedValue(

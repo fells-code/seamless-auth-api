@@ -690,6 +690,8 @@ export const refreshSession = async (req: Request, res: Response) => {
     // the sign-in.
     authMethods: session.authMethods ?? [],
     authTime: session.authTime ?? null,
+    // The pre_token hook is not called on refresh, so its claims ride the chain.
+    hookClaims: session.hookClaims ?? null,
     parentSessionId: session.parentSessionId ?? null,
     exchangeClientId: session.exchangeClientId ?? null,
     exchangeGrantType: session.exchangeGrantType ?? null,
@@ -756,6 +758,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       id: newSession.id,
       organizationId: session.organizationId,
       recovery: session.recovery,
+      hookClaims: session.hookClaims ?? null,
     },
     user,
   });

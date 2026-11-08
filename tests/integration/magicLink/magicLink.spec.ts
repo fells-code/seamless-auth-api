@@ -25,6 +25,8 @@ import { AuthEventService } from '../../../src/services/authEventService.js';
 import { verifyJwtWithKid } from '../../../src/services/sessionService.js';
 import { sendMagicLinkEmail } from '../../../src/services/messagingService.js';
 import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
+import { LoginHook } from '../../../src/models/loginHooks.js';
+import { buildLoginHook, startHookServer } from '../../factories/loginHookFactory.js';
 
 let app: Application;
 
@@ -687,6 +689,42 @@ it('creates session when magic link completed', async () => {
       refreshTtl: 3600,
     }),
   );
+});
+
+it('answers 503 when a fail-closed pre_token hook cannot be used, and creates no session', async () => {
+  const hook = await startHookServer(500, {});
+  try {
+    (LoginHook.findByPk as any).mockImplementation(async (trigger: string) =>
+      trigger === 'pre_token' ? buildLoginHook({ trigger, url: hook.url }) : null,
+    );
+    const user = {
+      id: 'user-1',
+      email: 'test@example.com',
+      roles: ['user'],
+      save: vi.fn(),
+      update: vi.fn(),
+    };
+    (User.findOne as any).mockResolvedValue(user);
+    (MagicLinkToken.findOne as any).mockResolvedValue(
+      buildMagicLink({
+        used_at: new Date(),
+        expires_at: new Date(Date.now() + 100000),
+        ip_hash: 'ip',
+        user_agent_hash: 'ua',
+      }),
+    );
+    (MagicLinkToken.update as any).mockResolvedValue([1]);
+
+    const res = await request(app).get('/magic-link/check');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: 'login_hook_unavailable' });
+    expect(Session.create).not.toHaveBeenCalled();
+    expect(user.update).not.toHaveBeenCalled();
+    expect(hook.received).toHaveLength(1);
+  } finally {
+    await hook.close();
+  }
 });
 
 describe('magic link attempt binding and redemption', () => {

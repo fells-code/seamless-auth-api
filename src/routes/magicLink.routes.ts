@@ -90,6 +90,7 @@ magicLinkRouter.get(
         403: ErrorSchema,
         404: ErrorSchema,
         500: InternalErrorSchema,
+        503: ErrorSchema,
       },
     },
   },

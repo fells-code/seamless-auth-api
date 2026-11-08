@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 
+import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
@@ -16,6 +17,7 @@ import { User } from '../models/users.js';
 import { AdminOrganizationListQuerySchema } from '../schemas/organization.requests.js';
 import { mintAccessToken } from '../services/accessTokenService.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { loginHookRefusal, runLoginHook, verdictClaims } from '../services/loginHookService.js';
 import {
   countOwners,
   createOrganizationForUser,
@@ -205,9 +207,30 @@ export async function switchOrganization(req: RouteRequest, res: Response) {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  await session.update({ organizationId: organization.id });
+  let hookClaims: Record<string, unknown> | null = null;
+
+  // A recovery session holds no claims to decide, and break-glass never waits on a hook.
+  if (!session.recovery && !isBreakGlassAdmin(user)) {
+    const verdict = await runLoginHook('pre_token', {
+      user: { id: user.id, email: user.email, phone: user.phone, roles: user.roles ?? [] },
+      method: null,
+      organizationId: organization.id,
+      organizationRoles: Array.isArray(membership.roles) ? membership.roles : [],
+      req,
+    });
+    const refusal = loginHookRefusal(verdict);
+    if (refusal) return res.status(refusal.status).json(refusal.body);
+    hookClaims = verdictClaims(verdict);
+  }
+
+  await session.update({ organizationId: organization.id, hookClaims });
   const { token } = await mintAccessToken({
-    session: { id: session.id, organizationId: organization.id, recovery: session.recovery },
+    session: {
+      id: session.id,
+      organizationId: organization.id,
+      recovery: session.recovery,
+      hookClaims,
+    },
     user,
     membership,
   });

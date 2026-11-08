@@ -14,6 +14,7 @@ import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { mintAccessToken } from './accessTokenService.js';
 import { AuthEventService } from './authEventService.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
+import { loginHookRefusal, runLoginHook, verdictClaims } from './loginHookService.js';
 import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
 
@@ -94,7 +95,11 @@ type IssueSessionParams = {
   extraFields?: Record<string, unknown>;
 };
 
-export async function issueSessionAndRespond(params: IssueSessionParams): Promise<void> {
+/**
+ * Answers the request either way. Resolves false when a login hook refused the sign-in, so the
+ * caller stops before anything it does only for a completed sign-in.
+ */
+export async function issueSessionAndRespond(params: IssueSessionParams): Promise<boolean> {
   const {
     user,
     req,
@@ -128,6 +133,31 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     throw new PasskeyRequiredError(method);
   }
 
+  const organizationId = await getDefaultOrganizationIdForUser(user.id);
+  let hookClaims: Record<string, unknown> | null = null;
+
+  // A hook that is down must not lock out the administrator who would fix it, and a recovery
+  // session can only enroll a factor. Both run before the concurrent session limit, so a
+  // refused sign-in cannot cost the user a session they already had.
+  if (!breakGlass && !recovery) {
+    const context = { user, method, organizationId, req };
+
+    const postLogin = await runLoginHook('post_login', context);
+    const postLoginRefusal = loginHookRefusal(postLogin);
+    if (postLoginRefusal) {
+      res.status(postLoginRefusal.status).json(postLoginRefusal.body);
+      return false;
+    }
+
+    const preToken = await runLoginHook('pre_token', context);
+    const preTokenRefusal = loginHookRefusal(preToken);
+    if (preTokenRefusal) {
+      res.status(preTokenRefusal.status).json(preTokenRefusal.body);
+      return false;
+    }
+    hookClaims = verdictClaims(preToken);
+  }
+
   const refreshToken = generateRefreshToken();
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
   const { access_token_ttl, refresh_token_ttl, session_idle_ttl, max_concurrent_sessions } =
@@ -140,7 +170,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     },
     now,
   );
-  const organizationId = await getDefaultOrganizationIdForUser(user.id);
 
   // Before the row exists, so the limit counts the session about to be created.
   await enforceConcurrentSessionLimit({
@@ -164,10 +193,11 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     recovery,
     authMethods: recordAuthMethod(method, now, passkey),
     authTime: now,
+    hookClaims,
   });
 
   const { token } = await mintAccessToken({
-    session: { id: session.id, organizationId, recovery },
+    session: { id: session.id, organizationId, recovery, hookClaims },
     user,
   });
 
@@ -202,4 +232,6 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
     refreshTtl: parseDurationToSeconds(refresh_token_ttl || '1d'),
     ...(recovery ? { recovery: true, nextStep: 'enroll_passkey' } : {}),
   });
+
+  return true;
 }

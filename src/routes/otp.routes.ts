@@ -228,6 +228,7 @@ otpRouter.post(
         403: ErrorSchema,
         401: ErrorSchema,
         500: ErrorSchema,
+        503: ErrorSchema,
       },
     },
   },
@@ -274,7 +275,9 @@ otpRouter.post(
       response: {
         200: OTPVerifyTokenSuccessSchema,
         401: ErrorSchema,
+        403: ErrorSchema,
         500: ErrorSchema,
+        503: ErrorSchema,
       },
     },
   },
@@ -297,7 +300,9 @@ otpRouter.post(
       response: {
         200: OTPVerifyTokenSuccessSchema,
         401: ErrorSchema,
+        403: ErrorSchema,
         500: ErrorSchema,
+        503: ErrorSchema,
       },
     },
   },

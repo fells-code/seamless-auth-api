@@ -217,7 +217,7 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
     metadata: { flow: 'login' },
   });
 
-  await issueSessionAndRespond({
+  const issued = await issueSessionAndRespond({
     method: 'totp',
     user: {
       id: user.id,
@@ -228,6 +228,7 @@ export const verifyTotpLogin = async (req: Request, res: Response) => {
     req,
     res,
   });
+  if (!issued) return;
 
   await user.update({
     lastLogin: new Date(),
