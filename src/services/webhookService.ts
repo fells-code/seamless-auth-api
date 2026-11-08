@@ -21,7 +21,7 @@ import {
   type WebhookDeliveryStatus,
   type WebhookEventType,
 } from '@seamless-auth/types';
-import { Op, QueryTypes, type Transaction, type WhereOptions } from 'sequelize';
+import { fn, Op, QueryTypes, type Transaction, type WhereOptions } from 'sequelize';
 
 import { productionSecretMissing } from '../config/authSecrets.js';
 import {
@@ -188,6 +188,7 @@ export async function createEndpoint(
 export async function updateEndpoint(id: string, input: UpdateWebhookEndpointRequest) {
   const endpoint = await getEndpoint(id);
   if (input.url !== undefined) assertUrl(input.url);
+  const reenabling = input.enabled === true && !endpoint.enabled;
 
   await endpoint.update({
     ...(input.url !== undefined ? { url: input.url } : {}),
@@ -202,7 +203,26 @@ export async function updateEndpoint(id: string, input: UpdateWebhookEndpointReq
       : {}),
   });
 
-  return endpoint;
+  // Releases what was held while it was off. Deliveries are pruned after 30 days, so that is how
+  // far back a catch-up reaches. A dead delivery stays dead; redeliver sends it.
+  const released = reenabling
+    ? (
+        await WebhookDelivery.update(
+          // The database's clock, which the due check compares against, so a skewed app clock
+          // cannot leave released deliveries not yet due.
+          { nextAttemptAt: fn('now') as unknown as Date },
+          {
+            where: {
+              endpointId: endpoint.id,
+              status: { [Op.in]: ['pending', 'failed'] },
+              nextAttemptAt: null,
+            },
+          },
+        )
+      )[0]
+    : 0;
+
+  return { endpoint, released };
 }
 
 export async function deleteEndpoint(id: string) {
@@ -523,7 +543,9 @@ export async function dispatchWebhooks(): Promise<number> {
     );
     if (rows.length === 0) return 0;
 
-    const endpoints = await WebhookEndpoint.findAll({ where: { enabled: true }, transaction });
+    // Disabled endpoints get their deliveries too, held with no attempt due, so turning one back
+    // on catches it up instead of losing what happened while it was off (ADR 0005, E4).
+    const endpoints = await WebhookEndpoint.findAll({ transaction });
 
     for (const row of rows) {
       const subscribed = endpoints.filter((endpoint) =>
@@ -540,12 +562,14 @@ export async function dispatchWebhooks(): Promise<number> {
           `INSERT INTO public.webhook_deliveries
              (id, "endpointId", "eventType", "authEventSeq", payload, status, attempts,
               "nextAttemptAt", "createdAt", "updatedAt")
-           VALUES (:id, :endpointId, :eventType, :seq, :payload, 'pending', 0, now(), now(), now())
+           VALUES (:id, :endpointId, :eventType, :seq, :payload, 'pending', 0,
+                   CASE WHEN :held THEN NULL ELSE now() END, now(), now())
            ON CONFLICT ("endpointId", "authEventSeq") DO NOTHING`,
           {
             replacements: {
               id,
               endpointId: endpoint.id,
+              held: !endpoint.enabled,
               eventType: event.type,
               seq: row.seq,
               payload: body(id, event.type, new Date(row.created_at), event.data),
@@ -607,7 +631,7 @@ export async function deliverDue(): Promise<number> {
   await Promise.all(
     deliveries.map(async (delivery) => {
       const endpoint = endpoints.get(delivery.endpointId);
-      // Disabled after it was queued: hold the delivery, so redeliver can still send it.
+      // Disabled after it was queued: hold the delivery until the endpoint is turned back on.
       if (!endpoint || !endpoint.enabled) {
         await delivery.update({ nextAttemptAt: null });
         return;
