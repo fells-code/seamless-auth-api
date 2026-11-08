@@ -462,7 +462,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         },
       });
 
-      await issueSessionAndRespond({
+      const issued = await issueSessionAndRespond({
         method: 'email_otp',
         accountVerification: !wasVerified,
         user: {
@@ -475,6 +475,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
         res,
         extraFields: await passkeyEnrollmentPrompt(user.id),
       });
+      if (!issued) return;
 
       await user.update({
         lastLogin: new Date(),
@@ -571,7 +572,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           metadata: { reason: 'User completed verification of phone and email', channel: 'sms' },
         });
 
-        await issueSessionAndRespond({
+        const issued = await issueSessionAndRespond({
           method: 'phone_otp',
           user: {
             id: user.id,
@@ -583,6 +584,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
           res,
           extraFields: await passkeyEnrollmentPrompt(user.id),
         });
+        if (!issued) return;
 
         await user.update({
           lastLogin: new Date(),
@@ -684,7 +686,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         },
       });
 
-      await issueSessionAndRespond({
+      const issued = await issueSessionAndRespond({
         method: 'email_otp',
         user: {
           id: user.id,
@@ -696,6 +698,7 @@ export const verifyLoginEmail = async (req: Request, res: Response) => {
         res,
         extraFields: await passkeyEnrollmentPrompt(user.id),
       });
+      if (!issued) return;
 
       await user.update({
         lastLogin: new Date(),

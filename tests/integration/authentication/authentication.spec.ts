@@ -685,7 +685,7 @@ describe('POST /refresh', () => {
       expect.any(String),
       expect.any(Array),
       null,
-      { recovery: false, authorization: { permissions: [] } },
+      { recovery: false, authorization: { permissions: [] }, customClaims: {} },
     );
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -729,7 +729,7 @@ describe('POST /refresh', () => {
     expect(res.body.organizationId).toBeNull();
     expect((signAccessToken as any).mock.calls.at(-1)[3]).toBeNull();
     expect(Session.update).toHaveBeenCalledWith(
-      { organizationId: null },
+      { organizationId: null, hookClaims: null },
       expect.objectContaining({ where: { id: 'new-session' } }),
     );
   });

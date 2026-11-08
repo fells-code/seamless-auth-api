@@ -63,7 +63,7 @@ oauthRouter.post(
     adapter: { issues: 'session' },
     summary: 'Finish OAuth login',
     description:
-      'Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider, and 403 `login_method_disabled` when the account has to sign in with a passkey (phishing-resistant-only mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off). A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.',
+      "Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider, and 403 `login_method_disabled` when the account has to sign in with a passkey (phishing-resistant-only mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off). A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet. A login hook can refuse the sign-in: 403 `login_denied` with the hook's `message`, or 503 `login_hook_unavailable`.",
     tags: ['OAuth'],
     middleware: [oauthIpLimiter, oauthProviderLimiter],
     schemas: {
@@ -74,6 +74,7 @@ oauthRouter.post(
         400: OAuthLoginErrorResponseSchema,
         403: OAuthLoginErrorResponseSchema,
         404: InternalErrorSchema,
+        503: OAuthLoginErrorResponseSchema,
       },
     },
   },

@@ -212,6 +212,23 @@ vi.mock('../../src/models/webhookDeliveries.js', () => ({
   },
 }));
 
+vi.mock('../../src/models/loginHooks.js', () => ({
+  LoginHook: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    findByPk: vi.fn(async () => null),
+    count: vi.fn(async () => 0),
+  },
+}));
+
+vi.mock('../../src/models/loginHookInvocations.js', () => ({
+  LoginHookInvocation: {
+    create: vi.fn(),
+    findAll: vi.fn(async () => []),
+    destroy: vi.fn(async () => 0),
+  },
+}));
+
 vi.mock('../../src/models/rolePermissions.js', () => ({
   RolePermission: {
     sequelize: {

@@ -7,7 +7,7 @@ const disableTotpMock = vi.fn();
 const verifyEnabledTotpMock = vi.fn();
 const authEventLogMock = vi.fn();
 const rejectIfUserLockedMock = vi.fn();
-const issueSessionAndRespondMock = vi.fn();
+const issueSessionAndRespondMock = vi.fn(async () => true);
 const recordStepUpVerificationMock = vi.fn();
 const serializeStepUpStatusMock = vi.fn();
 const getSystemConfigMock = vi.fn();
@@ -435,6 +435,17 @@ describe('totp controller', () => {
       expect(authEventLogMock).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'user-1', type: 'totp_success' }),
       );
+    });
+
+    it('stops after a login hook refuses the sign-in', async () => {
+      const { verifyTotpLogin } = await loadTotpController();
+      const user = buildUser();
+      verifyEnabledTotpMock.mockResolvedValue({ verified: true });
+      issueSessionAndRespondMock.mockResolvedValueOnce(false);
+
+      await verifyTotpLogin(buildReq(user, { body: { code: '123456' } }), buildRes());
+
+      expect(user.update).not.toHaveBeenCalled();
     });
 
     it('defaults roles to an empty array when the user has none', async () => {

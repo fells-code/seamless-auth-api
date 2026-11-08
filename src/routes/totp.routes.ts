@@ -130,6 +130,7 @@ totpRouter.post(
         200: WebAuthnTokenSuccessSchema,
         401: ErrorSchema,
         403: ErrorSchema,
+        503: ErrorSchema,
       },
     },
   },

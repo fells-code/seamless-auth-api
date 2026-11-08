@@ -426,7 +426,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       metadata: {},
     });
 
-    await issueSessionAndRespond({
+    const issued = await issueSessionAndRespond({
       method: 'magic_link',
       user: {
         id: user.id,
@@ -438,6 +438,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
       res,
       extraFields: await passkeyEnrollmentPrompt(user.id),
     });
+    if (!issued) return;
 
     await user.update({
       lastLogin: new Date(),

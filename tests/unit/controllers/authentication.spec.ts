@@ -151,6 +151,7 @@ describe('refreshSession', () => {
     expect(signAccessToken).toHaveBeenCalledWith('session-2', user.id, user.roles, null, {
       recovery: false,
       authorization: { permissions: [] },
+      customClaims: {},
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -167,6 +168,54 @@ describe('refreshSession', () => {
       refreshTtl: 3600,
     });
   });
+  it('carries the pre_token claims to the rotated session without calling a hook', async () => {
+    const {
+      refreshSession,
+      getSystemConfig,
+      Session,
+      User,
+      findRefreshSessionByToken,
+      generateRefreshToken,
+      createRefreshTokenLookup,
+      signAccessToken,
+    } = await loadAuthenticationModule();
+    const { LoginHook } = await import('../../../src/models/loginHooks.js');
+    const { req, res } = mockReqRes('Bearer raw-refresh-token');
+    const user = buildUser({ id: 'user-1', roles: ['user'] });
+
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      id: 'session-1',
+      replacedBySessionId: null,
+      revokedAt: null,
+      userId: user.id,
+      infraId: 'app',
+      mode: 'server',
+      hookClaims: { plan: 'pro' },
+      save: vi.fn(),
+    });
+    (User.findOne as any).mockResolvedValue(user);
+    (generateRefreshToken as any).mockReturnValue('new-raw-refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('new-refresh-lookup');
+    (Session.create as any).mockResolvedValue({ id: 'session-2' });
+    (signAccessToken as any).mockResolvedValue('new-access-token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    await refreshSession(req, res);
+
+    expect(Session.create).toHaveBeenCalledWith(
+      expect.objectContaining({ hookClaims: { plan: 'pro' } }),
+    );
+    expect(signAccessToken).toHaveBeenCalledWith(
+      'session-2',
+      user.id,
+      user.roles,
+      null,
+      expect.objectContaining({ customClaims: { plan: 'pro' } }),
+    );
+    expect(LoginHook.findByPk).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   describe('absolute session lifetime', () => {
     const hour = 60 * 60 * 1000;
 

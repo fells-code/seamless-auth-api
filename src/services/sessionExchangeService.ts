@@ -192,6 +192,8 @@ async function consumeAndIssue(
         exchangeClientId: clientId,
         exchangeGrantType: grantType,
         ...inheritedAssurance(parent, grantType),
+        // An exchange calls no hook: the child carries what the parent's sign-in was given.
+        hookClaims: parent.hookClaims ?? null,
       },
       { transaction },
     );
@@ -209,7 +211,12 @@ async function consumeAndIssue(
 
     // Inside, so a signing failure hands the token back rather than spending it.
     const minted = await mintAccessToken({
-      session: { id: child.id, organizationId: parent.organizationId, recovery: false },
+      session: {
+        id: child.id,
+        organizationId: parent.organizationId,
+        recovery: false,
+        hookClaims: parent.hookClaims ?? null,
+      },
       user,
       transaction,
     });

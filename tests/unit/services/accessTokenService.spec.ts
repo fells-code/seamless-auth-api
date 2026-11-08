@@ -247,7 +247,7 @@ describe('mintAccessToken', () => {
     expect(minted.organizationId).toBeNull();
     expect(decodeJwt(minted.token)).not.toHaveProperty('org_id');
     expect(Session.update).toHaveBeenCalledWith(
-      { organizationId: null },
+      { organizationId: null, hookClaims: null },
       expect.objectContaining({ where: { id: session.id } }),
     );
   });
@@ -268,6 +268,62 @@ describe('mintAccessToken', () => {
     // The organization applies again once a factor is enrolled, so the session keeps it.
     expect(minted.organizationId).toBe(organizationId);
     expect(Session.update).not.toHaveBeenCalled();
+  });
+
+  it("carries the session's hook claims", async () => {
+    const claims = decodeJwt(
+      (await mintAccessToken({ session: { ...session, hookClaims: { plan: 'pro' } }, user })).token,
+    );
+
+    expect(claims.plan).toBe('pro');
+    expect(claims.sub).toBe(user.id);
+  });
+
+  it('filters reserved names again, so stored claims cannot replace a protected one', async () => {
+    const claims = decodeJwt(
+      (
+        await mintAccessToken({
+          session: {
+            ...session,
+            hookClaims: { sub: 'someone-else', roles: ['admin'], email: 'x@y.z', plan: 'pro' },
+          },
+          user,
+        })
+      ).token,
+    );
+
+    expect(claims.sub).toBe(user.id);
+    expect(claims.roles).toEqual(['user']);
+    expect(claims).not.toHaveProperty('email');
+    expect(claims.plan).toBe('pro');
+  });
+
+  it('gives a recovery token no hook claims', async () => {
+    const claims = decodeJwt(
+      (
+        await mintAccessToken({
+          session: { ...session, recovery: true, hookClaims: { plan: 'pro' } },
+          user,
+        })
+      ).token,
+    );
+
+    expect(claims).not.toHaveProperty('plan');
+  });
+
+  it('drops hook claims decided for an organization the user has left', async () => {
+    (OrganizationMembership.findOne as any).mockResolvedValue(null);
+
+    const claims = decodeJwt(
+      (
+        await mintAccessToken({
+          session: { ...session, organizationId, hookClaims: { plan: 'pro' } },
+          user,
+        })
+      ).token,
+    );
+
+    expect(claims).not.toHaveProperty('plan');
   });
 
   /**

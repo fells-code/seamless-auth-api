@@ -13,6 +13,8 @@ import { buildUser } from '../../factories/userFactory';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges';
 import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
 import { buildCredential } from '../../factories/credentialFactory';
+import { buildLoginHook, startHookServer } from '../../factories/loginHookFactory';
+import { LoginHook } from '../../../src/models/loginHooks';
 import { generateRefreshToken, signAccessToken } from '../../../src/lib/token';
 import { AuthEvent } from '../../../src/models/authEvents';
 import { AuthFailure } from '../../../src/models/authFailures';
@@ -596,6 +598,53 @@ describe('challenge is spent on every login outcome', () => {
       { consumedAt: expect.any(Date) },
       { where: { id: record.id, consumedAt: null } },
     );
+  });
+
+  it('answers 403 with the hook message when a post_login hook denies, and creates no session', async () => {
+    const hook = await startHookServer(200, {
+      decision: 'deny',
+      reason: 'contractor badge expired',
+      userMessage: 'Your access is paused. Contact your administrator.',
+    });
+    try {
+      (LoginHook.findByPk as any).mockImplementation(async (trigger: string) =>
+        trigger === 'post_login' ? buildLoginHook({ url: hook.url }) : null,
+      );
+      (WebAuthnChallenge.findOne as any).mockResolvedValue(
+        buildWebAuthnChallenge({ purpose: 'authentication' }),
+      );
+      const user = buildUser({ update: vi.fn() });
+      (User.findOne as any).mockResolvedValue(user);
+      (Credential.findOne as any).mockResolvedValue(
+        buildCredential({ id: 'cred-1', update: vi.fn() }),
+      );
+      const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+      (verifyAuthenticationResponse as any).mockResolvedValue({
+        verified: true,
+        authenticationInfo: { newCounter: 1, credentialDeviceType: 'singleDevice' },
+      });
+
+      const res = await request(app)
+        .post('/webauthn/login/finish')
+        .send({ assertionResponse: { id: 'cred-1' } });
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({
+        error: 'login_denied',
+        message: 'Your access is paused. Contact your administrator.',
+      });
+      expect(JSON.stringify(res.body)).not.toContain('badge');
+      expect(Session.create).not.toHaveBeenCalled();
+      expect(user.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ lastLogin: expect.anything() }),
+      );
+      expect(JSON.parse(hook.received[0].body)).toMatchObject({
+        trigger: 'post_login',
+        method: 'passkey',
+      });
+    } finally {
+      await hook.close();
+    }
   });
 
   it('refuses a second attempt once the challenge is spent', async () => {
