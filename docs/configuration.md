@@ -284,7 +284,7 @@ and the origin-derived API base all agree) in a dedicated stage (see the `admin-
 in [`Dockerfile`](../Dockerfile)). Bump the dashboard shipped to tenants by raising the
 `SEAMLESS_ADMIN_DASHBOARD_REF` build ARG; the new version then flows to tenants through the normal
 upstream auth-image release. The ref is the full commit SHA of the dashboard release tag
-`v0.12.0` (`c3020d2f24ab34c4657e0da06da23a0f4471a7cf`), because a tag can be moved and a SHA
+`v0.14.0` (`df2a8b78f7a8eb7adeec67e900d89cbd1937c6dd`), because a tag can be moved and a SHA
 cannot. The build refuses a ref that is not a full SHA and checks the checked-out commit against
 it. To bump, resolve the new tag with
 `git ls-remote https://github.com/fells-code/seamless-auth-admin-dashboard refs/tags/<tag>`
