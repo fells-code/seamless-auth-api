@@ -25,7 +25,7 @@ import { fn, Op, QueryTypes, type Transaction, type WhereOptions } from 'sequeli
 
 import { productionSecretMissing } from '../config/authSecrets.js';
 import {
-  decryptCalloutSecret,
+  calloutSigningSecrets,
   encryptCalloutSecret,
   generateCalloutSecret,
   signedCalloutHeaders,
@@ -126,33 +126,8 @@ function secretColumns(secret: string) {
   return { secretCiphertext: ciphertext, secretIv: iv, secretTag: tag };
 }
 
-/** Every secret that signs right now: the current one, and the previous one while it overlaps. */
 export function signingSecrets(endpoint: WebhookEndpoint, at: Date = now()): string[] {
-  const secrets = [
-    decryptCalloutSecret({
-      ciphertext: endpoint.secretCiphertext,
-      iv: endpoint.secretIv,
-      tag: endpoint.secretTag,
-    }),
-  ];
-
-  if (
-    endpoint.previousSecretCiphertext &&
-    endpoint.previousSecretIv &&
-    endpoint.previousSecretTag &&
-    endpoint.previousSecretExpiresAt &&
-    endpoint.previousSecretExpiresAt > at
-  ) {
-    secrets.push(
-      decryptCalloutSecret({
-        ciphertext: endpoint.previousSecretCiphertext,
-        iv: endpoint.previousSecretIv,
-        tag: endpoint.previousSecretTag,
-      }),
-    );
-  }
-
-  return secrets;
+  return calloutSigningSecrets(endpoint, at);
 }
 
 export async function listEndpoints() {

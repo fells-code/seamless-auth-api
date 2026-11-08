@@ -28,6 +28,8 @@ export interface SessionAttributes {
   recovery?: boolean;
   authMethods?: SessionAuthMethod[];
   authTime?: Date | null;
+  /** What the `pre_token` login hook added, kept so a refresh never calls the hook. */
+  hookClaims?: Record<string, unknown> | null;
   replacedBySessionId?: string | null;
   parentSessionId?: string | null;
   exchangeClientId?: string | null;
@@ -50,6 +52,7 @@ type SessionCreationAttributes = Optional<
   | 'stepUpMethod'
   | 'authMethods'
   | 'authTime'
+  | 'hookClaims'
   | 'parentSessionId'
   | 'exchangeClientId'
   | 'exchangeGrantType'
@@ -77,6 +80,7 @@ export class Session
   declare recovery: boolean;
   declare authMethods: SessionAuthMethod[];
   declare authTime: Date | null;
+  declare hookClaims: Record<string, unknown> | null;
   declare replacedBySessionId: string | null;
   declare parentSessionId: string | null;
   declare exchangeClientId: string | null;
@@ -160,6 +164,10 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       },
       authTime: {
         type: DataTypes.DATE,
+        allowNull: true,
+      },
+      hookClaims: {
+        type: DataTypes.JSONB,
         allowNull: true,
       },
       replacedBySessionId: {

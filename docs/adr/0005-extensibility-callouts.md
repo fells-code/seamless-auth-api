@@ -114,6 +114,16 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
 - Deleting a passkey (`DELETE /users/credentials`) wrote no audit event. It now writes `credentials_deleted` naming the passkey. Reproducing test first.
 - Passkey registration and account registration both write `registration_success`. The passkey path now names the credential in metadata, which is how the catalog tells them apart.
 - `organization_member_updated` recorded only what was added and removed. It now records the roles after the change too, which the webhook carries.
+- Login hooks (#419):
+  - A denied sign-in answers 403 `login_denied`, with the hook's `userMessage` as `message`. A hook that fails closed answers 503 `login_hook_unavailable`, since the user did nothing wrong and can retry.
+  - `issueSessionAndRespond` now answers the refusal itself and resolves false, because most sign-in controllers turn a thrown error into a 500. Callers stop there, so a refused sign-in records no last login.
+  - Hooks run before the concurrent session limit, so a refused sign-in cannot evict a session the user already had.
+  - A `pre_token` claim with a name outside the claim alphabet, or nested past depth 3, fails the hook rather than being dropped. Only reserved names are stripped. Claims over the budget fail as `too_large`.
+  - The session that completes a new account's address verification calls hooks like any other sign-in. It is a full session, not a recovery one.
+  - A session exchange copies the parent's `pre_token` claims to the child, for both grants, since the claims describe the user rather than the factor.
+  - When a mint finds the user has left the session's organization, the session's hook claims are cleared with the organization, since the hook decided them for it.
+  - `client` in the call is always null for now: no first-party sign-in knows which OpenID Provider client it is for. The provider can fill it in seamless-auth-oidc-provider#47.
+  - A test call sends a placeholder user and no request details, and is not recorded as an invocation.
 
 ## Consequences
 

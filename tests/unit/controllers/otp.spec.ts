@@ -4,7 +4,7 @@ import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js
 
 const signEphemeralTokenMock = vi.fn();
 const authEventLogMock = vi.fn();
-const issueSessionAndRespondMock = vi.fn();
+const issueSessionAndRespondMock = vi.fn(async () => true);
 const generateEmailOTPMock = vi.fn();
 const generatePhoneOTPMock = vi.fn();
 const verifyEmailOTPMock = vi.fn();
@@ -524,6 +524,29 @@ describe('otp controller', () => {
       }),
     );
   });
+
+  it.each([
+    ['verifyLoginPhoneNumber', 'phone', {}],
+    ['verifyEmail', 'email', { verified: false, emailVerified: false }],
+    ['verifyLoginEmail', 'email', {}],
+  ] as const)(
+    '%s stops after a login hook refuses the sign-in',
+    async (handler, channel, requestUser) => {
+      const controller: any = await loadOtpController();
+      const verifiedUser = buildUser();
+      const req = buildReq(buildUser(requestUser), { body: { verificationToken: '123456' } });
+      (channel === 'phone' ? verifyPhoneOTPMock : verifyEmailOTPMock).mockResolvedValue({
+        user: verifiedUser,
+        verified: true,
+      });
+      issueSessionAndRespondMock.mockResolvedValueOnce(false);
+
+      await controller[handler](req, buildRes());
+
+      expect(issueSessionAndRespondMock).toHaveBeenCalled();
+      expect(verifiedUser.update).not.toHaveBeenCalled();
+    },
+  );
 
   it('asks a user with no passkey to enroll one when the tenant prompts for it', async () => {
     const { verifyLoginEmail } = await loadOtpController();

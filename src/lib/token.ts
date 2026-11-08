@@ -40,7 +40,13 @@ export async function signAccessToken(
   {
     recovery = false,
     authorization = {},
-  }: { recovery?: boolean; authorization?: AuthorizationClaims } = {},
+    customClaims = {},
+  }: {
+    recovery?: boolean;
+    authorization?: AuthorizationClaims;
+    /** Already screened for reserved names. Spread first, so nothing here can replace a claim. */
+    customClaims?: Record<string, unknown>;
+  } = {},
 ) {
   const { kid, privateKeyPem } = await getSigningKey();
 
@@ -48,6 +54,7 @@ export async function signAccessToken(
   const { access_token_ttl } = await getSystemConfig();
 
   const jwt = await new SignJWT({
+    ...customClaims,
     sid: sessionId,
     sub: userId,
     iss: process.env.ISSUER,

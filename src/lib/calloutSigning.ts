@@ -60,6 +60,45 @@ export function signedCalloutHeaders(
 
 const CIPHER = 'aes-256-gcm';
 
+export type CalloutSecretColumns = {
+  secretCiphertext: string;
+  secretIv: string;
+  secretTag: string;
+  previousSecretCiphertext: string | null;
+  previousSecretIv: string | null;
+  previousSecretTag: string | null;
+  previousSecretExpiresAt: Date | null;
+};
+
+/** Every secret that signs right now: the current one, and the previous one while it overlaps. */
+export function calloutSigningSecrets(columns: CalloutSecretColumns, at: Date = new Date()) {
+  const secrets = [
+    decryptCalloutSecret({
+      ciphertext: columns.secretCiphertext,
+      iv: columns.secretIv,
+      tag: columns.secretTag,
+    }),
+  ];
+
+  if (
+    columns.previousSecretCiphertext &&
+    columns.previousSecretIv &&
+    columns.previousSecretTag &&
+    columns.previousSecretExpiresAt &&
+    columns.previousSecretExpiresAt > at
+  ) {
+    secrets.push(
+      decryptCalloutSecret({
+        ciphertext: columns.previousSecretCiphertext,
+        iv: columns.previousSecretIv,
+        tag: columns.previousSecretTag,
+      }),
+    );
+  }
+
+  return secrets;
+}
+
 export type EncryptedCalloutSecret = {
   ciphertext: string;
   iv: string;

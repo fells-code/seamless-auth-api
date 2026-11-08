@@ -122,7 +122,9 @@ organizationRouter.post(
       response: {
         200: OrganizationSwitchResponseSchema,
         400: InternalErrorSchema,
+        403: InternalErrorSchema,
         404: InternalErrorSchema,
+        503: InternalErrorSchema,
       },
     },
   },

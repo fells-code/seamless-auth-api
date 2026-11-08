@@ -125,6 +125,7 @@ webauthnRouter.post(
         401: ErrorSchema,
         403: ErrorSchema,
         500: InternalErrorSchema,
+        503: ErrorSchema,
       },
     },
   },

@@ -153,6 +153,7 @@ describe('organizations', () => {
     expect(res.status).toBe(200);
     expect(session.update).toHaveBeenCalledWith({
       organizationId: testOrganizationId,
+      hookClaims: null,
     });
     expect(signAccessToken).toHaveBeenCalledWith(
       'session-1',
@@ -162,6 +163,7 @@ describe('organizations', () => {
       {
         recovery: false,
         authorization: { permissions: [], org_roles: ['owner', 'admin'], org_permissions: [] },
+        customClaims: {},
       },
     );
   });

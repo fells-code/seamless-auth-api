@@ -6907,6 +6907,13 @@ export interface paths {
                 | 'admin_webhook_updated'
                 | 'session_created'
                 | 'webhook_endpoint_disabled'
+                | 'admin_login_hook_deleted'
+                | 'admin_login_hook_secret_rotated'
+                | 'admin_login_hook_set'
+                | 'login_hook_claims_stripped'
+                | 'login_hook_denied'
+                | 'login_hook_failed'
+                | 'login_hook_success'
               )
             | string
             | (
@@ -7047,6 +7054,13 @@ export interface paths {
                     | 'admin_webhook_updated'
                     | 'session_created'
                     | 'webhook_endpoint_disabled'
+                    | 'admin_login_hook_deleted'
+                    | 'admin_login_hook_secret_rotated'
+                    | 'admin_login_hook_set'
+                    | 'login_hook_claims_stripped'
+                    | 'login_hook_denied'
+                    | 'login_hook_failed'
+                    | 'login_hook_success'
                   )
                 | string
               )[];
@@ -11838,6 +11852,1278 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/login-hooks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List login hooks */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "hooks": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              hooks: {
+                /** @enum {string} */
+                trigger: 'post_login' | 'pre_token';
+                url: string;
+                timeoutMs: number;
+                /** @enum {string} */
+                failureMode: 'open' | 'closed';
+                enabled: boolean;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/login-hooks/{trigger}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a trigger's login hook */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          trigger: 'post_login' | 'pre_token';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "hook": {
+             *         "trigger": null,
+             *         "url": "string",
+             *         "timeoutMs": 0,
+             *         "failureMode": null,
+             *         "enabled": true,
+             *         "previousSecretExpiresAt": null,
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       },
+             *       "secret": "string"
+             *     }
+             */
+            'application/json': {
+              hook: {
+                /** @enum {string} */
+                trigger: 'post_login' | 'pre_token';
+                url: string;
+                timeoutMs: number;
+                /** @enum {string} */
+                failureMode: 'open' | 'closed';
+                enabled: boolean;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+              secret?: string;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    /**
+     * Create or replace a trigger's login hook
+     * @description Returns the signing secret once, when this call creates the hook. Replacing a hook keeps its secret.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          trigger: 'post_login' | 'pre_token';
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            url: string;
+            /** @default 2000 */
+            timeoutMs?: number;
+            /**
+             * @default closed
+             * @enum {string}
+             */
+            failureMode?: 'open' | 'closed';
+            /** @default true */
+            enabled?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "hook": {
+             *         "trigger": null,
+             *         "url": "string",
+             *         "timeoutMs": 0,
+             *         "failureMode": null,
+             *         "enabled": true,
+             *         "previousSecretExpiresAt": null,
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       },
+             *       "secret": "string"
+             *     }
+             */
+            'application/json': {
+              hook: {
+                /** @enum {string} */
+                trigger: 'post_login' | 'pre_token';
+                url: string;
+                timeoutMs: number;
+                /** @enum {string} */
+                failureMode: 'open' | 'closed';
+                enabled: boolean;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+              secret?: string;
+            };
+          };
+        };
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "hook": {
+             *         "trigger": null,
+             *         "url": "string",
+             *         "timeoutMs": 0,
+             *         "failureMode": null,
+             *         "enabled": true,
+             *         "previousSecretExpiresAt": null,
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       },
+             *       "secret": "string"
+             *     }
+             */
+            'application/json': {
+              hook: {
+                /** @enum {string} */
+                trigger: 'post_login' | 'pre_token';
+                url: string;
+                timeoutMs: number;
+                /** @enum {string} */
+                failureMode: 'open' | 'closed';
+                enabled: boolean;
+                /** Format: date-time */
+                previousSecretExpiresAt: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+              secret?: string;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    /** Delete a trigger's login hook */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          trigger: 'post_login' | 'pre_token';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/login-hooks/{trigger}/secret': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rotate a login hook signing secret
+     * @description Returns the new secret once. The previous one keeps signing beside it for 24 hours.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          trigger: 'post_login' | 'pre_token';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "secret": "string",
+             *       "previousSecretExpiresAt": null
+             *     }
+             */
+            'application/json': {
+              secret: string;
+              /** Format: date-time */
+              previousSecretExpiresAt: string | null;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 409 */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/login-hooks/{trigger}/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send a test call to a login hook
+     * @description One signed call with a placeholder user. Succeeds when the hook answers 2xx with a body its trigger accepts.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          trigger: 'post_login' | 'pre_token';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "ok": true,
+             *       "failure": null,
+             *       "statusCode": 0,
+             *       "durationMs": 0
+             *     }
+             */
+            'application/json': {
+              ok: boolean;
+              /** @enum {string|null} */
+              failure:
+                | 'refused'
+                | 'misconfigured'
+                | 'timed_out'
+                | 'connection_failed'
+                | 'http_status'
+                | 'invalid_response'
+                | 'too_large'
+                | null;
+              statusCode: number | null;
+              durationMs: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/login-hooks/{trigger}/invocations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List login hook invocations
+     * @description Newest first. Kept for 30 days.
+     */
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          outcome?: 'allowed' | 'denied' | 'failed_open' | 'failed_closed';
+        };
+        header?: never;
+        path: {
+          trigger: 'post_login' | 'pre_token';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "invocations": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              invocations: {
+                id: string;
+                /** @enum {string} */
+                trigger: 'post_login' | 'pre_token';
+                userId: string | null;
+                /** @enum {string} */
+                outcome: 'allowed' | 'denied' | 'failed_open' | 'failed_closed';
+                /** @enum {string|null} */
+                failure:
+                  | 'refused'
+                  | 'misconfigured'
+                  | 'timed_out'
+                  | 'connection_failed'
+                  | 'http_status'
+                  | 'invalid_response'
+                  | 'too_large'
+                  | null;
+                statusCode: number | null;
+                durationMs: number;
+                /** Format: date-time */
+                createdAt: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/magic-link': {
     parameters: {
       query?: never;
@@ -12411,6 +13697,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -13128,7 +14432,7 @@ export interface paths {
     put?: never;
     /**
      * Finish OAuth login
-     * @description Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider, and 403 `login_method_disabled` when the account has to sign in with a passkey (phishing-resistant-only mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off). A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet.
+     * @description Answers 403 with `code: oauth_provider_retired` when an organization the user belongs to has retired this provider, and 403 `login_method_disabled` when the account has to sign in with a passkey (phishing-resistant-only mode, or the account holds a passkey and `passkey_login_fallback_enabled` is off). A success carries `nextStep: enroll_passkey` when the provider has `promptPasskeyEnrollment` set and the user has no passkey yet. A login hook can refuse the sign-in: 403 `login_denied` with the hook's `message`, or 503 `login_hook_unavailable`.
      */
     post: {
       parameters: {
@@ -13296,6 +14600,32 @@ export interface paths {
             'application/json': {
               message?: string;
               error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "code": null
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              /** @enum {string} */
+              code?:
+                | 'oauth_missing_email'
+                | 'oauth_email_not_verified'
+                | 'oauth_missing_subject'
+                | 'oauth_invalid_id_token'
+                | 'oauth_provider_retired';
             };
           };
         };
@@ -20672,6 +22002,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
         /** @description HTTP 404 */
         404: {
           headers: {
@@ -20710,6 +22058,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -23010,6 +24376,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 503 */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -23308,6 +24692,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
         /** @description HTTP 429 */
         429: {
           headers: {
@@ -23328,6 +24730,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -23466,6 +24886,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
         /** @description HTTP 429 */
         429: {
           headers: {
@@ -23486,6 +24924,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -30424,6 +31880,24 @@ export interface paths {
             };
           };
         };
+        /** @description HTTP 503 */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -32149,6 +33623,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };

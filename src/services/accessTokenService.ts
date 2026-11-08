@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
+import { isReservedClaimName } from '@seamless-auth/types';
 import type { Transaction } from 'sequelize';
 
 import { type AuthorizationClaims, signAccessToken } from '../lib/token.js';
@@ -107,6 +108,13 @@ export function authorizationClaims({
   return claims;
 }
 
+/** Reserved names are refused when written and stripped from hooks; this is the last line. */
+export function withoutReservedClaims(claims: Record<string, unknown> | null | undefined) {
+  return Object.fromEntries(
+    Object.entries(claims ?? {}).filter(([name]) => !isReservedClaimName(name)),
+  );
+}
+
 /**
  * Every first-party access token is minted here, so sign-in, refresh, organization switch and
  * session exchange cannot disagree about what a token grants. Returns the organization the
@@ -120,7 +128,12 @@ export async function mintAccessToken({
   membership,
   transaction,
 }: {
-  session: { id: string; organizationId?: string | null; recovery?: boolean | null };
+  session: {
+    id: string;
+    organizationId?: string | null;
+    recovery?: boolean | null;
+    hookClaims?: Record<string, unknown> | null;
+  };
   user: { id: string; roles?: string[] | null };
   membership?: OrganizationMembership | null;
   transaction?: Transaction;
@@ -135,16 +148,27 @@ export async function mintAccessToken({
     transaction,
   });
 
-  if (session.organizationId && !authorization.organizationId && !recovery) {
-    await Session.update({ organizationId: null }, { where: { id: session.id }, transaction });
+  const leftOrganization = Boolean(
+    session.organizationId && !authorization.organizationId && !recovery,
+  );
+
+  // The hook's claims were decided for that organization, so they go with it.
+  if (leftOrganization) {
+    await Session.update(
+      { organizationId: null, hookClaims: null },
+      { where: { id: session.id }, transaction },
+    );
   }
+
+  const customClaims =
+    recovery || leftOrganization ? {} : withoutReservedClaims(session.hookClaims);
 
   const token = await signAccessToken(
     session.id,
     user.id,
     user.roles ?? [],
     authorization.organizationId,
-    { recovery, authorization: authorizationClaims(authorization) },
+    { recovery, authorization: authorizationClaims(authorization), customClaims },
   );
 
   return {

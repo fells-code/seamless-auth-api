@@ -661,7 +661,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
 
       const waived = isBreakGlassAdmin(user) ? await breakGlassWaivers('passkey', user.id) : [];
 
-      await issueSessionAndRespond({
+      const issued = await issueSessionAndRespond({
         method: 'passkey',
         passkey: {
           deviceBound: binding.deviceBound,
@@ -676,6 +676,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         req,
         res,
       });
+      if (!issued) return;
 
       await user.update({
         lastLogin: new Date(),
