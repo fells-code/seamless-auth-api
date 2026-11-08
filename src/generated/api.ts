@@ -6907,6 +6907,9 @@ export interface paths {
                 | 'admin_webhook_updated'
                 | 'session_created'
                 | 'webhook_endpoint_disabled'
+                | 'admin_audit_sink_created'
+                | 'admin_audit_sink_updated'
+                | 'admin_audit_sink_deleted'
               )
             | string
             | (
@@ -7047,6 +7050,9 @@ export interface paths {
                     | 'admin_webhook_updated'
                     | 'session_created'
                     | 'webhook_endpoint_disabled'
+                    | 'admin_audit_sink_created'
+                    | 'admin_audit_sink_updated'
+                    | 'admin_audit_sink_deleted'
                   )
                 | string
               )[];
@@ -9618,6 +9624,1278 @@ export interface paths {
                 | 'notice_action_url_not_allowed'
                 | 'notice_rate_limited';
               message?: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/audit-sinks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List audit sinks
+     * @description Each with its cursor and how many events it is behind the chain head.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "sinks": [
+             *         null
+             *       ]
+             *     }
+             */
+            'application/json': {
+              sinks: {
+                id: string;
+                name: string;
+                enabled: boolean;
+                settings:
+                  | {
+                      /** @enum {string} */
+                      kind: 'otlp';
+                      endpoint: string;
+                      /** @default {} */
+                      headersFromEnv: {
+                        [key: string]: string;
+                      };
+                      /** @default seamless-auth */
+                      serviceName: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'syslog';
+                      host: string;
+                      /** @default 6514 */
+                      port: number;
+                      /**
+                       * @default tls
+                       * @enum {string}
+                       */
+                      transport: 'tls' | 'tcp';
+                      /** @default seamless-auth */
+                      appName: string;
+                      /** @default 10 */
+                      facility: number;
+                      tlsCaEnv?: string;
+                      tlsClientCertEnv?: string;
+                      tlsClientKeyEnv?: string;
+                    };
+                status: {
+                  cursorSeq: number | null;
+                  lagEvents: number | null;
+                  /** Format: date-time */
+                  lastDeliveredAt: string | null;
+                  /** @enum {string|null} */
+                  lastFailure:
+                    | 'refused'
+                    | 'timed_out'
+                    | 'connection_failed'
+                    | 'http_status'
+                    | 'invalid_response'
+                    | 'too_large'
+                    | null;
+                  /** Format: date-time */
+                  lastFailureAt: string | null;
+                };
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create an audit sink
+     * @description Starts after the newest event unless `startAfterSeq` replays from an earlier one. Credentials are named as `_AUDIT_SINK_SECRET` env vars, never stored.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name: string;
+            settings:
+              | {
+                  /** @enum {string} */
+                  kind: 'otlp';
+                  endpoint: string;
+                  /** @default {} */
+                  headersFromEnv?: {
+                    [key: string]: string;
+                  };
+                  /** @default seamless-auth */
+                  serviceName?: string;
+                }
+              | {
+                  /** @enum {string} */
+                  kind: 'syslog';
+                  host: string;
+                  /** @default 6514 */
+                  port?: number;
+                  /**
+                   * @default tls
+                   * @enum {string}
+                   */
+                  transport?: 'tls' | 'tcp';
+                  /** @default seamless-auth */
+                  appName?: string;
+                  /** @default 10 */
+                  facility?: number;
+                  tlsCaEnv?: string;
+                  tlsClientCertEnv?: string;
+                  tlsClientKeyEnv?: string;
+                };
+            /** @default true */
+            enabled?: boolean;
+            startAfterSeq?: number;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 201 */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "sink": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "enabled": true,
+             *         "settings": null,
+             *         "status": {
+             *           "cursorSeq": 0,
+             *           "lagEvents": 0,
+             *           "lastDeliveredAt": null,
+             *           "lastFailure": null,
+             *           "lastFailureAt": null
+             *         },
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              sink: {
+                id: string;
+                name: string;
+                enabled: boolean;
+                settings:
+                  | {
+                      /** @enum {string} */
+                      kind: 'otlp';
+                      endpoint: string;
+                      /** @default {} */
+                      headersFromEnv: {
+                        [key: string]: string;
+                      };
+                      /** @default seamless-auth */
+                      serviceName: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'syslog';
+                      host: string;
+                      /** @default 6514 */
+                      port: number;
+                      /**
+                       * @default tls
+                       * @enum {string}
+                       */
+                      transport: 'tls' | 'tcp';
+                      /** @default seamless-auth */
+                      appName: string;
+                      /** @default 10 */
+                      facility: number;
+                      tlsCaEnv?: string;
+                      tlsClientCertEnv?: string;
+                      tlsClientKeyEnv?: string;
+                    };
+                status: {
+                  cursorSeq: number | null;
+                  lagEvents: number | null;
+                  /** Format: date-time */
+                  lastDeliveredAt: string | null;
+                  /** @enum {string|null} */
+                  lastFailure:
+                    | 'refused'
+                    | 'timed_out'
+                    | 'connection_failed'
+                    | 'http_status'
+                    | 'invalid_response'
+                    | 'too_large'
+                    | null;
+                  /** Format: date-time */
+                  lastFailureAt: string | null;
+                };
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/audit-sinks/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get an audit sink */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "sink": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "enabled": true,
+             *         "settings": null,
+             *         "status": {
+             *           "cursorSeq": 0,
+             *           "lagEvents": 0,
+             *           "lastDeliveredAt": null,
+             *           "lastFailure": null,
+             *           "lastFailureAt": null
+             *         },
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              sink: {
+                id: string;
+                name: string;
+                enabled: boolean;
+                settings:
+                  | {
+                      /** @enum {string} */
+                      kind: 'otlp';
+                      endpoint: string;
+                      /** @default {} */
+                      headersFromEnv: {
+                        [key: string]: string;
+                      };
+                      /** @default seamless-auth */
+                      serviceName: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'syslog';
+                      host: string;
+                      /** @default 6514 */
+                      port: number;
+                      /**
+                       * @default tls
+                       * @enum {string}
+                       */
+                      transport: 'tls' | 'tcp';
+                      /** @default seamless-auth */
+                      appName: string;
+                      /** @default 10 */
+                      facility: number;
+                      tlsCaEnv?: string;
+                      tlsClientCertEnv?: string;
+                      tlsClientKeyEnv?: string;
+                    };
+                status: {
+                  cursorSeq: number | null;
+                  lagEvents: number | null;
+                  /** Format: date-time */
+                  lastDeliveredAt: string | null;
+                  /** @enum {string|null} */
+                  lastFailure:
+                    | 'refused'
+                    | 'timed_out'
+                    | 'connection_failed'
+                    | 'http_status'
+                    | 'invalid_response'
+                    | 'too_large'
+                    | null;
+                  /** Format: date-time */
+                  lastFailureAt: string | null;
+                };
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    /** Delete an audit sink */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "token": "string",
+             *       "delivery": null
+             *     }
+             */
+            'application/json': {
+              message: string;
+              token?: string;
+              delivery?:
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_email';
+                    to: string;
+                    token: string;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'otp_sms';
+                    to: string;
+                    token: string | number;
+                    /** @enum {string} */
+                    purpose?: 'account_recovery';
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'magic_link_email';
+                    to: string;
+                    token?: string;
+                    magicLinkUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'enrollment_invite_email';
+                    to: string;
+                    signInUrl: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_email';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    subject: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'account_notice_sms';
+                    /** @enum {string} */
+                    notice:
+                      | 'account_recovery_opened'
+                      | 'account_recovery_completed'
+                      | 'recovery_code_used'
+                      | 'identity_changed'
+                      | 'application_notice';
+                    to: string;
+                    text: string;
+                    cancelUrl?: string;
+                    application?: {
+                      clientId: string;
+                      name: string;
+                    };
+                  };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /**
+     * Update an audit sink
+     * @description The cursor is kept, so a sink turned back on resumes where it stopped.
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            name?: string;
+            settings?:
+              | {
+                  /** @enum {string} */
+                  kind: 'otlp';
+                  endpoint: string;
+                  /** @default {} */
+                  headersFromEnv?: {
+                    [key: string]: string;
+                  };
+                  /** @default seamless-auth */
+                  serviceName?: string;
+                }
+              | {
+                  /** @enum {string} */
+                  kind: 'syslog';
+                  host: string;
+                  /** @default 6514 */
+                  port?: number;
+                  /**
+                   * @default tls
+                   * @enum {string}
+                   */
+                  transport?: 'tls' | 'tcp';
+                  /** @default seamless-auth */
+                  appName?: string;
+                  /** @default 10 */
+                  facility?: number;
+                  tlsCaEnv?: string;
+                  tlsClientCertEnv?: string;
+                  tlsClientKeyEnv?: string;
+                };
+            enabled?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "sink": {
+             *         "id": "string",
+             *         "name": "string",
+             *         "enabled": true,
+             *         "settings": null,
+             *         "status": {
+             *           "cursorSeq": 0,
+             *           "lagEvents": 0,
+             *           "lastDeliveredAt": null,
+             *           "lastFailure": null,
+             *           "lastFailureAt": null
+             *         },
+             *         "createdAt": null,
+             *         "updatedAt": null
+             *       }
+             *     }
+             */
+            'application/json': {
+              sink: {
+                id: string;
+                name: string;
+                enabled: boolean;
+                settings:
+                  | {
+                      /** @enum {string} */
+                      kind: 'otlp';
+                      endpoint: string;
+                      /** @default {} */
+                      headersFromEnv: {
+                        [key: string]: string;
+                      };
+                      /** @default seamless-auth */
+                      serviceName: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: 'syslog';
+                      host: string;
+                      /** @default 6514 */
+                      port: number;
+                      /**
+                       * @default tls
+                       * @enum {string}
+                       */
+                      transport: 'tls' | 'tcp';
+                      /** @default seamless-auth */
+                      appName: string;
+                      /** @default 10 */
+                      facility: number;
+                      tlsCaEnv?: string;
+                      tlsClientCertEnv?: string;
+                      tlsClientKeyEnv?: string;
+                    };
+                status: {
+                  cursorSeq: number | null;
+                  lagEvents: number | null;
+                  /** Format: date-time */
+                  lastDeliveredAt: string | null;
+                  /** @enum {string|null} */
+                  lastFailure:
+                    | 'refused'
+                    | 'timed_out'
+                    | 'connection_failed'
+                    | 'http_status'
+                    | 'invalid_response'
+                    | 'too_large'
+                    | null;
+                  /** Format: date-time */
+                  lastFailureAt: string | null;
+                };
+                /** Format: date-time */
+                createdAt: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+              };
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 500 */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/admin/audit-sinks/{id}/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send a test record
+     * @description Sends one record marked as a test, now. It is not part of the chain and does not move the cursor.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description HTTP 200 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "ok": true,
+             *       "failure": null,
+             *       "statusCode": 0,
+             *       "durationMs": 0
+             *     }
+             */
+            'application/json': {
+              ok: boolean;
+              /** @enum {string|null} */
+              failure:
+                | 'refused'
+                | 'timed_out'
+                | 'connection_failed'
+                | 'http_status'
+                | 'invalid_response'
+                | 'too_large'
+                | null;
+              statusCode: number | null;
+              durationMs: number;
+            };
+          };
+        };
+        /** @description HTTP 400 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "error": "string",
+             *       "message": "string",
+             *       "details": {
+             *         "issues": [
+             *           null
+             *         ]
+             *       }
+             *     }
+             */
+            'application/json': {
+              error: string;
+              message?: string;
+              details?: {
+                issues: {
+                  path: (string | number)[];
+                  code: string;
+                  message: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description HTTP 403 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string",
+             *       "fresh": true,
+             *       "method": null,
+             *       "verifiedAt": "string",
+             *       "expiresAt": "string",
+             *       "maxAgeSeconds": 0
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+              fresh?: boolean;
+              /** @enum {string|null} */
+              method?: 'webauthn' | 'totp' | null;
+              verifiedAt?: string | null;
+              expiresAt?: string | null;
+              maxAgeSeconds?: number;
+            };
+          };
+        };
+        /** @description HTTP 404 */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 429 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
             };
           };
         };

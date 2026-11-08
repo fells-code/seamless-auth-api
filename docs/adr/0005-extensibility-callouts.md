@@ -112,6 +112,7 @@ They must be read back to sign, so they cannot be hashed. They are AES-256-GCM e
 - `login_success` is written when `/login` resolves which methods an identifier may use, before any factor is proven, so it cannot be the source of `user.signed_in`. No event recorded that a session was created. `issueSessionAndRespond` now writes `session_created`, with the method and organization.
 - Deleting a passkey (`DELETE /users/credentials`) wrote no audit event. It now writes `credentials_deleted` naming the passkey. Reproducing test first.
 - Passkey registration and account registration both write `registration_success`. The passkey path now names the credential in metadata, which is how the catalog tells them apart.
+- Audit retention deleted by age alone, so a sink that fell behind for longer than the retention period would have lost events it never sent. Retention now stops at the oldest sink cursor, and a sink cannot be created to replay from before the oldest event still held.
 - `organization_member_updated` recorded only what was added and removed. It now records the roles after the change too, which the webhook carries.
 
 ## Consequences

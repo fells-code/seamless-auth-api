@@ -12,7 +12,7 @@ import { QueryTypes, Sequelize } from 'sequelize';
 import { resolveSslOptions, withoutSslMode } from '../config/database.cjs';
 import { getSequelize } from '../models/index.js';
 import getLogger from '../utils/logger.js';
-import { buildManifest, ExportedAuthEvent, readExportBatch } from './auditExport.js';
+import { buildManifest, ExportedAuthEvent, exportLine, readExportBatch } from './auditExport.js';
 
 const logger = getLogger('audit-retention');
 
@@ -76,6 +76,20 @@ function getRetentionSequelize(env = process.env): Sequelize {
   return retentionSequelize;
 }
 
+/**
+ * The newest event every audit sink has delivered, or null without sinks. Retention never
+ * deletes past it, so a sink that has fallen behind still finds every event it has yet to send
+ * (ADR 0005, E7). Read through the application's connection, since the retention role need not
+ * see `audit_sinks`.
+ */
+async function auditSinkHold(): Promise<number | null> {
+  const [row] = await getSequelize().query<{ held: string | null }>(
+    'SELECT min("cursorSeq") AS held FROM public.audit_sinks',
+    { type: QueryTypes.SELECT },
+  );
+  return row?.held == null ? null : Number(row.held);
+}
+
 async function writeArchiveFile(archiveDir: string, events: ExportedAuthEvent[]) {
   const first = events[0];
   const last = events[events.length - 1];
@@ -92,8 +106,7 @@ async function writeArchiveFile(archiveDir: string, events: ExportedAuthEvent[])
     lastHash: last.hash,
   });
 
-  const body =
-    events.map((event) => JSON.stringify(event)).join('\n') + `\n${JSON.stringify(manifest)}\n`;
+  const body = events.map(exportLine).join('\n') + `\n${JSON.stringify(manifest)}\n`;
 
   // Written under a temporary name, flushed to disk, then renamed, so a file under its
   // final name is always complete. The rows are only deleted after this returns.
@@ -151,6 +164,7 @@ export async function runAuditRetention(
   let archived = 0;
 
   for (;;) {
+    const heldFor = await auditSinkHold();
     const outcome = await sequelize.transaction(async (transaction) => {
       const [{ locked }] = await sequelize.query<{ locked: boolean }>(
         'SELECT pg_try_advisory_xact_lock(:key) AS locked',
@@ -175,9 +189,15 @@ export async function runAuditRetention(
 
       if (maxSeq === null || Number(maxSeq) < 1) return 'finished' as const;
 
+      const deletable = heldFor === null ? Number(maxSeq) : Math.min(Number(maxSeq), heldFor);
+      if (deletable < Number(maxSeq)) {
+        logger.warn(`Audit retention is held at seq ${deletable} by an audit sink that is behind`);
+      }
+      if (deletable < 1) return 'finished' as const;
+
       const batch = await readExportBatch({
         afterSeq: 0,
-        maxSeq: Number(maxSeq),
+        maxSeq: deletable,
         limit: ARCHIVE_BATCH_SIZE,
         sequelize,
         transaction,

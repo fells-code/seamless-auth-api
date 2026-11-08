@@ -86,6 +86,11 @@ export const EXPORT_COLUMNS = `
   public.auth_event_payload(e.*) AS payload
 `;
 
+/** One event as a `seamless-auth-events/1` line, without the trailing newline. */
+export function exportLine(event: ExportedAuthEvent): string {
+  return JSON.stringify(event);
+}
+
 export function toExportedEvent(row: ExportRow): ExportedAuthEvent {
   return {
     seq: Number(row.seq),
@@ -201,7 +206,7 @@ export async function streamAuthEventExport(params: {
         firstSeq = event.seq;
         anchorHash = event.prevHash;
       }
-      await write(`${JSON.stringify(event)}\n`);
+      await write(`${exportLine(event)}\n`);
       lastSeq = event.seq;
       lastHash = event.hash;
       count += 1;

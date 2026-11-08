@@ -144,6 +144,9 @@ export const AUTH_EVENT_TYPES = [
   'admin_webhook_updated',
   'session_created',
   'webhook_endpoint_disabled',
+  'admin_audit_sink_created',
+  'admin_audit_sink_updated',
+  'admin_audit_sink_deleted',
 ] as const;
 
 export const AuthEventTypeEnum = z.enum(AUTH_EVENT_TYPES);

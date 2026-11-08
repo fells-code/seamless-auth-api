@@ -17,6 +17,7 @@ import { initializeModels } from './models/index.js';
 import { TotpCredential } from './models/totpCredentials.js';
 import { WebhookEndpoint } from './models/webhookEndpoints.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
+import { startAuditSinkDelivery } from './services/auditSinkService.js';
 import { warnOnBreakGlassMisconfiguration } from './services/breakGlassService.js';
 import { initializeMetadataService } from './services/metadataServiceBootstrap.js';
 import { warnIfUnboundOAuthStateSet } from './services/oauthService.js';
@@ -73,6 +74,7 @@ async function startServer() {
     startOidcPayloadPurge();
     startBackchannelLogoutSweep();
     startWebhookDelivery();
+    startAuditSinkDelivery();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

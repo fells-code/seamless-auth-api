@@ -123,6 +123,36 @@ describe('runAuditRetention', () => {
     expect(query).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'), expect.anything());
   });
 
+  it('never deletes past the oldest audit sink cursor', async () => {
+    respondTo({
+      pg_try_advisory_xact_lock: [{ locked: true }],
+      'AS max_seq': [{ max_seq: '3' }],
+      audit_sinks: [{ held: '2' }],
+    });
+    vi.mocked(readExportBatch).mockResolvedValueOnce([event(1), event(2)]);
+
+    await runAuditRetention({ retentionDays: 30, archiveDir }, new Date('2026-06-01T00:00:00Z'));
+
+    expect(readExportBatch).toHaveBeenCalledWith(expect.objectContaining({ maxSeq: 2 }));
+    expect(query).toHaveBeenCalledWith('DELETE FROM public.auth_events WHERE seq <= :lastSeq', {
+      replacements: { lastSeq: 2 },
+      transaction: expect.anything(),
+    });
+  });
+
+  it('deletes nothing while a sink has sent no event at all', async () => {
+    respondTo({
+      pg_try_advisory_xact_lock: [{ locked: true }],
+      'AS max_seq': [{ max_seq: '3' }],
+      audit_sinks: [{ held: '0' }],
+    });
+
+    await runAuditRetention({ retentionDays: 30, archiveDir }, new Date('2026-06-01T00:00:00Z'));
+
+    expect(readExportBatch).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'), expect.anything());
+  });
+
   it('archives a batch to disk, then deletes exactly that batch', async () => {
     respondTo({
       pg_try_advisory_xact_lock: [{ locked: true }],
@@ -257,9 +287,17 @@ describe('separate retention connection', () => {
     retentionQuery.mockImplementation(async (sql: string) =>
       sql.includes('pg_try_advisory_xact_lock') ? [{ locked: true }] : [{ max_seq: null }],
     );
+    query.mockResolvedValue([{ held: null }]);
 
     await runAuditRetention({ retentionDays: 30, archiveDir });
     await runAuditRetention({ retentionDays: 30, archiveDir });
+
+    // The sinks' hold is read as the application, since the retention role need not see them.
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('audit_sinks'), expect.anything());
+    expect(retentionQuery).not.toHaveBeenCalledWith(
+      expect.stringContaining('audit_sinks'),
+      expect.anything(),
+    );
 
     expect(SequelizeMock).toHaveBeenCalledTimes(1);
     expect(SequelizeMock).toHaveBeenCalledWith(
