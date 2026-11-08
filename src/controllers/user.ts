@@ -217,6 +217,13 @@ export const deleteCredential = async (req: Request, res: Response) => {
 
     await cred.destroy();
 
+    await AuthEventService.log({
+      userId: authUser.id,
+      type: 'credentials_deleted',
+      req,
+      metadata: { credential: 'passkey', credentialId: cred.id },
+    });
+
     return res.json({ message: 'Credential deleted' });
   } catch (err) {
     logger.error(`Failed to delete credential: ${err}`);
