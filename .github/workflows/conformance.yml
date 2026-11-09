@@ -16,6 +16,6 @@ concurrency:
 
 jobs:
   verify:
-    uses: fells-code/seamless-cli/.github/workflows/verify-conformance.yml@28a363fcd6ba6c2ea3930c7172093638d8c41fe2 # v0.27.2
+    uses: fells-code/seamless-cli/.github/workflows/verify-conformance.yml@e0dc559550168c53721efa1a0194d7f637f3e18b # v0.28.0
     with:
       api-ref: ${{ github.event.pull_request.head.sha }}
