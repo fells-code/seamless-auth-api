@@ -33,21 +33,10 @@ const MAX_RESPONSE_BYTES = 64 * 1024;
 
 /**
  * The structured data element carrying `seq` and `hash` in each syslog record. RFC 5424 needs
- * a private SD-ID to be `name@<IANA enterprise number>`. 32473 is the number RFC 5612 reserves
- * for documentation, a placeholder until Fells Code has its own.
+ * a private SD-ID to be `name@<IANA enterprise number>`, and 67592 is the Fells Code number.
+ * Collectors key their parsing rules on it, so changing it is a breaking change.
  */
-// TODO(#586): replace 32473 with the Fells Code IANA enterprise number before release.
-export const SYSLOG_SD_ID = 'seamless@32473';
-
-/**
- * Collectors key their parsing rules on the SD-ID, so changing it once adopters have written
- * those rules is a breaking change. Syslog sinks stay refused until the real number is in.
- */
-// TODO(#586): set to true in 0.23.1 together with the real SD-ID.
-export const SYSLOG_SINKS_AVAILABLE = false;
-
-export const SYSLOG_UNAVAILABLE =
-  'Syslog audit sinks are not available in this release; they arrive in Seamless Auth 0.23.1. Use an OTLP sink until then.';
+export const SYSLOG_SD_ID = 'seamless@67592';
 
 export const AUDIT_SINK_SCOPE = 'seamless-auth.audit';
 

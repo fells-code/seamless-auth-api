@@ -387,7 +387,7 @@ describe('syslog', () => {
   it('marks the test record with its own MSGID and no chain fields', () => {
     const message = syslogMessage(testRecord('sink-1'), syslog(1), 'host');
 
-    expect(message).toMatch(/^<86>1 \S+ host seamless-auth - test \[seamless@32473 test="true"\] /);
+    expect(message).toMatch(/^<86>1 \S+ host seamless-auth - test \[seamless@67592 test="true"\] /);
     expect(message).not.toContain('seq=');
   });
 

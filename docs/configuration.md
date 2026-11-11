@@ -127,9 +127,9 @@ export does. A sink retries until its collector takes the events, backing off to
 reports how far behind the chain head it is. Destinations follow the same rules as webhooks,
 including `CALLOUT_PRIVATE_HOSTS`, and plain TCP syslog is refused in production.
 
-Syslog sinks arrive in 0.23.1. Until then the API refuses to create or update one with a 400,
-because the syslog records' SD-ID needs the Fells Code IANA enterprise number first (#586). Use an
-OTLP sink in the meantime.
+Syslog records carry `seq` and `hash` in the structured data element `seamless@67592` (67592 is
+the Fells Code IANA Private Enterprise Number). Key collector parsing rules on that SD-ID. Syslog
+sinks need API 0.23.1 or later; 0.23.0 refuses them with a 400.
 
 | Variable                   | Required | Default | Notes                                                                                                                                                                                                                                                                                 |
 | -------------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

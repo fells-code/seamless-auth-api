@@ -53,7 +53,7 @@ router.post(
     ...write,
     summary: 'Create an audit sink',
     description:
-      'Starts after the newest event unless `startAfterSeq` replays from an earlier one. Credentials are named as `_AUDIT_SINK_SECRET` env vars, never stored. A syslog sink is refused with a 400 until 0.23.1.',
+      'Starts after the newest event unless `startAfterSeq` replays from an earlier one. Credentials are named as `_AUDIT_SINK_SECRET` env vars, never stored.',
     schemas: {
       body: CreateAuditSinkRequestSchema,
       response: { 201: AuditSinkResponseSchema, 400: ErrorSchema, 403: StepUpRequiredErrorSchema },

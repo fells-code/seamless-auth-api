@@ -3,20 +3,10 @@ import type { AddressInfo } from 'node:net';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { query, transaction, gate } = vi.hoisted(() => {
+const { query, transaction } = vi.hoisted(() => {
   const query = vi.fn();
   const transaction = vi.fn(async (fn: (t: unknown) => unknown) => fn({ id: 'tx' }));
-  return { query, transaction, gate: { syslog: false } };
-});
-
-vi.mock('../../../src/lib/auditSinkTransport.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../src/lib/auditSinkTransport.js')>();
-  return {
-    ...actual,
-    get SYSLOG_SINKS_AVAILABLE() {
-      return gate.syslog;
-    },
-  };
+  return { query, transaction };
 });
 
 vi.mock('../../../src/models/index.js', () => ({
@@ -55,7 +45,6 @@ let bodies: string[];
 let status: number;
 
 beforeEach(async () => {
-  gate.syslog = false;
   bodies = [];
   status = 200;
   transaction.mockImplementation(async (fn: (t: unknown) => unknown) => fn({ id: 'tx' }));
@@ -222,7 +211,6 @@ describe('sinks', () => {
   });
 
   it('updates fields and clears the backoff, keeping the cursor', async () => {
-    gate.syslog = true;
     const record = sink({ failureCount: 4, nextAttemptAt: new Date(Date.now() + 60_000) });
     vi.mocked(AuditSink.findByPk).mockResolvedValue(record);
 
