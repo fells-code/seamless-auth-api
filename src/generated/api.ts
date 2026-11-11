@@ -9838,7 +9838,7 @@ export interface paths {
     put?: never;
     /**
      * Create an audit sink
-     * @description Starts after the newest event unless `startAfterSeq` replays from an earlier one. Credentials are named as `_AUDIT_SINK_SECRET` env vars, never stored. A syslog sink is refused with a 400 until 0.23.1.
+     * @description Starts after the newest event unless `startAfterSeq` replays from an earlier one. Credentials are named as `_AUDIT_SINK_SECRET` env vars, never stored.
      */
     post: {
       parameters: {

@@ -16,8 +16,6 @@ import {
   eventRecord,
   sendToSink,
   sinkDestinationProblem,
-  SYSLOG_SINKS_AVAILABLE,
-  SYSLOG_UNAVAILABLE,
   testRecord,
 } from '../lib/auditSinkTransport.js';
 import { AuditSink } from '../models/auditSinks.js';
@@ -86,9 +84,6 @@ export function serializeSink(sink: AuditSink, head: number) {
 }
 
 function assertSettings(settings: AuditSinkSettings) {
-  if (settings.kind === 'syslog' && !SYSLOG_SINKS_AVAILABLE) {
-    throw new AuditSinkError(400, SYSLOG_UNAVAILABLE);
-  }
   const problem = sinkDestinationProblem(settings);
   if (problem) throw new AuditSinkError(400, problem);
 }

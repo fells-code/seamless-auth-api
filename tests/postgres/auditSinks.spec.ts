@@ -9,13 +9,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
-// The syslog transport stays tested end to end while the API refuses new syslog sinks (#586).
-vi.mock('../../src/lib/auditSinkTransport.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../src/lib/auditSinkTransport.js')>()),
-  SYSLOG_SINKS_AVAILABLE: true,
-}));
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AuditSink } from '../../src/models/auditSinks.js';
 import { getSequelize, initializeModels } from '../../src/models/index.js';
