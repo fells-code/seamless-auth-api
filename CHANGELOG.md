@@ -1,5 +1,11 @@
 # seamless-auth-api
 
+## 0.23.1
+
+### Patch Changes
+
+- 5902e00: Syslog audit sinks are available (#586). Creating or updating a syslog sink no longer returns a 400. Records go over RFC 5424 on TLS with octet counting, and carry `seq` and `hash` in the structured data element `seamless@67592`, under the Fells Code IANA Private Enterprise Number 67592. Key collector parsing rules on that SD-ID.
+
 ## 0.23.0
 
 ### Minor Changes
