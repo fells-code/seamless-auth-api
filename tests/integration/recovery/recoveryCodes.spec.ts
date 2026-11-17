@@ -17,6 +17,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { sendNoticeEmail, sendNoticeSms } from '../../../src/services/messagingService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
+import { buildFreshStepUpSession, buildSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -26,6 +27,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   process.env.REFRESH_TOKEN_LOOKUP_SECRET = 'lookup-secret';
   (getSystemConfig as any).mockResolvedValue(buildSystemConfig());
 });
@@ -65,7 +67,7 @@ describe('POST /recovery-codes', () => {
 
   it('needs a fresh step-up to replace an existing set', async () => {
     withExistingSet();
-    (Session.findOne as any).mockResolvedValue({ id: 'session-1', stepUpVerifiedAt: null });
+    (Session.findOne as any).mockResolvedValue(buildSession({ authTime: new Date() }));
 
     const res = await request(app).post('/recovery-codes');
 

@@ -34676,7 +34676,10 @@ export interface paths {
         };
       };
     };
-    /** Delete credential */
+    /**
+     * Delete credential
+     * @description Needs a fresh step-up.
+     */
     delete: {
       parameters: {
         query?: never;

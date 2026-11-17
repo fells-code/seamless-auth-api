@@ -15,7 +15,7 @@ import {
   verifyWebAuthnRegistration,
 } from '../controllers/webauthn.js';
 import { createRouter } from '../lib/createRouter.js';
-import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
+import { requireFactorEnrollmentProof } from '../middleware/requireFactorEnrollmentProof.js';
 import { CredentialUpdateResponseSchema } from '../schemas/credential.responses.js';
 import { ErrorSchema, InternalErrorSchema } from '../schemas/generic.responses.js';
 import {
@@ -40,7 +40,7 @@ const webauthnRouter = createRouter('/webauthn');
 webauthnRouter.get(
   '/register/start',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireFactorEnrollmentProof],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Start WebAuthn registration',
@@ -64,7 +64,7 @@ webauthnRouter.get(
 webauthnRouter.post(
   '/register/finish',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireFactorEnrollmentProof],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Finish WebAuthn registration',

@@ -9,7 +9,6 @@ import { DeleteCredentialRequestSchema, UpdateCredentialRequestSchema } from '@s
 import { getEffectivePermissions } from '../controllers/permissions.js';
 import { deleteCredential, deleteUser, getUser, updateCredential } from '../controllers/user.js';
 import { createRouter } from '../lib/createRouter.js';
-import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
 import { requireStepUp } from '../middleware/requireStepUp.js';
 import { CredentialUpdateResponseSchema } from '../schemas/credential.responses.js';
 import { ErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
@@ -96,15 +95,17 @@ usersRouter.delete(
 usersRouter.delete(
   '/credentials',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireStepUp()],
     auth: 'access',
     tags: ['Users'],
     summary: 'Delete credential',
+    description: 'Needs a fresh step-up.',
 
     schemas: {
       body: DeleteCredentialRequestSchema,
       response: {
         200: MessageSchema,
+        403: StepUpRequiredErrorSchema,
       },
     },
   },

@@ -236,7 +236,7 @@ describe('DELETE /users/credentials', () => {
       .send({ id: 'cred-1' });
 
     expect(res.status).toBe(401);
-    expect(res.body.error).toBe('Unauthorized');
+    expect(res.body.error).toBe('unauthorized');
   });
 });
 

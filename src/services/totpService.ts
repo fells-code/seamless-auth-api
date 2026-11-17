@@ -18,6 +18,7 @@ import {
   randomBuffer,
   verifyTotpCode,
 } from '../utils/totp.js';
+import { factorPredatesSignIn } from './stepUpService.js';
 
 const TOTP_CIPHER = 'aes-256-gcm';
 
@@ -194,11 +195,24 @@ export async function verifyTotpEnrollment(userId: string, code: string) {
   return { verified: true, credential };
 }
 
-export async function verifyEnabledTotp(userId: string, code: string) {
+/**
+ * `enrolledBefore` limits the check to a credential enabled before that time, for step-up,
+ * where a TOTP the current session enrolled must not count. Null refuses every credential.
+ */
+export async function verifyEnabledTotp(
+  userId: string,
+  code: string,
+  { enrolledBefore }: { enrolledBefore?: Date | null } = {},
+) {
   const credential = await findEnabledCredential(userId);
 
   if (!credential) {
     return { verified: false, reason: 'missing_enabled_credential' };
+  }
+
+  const restricted = enrolledBefore !== undefined;
+  if (restricted && !factorPredatesSignIn(credential.verifiedAt, enrolledBefore)) {
+    return { verified: false, reason: 'enrolled_after_sign_in' };
   }
 
   const verification = await verifyCredentialCode(credential, code);
@@ -216,6 +230,7 @@ export async function verifyEnabledTotp(userId: string, code: string) {
       where: {
         id: credential.id,
         enabled: true,
+        ...(restricted ? { verifiedAt: { [Op.lt]: enrolledBefore } } : {}),
         [Op.or]: [
           { lastUsedCounter: null },
           { lastUsedCounter: { [Op.lt]: verification.counter } },

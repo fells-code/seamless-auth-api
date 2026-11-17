@@ -47,6 +47,8 @@ import {
   registerPhone,
   verifyRegisteredPhone,
 } from '../../../src/controllers/registration.js';
+import { Session } from '../../../src/models/sessions.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -73,6 +75,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
 
   (getSystemConfig as any).mockResolvedValue({
     default_roles: ['user'],

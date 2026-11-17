@@ -15,7 +15,7 @@ export function buildCredential(overrides: any = {}) {
     platform: 'web',
     browser: 'chrome',
     deviceInfo: 'test',
-    createdAt: new Date(),
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     publicKey: 'key',
     update: vi.fn(),
     destroy: vi.fn(),

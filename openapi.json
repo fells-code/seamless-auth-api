@@ -36232,6 +36232,7 @@
       },
       "delete": {
         "summary": "Delete credential",
+        "description": "Needs a fresh step-up.",
         "tags": ["Users"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {

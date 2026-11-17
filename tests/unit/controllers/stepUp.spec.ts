@@ -38,6 +38,7 @@ function buildRes() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildSession());
   challengeRecord.update = vi.fn();
   (WebAuthnChallenge.findOne as any).mockResolvedValue(challengeRecord);
 });
@@ -206,6 +207,9 @@ describe('step-up controller', () => {
       authenticationInfo: { newCounter: 2, credentialDeviceType: 'singleDevice' },
     });
 
+    const session = buildSession();
+    (Session.findOne as any).mockResolvedValue(session);
+
     const req = buildReq({
       user,
       body: { assertionResponse: { id: 'cred-1' } },
@@ -214,7 +218,7 @@ describe('step-up controller', () => {
 
     await finishWebAuthnStepUp(req, res);
 
-    expect(Session.findOne).not.toHaveBeenCalled();
+    expect(session.save).not.toHaveBeenCalled();
     expect(credential.update).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
@@ -400,7 +404,7 @@ describe('step-up controller', () => {
     const credential = buildCredential({ id: 'cred-1', userId: user.id });
 
     (Credential.findOne as any).mockResolvedValue(credential);
-    (Session.findOne as any).mockResolvedValue(null);
+    (Session.findOne as any).mockResolvedValueOnce(buildSession()).mockResolvedValueOnce(null);
     (getSystemConfig as any).mockResolvedValue({
       origins: ['http://localhost:5137'],
       rpid: 'localhost',
@@ -446,5 +450,79 @@ describe('step-up controller', () => {
     );
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
+  });
+
+  describe('a passkey enrolled after the session signed in', () => {
+    it('is left out of the step-up challenge', async () => {
+      const user = buildUser();
+      (Credential.findAll as any).mockResolvedValue([
+        buildCredential({ id: 'new-cred', userId: user.id, createdAt: new Date() }),
+      ]);
+
+      const res = buildRes();
+      await startWebAuthnStepUp(buildReq({ user }), res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+      expect(WebAuthnChallenge.create).not.toHaveBeenCalled();
+    });
+
+    it('cannot finish a step-up', async () => {
+      const user = buildUser();
+      const credential = buildCredential({
+        id: 'new-cred',
+        userId: user.id,
+        createdAt: new Date(),
+      });
+      (Credential.findOne as any).mockResolvedValue(credential);
+      const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
+
+      const res = buildRes();
+      await finishWebAuthnStepUp(
+        buildReq({ user, body: { assertionResponse: { id: 'new-cred' } } }),
+        res,
+      );
+
+      expect(verifyAuthenticationResponse).not.toHaveBeenCalled();
+      expect(credential.update).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ error: 'step_up_failed' });
+    });
+
+    it('counts from the session it was exchanged from', async () => {
+      const user = buildUser();
+      const parentStart = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      (Session.findOne as any).mockResolvedValue(buildSession({ parentSessionId: 'parent-1' }));
+      (Session.findByPk as any).mockResolvedValueOnce(
+        buildSession({ id: 'parent-1', chainStartedAt: parentStart, parentSessionId: null }),
+      );
+      (Credential.findAll as any).mockResolvedValue([
+        buildCredential({ userId: user.id, createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) }),
+      ]);
+
+      const res = buildRes();
+      await startWebAuthnStepUp(buildReq({ user }), res);
+
+      expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+    });
+  });
+
+  it('refuses to start a step-up without a session', async () => {
+    const res = buildRes();
+    await startWebAuthnStepUp(buildReq({ sessionId: undefined }), res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+  });
+
+  it('refuses to start a step-up when the session is gone', async () => {
+    (Session.findOne as any).mockResolvedValue(null);
+
+    const res = buildRes();
+    await startWebAuthnStepUp(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+    expect(Credential.findAll).not.toHaveBeenCalled();
   });
 });

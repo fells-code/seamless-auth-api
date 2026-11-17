@@ -17,7 +17,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
 import { encryptTotpSecret } from '../../../src/services/totpService.js';
 import { generateTotpCode } from '../../../src/utils/totp.js';
-import { buildSession } from '../../factories/sessionFactory.js';
+import { buildSession, buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 import { buildTotpCredential } from '../../factories/totpCredentialFactory.js';
 
 let app: Application;
@@ -28,6 +28,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   process.env.TOTP_SECRET_ENCRYPTION_KEY = 'test-totp-encryption-key';
 });
 

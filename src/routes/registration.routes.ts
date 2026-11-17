@@ -7,7 +7,7 @@
 import { register, registerPhone, verifyRegisteredPhone } from '../controllers/registration.js';
 import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
-import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
+import { requireFactorEnrollmentProof } from '../middleware/requireFactorEnrollmentProof.js';
 import { ErrorSchema } from '../schemas/generic.responses.js';
 import { VerifyOTPRequestSchema } from '../schemas/otp.requests.js';
 import { OTPVerifyTokenSuccessSchema } from '../schemas/otp.responses.js';
@@ -51,7 +51,7 @@ registrationRouter.post(
     auth: 'access',
     summary: 'Register a phone number for the authenticated user',
     tags: ['Registration'],
-    middleware: [requireDeviceSessionStepUp, otpIpLimiter, otpIdentityLimiter],
+    middleware: [requireFactorEnrollmentProof, otpIpLimiter, otpIdentityLimiter],
 
     schemas: {
       body: RegisterPhoneRequestSchema,
@@ -71,7 +71,7 @@ registrationRouter.post(
 registrationRouter.post(
   '/phone/verify',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireFactorEnrollmentProof],
     auth: 'access',
     summary: 'Verify the authenticated user phone number',
     tags: ['Registration'],

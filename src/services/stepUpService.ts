@@ -9,6 +9,11 @@ import { deriveAcrAmr } from './oidcAuthContext.js';
 
 export const DEFAULT_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 
+/** How recent a sign-in must be to add the first factor to an account that has none. */
+export const FIRST_FACTOR_SIGN_IN_MAX_AGE_SECONDS = 10 * 60;
+
+const MAX_SESSION_LINEAGE = 8;
+
 export type StepUpMethod = 'webauthn' | 'totp';
 
 export interface StepUpStatus {
@@ -62,7 +67,7 @@ export function getStepUpStatusFromSession(
   };
 }
 
-async function findCurrentSession(sessionId: string, userId: string) {
+export async function findCurrentSession(sessionId: string, userId: string) {
   return Session.findOne({
     where: {
       id: sessionId,
@@ -70,6 +75,57 @@ async function findCurrentSession(sessionId: string, userId: string) {
       revokedAt: null,
     },
   });
+}
+
+function chainStart(session: Pick<Session, 'chainStartedAt' | 'createdAt'>) {
+  return session.chainStartedAt ?? session.createdAt ?? null;
+}
+
+/**
+ * When the human behind this session last signed in: the earliest chain start across the
+ * session and the sessions it was exchanged from, since an exchanged child starts a chain
+ * of its own. Null when any link is missing, which callers treat as no factor counting.
+ */
+export async function findSessionSignInTime(
+  session: Pick<Session, 'chainStartedAt' | 'createdAt' | 'parentSessionId'>,
+): Promise<Date | null> {
+  let earliest = chainStart(session);
+  let parentId = session.parentSessionId ?? null;
+
+  for (let hops = 0; parentId; hops += 1) {
+    if (!earliest || hops >= MAX_SESSION_LINEAGE) return null;
+
+    const parent = await Session.findByPk(parentId);
+    if (!parent) return null;
+
+    const parentStart = chainStart(parent);
+    if (!parentStart) return null;
+
+    if (parentStart < earliest) earliest = parentStart;
+    parentId = parent.parentSessionId ?? null;
+  }
+
+  return earliest;
+}
+
+/**
+ * A factor proves the session's holder only if it was enrolled before that holder signed
+ * in. One enrolled since could have been added by whoever holds the session's token, so
+ * accepting it would let the token vouch for itself.
+ */
+export function factorPredatesSignIn(
+  enrolledAt: Date | null | undefined,
+  signedInAt: Date | null,
+): boolean {
+  return Boolean(enrolledAt && signedInAt && new Date(enrolledAt) < signedInAt);
+}
+
+/** The current session and when its holder signed in, for a step-up ceremony. */
+export async function getStepUpSignInTime(sessionId: string, userId: string) {
+  const session = await findCurrentSession(sessionId, userId);
+  if (!session) return { sessionFound: false, signedInAt: null };
+
+  return { sessionFound: true, signedInAt: await findSessionSignInTime(session) };
 }
 
 export async function getSessionStepUpStatus({

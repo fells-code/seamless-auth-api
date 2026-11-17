@@ -18,7 +18,9 @@ import { buildPrfAuthenticationExtensions, containsPrfOutput } from '../lib/weba
 import { Credential } from '../models/credentials.js';
 import { AuthEventService } from '../services/authEventService.js';
 import {
+  factorPredatesSignIn,
   getSessionStepUpStatus,
+  getStepUpSignInTime,
   recordStepUpVerification,
   serializeStepUpStatus,
 } from '../services/stepUpService.js';
@@ -30,10 +32,14 @@ const logger = getLogger('step-up');
 
 function filterAssertionCredentials(
   credentials: Credential[],
-  options: { credentialId?: string; requiresPrf: boolean },
+  options: { credentialId?: string; requiresPrf: boolean; signedInAt: Date | null },
 ) {
   return credentials.filter((credential) => {
     if (options.credentialId && credential.id !== options.credentialId) {
+      return false;
+    }
+
+    if (!factorPredatesSignIn(credential.createdAt, options.signedInAt)) {
       return false;
     }
 
@@ -70,22 +76,29 @@ export const startWebAuthnStepUp = async (req: Request, res: Response) => {
   const user = authReq.user;
   const { credentialId, prf } = req.body ?? {};
 
-  if (!user?.id) {
+  if (!user?.id || !authReq.sessionId) {
     await AuthEventService.log({
       userId: null,
       type: 'step_up_suspicious',
       req,
-      metadata: { reason: 'No authenticated user' },
+      metadata: { reason: 'No authenticated user or session' },
     });
     return res.status(401).json({ error: 'unauthorized' });
   }
 
   try {
+    const { sessionFound, signedInAt } = await getStepUpSignInTime(authReq.sessionId, user.id);
+
+    if (!sessionFound) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
     const credentials = await Credential.findAll({ where: { userId: user.id } });
 
     const assertionCredentials = filterAssertionCredentials(credentials ?? [], {
       credentialId,
       requiresPrf: Boolean(prf),
+      signedInAt,
     });
 
     if (!assertionCredentials || assertionCredentials.length === 0) {
@@ -194,6 +207,18 @@ export const finishWebAuthnStepUp = async (req: Request, res: Response) => {
       type: 'step_up_failed',
       req,
       metadata: { reason: 'Credential not found' },
+    });
+    return res.status(401).json({ error: 'step_up_failed' });
+  }
+
+  const { signedInAt } = await getStepUpSignInTime(authReq.sessionId, user.id);
+
+  if (!factorPredatesSignIn(credential.createdAt, signedInAt)) {
+    await AuthEventService.log({
+      userId: user.id,
+      type: 'step_up_failed',
+      req,
+      metadata: { reason: 'Credential enrolled after sign-in' },
     });
     return res.status(401).json({ error: 'step_up_failed' });
   }
