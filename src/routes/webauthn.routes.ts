@@ -68,6 +68,11 @@ webauthnRouter.post(
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Finish WebAuthn registration',
+    description:
+      'From a recovery session, enrolling lifts its restriction once the login hooks allow it. A ' +
+      "hook can refuse: 403 `login_denied` with the hook's `message`, or 503 " +
+      '`login_hook_unavailable`. Either way the recovery session is revoked and the new factor is ' +
+      'kept, so the user signs in with it.',
     tags: ['WebAuthn'],
 
     schemas: {
@@ -78,6 +83,7 @@ webauthnRouter.post(
         401: ErrorSchema,
         403: ErrorSchema,
         500: ErrorSchema,
+        503: ErrorSchema,
       },
     },
   },

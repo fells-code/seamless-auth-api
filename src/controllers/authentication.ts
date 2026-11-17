@@ -768,7 +768,8 @@ export const refreshSession = async (req: Request, res: Response) => {
     // the sign-in.
     authMethods: session.authMethods ?? [],
     authTime: session.authTime ?? null,
-    // The pre_token hook is not called on refresh, so its claims ride the chain.
+    // The pre_token hook is not called on refresh, so its claims ride the chain. A recovery
+    // session gets them when its restriction lifts, which is also when the hooks first run.
     hookClaims: session.hookClaims ?? null,
     parentSessionId: session.parentSessionId ?? null,
     exchangeClientId: session.exchangeClientId ?? null,

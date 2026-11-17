@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BreakGlassFactorError,
   issueSessionAndRespond,
+  liftRecoveryRestrictionAfterHooks,
   PasskeyRequiredError,
+  RECOVERY_HOOK_REFUSED,
 } from '../../../src/services/sessionIssuance.js';
 
 vi.mock('../../../src/lib/token.js', () => ({
@@ -15,6 +17,8 @@ vi.mock('../../../src/lib/token.js', () => ({
 vi.mock('../../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),
+    findOne: vi.fn(),
+    update: vi.fn(),
   },
 }));
 
@@ -52,6 +56,7 @@ import {
 import { Session } from '../../../src/models/sessions.js';
 import { enforceConcurrentSessionLimit } from '../../../src/services/concurrentSessionPolicy.js';
 import { runLoginHook } from '../../../src/services/loginHookService.js';
+import { hardRevokeSession } from '../../../src/services/sessionService.js';
 import { getDefaultOrganizationIdForUser } from '../../../src/services/organizationService.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../../../src/utils/utils.js';
 
@@ -705,5 +710,150 @@ describe('login hooks', () => {
       }),
     ).toBe(true);
     expect(runLoginHook).not.toHaveBeenCalled();
+  });
+});
+
+describe('liftRecoveryRestrictionAfterHooks', () => {
+  const recoverySession = (overrides: Record<string, unknown> = {}) => ({
+    id: 'session-1',
+    organizationId: 'org-1',
+    authMethods: [{ method: 'recovery_code', at: new Date().toISOString() }],
+    ...overrides,
+  });
+
+  function hooksAnswer(
+    postLogin: Awaited<ReturnType<typeof runLoginHook>>,
+    preToken: Awaited<ReturnType<typeof runLoginHook>> = { outcome: 'skipped' },
+  ) {
+    vi.mocked(runLoginHook).mockImplementation(async (trigger) =>
+      trigger === 'post_login' ? postLogin : preToken,
+    );
+  }
+
+  it('runs both hooks and keeps the pre_token claims when it lifts the restriction', async () => {
+    const session = recoverySession();
+    (Session.findOne as any).mockResolvedValue(session);
+    hooksAnswer(
+      { outcome: 'allowed', claims: null },
+      { outcome: 'allowed', claims: { tier: 'gold' } },
+    );
+    const req = mockReq();
+
+    expect(
+      await liftRecoveryRestrictionAfterHooks({ sessionId: 'session-1', user: mockUser, req }),
+    ).toBeNull();
+
+    expect(Session.findOne).toHaveBeenCalledWith({
+      where: { id: 'session-1', userId: 'user-1', recovery: true, revokedAt: null },
+    });
+    expect(vi.mocked(runLoginHook).mock.calls.map(([trigger]) => trigger)).toEqual([
+      'post_login',
+      'pre_token',
+    ]);
+    expect(runLoginHook).toHaveBeenCalledWith('post_login', {
+      user: mockUser,
+      method: 'recovery_code',
+      organizationId: 'org-1',
+      req,
+    });
+    expect(Session.update).toHaveBeenCalledWith(
+      { recovery: false, hookClaims: { tier: 'gold' } },
+      { where: { id: 'session-1', recovery: true, revokedAt: null } },
+    );
+    expect(hardRevokeSession).not.toHaveBeenCalled();
+  });
+
+  it('names account recovery as the method when the session recorded no factor', async () => {
+    (Session.findOne as any).mockResolvedValue(
+      recoverySession({ authMethods: [], organizationId: null }),
+    );
+
+    await liftRecoveryRestrictionAfterHooks({
+      sessionId: 'session-1',
+      user: mockUser,
+      req: mockReq(),
+    });
+
+    expect(runLoginHook).toHaveBeenCalledWith(
+      'post_login',
+      expect.objectContaining({ method: 'account_recovery', organizationId: null }),
+    );
+  });
+
+  it('revokes the session and keeps it restricted when post_login denies', async () => {
+    const session = recoverySession();
+    (Session.findOne as any).mockResolvedValue(session);
+    hooksAnswer({ outcome: 'denied', userMessage: 'Your account is on hold.' });
+
+    expect(
+      await liftRecoveryRestrictionAfterHooks({
+        sessionId: 'session-1',
+        user: mockUser,
+        req: mockReq(),
+      }),
+    ).toEqual({
+      status: 403,
+      body: { error: 'login_denied', message: 'Your account is on hold.' },
+    });
+    expect(runLoginHook).toHaveBeenCalledTimes(1);
+    expect(hardRevokeSession).toHaveBeenCalledWith(session, RECOVERY_HOOK_REFUSED);
+    expect(Session.update).not.toHaveBeenCalled();
+  });
+
+  it('fails closed with 503 when pre_token cannot be reached', async () => {
+    const session = recoverySession();
+    (Session.findOne as any).mockResolvedValue(session);
+    hooksAnswer({ outcome: 'allowed', claims: null }, { outcome: 'failed_closed' });
+
+    expect(
+      await liftRecoveryRestrictionAfterHooks({
+        sessionId: 'session-1',
+        user: mockUser,
+        req: mockReq(),
+      }),
+    ).toEqual({ status: 503, body: { error: 'login_hook_unavailable' } });
+    expect(hardRevokeSession).toHaveBeenCalledWith(session, RECOVERY_HOOK_REFUSED);
+    expect(Session.update).not.toHaveBeenCalled();
+  });
+
+  it('lifts a break-glass administrator without calling a hook', async () => {
+    vi.stubEnv('BREAK_GLASS_EMAILS', 'root@example.com');
+    (Session.findOne as any).mockResolvedValue(recoverySession());
+    hooksAnswer({ outcome: 'failed_closed' }, { outcome: 'failed_closed' });
+
+    expect(
+      await liftRecoveryRestrictionAfterHooks({
+        sessionId: 'session-1',
+        user: { ...mockUser, email: 'root@example.com', roles: ['admin:write'] },
+        req: mockReq(),
+      }),
+    ).toBeNull();
+    vi.unstubAllEnvs();
+    expect(runLoginHook).not.toHaveBeenCalled();
+    expect(Session.update).toHaveBeenCalledWith(
+      { recovery: false, hookClaims: null },
+      { where: { id: 'session-1', recovery: true, revokedAt: null } },
+    );
+  });
+
+  it('does nothing without a live recovery session', async () => {
+    (Session.findOne as any).mockResolvedValue(null);
+
+    expect(
+      await liftRecoveryRestrictionAfterHooks({
+        sessionId: 'session-1',
+        user: mockUser,
+        req: mockReq(),
+      }),
+    ).toBeNull();
+    expect(
+      await liftRecoveryRestrictionAfterHooks({
+        sessionId: undefined,
+        user: mockUser,
+        req: mockReq(),
+      }),
+    ).toBeNull();
+    expect(runLoginHook).not.toHaveBeenCalled();
+    expect(Session.update).not.toHaveBeenCalled();
   });
 });

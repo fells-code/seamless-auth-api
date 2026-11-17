@@ -35006,6 +35006,7 @@
     "/totp/enroll/verify": {
       "post": {
         "summary": "Verify TOTP enrollment",
+        "description": "From a recovery session, enrolling lifts its restriction once the login hooks allow it. A hook can refuse: 403 `login_denied` with the hook's `message`, or 503 `login_hook_unavailable`. Either way the recovery session is revoked and the new factor is kept, so the user signs in with it.",
         "tags": ["TOTP"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -35135,6 +35136,19 @@
           },
           "500": {
             "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },
@@ -36831,6 +36845,7 @@
     "/webauthn/register/finish": {
       "post": {
         "summary": "Finish WebAuthn registration",
+        "description": "From a recovery session, enrolling lifts its restriction once the login hooks allow it. A hook can refuse: 403 `login_denied` with the hook's `message`, or 503 `login_hook_unavailable`. Either way the recovery session is revoked and the new factor is kept, so the user signs in with it.",
         "tags": ["WebAuthn"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -37029,6 +37044,19 @@
           },
           "500": {
             "description": "HTTP 500",
+            "content": {
+              "application/json": {
+                "example": { "message": "string", "error": "string" },
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" }, "error": { "type": "string" } },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503",
             "content": {
               "application/json": {
                 "example": { "message": "string", "error": "string" },

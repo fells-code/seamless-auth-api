@@ -13,8 +13,10 @@ import { AuthEventService } from '../services/authEventService.js';
 import { breakGlassWaivers, recordBreakGlassSignIn } from '../services/breakGlassService.js';
 import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
-import { issueSessionAndRespond } from '../services/sessionIssuance.js';
-import { liftRecoveryRestriction } from '../services/sessionService.js';
+import {
+  issueSessionAndRespond,
+  liftRecoveryRestrictionAfterHooks,
+} from '../services/sessionIssuance.js';
 import {
   getStepUpSignInTime,
   recordStepUpVerification,
@@ -134,7 +136,12 @@ export const verifyCurrentTotpEnrollment = async (req: Request, res: Response) =
 
   const authReq = req as AuthenticatedRequest;
   if (authReq.recoverySession) {
-    await liftRecoveryRestriction(authReq.sessionId);
+    const refusal = await liftRecoveryRestrictionAfterHooks({
+      sessionId: authReq.sessionId,
+      user,
+      req,
+    });
+    if (refusal) return res.status(refusal.status).json(refusal.body);
   }
 
   return res.json({ message: 'Success' });
