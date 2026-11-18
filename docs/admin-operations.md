@@ -96,10 +96,19 @@ without it gets `404`. So when adding someone who belongs to more than one organ
 
 ### Who can change organization roles
 
-`PATCH /organizations/:organizationId/members/:userId` needs step-up. Only an owner or an instance
-`admin:write` can grant or remove `owner`, or remove an owner from the organization. Any other
-manager can only grant a role whose permissions they hold, and can take away any role except
-`owner`. A refusal answers `403` naming the roles, and is audited as
+`PATCH /organizations/:organizationId/members/:userId` needs step-up. An instance `admin:write` can
+make any change. For everyone else, owners included:
+
+- Only an owner can grant or remove `owner`, or remove an owner from the organization.
+- Nobody can add a role to their own membership. They can drop one.
+- A role granted to someone else can only carry permissions the manager holds, and can only carry
+  custom claims if the manager holds that role.
+- Any role except `owner` can be taken away.
+
+Any signed-in user can create an organization and becomes its `owner` and `admin`, so whatever
+permissions and custom claims you map onto those two built-in roles, every user can obtain. Put
+anything that should be granted deliberately on another role. A refusal answers `403` naming the
+roles, and is audited as
 `organization_member_role_grant_refused`. Changes that succeed are audited as
 `organization_member_added`, `organization_member_updated` and `organization_member_removed`.
 

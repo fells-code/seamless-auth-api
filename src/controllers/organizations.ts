@@ -71,7 +71,7 @@ async function refuseRoleChange(
   next: string[],
 ) {
   const user = authUser(req);
-  const refused = await refusedRoleChanges(user, managerMembership, current, next);
+  const refused = await refusedRoleChanges(user, managerMembership, targetUserId, current, next);
 
   if (refused.length === 0) return false;
 

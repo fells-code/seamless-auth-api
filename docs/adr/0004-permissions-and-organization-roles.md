@@ -69,7 +69,9 @@ Per-organization custom roles belong to v1.1 and can be added with a nullable co
 
 ### P7. Who can grant organization roles
 
-Role changes need step-up and are audited. Only an owner or an instance `admin:write` can grant or remove `owner`. A manager can only grant a role whose permissions they hold. Without this an organization admin could make themselves owner, or hand out any permission-bearing role, with no record.
+Role changes need step-up and are audited. Only an owner or an instance `admin:write` can grant or remove `owner`. Apart from an instance `admin:write`, nobody adds a role to their own membership, and a role granted to someone else may carry only permissions the granter holds, and custom claims only when the granter holds that role. Custom claims are compared by holding the role rather than by value, because they are top-level and a later source overrides an earlier one, so no per-name comparison says what a grant adds.
+
+Owners are held to this as well. The first version exempted them, but any user can create an organization and own it, and the role catalogue is instance-wide, so the exemption let anyone reach any role's `org_permissions` and custom claims (revised 2026-11-17). What a creator does get is whatever is mapped onto the built-in `owner` and `admin`, and the operator decides that.
 
 ### P8. One place mints a token
 

@@ -108,6 +108,20 @@ export async function deleteCustomClaimsFor(
   });
 }
 
+/** Which of these roles carry claims, so granting one can be held to holding it. */
+export async function rolesWithCustomClaims(
+  sourceKind: Extract<CustomClaimSourceKind, 'instance_role' | 'organization_role'>,
+  names: string[],
+) {
+  if (names.length === 0) return [];
+  const rows = await CustomClaim.findAll({
+    where: { sourceKind, sourceName: { [Op.in]: names } },
+  });
+  return rows
+    .filter((row) => Object.keys(row.claims ?? {}).length > 0)
+    .map((row) => row.sourceName);
+}
+
 function setsFor(rows: CustomClaim[], kind: CustomClaimSourceKind, names: string[]) {
   return [...new Set(names)]
     .sort()
