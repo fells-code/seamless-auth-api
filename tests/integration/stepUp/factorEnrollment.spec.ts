@@ -72,7 +72,7 @@ describe('adding a sign-in factor', () => {
 
       expect(res.status).toBe(403);
       expect(res.body).toEqual(
-        expect.objectContaining({ error: 'reauthentication_required', maxAgeSeconds: 600 }),
+        expect.objectContaining({ error: 'reauthentication_required', maxAgeSeconds: 300 }),
       );
     },
   );

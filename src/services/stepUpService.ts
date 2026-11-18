@@ -10,7 +10,7 @@ import { deriveAcrAmr } from './oidcAuthContext.js';
 export const DEFAULT_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 
 /** How recent a sign-in must be to add the first factor to an account that has none. */
-export const FIRST_FACTOR_SIGN_IN_MAX_AGE_SECONDS = 10 * 60;
+export const FIRST_FACTOR_SIGN_IN_MAX_AGE_SECONDS = 5 * 60;
 
 const MAX_SESSION_LINEAGE = 8;
 

@@ -107,7 +107,7 @@ describe('requireFactorEnrollmentProof', () => {
 
   describe('an account with no factor', () => {
     it('passes a recent sign-in', async () => {
-      withSession({ authTime: new Date(Date.now() - 9 * MINUTE_MS) });
+      withSession({ authTime: new Date(Date.now() - 4 * MINUTE_MS) });
 
       await requireFactorEnrollmentProof(buildReq(), res, next);
 
@@ -115,7 +115,7 @@ describe('requireFactorEnrollmentProof', () => {
     });
 
     it('asks for a new sign-in once the sign-in is old', async () => {
-      withSession({ authTime: new Date(Date.now() - 11 * MINUTE_MS) });
+      withSession({ authTime: new Date(Date.now() - 6 * MINUTE_MS) });
 
       await requireFactorEnrollmentProof(buildReq(), res, next);
 
@@ -124,7 +124,7 @@ describe('requireFactorEnrollmentProof', () => {
       expect(res.json).toHaveBeenCalledWith({
         error: 'reauthentication_required',
         message: 'Sign in again to add a sign-in method',
-        maxAgeSeconds: 600,
+        maxAgeSeconds: 300,
       });
     });
 

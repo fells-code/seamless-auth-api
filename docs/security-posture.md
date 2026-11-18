@@ -847,7 +847,7 @@ the earliest session in its lineage, and a lineage that cannot be read counts no
 Adding a factor needs proof as well. Passkey and TOTP enrollment, phone registration and
 recovery code generation answer `403 step_up_required` until an account that already has a
 passkey or TOTP has stepped up, and `403 reauthentication_required` to an account with neither
-whose sign-in is more than ten minutes old. A recovery session is exempt, since enrolling is
+whose sign-in is more than five minutes old. A recovery session is exempt, since enrolling is
 what it is for. Deleting a passkey (`DELETE /users/credentials`) also needs a fresh step-up.
 
 ### What is still accepted
