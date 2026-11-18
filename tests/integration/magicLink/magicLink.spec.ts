@@ -690,7 +690,7 @@ describe('GET /magic-link/check', () => {
     expect(res.status).toBe(204);
   });
 
-  it('returns 403 when the polling fingerprint does not match the pending link', async () => {
+  it('answers 204 when the polling fingerprint does not match the pending link', async () => {
     (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
     (MagicLinkToken.findOne as any).mockResolvedValue(
       buildMagicLink({ ip_hash: 'different-ip-hash', used_at: null }),
@@ -698,8 +698,7 @@ describe('GET /magic-link/check', () => {
 
     const res = await request(app).get('/magic-link/check');
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe('Invalid request');
+    expect(res.status).toBe(204);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
@@ -710,7 +709,7 @@ describe('GET /magic-link/check', () => {
     expect(Session.create).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when the polling user-agent does not match the pending link', async () => {
+  it('answers 204 when the polling user-agent does not match the pending link', async () => {
     (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
     (MagicLinkToken.findOne as any).mockResolvedValue(
       buildMagicLink({ user_agent_hash: 'different-ua-hash', used_at: null }),
@@ -718,7 +717,7 @@ describe('GET /magic-link/check', () => {
 
     const res = await request(app).get('/magic-link/check');
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(204);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',

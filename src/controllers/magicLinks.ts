@@ -423,17 +423,17 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
     return res.status(204).end();
   }
 
-  // Device binding check
+  // A mismatch answers as a link nobody has clicked, which is all a decoy can answer.
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
   if (record.ip_hash && record.ip_hash !== ip_hash) {
     await logMagicLinkFailure(req, 'Polling device IP mismatch', user.id);
-    return res.status(403).json({ error: 'Invalid request' });
+    return res.status(204).end();
   }
 
   if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
     await logMagicLinkFailure(req, 'Polling device user agent mismatch', user.id);
-    return res.status(403).json({ error: 'Invalid request' });
+    return res.status(204).end();
   }
 
   if (record.used_at && record.expires_at > new Date()) {

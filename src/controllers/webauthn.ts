@@ -628,7 +628,7 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
         metadata: { reason: 'Incorrect passkey' },
       });
 
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(401).json({ error: 'Authentication failed.' });
     }
 
     const binding = verification.verified

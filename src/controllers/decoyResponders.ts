@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { signEphemeralToken } from '../lib/token.js';
-import { buildPrfAuthenticationExtensions } from '../lib/webauthnPrf.js';
+import { buildPrfAuthenticationExtensions, containsPrfOutput } from '../lib/webauthnPrf.js';
 import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { decoyCredentialIdFor, decoyPrincipalForSubject } from '../services/decoyPrincipal.js';
@@ -304,8 +304,13 @@ export const decoyStartWebAuthnLogin = async (req: Request, res: Response) => {
   return res.json(options);
 };
 
+/** The PRF check comes first for a real account too, before any challenge is looked up. */
 export const decoyFinishWebAuthnLogin = async (req: Request, res: Response) => {
   await logDecoy(req, 'webauthn:login_finish');
+
+  if (containsPrfOutput(req.body?.assertionResponse)) {
+    return res.status(400).json({ error: 'prf_output_not_allowed' });
+  }
 
   return res.status(401).json({ error: 'Authentication failed.' });
 };

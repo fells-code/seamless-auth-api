@@ -118,6 +118,22 @@ and the ones that matter are the ones a caller can trigger on purpose:
 
 Neither validation writes anything, so reproducing them costs a decoy nothing.
 
+The same rule runs the other way: where a real account's failure answers differ from each
+other, a decoy can only match one of them, so the real answers are made to agree.
+
+- `/webauthn/login/finish` refuses an assertion carrying PRF output with
+  `400 prf_output_not_allowed` before anything else, for a decoy as for a real account. An
+  assertion that fails verification, including one over the wrong challenge, answers
+  `401 Authentication failed.` rather than `500`.
+- The four OTP verify endpoints answer every failure, a wrong code, no code pending or a
+  missing field, with `401 { "error": "Not allowed" }`.
+- `/magic-link/check` polled from a device that does not match the request answers `204`,
+  as for a link nobody has clicked. The mismatch is still recorded as `magic_link_failed`.
+
+[`tests/integration/authentication/decoyParity.spec.ts`](../tests/integration/authentication/decoyParity.spec.ts)
+sends each of these requests as a real account and as a decoy and requires the same status,
+body and content type.
+
 ### What this still does not cover
 
 `/webauthn/register/start` used to be reachable with a pre-auth token, and its options echo

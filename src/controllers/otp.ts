@@ -313,7 +313,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Failed to verify OTP' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   try {
@@ -325,7 +325,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing data' },
       });
-      return res.status(401).json({ error: 'Not Allowed.' });
+      return res.status(401).json({ error: 'Not allowed' });
     }
 
     const verificationResult = await verifyPhoneOTP(user, verificationToken, authReq.attemptId);
@@ -405,7 +405,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Invalid data.' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   if (!verificationToken) {
@@ -416,7 +416,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Invalid data' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   if (!email) {
@@ -427,7 +427,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Invalid data' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   const verificationResult = await verifyEmailOTP(user, verificationToken, authReq.attemptId);
@@ -545,7 +545,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing data' },
       });
-      return res.status(401).json({ error: 'Not Allowed.' });
+      return res.status(401).json({ error: 'Not allowed' });
     }
 
     const verificationResult = await verifyPhoneOTP(user, verificationToken);
