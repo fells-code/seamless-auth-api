@@ -82,7 +82,11 @@ export async function signAccessToken(
  * token mid-flow, such as an OTP resend, passes the one it received so the attempt
  * stays whole.
  */
-export async function signEphemeralToken(userId: string, attemptId: string = randomUUID()) {
+export async function signEphemeralToken(
+  userId: string,
+  attemptId: string = randomUUID(),
+  expiresAt?: number,
+) {
   try {
     const { kid, privateKeyPem } = await getSigningKey();
 
@@ -98,7 +102,7 @@ export async function signEphemeralToken(userId: string, attemptId: string = ran
       .setIssuedAt()
       .setIssuer(ISSUER)
       .setAudience(ISSUER)
-      .setExpirationTime(`${EPHEMERAL_TOKEN_TTL_SECONDS}s`)
+      .setExpirationTime(expiresAt ?? `${EPHEMERAL_TOKEN_TTL_SECONDS}s`)
       .sign(privateKey);
 
     return jwt;
@@ -106,6 +110,25 @@ export async function signEphemeralToken(userId: string, attemptId: string = ran
     logger.error(`Failed to create JWT token. Ephemeral. Reason: ${error}.`);
     throw new Error('Failed to sign Ephemeral Token', { cause: error });
   }
+}
+
+/**
+ * Re-mints the ephemeral token of an attempt already under way, such as on an OTP
+ * resend. The new token keeps the attempt's id and its original expiry, so re-minting
+ * cannot keep an attempt alive past the window its first token opened. Refuses rather
+ * than falling back to a fresh window when either is missing.
+ */
+export async function reissueEphemeralToken(
+  userId: string,
+  attempt: { attemptId?: string; attemptExpiresAt?: number },
+) {
+  const { attemptId, attemptExpiresAt } = attempt;
+
+  if (!attemptId || typeof attemptExpiresAt !== 'number' || !Number.isFinite(attemptExpiresAt)) {
+    throw new Error('Cannot re-mint an ephemeral token without its attempt');
+  }
+
+  return signEphemeralToken(userId, attemptId, attemptExpiresAt);
 }
 
 export function generateRefreshToken() {

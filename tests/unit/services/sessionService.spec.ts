@@ -807,6 +807,35 @@ describe('sessionService', () => {
     });
   });
 
+  it('carries the ephemeral token expiry, so a re-mint can keep it', async () => {
+    const jose = await import('jose');
+    const { getPublicKeyByKid } = await import('../../../src/utils/signingKeyStore');
+    const { User } = await import('../../../src/models/users');
+
+    (getPublicKeyByKid as any).mockResolvedValue('pem');
+    (jose.jwtVerify as any).mockResolvedValue({
+      payload: { typ: 'ephemeral', sub: 'user', jti: 'attempt-1', exp: 1_700_000_300 },
+    });
+
+    const user = { id: 'user' };
+    (User.findOne as any).mockResolvedValue(user);
+
+    const { validateBearerToken } = await import('../../../src/services/sessionService');
+
+    expect(await validateBearerToken('token', 'ephemeral')).toEqual({
+      user,
+      attemptId: 'attempt-1',
+      attemptExpiresAt: 1_700_000_300,
+    });
+
+    (User.findOne as any).mockResolvedValue(null);
+
+    expect(await validateBearerToken('token', 'ephemeral')).toMatchObject({
+      decoy: true,
+      attemptExpiresAt: 1_700_000_300,
+    });
+  });
+
   it('returns null if jwt verification fails', async () => {
     const jose = await import('jose');
 

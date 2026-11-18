@@ -253,7 +253,15 @@ registration-time error rather than a convention.
 Ephemeral tokens ([`src/lib/token.ts`](../src/lib/token.ts)) are validated by signature and expiry
 but are not single-use, so a leaked one can be replayed until it expires.
 
-The window is 5 minutes. Every continuation endpoint that accepts an ephemeral token is behind the
+The window is 5 minutes, counted from the start of the attempt. Steps that hand back a fresh
+token mid-flow, the OTP sends among them, re-mint it with the attempt's `jti` and its original
+`exp` ([`reissueEphemeralToken`](../src/lib/token.ts)), so re-minting cannot keep an attempt
+alive past the window its first token opened, and a re-mint that does not know the attempt it
+belongs to is refused rather than given a new window. Account recovery leans on this: the delay
+is at least an hour, so completing a request always takes a new attempt that proves the channel
+again (see [Account recovery](account-recovery.md#coming-back-after-the-delay)).
+
+Every continuation endpoint that accepts an ephemeral token is behind the
 OTP, magic-link, or registration rate limiters, which are keyed per IP, per identity and attempt,
 and per identity across attempts (see [Code and link sends per address](#code-and-link-sends-per-address)),
 so replay cannot be used to generate OTPs in bulk. An ephemeral token also cannot be exchanged for anything

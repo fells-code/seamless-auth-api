@@ -57,7 +57,7 @@ vi.mock('../../../src/models/authEvents.js', () => ({
 
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 
-import { signEphemeralToken } from '../../../src/lib/token.js';
+import { reissueEphemeralToken } from '../../../src/lib/token.js';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges.js';
 import { generateEmailOTP, generatePhoneOTP } from '../../../src/utils/otp.js';
 import { hashDeviceFingerprint } from '../../../src/utils/utils.js';
@@ -72,7 +72,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   principal = DECOY;
-  (signEphemeralToken as any).mockResolvedValue('decoy-token');
+  (reissueEphemeralToken as any).mockResolvedValue('decoy-token');
   (generateAuthenticationOptions as any).mockResolvedValue({
     challenge: 'challenge',
     allowCredentials: [{ id: 'decoy-credential' }],

@@ -118,6 +118,10 @@ and verify the new code. That resumes the open request on the new attempt with i
 unchanged and sends no new notice; status and complete then work on that attempt. A code
 for a different channel opens a new request instead, with its own delay and notices.
 
+The attempt cannot be kept alive instead. Every token re-minted within an attempt, such as
+by an OTP resend, expires when the attempt's first token did, so the request can only be
+completed on an attempt that proved the channel within the last few minutes.
+
 Starting is not enough to disturb anything: anyone who knows an address can start, so only
 a verified code opens, resumes or cancels a request. Five wrong codes on a resume void
 that code and leave the open request as it was.
