@@ -343,7 +343,13 @@ export async function updateMember(req: RouteRequest, res: Response) {
     req.body.roles === undefined ? membership.roles : normalizeOrganizationRoles(req.body.roles);
   const currentRoles = membership.roles ?? [];
 
-  if (await refuseRoleChange(req, res, managerMembership, userId, currentRoles, nextRoles)) return;
+  // The row's own id, not the path's: Postgres matches a uuid in any case, so an uppercased
+  // path id finds the caller's own membership while comparing unequal to their id.
+  if (
+    await refuseRoleChange(req, res, managerMembership, membership.userId, currentRoles, nextRoles)
+  ) {
+    return;
+  }
 
   // Only what is being added: a member keeps a legacy role the catalogue has since lost.
   try {
@@ -409,7 +415,16 @@ export async function removeMember(req: RouteRequest, res: Response) {
   }
 
   // Removing someone is the most complete way to take their roles, so the same rule holds.
-  if (await refuseRoleChange(req, res, managerMembership, userId, membership.roles ?? [], [])) {
+  if (
+    await refuseRoleChange(
+      req,
+      res,
+      managerMembership,
+      membership.userId,
+      membership.roles ?? [],
+      [],
+    )
+  ) {
     return;
   }
 

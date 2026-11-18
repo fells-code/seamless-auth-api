@@ -161,6 +161,20 @@ describe('who can grant organization roles', () => {
     expect(res.body.details.roles).toEqual(['finance']);
   });
 
+  it("treats the row being changed as the caller's own, whatever the path id looks like", async () => {
+    mockMemberships(['owner', 'admin']);
+    (OrganizationMembership.findOne as any).mockImplementation(async () =>
+      buildOrganizationMembership({ userId: 'user-1', roles: ['owner', 'admin'] }),
+    );
+
+    const res = await request(app)
+      .patch(`/organizations/${testOrganizationId}/members/${memberId.toUpperCase()}`)
+      .send({ roles: ['owner', 'admin', 'viewer'] });
+
+    expect(res.status).toBe(403);
+    expect(res.body.details.roles).toEqual(['viewer']);
+  });
+
   it('refuses a role carrying custom claims the manager does not hold', async () => {
     mockMemberships(['admin']);
     (CustomClaim.findAll as any).mockResolvedValue([
