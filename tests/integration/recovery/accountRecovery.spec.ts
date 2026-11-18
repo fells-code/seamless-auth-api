@@ -174,7 +174,7 @@ describe('POST /recovery/start', () => {
 
     expect(sendOTPEmail).toHaveBeenCalledWith(
       'owner@example.com',
-      expect.stringMatching(/^\d{6}$/),
+      expect.stringMatching(/^[A-Z]{6}$/),
     );
   });
 
@@ -209,7 +209,7 @@ describe('POST /recovery/start', () => {
     expect(res.body.delivery).toEqual({
       kind: 'otp_email',
       to: 'owner@example.com',
-      token: expect.stringMatching(/^\d{6}$/),
+      token: expect.stringMatching(/^[A-Z]{6}$/),
       purpose: 'account_recovery',
     });
     expect(sendOTPEmail).not.toHaveBeenCalled();
@@ -242,7 +242,9 @@ describe('POST /recovery/start', () => {
 
   it('ignores an existing lockout, which is what recovery is for', async () => {
     const { AuthFailure } = await import('../../../src/models/authFailures.js');
-    (AuthFailure.count as any).mockResolvedValue(1000);
+    (AuthFailure.findAll as any).mockResolvedValue(
+      Array.from({ length: 1000 }, () => ({ occurredAt: new Date() })),
+    );
 
     const res = await request(app).post('/recovery/start').send({ channel: 'email' });
 
@@ -483,6 +485,89 @@ describe('POST /recovery/verify', () => {
     expect(res.status).toBe(401);
     expect(rows[0].state).toBe('void');
     expect(sendNoticeEmail).not.toHaveBeenCalled();
+  });
+
+  describe('failure budget', () => {
+    async function spendWrongCodes(count: number) {
+      await request(app).post('/recovery/start').send({ channel: 'email' });
+      const code = sentCode();
+      const other = code === 'AAAAAA' ? 'BBBBBB' : 'AAAAAA';
+      for (let i = 0; i < count; i += 1) {
+        await request(app).post('/recovery/verify').send({ code: other });
+      }
+    }
+
+    it('carries wrong codes across starts, then sends no more codes on that channel', async () => {
+      await spendWrongCodes(5);
+      attemptId = 'attempt-2';
+      await spendWrongCodes(5);
+      (sendOTPEmail as any).mockClear();
+      attemptId = 'attempt-3';
+
+      const email = await request(app).post('/recovery/start').send({ channel: 'email' });
+      const phone = await request(app).post('/recovery/start').send({ channel: 'phone' });
+
+      expect(email.status).toBe(200);
+      expect(email.body).toEqual({ message: expect.any(String) });
+      expect(sendOTPEmail).not.toHaveBeenCalled();
+      expect(sendOTPSMS).toHaveBeenCalled();
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'account_recovery_started',
+          metadata: expect.objectContaining({ channel: 'email', sent: false }),
+        }),
+      );
+    });
+
+    it('refuses even the right code once the budget is spent elsewhere', async () => {
+      const { AuthFailure } = await import('../../../src/models/authFailures.js');
+      await spendWrongCodes(4);
+      attemptId = 'attempt-2';
+      await request(app).post('/recovery/start').send({ channel: 'email' });
+      const code = sentCode();
+      for (let i = 0; i < 6; i += 1) {
+        await AuthFailure.create({
+          userId: 'user-1',
+          type: 'account_recovery_email_failed',
+          occurredAt: new Date(),
+        });
+      }
+
+      const res = await request(app).post('/recovery/verify').send({ code });
+
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({ error: 'invalid_recovery_code' });
+      expect(sendNoticeEmail).not.toHaveBeenCalled();
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'account_recovery_failed',
+          metadata: { reason: 'Recovery failure budget spent' },
+        }),
+      );
+    });
+
+    it('fails closed when the budget cannot be read', async () => {
+      const { AuthFailure } = await import('../../../src/models/authFailures.js');
+      await request(app).post('/recovery/start').send({ channel: 'email' });
+      const code = sentCode();
+      (sendOTPEmail as any).mockClear();
+      (AuthFailure.count as any).mockRejectedValue(new Error('db down'));
+
+      const verify = await request(app).post('/recovery/verify').send({ code });
+      const start = await request(app).post('/recovery/start').send({ channel: 'email' });
+
+      expect(verify.status).toBe(401);
+      expect(start.status).toBe(200);
+      expect(sendOTPEmail).not.toHaveBeenCalled();
+    });
+
+    it('does not lock sign-in', async () => {
+      await spendWrongCodes(5);
+
+      const { getUserLockoutStatus } =
+        await import('../../../src/services/lockoutPolicyService.js');
+      expect((await getUserLockoutStatus('user-1')).locked).toBe(false);
+    });
   });
 
   it('resumes an open request on a new attempt without notifying again', async () => {

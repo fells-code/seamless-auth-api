@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AccountRecoveryRequest } from '../../src/models/accountRecoveryRequests.js';
+import { AuthFailure } from '../../src/models/authFailures.js';
 import { getSequelize, initializeModels } from '../../src/models/index.js';
 import {
   cancelRecoveryByToken,
@@ -9,6 +10,8 @@ import {
   completeRecovery,
   findRecoveryForAttempt,
   listOpenRecoveries,
+  RECOVERY_FAILURE_BUDGET,
+  recoveryFailureType,
   startRecovery,
   supersedeOtherRecoveries,
   verifyRecovery,
@@ -34,13 +37,13 @@ afterAll(async () => {
 // evaluates them, rather than as the in-memory double does.
 describe('account recovery against Postgres', () => {
   it('opens, refuses early completion, cancels and cascades with the user', async () => {
-    const code = await startRecovery(userId, 'email', 'attempt-1');
+    const code = (await startRecovery(userId, 'email', 'attempt-1'))!;
     const opened = await verifyRecovery(userId, 'attempt-1', code, 3600);
 
     expect(opened.outcome).toBe('opened');
     expect((await completeRecovery(userId, 'attempt-1')).outcome).toBe('not_ready');
 
-    const resumeCode = await startRecovery(userId, 'email', 'attempt-2');
+    const resumeCode = (await startRecovery(userId, 'email', 'attempt-2'))!;
     expect((await verifyRecovery(userId, 'attempt-2', resumeCode, 3600)).outcome).toBe('resumed');
     expect((await findRecoveryForAttempt(userId, 'attempt-2'))?.state).toBe('pending');
 
@@ -64,13 +67,13 @@ describe('account recovery against Postgres', () => {
     const first = await verifyRecovery(
       owner,
       'attempt-a',
-      await startRecovery(owner, 'email', 'attempt-a'),
+      (await startRecovery(owner, 'email', 'attempt-a'))!,
       3600,
     );
     const second = await verifyRecovery(
       owner,
       'attempt-b',
-      await startRecovery(owner, 'phone', 'attempt-b'),
+      (await startRecovery(owner, 'phone', 'attempt-b'))!,
       3600,
     );
     if (first.outcome !== 'opened' || second.outcome !== 'opened') throw new Error('not opened');
@@ -82,7 +85,7 @@ describe('account recovery against Postgres', () => {
     const third = await verifyRecovery(
       owner,
       'attempt-c',
-      await startRecovery(owner, 'phone', 'attempt-c'),
+      (await startRecovery(owner, 'phone', 'attempt-c'))!,
       3600,
     );
     if (third.outcome !== 'opened') throw new Error('not opened');
@@ -105,7 +108,7 @@ describe('account recovery against Postgres', () => {
     const opened = await verifyRecovery(
       owner,
       'attempt-l',
-      await startRecovery(owner, 'email', 'attempt-l'),
+      (await startRecovery(owner, 'email', 'attempt-l'))!,
       3600,
     );
     if (opened.outcome !== 'opened') throw new Error('not opened');
@@ -126,7 +129,7 @@ describe('account recovery against Postgres', () => {
        VALUES (:id, :email, '{user}', now(), now())`,
       { replacements: { id: owner, email: `recovery-${owner}@example.com` } },
     );
-    const code = await startRecovery(owner, 'phone', 'attempt-3');
+    const code = (await startRecovery(owner, 'phone', 'attempt-3'))!;
     await verifyRecovery(owner, 'attempt-3', code, 3600);
     await AccountRecoveryRequest.update(
       { completesAt: new Date(Date.now() - 1000) },
@@ -137,5 +140,52 @@ describe('account recovery against Postgres', () => {
 
     expect(result.outcome).toBe('completed');
     expect((await findRecoveryForAttempt(owner, 'attempt-3'))?.state).toBe('completed');
+  });
+
+  it('compares no more parallel guesses across attempts than the budget allows', async () => {
+    const owner = randomUUID();
+    await getSequelize().query(
+      `INSERT INTO users (id, email, roles, created_at, updated_at)
+       VALUES (:id, :email, '{user}', now(), now())`,
+      { replacements: { id: owner, email: `recovery-${owner}@example.com` } },
+    );
+    const attempts = ['b-1', 'b-2', 'b-3', 'b-4'];
+    const codes = await Promise.all(
+      attempts.map(async (attempt) => (await startRecovery(owner, 'email', attempt))!),
+    );
+
+    const outcomes = await Promise.all(
+      attempts.flatMap((attempt, i) =>
+        Array.from({ length: 5 }, () =>
+          verifyRecovery(owner, attempt, codes[i] === 'AAAAAA' ? 'BBBBBB' : 'AAAAAA', 3600),
+        ),
+      ),
+    );
+
+    const spent = await AuthFailure.count({
+      where: { userId: owner, type: recoveryFailureType('email') },
+    });
+
+    expect(outcomes.filter(({ outcome }) => outcome === 'invalid').length).toBe(spent);
+    expect(spent).toBeLessThanOrEqual(RECOVERY_FAILURE_BUDGET);
+    expect(outcomes.filter(({ outcome }) => outcome === 'locked').length).toBe(20 - spent);
+  });
+
+  it('issues no code once the budget is spent, and keeps the other channel', async () => {
+    const owner = randomUUID();
+    await getSequelize().query(
+      `INSERT INTO users (id, email, roles, created_at, updated_at)
+       VALUES (:id, :email, '{user}', now(), now())`,
+      { replacements: { id: owner, email: `recovery-${owner}@example.com` } },
+    );
+    for (const attempt of ['s-1', 's-2']) {
+      const code = (await startRecovery(owner, 'email', attempt))!;
+      for (let i = 0; i < 5; i += 1) {
+        await verifyRecovery(owner, attempt, code === 'AAAAAA' ? 'BBBBBB' : 'AAAAAA', 3600);
+      }
+    }
+
+    expect(await startRecovery(owner, 'email', 's-3')).toBeNull();
+    expect(await startRecovery(owner, 'phone', 's-3')).toMatch(/^\d{8}$/);
   });
 });

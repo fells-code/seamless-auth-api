@@ -47,7 +47,8 @@ accountRecoveryRouter.post(
     summary: 'Start account recovery',
     description:
       'Sends a code to the verified address on file for the channel. Answers the same ' +
-      'whether or not the account has one. Not subject to account lockout.',
+      'whether or not the account has one, or while the channel failure budget is spent. ' +
+      'Not subject to account lockout.',
     tags: ['Recovery'],
     schemas: {
       body: AccountRecoveryStartRequestSchema,
@@ -73,7 +74,9 @@ accountRecoveryRouter.post(
     description:
       'Opens the request started on this attempt, which completes after the configured ' +
       'delay, and tells every verified address how to cancel it. A code for a request ' +
-      'that is already open resumes it on this attempt. Five wrong codes void the code. ' +
+      'that is already open resumes it on this attempt. Five wrong codes void the code, and ' +
+      'ten on a channel within 24 hours stop that channel for the account until the oldest ' +
+      'ages out, answering as a wrong code. ' +
       'Answers 503 and voids the request when no verified address could be notified. A ' +
       'credentialed caller that owns delivery and lists `account_notice_email` / ' +
       '`account_notice_sms` in `x-seamless-auth-delivery-kinds` gets the notices back as ' +

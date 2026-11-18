@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Op } from 'sequelize';
 
 import { AccountRecoveryRequest } from '../../src/models/accountRecoveryRequests.js';
+import { AuthFailure } from '../../src/models/authFailures.js';
 
 type Row = Record<string, any>;
 type Where = Record<string | symbol, any>;
@@ -16,6 +17,7 @@ function matchesCondition(value: any, condition: any): boolean {
       if (op === Op.in) return operand.includes(value);
       if (op === Op.ne) return operand === null ? value != null : value !== operand;
       if (op === Op.lte) return value != null && +value <= +operand;
+      if (op === Op.gte) return value != null && +value >= +operand;
       throw new Error(`Unsupported operator ${String(op)}`);
     });
   }
@@ -28,12 +30,40 @@ function matches(row: Row, where: Where) {
 }
 
 /**
+ * An in-memory stand-in for `auth_failures`, which holds the recovery failure budget.
+ * Installed by {@link installAccountRecoveryStore}; call it again to get the rows.
+ */
+export function installAuthFailureStore() {
+  const failures: Row[] = [];
+
+  (AuthFailure.create as any).mockImplementation(async (data: Row) => {
+    const row = { id: randomUUID(), ...data };
+    failures.push(row);
+    return row;
+  });
+
+  (AuthFailure.count as any).mockImplementation(
+    async ({ where }: { where: Where }) => failures.filter((row) => matches(row, where)).length,
+  );
+
+  (AuthFailure.destroy as any).mockImplementation(async ({ where }: { where: Where }) => {
+    const found = failures.filter((row) => matches(row, where));
+    for (const row of found) failures.splice(failures.indexOf(row), 1);
+    return found.length;
+  });
+
+  return failures;
+}
+
+/**
  * An in-memory stand-in for the requests table that honours the where clauses the
  * service writes, so its conditional updates are exercised rather than assumed.
  */
 export function installAccountRecoveryStore() {
   const rows: Row[] = [];
   let clock = 0;
+
+  installAuthFailureStore();
 
   const instance = (row: Row) => {
     Object.defineProperties(row, {

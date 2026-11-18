@@ -78,7 +78,7 @@ open requests), and `GET /system-config/public` reports
 
 | Route                           | Auth                         | What it does                                                                      |
 | ------------------------------- | ---------------------------- | --------------------------------------------------------------------------------- |
-| `POST /recovery/start`          | pre-auth token from `/login` | `{ channel: "email" \| "phone" }`, sends a six-digit code                         |
+| `POST /recovery/start`          | pre-auth token from `/login` | `{ channel: "email" \| "phone" }`, sends a code                                   |
 | `POST /recovery/verify`         | the same attempt             | `{ code }`, opens the request and starts the delay                                |
 | `GET /recovery/status`          | the same attempt             | `{ state, requestedAt, completesAt }`                                             |
 | `POST /recovery/cancel`         | none                         | `{ cancelToken }` from the notice                                                 |
@@ -91,9 +91,11 @@ open requests), and `GET /system-config/public` reports
 1. **Start.** The code goes to the verified address on file for the channel, through the
    same delivery as OTP codes (including external delivery, where the response carries
    `delivery`). The answer is the same whether or not the account has a verified address
-   there, so it does not say which channels exist. The code lasts ten minutes and is stored
+   there, so it does not say which channels exist. Email codes are six letters, like the
+   sign-in code, and phone codes are eight digits. The code lasts ten minutes and is stored
    hashed.
-2. **Verify.** Five wrong codes void the request. The right one opens it: `state` is
+2. **Verify.** Five wrong codes void the request, and every wrong code also counts against
+   the account's [failure budget](#failure-budget). The right one opens it: `state` is
    `pending`, `completesAt` is now plus the delay, and a notice goes to the account's
    verified email **and** phone saying recovery was requested, when it completes and how to
    cancel it. The cancel link is `${FRONTEND_URL}/recovery/cancel#<token>`; the token is in
@@ -119,6 +121,18 @@ for a different channel opens a new request instead, with its own delay and noti
 Starting is not enough to disturb anything: anyone who knows an address can start, so only
 a verified code opens, resumes or cancels a request. Five wrong codes on a resume void
 that code and leave the open request as it was.
+
+### Failure budget
+
+An account may spend ten wrong codes on each channel in any 24 hours, counted across every
+start and attempt and stored in the database, so starting again or reaching another
+instance does not refill it. Once it is spent, start sends no code and verify checks none
+until the oldest wrong code is 24 hours old. Both answer as they would anyway (`200` with
+the usual message, `401` with `invalid_recovery_code`), so a spent budget does not reveal
+that the account exists. The two channels have separate budgets, and none of this touches
+sign-in lockout or recovery codes. If the count cannot be read, the channel is treated as
+spent. Someone who knows an address can spend its budget and hold that channel's recovery
+off for a day at a time; the other channel and recovery codes still work.
 
 ### Cancelling
 
