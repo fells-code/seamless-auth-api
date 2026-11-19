@@ -15,6 +15,7 @@ export function buildSession(overrides: any = {}) {
       return Promise.resolve(this);
     }),
     save: vi.fn(),
+    reload: vi.fn(),
     ...overrides,
   };
 }

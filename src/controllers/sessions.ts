@@ -11,7 +11,7 @@ import { Session } from '../models/sessions.js';
 import { serializeSession } from '../services/apiResponseSerializers.js';
 import { exchangeSubjectToken } from '../services/sessionExchangeService.js';
 import { revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
-import { hardRevokeSession } from '../services/sessionService.js';
+import { revokeSessionChain } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 
@@ -64,7 +64,8 @@ export const revokeSession = async (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  await hardRevokeSession(session, 'user_revoked');
+  // Walked to the head, because the row the caller listed may have rotated since (#592).
+  await revokeSessionChain(session, 'user_revoked');
 
   logger.info(`Session revoked ${session.id}`);
 

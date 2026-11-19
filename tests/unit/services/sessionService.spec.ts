@@ -25,6 +25,12 @@ vi.mock('../../../src/utils/signingKeyStore', () => ({
   getPublicKeyByKid: vi.fn(),
 }));
 
+vi.mock('../../../src/lib/refreshReplayToken', () => ({
+  MAX_REFRESH_REPLAYS: 3,
+  openReplayToken: vi.fn(),
+  refreshReplayWindowMs: vi.fn(() => 5_000),
+}));
+
 vi.mock('../../../src/lib/token', () => ({
   createRefreshTokenLookup: vi.fn(),
 }));
@@ -363,67 +369,168 @@ describe('sessionService', () => {
     expect(result).toBeNull();
   });
 
-  describe('classifyExpiredRefreshToken', () => {
-    const now = new Date('2026-01-01T12:00:00Z');
-    const past = new Date('2026-01-01T11:00:00Z');
-    const future = new Date('2026-01-01T13:00:00Z');
+  // Rotated, revoked and expired rows all come back, so a rotated token is still known
+  // as reuse after its own idle window (#593).
+  it('looks a refresh token up by its fingerprint alone, whatever state its row is in', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+    const { createRefreshTokenLookup } = await import('../../../src/lib/token');
 
-    async function classify(session: unknown) {
+    const session = buildSession({
+      refreshTokenLookup: 'lookup',
+      replacedBySessionId: 'session-2',
+      idleExpiresAt: new Date(Date.now() - 1000),
+    });
+    (createRefreshTokenLookup as any).mockReturnValue('lookup');
+    (Session.findOne as any).mockResolvedValue(session);
+
+    const { findRefreshSessionByToken } = await import('../../../src/services/sessionService');
+
+    expect(await findRefreshSessionByToken('refresh-token')).toBe(session);
+    expect(Session.findOne).toHaveBeenCalledWith({ where: { refreshTokenLookup: 'lookup' } });
+  });
+
+  describe('replayRefreshRotation', () => {
+    const now = new Date();
+    const successorRow = () =>
+      buildSession({
+        id: 'session-2',
+        userId: 'user-1',
+        refreshTokenLookup: 'successor-lookup',
+        replacedBySessionId: null,
+        expiresAt: new Date(now.getTime() + 3_600_000),
+        idleExpiresAt: new Date(now.getTime() + 3_600_000),
+      });
+    const rotatedRow = (overrides: Record<string, unknown> = {}) =>
+      buildSession({
+        id: 'session-1',
+        userId: 'user-1',
+        replacedBySessionId: 'session-2',
+        rotatedAt: new Date(now.getTime() - 2_000),
+        replayTokenCiphertext: 'sealed',
+        ...overrides,
+      });
+
+    async function setUp({
+      successor = successorRow() as unknown,
+      opened = 'successor-token' as string | null,
+      claimed = 1,
+      windowMs = 5_000,
+    } = {}) {
       const { Session } = await import('../../../src/models/sessions');
+      const { User } = await import('../../../src/models/users');
       const { createRefreshTokenLookup } = await import('../../../src/lib/token');
-      (createRefreshTokenLookup as any).mockReturnValue('lookup');
-      (Session.findOne as any).mockResolvedValue(session);
-      const { classifyExpiredRefreshToken } = await import('../../../src/services/sessionService');
-      return classifyExpiredRefreshToken('refresh-token', now);
+      const replayToken = await import('../../../src/lib/refreshReplayToken');
+
+      (replayToken.refreshReplayWindowMs as any).mockReturnValue(windowMs);
+      (replayToken.openReplayToken as any).mockReturnValue(opened);
+      (createRefreshTokenLookup as any).mockReturnValue('successor-lookup');
+      (Session.findByPk as any).mockResolvedValue(successor);
+      (Session.update as any).mockResolvedValue([claimed]);
+      (User.findOne as any).mockResolvedValue({ id: 'user-1', sessionsRevokedBefore: null });
+
+      const { replayRefreshRotation } = await import('../../../src/services/sessionService');
+      return { Session, User, replayToken, replayRefreshRotation };
     }
 
-    it('reports a session past its absolute bound', async () => {
-      const session = buildSession({
-        refreshTokenLookup: 'lookup',
-        expiresAt: past,
-        idleExpiresAt: past,
-      });
+    it('answers the immediate predecessor with its existing successor', async () => {
+      const { Session, replayToken, replayRefreshRotation } = await setUp();
+      const session = rotatedRow();
 
-      expect(await classify(session)).toEqual({ reason: 'absolute_lifetime_reached', session });
+      const replay = await replayRefreshRotation(session as any, 'predecessor-token', now);
+
+      expect(replay?.successor.id).toBe('session-2');
+      expect(replay?.refreshToken).toBe('successor-token');
+      expect(replayToken.openReplayToken).toHaveBeenCalledWith(
+        {
+          predecessorToken: 'predecessor-token',
+          predecessorId: 'session-1',
+          successorId: 'session-2',
+        },
+        'sealed',
+      );
+      const [values, { where }] = (Session.update as any).mock.calls[0];
+      expect(Object.keys(values)).toEqual(['replayCount']);
+      expect(where).toEqual(
+        expect.objectContaining({
+          id: 'session-1',
+          revokedAt: null,
+          replacedBySessionId: 'session-2',
+        }),
+      );
     });
 
-    it('reports a session past only its idle bound', async () => {
-      const session = buildSession({
-        refreshTokenLookup: 'lookup',
-        expiresAt: future,
-        idleExpiresAt: past,
-      });
+    it('refuses once the window has passed, and discards the sealed token', async () => {
+      const { Session, replayRefreshRotation } = await setUp();
+      const session = rotatedRow({ rotatedAt: new Date(now.getTime() - 6_000) });
 
-      expect(await classify(session)).toEqual({ reason: 'idle_timeout', session });
+      expect(await replayRefreshRotation(session as any, 'predecessor-token', now)).toBeNull();
+      expect(Session.update).toHaveBeenCalledWith(
+        { replayTokenCiphertext: null },
+        { where: { id: 'session-1' } },
+      );
+      expect(Session.findByPk).not.toHaveBeenCalled();
     });
 
-    it('says nothing about a session that has not expired', async () => {
-      const session = buildSession({
-        refreshTokenLookup: 'lookup',
-        expiresAt: future,
-        idleExpiresAt: future,
-      });
+    it('refuses everything while the window is disabled', async () => {
+      const { replayRefreshRotation } = await setUp({ windowMs: 0 });
 
-      expect(await classify(session)).toBeNull();
+      expect(await replayRefreshRotation(rotatedRow() as any, 'predecessor-token', now)).toBeNull();
     });
 
-    it('only considers live, unrotated sessions', async () => {
-      const { Session } = await import('../../../src/models/sessions');
-      await classify(null);
+    it('refuses a row that is revoked, unrotated or carries nothing to replay', async () => {
+      const { Session, replayRefreshRotation } = await setUp();
 
-      expect(Session.findOne).toHaveBeenCalledWith({
-        where: { revokedAt: null, replacedBySessionId: null, refreshTokenLookup: 'lookup' },
-      });
+      for (const overrides of [
+        { revokedAt: now },
+        { replacedBySessionId: null },
+        { rotatedAt: null },
+        { replayTokenCiphertext: null },
+      ]) {
+        expect(
+          await replayRefreshRotation(rotatedRow(overrides) as any, 'predecessor-token', now),
+        ).toBeNull();
+      }
+      expect(Session.update).not.toHaveBeenCalled();
     });
 
-    it('says nothing when the fingerprint does not verify', async () => {
-      const session = buildSession({
-        refreshTokenLookup: 'other',
-        expiresAt: past,
-        idleExpiresAt: past,
+    // An older ancestor's successor has itself rotated, so it is never answered.
+    it('refuses when the successor is no longer the live head', async () => {
+      const { Session, replayRefreshRotation } = await setUp({
+        successor: buildSession({ ...successorRow(), replacedBySessionId: 'session-3' }),
       });
 
-      expect(await classify(session)).toBeNull();
+      expect(await replayRefreshRotation(rotatedRow() as any, 'predecessor-token', now)).toBeNull();
+      expect(Session.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a sealed token that does not open, or opens to another token', async () => {
+      let ctx = await setUp({ opened: null });
+      expect(
+        await ctx.replayRefreshRotation(rotatedRow() as any, 'predecessor-token', now),
+      ).toBeNull();
+
+      ctx = await setUp();
+      const { createRefreshTokenLookup } = await import('../../../src/lib/token');
+      (createRefreshTokenLookup as any).mockReturnValue('other-lookup');
+      expect(
+        await ctx.replayRefreshRotation(rotatedRow() as any, 'predecessor-token', now),
+      ).toBeNull();
+      expect(ctx.Session.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses when the successor owner is gone', async () => {
+      const { User, replayRefreshRotation } = await setUp();
+      (User.findOne as any)
+        .mockResolvedValueOnce({ id: 'user-1', sessionsRevokedBefore: null })
+        .mockResolvedValueOnce(null);
+
+      expect(await replayRefreshRotation(rotatedRow() as any, 'predecessor-token', now)).toBeNull();
+    });
+
+    it('refuses once the replays are spent', async () => {
+      const { replayRefreshRotation } = await setUp({ claimed: 0 });
+
+      expect(await replayRefreshRotation(rotatedRow() as any, 'predecessor-token', now)).toBeNull();
     });
   });
 
@@ -470,6 +577,44 @@ describe('sessionService', () => {
 
     expect(session.save).toHaveBeenCalled();
     expect(Session.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('keeps the reason a row was already revoked for and clears its sealed replay token', async () => {
+    const earlier = new Date(Date.now() - 60_000);
+    const session = buildSession({
+      replacedBySessionId: null,
+      revokedAt: earlier,
+      revokedReason: 'user_revoked',
+      replayTokenCiphertext: 'sealed',
+    });
+
+    const { revokeSessionChain } = await import('../../../src/services/sessionService');
+
+    await revokeSessionChain(session as any);
+
+    expect(session.revokedAt).toBe(earlier);
+    expect(session.revokedReason).toBe('user_revoked');
+    expect(session.replayTokenCiphertext).toBeNull();
+  });
+
+  // A rotation can claim the head between the walk reading it and saving it as revoked.
+  it('follows a link a rotation wrote while the head was being revoked', async () => {
+    const { Session } = await import('../../../src/models/sessions');
+
+    const head = buildSession({ id: 'head', replacedBySessionId: null });
+    head.reload.mockImplementation(async () => {
+      head.replacedBySessionId = 'late';
+    });
+    const late = buildSession({ id: 'late', replacedBySessionId: null });
+    (Session.findByPk as any).mockResolvedValue(late);
+
+    const { revokeSessionChain } = await import('../../../src/services/sessionService');
+
+    await revokeSessionChain(head as any, 'user_revoked');
+
+    expect(Session.findByPk).toHaveBeenCalledWith('late');
+    expect(late.revokedReason).toBe('user_revoked');
+    expect(late.save).toHaveBeenCalled();
   });
 
   it('rejects access tokens whose subject or session id are not strings', async () => {

@@ -13,7 +13,7 @@ import { verifyAuthEventChain } from '../../../src/services/auditIntegrity.js';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { Session } from '../../../src/models/sessions.js';
 import { TotpCredential } from '../../../src/models/totpCredentials.js';
-import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { hardRevokeSession, revokeSessionChain } from '../../../src/services/sessionService.js';
 import {
   createUser,
   getAuthEvents,
@@ -217,7 +217,7 @@ describe('DELETE /admin/sessions/by-id/:id', () => {
     const res = await request(app).delete('/admin/sessions/by-id/session-to-revoke');
 
     expect(res.status).toBe(200);
-    expect(hardRevokeSession).toHaveBeenCalledWith(session, 'admin_revoke');
+    expect(revokeSessionChain).toHaveBeenCalledWith(session, 'admin_revoke');
   });
 
   it('returns 404 when a single admin-managed session is missing', async () => {

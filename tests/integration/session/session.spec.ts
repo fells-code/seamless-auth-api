@@ -7,7 +7,7 @@ import { Op } from 'sequelize';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
-import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { hardRevokeSession, revokeSessionChain } from '../../../src/services/sessionService.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
@@ -67,7 +67,7 @@ describe('DELETE /sessions/:id', () => {
     const res = await request(app).delete('/sessions/session-1');
 
     expect(res.status).toBe(200);
-    expect(hardRevokeSession).toHaveBeenCalledWith(session, 'user_revoked');
+    expect(revokeSessionChain).toHaveBeenCalledWith(session, 'user_revoked');
   });
 
   it('returns 404 if session not found', async () => {

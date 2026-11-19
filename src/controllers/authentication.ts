@@ -10,6 +10,8 @@ import { Request, Response } from 'express';
 import { isBreakGlassAdmin } from '../config/breakGlass.js';
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
+import { classifyRefreshRefusal, RefreshRefusalReason } from '../lib/refreshRefusal.js';
+import { refreshReplayWindowMs, sealReplayToken } from '../lib/refreshReplayToken.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -44,10 +46,9 @@ import {
 } from '../services/sessionRevocation.js';
 import {
   claimSessionRotation,
-  classifyExpiredRefreshToken,
   findRefreshSessionByToken,
   hardRevokeSession,
-  RefreshRefusalReason,
+  replayRefreshRotation,
   revokeSessionChain,
 } from '../services/sessionService.js';
 import { AuthenticatedRequest } from '../types/types.js';
@@ -523,6 +524,121 @@ async function refuseRevokedRefresh(req: Request, res: Response, userId: string,
   return res.status(401).json({ error: 'invalid_refresh_token' });
 }
 
+async function refuseReusedRefresh(
+  req: Request,
+  res: Response,
+  session: Session,
+  reason = 'Refresh token reuse detected',
+) {
+  logger.warn(
+    `Token reuse detected for session ${session.id}. replacedBySessionId=${session.replacedBySessionId ?? 'none'} revokedAt=${session.revokedAt ? session.revokedAt.toISOString() : 'null'}. This usually means an already-rotated refresh token was sent again.`,
+  );
+  await revokeSessionChain(session);
+  await AuthEventService.log({
+    userId: session.userId,
+    type: 'refresh_token_suspicious',
+    req,
+    metadata: {
+      reason,
+      sessionId: session.id,
+      replacedBySessionId: session.replacedBySessionId,
+      revokedAt: session.revokedAt?.toISOString() ?? null,
+    },
+  });
+  return res.status(401).json({ error: 'refresh_token_reused' });
+}
+
+async function respondWithRefreshedSession(
+  req: Request,
+  res: Response,
+  {
+    session,
+    user,
+    claimsFrom = session,
+    refreshToken,
+    expiresAt,
+    now = new Date(),
+    replayOf,
+  }: {
+    session: Session;
+    /** The row the organization, recovery state and hook claims are read from. */
+    claimsFrom?: Session;
+    user: User;
+    refreshToken: string;
+    expiresAt: Date;
+    now?: Date;
+    replayOf?: string;
+  },
+) {
+  const { access_token_ttl } = await getSystemConfig();
+  const { token, organizationId } = await mintAccessToken({
+    session: {
+      id: session.id,
+      organizationId: claimsFrom.organizationId,
+      recovery: claimsFrom.recovery,
+      hookClaims: claimsFrom.hookClaims ?? null,
+    },
+    user,
+  });
+
+  if (!token) {
+    return res.status(500).json({ error: 'Failed to refresh session' });
+  }
+
+  await AuthEventService.log({
+    userId: user.id,
+    type: 'refresh_token_success',
+    req,
+    ...(replayOf ? { sessionId: session.id, metadata: { replayOf } } : {}),
+  });
+
+  return res.status(200).json({
+    message: 'Success',
+    token,
+    refreshToken,
+    sub: user.id,
+    sessionId: session.id,
+    organizationId,
+    roles: user.roles,
+    email: user.email,
+    phone: user.phone,
+    ttl: parseDurationToSeconds(access_token_ttl || '15m'),
+    // What is left of the chain, not a full lifetime, so a caller sizing a cookie or a
+    // keychain entry from it does not outlive the session.
+    refreshTtl: Math.floor((expiresAt.getTime() - now.getTime()) / 1000),
+    ...(claimsFrom.recovery === true ? { recovery: true } : {}),
+  });
+}
+
+/**
+ * A rotated token presented again: the same successor while the replay window holds,
+ * reuse otherwise.
+ */
+async function answerRotatedRefresh(
+  req: Request,
+  res: Response,
+  session: Session,
+  refreshToken: string,
+  reuseReason?: string,
+) {
+  const replay = await replayRefreshRotation(session, refreshToken);
+
+  if (replay) {
+    logger.info(
+      `Refresh token replayed within the window. sessionId=${session.id} successorId=${replay.successor.id}`,
+    );
+    return respondWithRefreshedSession(req, res, {
+      session: replay.successor,
+      user: replay.user,
+      refreshToken: replay.refreshToken,
+      expiresAt: new Date(replay.successor.expiresAt),
+      replayOf: session.id,
+    });
+  }
+
+  return refuseReusedRefresh(req, res, session, reuseReason);
+}
+
 export const refreshSession = async (req: Request, res: Response) => {
   logger.info(`Refreshing user token`);
 
@@ -540,9 +656,17 @@ export const refreshSession = async (req: Request, res: Response) => {
   }
 
   const now = new Date();
-  const session = await findRefreshSessionByToken(refreshToken, now);
+  const presented = await findRefreshSessionByToken(refreshToken);
 
-  if (!session) {
+  // Checked before any expiry, so a rotated token is reuse however long after its own idle
+  // window it comes back (#593).
+  if (presented?.replacedBySessionId) {
+    return answerRotatedRefresh(req, res, presented, refreshToken);
+  }
+
+  const refusal = presented ? classifyRefreshRefusal(presented, now) : 'revoked';
+
+  if (!presented || refusal) {
     const looksLikeJwt = refreshToken.split('.').length === 3;
 
     logger.warn(
@@ -555,20 +679,16 @@ export const refreshSession = async (req: Request, res: Response) => {
       );
     }
 
-    const expired = looksLikeJwt ? null : await classifyExpiredRefreshToken(refreshToken, now);
-
-    if (expired) {
+    if (presented && refusal && refusal !== 'revoked') {
       await AuthEventService.log({
-        userId: expired.session.userId,
-        sessionId: expired.session.id,
+        userId: presented.userId,
+        sessionId: presented.id,
         type: 'refresh_token_failed',
         req,
         metadata: {
-          reason: REFRESH_REFUSAL_MESSAGES[expired.reason],
-          refusal: expired.reason,
-          chainStartedAt: (
-            expired.session.chainStartedAt ?? expired.session.createdAt
-          )?.toISOString(),
+          reason: REFRESH_REFUSAL_MESSAGES[refusal],
+          refusal,
+          chainStartedAt: (presented.chainStartedAt ?? presented.createdAt)?.toISOString(),
         },
       });
     } else {
@@ -580,26 +700,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
 
-  // Reuse detection: if this session was already rotated, it means we’ve seen this token before
-  if (session.replacedBySessionId || session.revokedAt) {
-    logger.warn(
-      `Token reuse detected for session ${session.id}. replacedBySessionId=${session.replacedBySessionId ?? 'none'} revokedAt=${session.revokedAt ? session.revokedAt.toISOString() : 'null'}. This usually means an already-rotated refresh token was sent again.`,
-    );
-    // Reuse -> revoke session chain
-    await revokeSessionChain(session);
-    await AuthEventService.log({
-      userId: session.userId,
-      type: 'refresh_token_suspicious',
-      req,
-      metadata: {
-        reason: 'Refresh token reuse detected',
-        sessionId: session.id,
-        replacedBySessionId: session.replacedBySessionId,
-        revokedAt: session.revokedAt?.toISOString() ?? null,
-      },
-    });
-    return res.status(401).json({ error: 'refresh_token_reused' });
-  }
+  const session = presented;
 
   // Update idle timeout on current session (just for bookkeeping)
   session.lastUsedAt = now;
@@ -641,7 +742,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
 
-  const { access_token_ttl, refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
+  const { refresh_token_ttl, session_idle_ttl } = await getSystemConfig();
   const chainStartedAt = session.chainStartedAt ?? session.createdAt ?? now;
   const times = computeRotatedSessionTimes(
     { absoluteTtl: refresh_token_ttl || '1d', idleTtl: session_idle_ttl || '8h' },
@@ -702,7 +803,21 @@ export const refreshSession = async (req: Request, res: Response) => {
   // decides which of them rotated: unconditionally, both completed, the second write won,
   // and the other replacement stayed live while reachable from nothing, so the chain
   // revocation that reuse detection triggers walked past it and left it working.
-  const rotated = await claimSessionRotation(session, newSession.id);
+  const replayWindowMs = refreshReplayWindowMs();
+  const rotated = await claimSessionRotation(session, newSession.id, {
+    rotatedAt: now,
+    replayTokenCiphertext:
+      replayWindowMs > 0
+        ? sealReplayToken(
+            {
+              predecessorToken: refreshToken,
+              predecessorId: session.id,
+              successorId: newSession.id,
+            },
+            newRefreshToken,
+          )
+        : null,
+  });
 
   if (!rotated) {
     logger.warn(
@@ -713,25 +828,19 @@ export const refreshSession = async (req: Request, res: Response) => {
     // rather than left behind. Its refresh token was never returned to anyone.
     await hardRevokeSession(newSession, 'rotation_race_lost');
 
-    // Reloaded so the chain walk follows the link the winner wrote rather than the null
-    // this instance still holds, which would stop at the old session and leave the
-    // winner's session live.
+    // Reloaded so what follows sees the link and the sealed token the winner wrote rather
+    // than the null this instance still holds. Inside the replay window that answers this
+    // request with the winner's successor (#598); outside it the chain walk follows the
+    // link, rather than stopping at the old session and leaving the winner's session live.
     await session.reload();
-    await revokeSessionChain(session);
 
-    await AuthEventService.log({
-      userId: user.id,
-      type: 'refresh_token_suspicious',
+    return answerRotatedRefresh(
       req,
-      metadata: {
-        reason: 'Refresh token rotated twice concurrently',
-        sessionId: session.id,
-        replacedBySessionId: session.replacedBySessionId,
-        abandonedSessionId: newSession.id,
-      },
-    });
-
-    return res.status(401).json({ error: 'refresh_token_reused' });
+      res,
+      session,
+      refreshToken,
+      'Refresh token rotated twice concurrently',
+    );
   }
 
   // Read again because a revoke-all can land while this rotation is in flight. Its cutoff
@@ -753,39 +862,16 @@ export const refreshSession = async (req: Request, res: Response) => {
     });
   }
 
-  const { token, organizationId } = await mintAccessToken({
-    session: {
-      id: newSession.id,
-      organizationId: session.organizationId,
-      recovery: session.recovery,
-      hookClaims: session.hookClaims ?? null,
-    },
+  logger.info(
+    `Refresh token rotated for user ${user.id}. oldSessionId=${session.id} newSessionId=${newSession.id}`,
+  );
+
+  return respondWithRefreshedSession(req, res, {
+    session: newSession,
+    claimsFrom: session,
     user,
+    refreshToken: newRefreshToken,
+    expiresAt,
+    now,
   });
-
-  if (token && newRefreshToken) {
-    logger.info(
-      `Refresh token rotated for user ${user.id}. oldSessionId=${session.id} newSessionId=${newSession.id}`,
-    );
-    await AuthEventService.log({ userId: user.id, type: 'refresh_token_success', req });
-
-    return res.status(200).json({
-      message: 'Success',
-      token,
-      refreshToken: newRefreshToken,
-      sub: user.id,
-      sessionId: newSession.id,
-      organizationId,
-      roles: user.roles,
-      email: user.email,
-      phone: user.phone,
-      ttl: parseDurationToSeconds(access_token_ttl || '15m'),
-      // What is left of the chain, not a full lifetime, so a caller sizing a cookie or a
-      // keychain entry from it does not outlive the session.
-      refreshTtl: Math.floor((expiresAt.getTime() - now.getTime()) / 1000),
-      ...(session.recovery === true ? { recovery: true } : {}),
-    });
-  }
-
-  return res.status(500).json({ error: 'Failed to refresh session' });
 };

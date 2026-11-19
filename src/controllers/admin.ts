@@ -42,7 +42,7 @@ import {
   sendIdentityChangeNotices,
 } from '../services/identityChangeService.js';
 import { revokeAllSessionsForUsers } from '../services/sessionRevocation.js';
-import { hardRevokeSession } from '../services/sessionService.js';
+import { revokeSessionChain } from '../services/sessionService.js';
 import { importUsers as runUserImport } from '../services/userImportService.js';
 import type { AuthenticatedRequest } from '../types/types.js';
 import { RouteRequest, ServiceRequest } from '../types/types.js';
@@ -579,7 +579,8 @@ export const revokeUserSessionById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    await hardRevokeSession(session, 'admin_revoke');
+    // Walked to the head, because the row the admin listed may have rotated since (#592).
+    await revokeSessionChain(session, 'admin_revoke');
 
     await AuthEventService.log({
       userId: session.userId,
