@@ -18041,7 +18041,12 @@ export interface paths {
             clientId: string;
             sessionId?: string;
             /** @enum {string} */
-            grantType?: 'authorization_code' | 'urn:ietf:params:oauth:grant-type:device_code';
+            grantType?:
+              | 'authorization_code'
+              | 'urn:ietf:params:oauth:grant-type:device_code'
+              | 'refresh_token';
+            /** @enum {string} */
+            originGrantType?: 'authorization_code' | 'urn:ietf:params:oauth:grant-type:device_code';
             signingInput: string;
           };
         };

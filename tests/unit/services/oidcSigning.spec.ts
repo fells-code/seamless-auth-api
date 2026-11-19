@@ -552,6 +552,35 @@ describe('signForOidcEdge', () => {
     });
   });
 
+  describe('refresh tokens', () => {
+    const refresh = {
+      grantType: 'refresh_token' as const,
+      originGrantType: 'authorization_code' as const,
+    };
+
+    it('signs a refresh of a code grant with the assurance the session earned', async () => {
+      expect((await signForOidcEdge({ ...idTokenRequest(), ...refresh })).ok).toBe(true);
+    });
+
+    it('refuses a refresh that names no sign-in grant', async () => {
+      expect(
+        await signForOidcEdge({ ...idTokenRequest(), grantType: 'refresh_token' }),
+      ).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+    });
+
+    it('refuses a refresh for a client without the refresh grant', async () => {
+      vi.mocked(findActiveOidcClient).mockResolvedValue({
+        id: 'app',
+        grantTypes: ['authorization_code'],
+        firstParty: true,
+      } as never);
+      expect(await signForOidcEdge({ ...idTokenRequest(), ...refresh })).toMatchObject({
+        ok: false,
+        code: 'grant_not_allowed',
+      });
+    });
+  });
+
   describe('device-flow tokens (ADR 0001, D10)', () => {
     const DEVICE = 'urn:ietf:params:oauth:grant-type:device_code' as const;
 
@@ -606,6 +635,23 @@ describe('signForOidcEdge', () => {
 
       deviceClient({ firstParty: false });
       expect(await signForOidcEdge(request)).toMatchObject({ code: 'grant_not_allowed' });
+    });
+
+    it('treats a refresh of a device approval as a device token', async () => {
+      deviceClient();
+      const refresh = { grantType: 'refresh_token' as const, originGrantType: DEVICE };
+      const { acr: _acr, amr: _amr, auth_time: _authTime, ...claims } = idTokenClaims();
+
+      expect((await signForOidcEdge({ ...idTokenRequest(claims), ...refresh })).ok).toBe(true);
+      expect(await signForOidcEdge({ ...idTokenRequest(), ...refresh })).toMatchObject({
+        ok: false,
+        code: 'auth_context_mismatch',
+      });
+
+      deviceClient({ deviceFlowEnabled: false });
+      expect(await signForOidcEdge({ ...idTokenRequest(claims), ...refresh })).toMatchObject({
+        code: 'grant_not_allowed',
+      });
     });
 
     it('refuses a user token that names no grant, or one the client lacks', async () => {
@@ -801,12 +847,16 @@ describe('a session:exchange token', () => {
     },
   );
 
-  it('is refused on a refresh grant', async () => {
-    expect(await signForOidcEdge(exchangeRequest({}, 'refresh_token'))).toMatchObject({
-      ok: false,
-      code: 'grant_not_allowed',
-    });
-  });
+  it.each(['authorization_code', DEVICE])(
+    'is refused on a refresh of a %s grant',
+    async (origin) => {
+      const request = { ...exchangeRequest({}, 'refresh_token'), originGrantType: origin };
+      expect(await signForOidcEdge(request as never)).toMatchObject({
+        ok: false,
+        code: 'grant_not_allowed',
+      });
+    },
+  );
 
   it('claims the code the sign-in consumed', async () => {
     expect(await signForOidcEdge(exchangeRequest())).toMatchObject({ ok: true });

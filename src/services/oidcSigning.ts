@@ -318,10 +318,16 @@ async function checkUserToken(
   client: OidcClient,
   issuer: string,
 ): Promise<OidcSignOutcome | null> {
-  const device = request.grantType === DEVICE_CODE_GRANT;
+  // A refresh names the sign-in grant it continues, and the client must still hold both.
+  const origin =
+    request.grantType === 'refresh_token' ? request.originGrantType : request.grantType;
+  const device = origin === DEVICE_CODE_GRANT;
+  const served = servedGrantTypes(client);
   if (
     !request.grantType ||
-    !servedGrantTypes(client).includes(request.grantType) ||
+    !origin ||
+    !served.includes(request.grantType) ||
+    !served.includes(origin) ||
     (device && !(client.firstParty && client.deviceFlowEnabled))
   ) {
     return refuse('grant_not_allowed');

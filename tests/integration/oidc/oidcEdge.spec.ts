@@ -180,7 +180,7 @@ describe('GET /oidc/config', () => {
     const res = await edge('get', '/oidc/config');
 
     expect(res.body).toEqual({
-      contractVersion: 3,
+      contractVersion: 4,
       issuer: ISSUER,
       appName: 'SeamlessAuth',
       allowClientSecrets: false,
