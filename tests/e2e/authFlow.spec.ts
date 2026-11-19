@@ -139,6 +139,6 @@ describe('E2E Auth Flow', () => {
       .set('Authorization', 'Bearer refresh-token');
 
     expect(refreshRes.status).toBe(200);
-    expect(findRefreshSessionByToken).toHaveBeenCalledWith('refresh-token', expect.any(Date));
+    expect(findRefreshSessionByToken).toHaveBeenCalledWith('refresh-token');
   });
 });

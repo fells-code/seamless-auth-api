@@ -99,6 +99,15 @@ there means a coordinated release across both SDKs for what is an operational tu
 rather than a policy changed at runtime. See
 [security-posture.md](./security-posture.md) for what it is defending.
 
+#### Refresh replay window
+
+| Variable                        | Required | Default | Notes                                                                                                                                                                                                                                                                        |
+| ------------------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REFRESH_REPLAY_WINDOW_SECONDS` | No       | `10`    | How long after a refresh token rotates it is still answered with the same successor, up to three times, so two adapter instances refreshing at once do not read as reuse. Capped at `60`; `0` turns it off. Outside it, a rotated token is reuse and ends the session chain. |
+
+Not a `system_config` key, for the same reason as the `/login` floor. See
+[security-posture.md](./security-posture.md#refresh-replay-window).
+
 ### Audit retention
 
 Audit events are kept forever unless retention is set. Retention archives before it deletes,

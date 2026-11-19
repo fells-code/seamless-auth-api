@@ -414,15 +414,65 @@ triggered by that very theft could not reach, while the trail recorded
 `claimSessionRotation` writes the link conditional on it still being unset, in one
 statement the database serialises. No affected rows means another rotation got there
 first, which is the same thing an already rotated token means, and it is answered the same
-way: the replacement this request made is revoked with `rotation_race_lost`, the session is
-reloaded so the chain walk follows the link the winner wrote, the chain is revoked from
-there, and the caller gets `401 refresh_token_reused`.
+way: the replacement this request made is revoked with `rotation_race_lost` and the session
+is reloaded to see the link the winner wrote. Inside the replay window the caller then gets
+the winner's successor. Outside it the chain is revoked from there, following that link,
+and the caller gets `401 refresh_token_reused`.
 
-Two legitimate refreshes racing each other therefore end the session chain, the same as
-presenting a rotated token twice in sequence does. A client that fires concurrent refreshes
-of one token signs its user out, which is the direction this has to fail: the alternative
-is that whoever wins the race keeps a session, and the winner is not always the client that
-should have it.
+Outside the replay window below, two refreshes racing each other end the session chain,
+the same as presenting a rotated token twice in sequence does. That is the direction this
+has to fail: the alternative is that whoever wins the race keeps a session, and the winner
+is not always the client that should have it.
+
+### Reuse detection does not expire
+
+A rotated token is reuse however long after its rotation it comes back. The lookup used to
+filter on the presented row's own idle window, so a rotated token presented more than
+`SESSION_IDLE_TTL` after its row was created matched nothing and was answered as an unknown
+token, without ending the chain. A thief who rotated a stolen token kept that chain to its
+absolute lifetime while the victim's return was discarded as noise.
+
+[`findRefreshSessionByToken`](../src/services/sessionService.ts) now finds the row by its
+fingerprint alone. Any row with `replacedBySessionId` set is answered by the replay window
+or as reuse, and only then are revocation and expiry checked, for rows that never rotated.
+
+### Refresh replay window
+
+**Posture: a rotated token is answered with its existing successor for a few seconds, and
+is reuse after that.**
+
+Server adapters deduplicate refreshes per process. Behind a load balancer, with replicas or
+on serverless, two instances can each receive a request carrying the same expired access
+token and both refresh. One wins the rotation and the other used to trip reuse detection,
+which signed the user out at random under horizontal scale.
+
+For `REFRESH_REPLAY_WINDOW_SECONDS` (10 by default, at most 60) after a rotation, the
+rotated token is answered with the same response the winner got: the same `refreshToken`
+and `sessionId`, and a freshly signed access token for that session. This applies only:
+
+- to the immediate predecessor of the chain head. An older ancestor's successor has itself
+  rotated, so it is reuse at any time;
+- while the successor is still a live head (not revoked, rotated, expired, or cut off by a
+  sign-out everywhere), and its owner is not revoked;
+- three times per rotation, counted in the database so concurrent replays cannot all spend
+  the last one.
+
+Nothing new is minted, so a replay cannot start a parallel chain. The request that loses
+the rotation race revokes the replacement it made and is answered from the window too.
+
+Refresh tokens are stored only as keyed fingerprints, so the successor token is kept on the
+rotated row encrypted with AES-256-GCM, under a key derived with HMAC from
+`REFRESH_TOKEN_LOOKUP_SECRET` and the rotated token itself, bound to the two session ids.
+Opening it needs both the server secret and the token being replayed, so a copy of the
+database alone reveals nothing. It is cleared when the window lapses and when the chain is
+revoked. Deriving the successor deterministically from its predecessor would have needed no
+storage, but it would make every later token in a chain computable from any one old token
+plus the secret, for the life of the chain.
+
+The window is a deliberate trade: someone who has copied a refresh token and presents it
+within seconds of the legitimate rotation gets the same successor without tripping
+detection. Past the window, the replay count, or the head moving on, they trip it as
+before. Setting the variable to `0` restores strict single use.
 
 ### Log out everywhere
 

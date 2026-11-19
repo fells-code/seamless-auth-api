@@ -6,8 +6,13 @@
 
 import { timingSafeEqual } from 'crypto';
 import { importSPKI, jwtVerify } from 'jose';
-import { Op } from 'sequelize';
+import { literal, Op } from 'sequelize';
 
+import {
+  MAX_REFRESH_REPLAYS,
+  openReplayToken,
+  refreshReplayWindowMs,
+} from '../lib/refreshReplayToken.js';
 import { createRefreshTokenLookup } from '../lib/token.js';
 import { Session } from '../models/sessions.js';
 import { User } from '../models/users.js';
@@ -100,11 +105,21 @@ export async function revokeSessionChain(session: Session, reason = 'refresh_tok
 
   while (current && !seen.has(current.id)) {
     seen.add(current.id);
-    current.revokedAt = now;
-    current.revokedReason = reason;
+    // A row an earlier revoke already ended keeps the reason it was ended for.
+    if (!current.revokedAt) {
+      current.revokedAt = now;
+      current.revokedReason = reason;
+    }
+    current.replayTokenCiphertext = null;
     await current.save();
 
-    if (!current.replacedBySessionId) break;
+    if (!current.replacedBySessionId) {
+      // A rotation can claim the head between its read and the save above, and the save
+      // leaves that link in place without this copy seeing it. Once saved as revoked the
+      // head cannot be claimed again, so one reload settles where the chain ends.
+      await current.reload();
+      if (!current.replacedBySessionId) break;
+    }
     current = await Session.findByPk(current.replacedBySessionId);
   }
 
@@ -172,9 +187,12 @@ export async function revokeOrphanedChildSessions(
 export async function claimSessionRotation(
   session: Session,
   replacementSessionId: string,
+  replay?: { rotatedAt: Date; replayTokenCiphertext: string | null },
 ): Promise<boolean> {
+  // The sealed successor token is written in the same statement as the link, so a request
+  // that loses this race finds it there when it falls back to the replay window.
   const [claimed] = await Session.update(
-    { replacedBySessionId: replacementSessionId },
+    { replacedBySessionId: replacementSessionId, ...replay },
     { where: { id: session.id, replacedBySessionId: null, revokedAt: null } },
   );
 
@@ -183,6 +201,7 @@ export async function claimSessionRotation(
   }
 
   session.replacedBySessionId = replacementSessionId;
+  if (replay) Object.assign(session, replay);
 
   return true;
 }
@@ -216,20 +235,16 @@ function safeEqual(left: string, right: string | null) {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export async function findRefreshSessionByToken(
-  refreshToken: string,
-  now = new Date(),
-): Promise<Session | null> {
+/**
+ * The session a refresh token belongs to, whatever state it is in. Expired, idled out,
+ * revoked and rotated rows are all returned, because what the caller does next depends on
+ * which: a rotated row is reuse however long ago it rotated, and that signal is lost if the
+ * lookup filters it out first.
+ */
+export async function findRefreshSessionByToken(refreshToken: string): Promise<Session | null> {
   const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
 
-  const session = await Session.findOne({
-    where: {
-      revokedAt: null,
-      expiresAt: { [Op.gt]: now },
-      idleExpiresAt: { [Op.gt]: now },
-      refreshTokenLookup,
-    },
-  });
+  const session = await Session.findOne({ where: { refreshTokenLookup } });
 
   if (!session) return null;
 
@@ -245,29 +260,76 @@ export async function findRefreshSessionByToken(
   return session;
 }
 
-export type RefreshRefusalReason = 'absolute_lifetime_reached' | 'idle_timeout';
+export interface RefreshReplay {
+  successor: Session;
+  user: User;
+  refreshToken: string;
+}
 
 /**
- * Why a refresh token that `findRefreshSessionByToken` rejected no longer works, when the
- * answer is that its session ran out of time. Only used to make the audit trail say so,
- * never to accept the token.
+ * Answers a rotated refresh token with the successor it already rotated into, when it is
+ * presented again within the replay window (#598). Two adapter instances refreshing the
+ * same token at once otherwise read as reuse and sign the user out.
+ *
+ * Only the immediate predecessor of a live head qualifies, only inside the window and only
+ * `MAX_REFRESH_REPLAYS` times, and the answer is the existing successor, never a new one.
+ * `null` means the presentation is reuse.
  */
-export async function classifyExpiredRefreshToken(
-  refreshToken: string,
+export async function replayRefreshRotation(
+  session: Session,
+  presentedToken: string,
   now = new Date(),
-): Promise<{ reason: RefreshRefusalReason; session: Session } | null> {
-  const refreshTokenLookup = createRefreshTokenLookup(refreshToken);
+): Promise<RefreshReplay | null> {
+  const windowMs = refreshReplayWindowMs();
+  const { rotatedAt, replayTokenCiphertext, replacedBySessionId } = session;
 
-  const session = await Session.findOne({
-    where: { revokedAt: null, replacedBySessionId: null, refreshTokenLookup },
-  });
+  if (session.revokedAt || !replacedBySessionId || !rotatedAt || !replayTokenCiphertext) {
+    return null;
+  }
 
-  if (!session || !safeEqual(refreshTokenLookup, session.refreshTokenLookup)) return null;
+  if (windowMs === 0 || now.getTime() - new Date(rotatedAt).getTime() > windowMs) {
+    await Session.update({ replayTokenCiphertext: null }, { where: { id: session.id } });
+    return null;
+  }
 
-  if (session.expiresAt <= now) return { reason: 'absolute_lifetime_reached', session };
-  if (session.idleExpiresAt <= now) return { reason: 'idle_timeout', session };
+  // Also refuses a successor that has itself rotated, so an older ancestor is never answered.
+  const successor = await validateSessionRecord(replacedBySessionId);
+  if (!successor) return null;
 
-  return null;
+  const refreshToken = openReplayToken(
+    { predecessorToken: presentedToken, predecessorId: session.id, successorId: successor.id },
+    replayTokenCiphertext,
+  );
+
+  if (
+    !refreshToken ||
+    !safeEqual(createRefreshTokenLookup(refreshToken), successor.refreshTokenLookup)
+  ) {
+    logger.warn(`Replay token for session ${session.id} did not open to its successor`);
+    return null;
+  }
+
+  const user = await getUserFromSession(successor);
+  if (!user) return null;
+
+  // Counted in the database, so concurrent replays cannot all read the same count and
+  // each spend the last one.
+  const [claimed] = await Session.update(
+    { replayCount: literal('"replayCount" + 1') },
+    {
+      where: {
+        id: session.id,
+        revokedAt: null,
+        replacedBySessionId: successor.id,
+        replayCount: { [Op.lt]: MAX_REFRESH_REPLAYS },
+        rotatedAt: { [Op.gt]: new Date(now.getTime() - windowMs) },
+      },
+    },
+  );
+
+  if (claimed === 0) return null;
+
+  return { successor, user, refreshToken };
 }
 
 export async function validateSessionRecord(sessionId: string) {

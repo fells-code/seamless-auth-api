@@ -5,7 +5,7 @@ import { Application } from 'express';
 import { createApp } from '../../../src/app';
 import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
-import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { hardRevokeSession, revokeSessionChain } from '../../../src/services/sessionService.js';
 import { buildSession } from '../../factories/sessionFactory.js';
 
 let mockUser: any = {
@@ -104,7 +104,7 @@ describe('Session Security - Revocation', () => {
     const res = await request(app).delete('/sessions/session-1');
 
     expect(res.status).toBe(200);
-    expect(hardRevokeSession).toHaveBeenCalledWith(session, 'user_revoked');
+    expect(revokeSessionChain).toHaveBeenCalledWith(session, 'user_revoked');
   });
 
   it('revokes all active sessions in one update and records the cutoff', async () => {

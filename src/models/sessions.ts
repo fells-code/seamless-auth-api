@@ -31,6 +31,10 @@ export interface SessionAttributes {
   /** What the `pre_token` login hook added, kept so a refresh never calls the hook. */
   hookClaims?: Record<string, unknown> | null;
   replacedBySessionId?: string | null;
+  rotatedAt?: Date | null;
+  /** The successor's refresh token, sealed for a holder of this row's token (see refreshReplay). */
+  replayTokenCiphertext?: string | null;
+  replayCount?: number;
   parentSessionId?: string | null;
   exchangeClientId?: string | null;
   exchangeGrantType?: string | null;
@@ -44,6 +48,9 @@ type SessionCreationAttributes = Optional<
   SessionAttributes,
   | 'id'
   | 'replacedBySessionId'
+  | 'rotatedAt'
+  | 'replayTokenCiphertext'
+  | 'replayCount'
   | 'revokedAt'
   | 'revokedReason'
   | 'deviceName'
@@ -82,6 +89,9 @@ export class Session
   declare authTime: Date | null;
   declare hookClaims: Record<string, unknown> | null;
   declare replacedBySessionId: string | null;
+  declare rotatedAt: Date | null;
+  declare replayTokenCiphertext: string | null;
+  declare replayCount: number;
   declare parentSessionId: string | null;
   declare exchangeClientId: string | null;
   declare exchangeGrantType: string | null;
@@ -173,6 +183,19 @@ const initializeSessionModel = (sequelize: Sequelize) => {
       replacedBySessionId: {
         type: DataTypes.UUID,
         allowNull: true,
+      },
+      rotatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      replayTokenCiphertext: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      replayCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
       },
       // A session a token exchange issued (ADR 0003): the provider sign-in it ends with, the
       // client that exchanged, and the grant behind the sign-in. Carried across rotation.

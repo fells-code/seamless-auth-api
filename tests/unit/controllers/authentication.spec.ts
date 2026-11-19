@@ -52,7 +52,6 @@ async function loadAuthenticationModule() {
     User,
     AuthEventService,
     findRefreshSessionByToken: sessionService.findRefreshSessionByToken,
-    classifyExpiredRefreshToken: sessionService.classifyExpiredRefreshToken,
     hardRevokeSession: sessionService.hardRevokeSession,
     generateRefreshToken: tokenLib.generateRefreshToken,
     createRefreshTokenLookup: tokenLib.createRefreshTokenLookup,
@@ -91,7 +90,7 @@ describe('refreshSession', () => {
 
     await refreshSession(req, res);
 
-    expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token', expect.any(Date));
+    expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token');
     expect(AuthEventService.refreshTokenFailed).toHaveBeenCalledWith(
       req,
       expect.objectContaining({
@@ -141,7 +140,7 @@ describe('refreshSession', () => {
 
     await refreshSession(req, res);
 
-    expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token', expect.any(Date));
+    expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token');
     expect(Session.create).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: user.id,
@@ -307,19 +306,19 @@ describe('refreshSession', () => {
     });
 
     it('records an expired chain distinctly from an unknown token', async () => {
-      const {
-        refreshSession,
-        AuthEventService,
-        findRefreshSessionByToken,
-        classifyExpiredRefreshToken,
-      } = await loadAuthenticationModule();
+      const { refreshSession, AuthEventService, findRefreshSessionByToken, Session } =
+        await loadAuthenticationModule();
       const { req, res } = mockReqRes('Bearer raw-refresh-token');
       const chainStartedAt = new Date(Date.now() - 25 * hour);
 
-      (findRefreshSessionByToken as any).mockResolvedValue(null);
-      (classifyExpiredRefreshToken as any).mockResolvedValue({
-        reason: 'absolute_lifetime_reached',
-        session: { id: 'session-1', userId: 'user-1', chainStartedAt },
+      (findRefreshSessionByToken as any).mockResolvedValue({
+        id: 'session-1',
+        userId: 'user-1',
+        replacedBySessionId: null,
+        revokedAt: null,
+        chainStartedAt,
+        expiresAt: new Date(Date.now() - hour),
+        idleExpiresAt: new Date(Date.now() + hour),
       });
 
       await refreshSession(req, res);
@@ -335,6 +334,37 @@ describe('refreshSession', () => {
             refusal: 'absolute_lifetime_reached',
             chainStartedAt: chainStartedAt.toISOString(),
           },
+        }),
+      );
+      expect(Session.create).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });
+    });
+
+    it('records an idled-out session by its idle refusal', async () => {
+      const { refreshSession, AuthEventService, findRefreshSessionByToken } =
+        await loadAuthenticationModule();
+      const { req, res } = mockReqRes('Bearer raw-refresh-token');
+      const createdAt = new Date(Date.now() - 9 * hour);
+
+      (findRefreshSessionByToken as any).mockResolvedValue({
+        id: 'session-1',
+        userId: 'user-1',
+        replacedBySessionId: null,
+        revokedAt: null,
+        chainStartedAt: null,
+        createdAt,
+        expiresAt: new Date(Date.now() + hour),
+        idleExpiresAt: new Date(Date.now() - hour),
+      });
+
+      await refreshSession(req, res);
+
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            refusal: 'idle_timeout',
+            chainStartedAt: createdAt.toISOString(),
+          }),
         }),
       );
       expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });

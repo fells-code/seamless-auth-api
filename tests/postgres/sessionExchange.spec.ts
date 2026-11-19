@@ -115,6 +115,15 @@ beforeEach(() => {
   invalidateSystemConfigCache();
 });
 
+// Inside the replay window a rotated token is answered with its successor (#598), so
+// reuse is presented after it.
+async function outlastReplayWindow(successorId: string) {
+  await Session.update(
+    { rotatedAt: new Date(Date.now() - 61_000) },
+    { where: { replacedBySessionId: successorId } },
+  );
+}
+
 function nativeClient(overrides: Partial<OidcClientAttributes> = {}) {
   return OidcClient.create({
     id: `cli-${randomUUID()}`,
@@ -1259,6 +1268,7 @@ describe('the child session lifecycle', () => {
       const { parent, childRefresh } = await family();
 
       const rotated = await refresh(childRefresh);
+      await outlastReplayWindow(rotated.body.sessionId);
       const reused = await refresh(childRefresh);
 
       expect(reused.status).toBe(401);
@@ -1339,7 +1349,8 @@ describe('the child session lifecycle', () => {
     it('refresh token reuse on the parent chain', async () => {
       const { parentRefresh, childId, childToken } = await family();
 
-      await refresh(parentRefresh);
+      const rotated = await refresh(parentRefresh);
+      await outlastReplayWindow(rotated.body.sessionId);
       const reused = await refresh(parentRefresh);
       expect(reused.status).toBe(401);
 

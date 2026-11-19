@@ -19,6 +19,7 @@ import {
   claimSessionRotation,
   findRefreshSessionByToken,
   hardRevokeSession,
+  replayRefreshRotation,
   revokeSessionChain,
 } from '../../../src/services/sessionService';
 import { AuthEvent } from '../../../src/models/authEvents';
@@ -904,7 +905,8 @@ describe('POST /refresh', () => {
     expect(res.body.error).toBe('invalid_refresh_token');
   });
 
-  it('detects refresh token reuse for an already revoked session', async () => {
+  // Revoked but never rotated is a session that ended, not a token presented twice.
+  it('refuses a revoked session that never rotated without treating it as reuse', async () => {
     const session = {
       id: 'session-1',
       replacedBySessionId: null,
@@ -918,8 +920,8 @@ describe('POST /refresh', () => {
     const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
 
     expect(res.status).toBe(401);
-    expect(res.body.error).toBe('refresh_token_reused');
-    expect(revokeSessionChain).toHaveBeenCalledWith(session);
+    expect(res.body.error).toBe('invalid_refresh_token');
+    expect(revokeSessionChain).not.toHaveBeenCalled();
   });
 
   it('detects refresh token reuse and revokes the chain', async () => {
@@ -938,6 +940,188 @@ describe('POST /refresh', () => {
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('refresh_token_reused');
     expect(revokeSessionChain).toHaveBeenCalledWith(session);
+  });
+
+  // The rotated row's idle window passing used to hide it from the lookup, which answered
+  // a plain 401 and left the chain live (#593).
+  it('treats a rotated token as reuse after its idle window and revokes the chain', async () => {
+    const session = {
+      id: 'session-1',
+      replacedBySessionId: 'session-2',
+      revokedAt: null,
+      userId: 'user-1',
+      expiresAt: new Date(Date.now() + 3_600_000),
+      idleExpiresAt: new Date(Date.now() - 1_000),
+      save: vi.fn(),
+    };
+
+    (findRefreshSessionByToken as any).mockResolvedValue(session);
+
+    const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+    expect(replayRefreshRotation).toHaveBeenCalledWith(session, 'refresh-token');
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('refresh_token_reused');
+    expect(revokeSessionChain).toHaveBeenCalledWith(session);
+  });
+
+  describe('within the replay window', () => {
+    const successor = () => ({
+      id: 'session-2',
+      userId: 'user-1',
+      organizationId: null,
+      recovery: false,
+      hookClaims: null,
+      expiresAt: new Date(Date.now() + 3_600_000),
+    });
+
+    beforeEach(() => {
+      (signAccessToken as any).mockResolvedValue('access-for-successor');
+      (getSystemConfig as any).mockResolvedValue({
+        access_token_ttl: '15m',
+        refresh_token_ttl: '1h',
+        session_idle_ttl: '8h',
+      });
+    });
+
+    // Two adapter instances refreshing the same token: the second gets the successor the
+    // first already made, not a parallel chain and not a sign-out (#598).
+    it('answers the rotated token with the same successor', async () => {
+      const session = {
+        id: 'session-1',
+        replacedBySessionId: 'session-2',
+        revokedAt: null,
+        userId: 'user-1',
+        save: vi.fn(),
+      };
+      (findRefreshSessionByToken as any).mockResolvedValue(session);
+      (replayRefreshRotation as any).mockResolvedValue({
+        successor: successor(),
+        user: buildUser({ id: 'user-1' }),
+        refreshToken: 'successor-refresh-token',
+      });
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.refreshToken).toBe('successor-refresh-token');
+      expect(res.body.sessionId).toBe('session-2');
+      expect(res.body.token).toBe('access-for-successor');
+      expect(res.body.refreshTtl).toBeGreaterThan(3_590);
+      expect((signAccessToken as any).mock.calls.at(-1)[0]).toBe('session-2');
+      expect(Session.create).not.toHaveBeenCalled();
+      expect(revokeSessionChain).not.toHaveBeenCalled();
+      expect(AuthEventService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'refresh_token_success',
+          sessionId: 'session-2',
+          metadata: { replayOf: 'session-1' },
+        }),
+      );
+    });
+
+    it('answers the rotation that lost the race with the winner’s successor', async () => {
+      const session = {
+        id: 'session-1',
+        replacedBySessionId: null as string | null,
+        revokedAt: null,
+        userId: 'user-1',
+        infraId: 'app',
+        mode: 'server',
+        userAgent: 'agent',
+        save: vi.fn(),
+        reload: vi.fn(async function (this: { replacedBySessionId: string | null }) {
+          this.replacedBySessionId = 'session-2';
+        }),
+      };
+      (findRefreshSessionByToken as any).mockResolvedValue(session);
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1' }));
+      (Session.create as any).mockResolvedValue({ id: 'losing-session' });
+      (claimSessionRotation as any).mockResolvedValue(false);
+      (generateRefreshToken as any).mockReturnValue('losing-refresh-token');
+      (createRefreshTokenLookup as any).mockReturnValue('losing-lookup');
+      (replayRefreshRotation as any).mockResolvedValue({
+        successor: successor(),
+        user: buildUser({ id: 'user-1' }),
+        refreshToken: 'successor-refresh-token',
+      });
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.refreshToken).toBe('successor-refresh-token');
+      expect(res.body.sessionId).toBe('session-2');
+      expect(hardRevokeSession).toHaveBeenCalledWith(
+        { id: 'losing-session' },
+        'rotation_race_lost',
+      );
+      expect(session.reload).toHaveBeenCalled();
+      expect(replayRefreshRotation).toHaveBeenCalledWith(session, 'refresh-token');
+      expect(revokeSessionChain).not.toHaveBeenCalled();
+    });
+
+    it('answers 500 when the access token for the successor cannot be signed', async () => {
+      (findRefreshSessionByToken as any).mockResolvedValue({
+        id: 'session-1',
+        replacedBySessionId: 'session-2',
+        revokedAt: null,
+        userId: 'user-1',
+      });
+      (replayRefreshRotation as any).mockResolvedValue({
+        successor: successor(),
+        user: buildUser({ id: 'user-1' }),
+        refreshToken: 'successor-refresh-token',
+      });
+      (signAccessToken as any).mockResolvedValue(null);
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('sealing the successor for the replay window', () => {
+    function rotatable() {
+      (findRefreshSessionByToken as any).mockResolvedValue({
+        id: 'session-1',
+        replacedBySessionId: null,
+        revokedAt: null,
+        userId: 'user-1',
+        save: vi.fn(),
+      });
+      (User.findOne as any).mockResolvedValue(buildUser({ id: 'user-1' }));
+      (Session.create as any).mockResolvedValue({ id: 'session-2' });
+      (signAccessToken as any).mockResolvedValue('access');
+      (generateRefreshToken as any).mockReturnValue('successor-refresh-token');
+      (createRefreshTokenLookup as any).mockReturnValue('successor-lookup');
+      (getSystemConfig as any).mockResolvedValue({
+        access_token_ttl: '15m',
+        refresh_token_ttl: '1h',
+        session_idle_ttl: '8h',
+      });
+    }
+
+    it('writes the sealed successor token with the rotation link', async () => {
+      rotatable();
+
+      const res = await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect(res.status).toBe(200);
+      const [, successorId, replay] = (claimSessionRotation as any).mock.calls[0];
+      expect(successorId).toBe('session-2');
+      expect(replay.rotatedAt).toBeInstanceOf(Date);
+      expect(replay.replayTokenCiphertext).toMatch(/^v1\./);
+      expect(replay.replayTokenCiphertext).not.toContain('successor-refresh-token');
+    });
+
+    it('seals nothing while the window is disabled', async () => {
+      vi.stubEnv('REFRESH_REPLAY_WINDOW_SECONDS', '0');
+      rotatable();
+
+      await request(app).post('/refresh').set('Authorization', 'Bearer refresh-token');
+
+      expect((claimSessionRotation as any).mock.calls[0][2].replayTokenCiphertext).toBeNull();
+    });
   });
 
   it('revokes the session when the refresh user no longer exists', async () => {
