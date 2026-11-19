@@ -28,7 +28,7 @@ vi.mock('../../../src/utils/signingKeyStore', () => ({
 vi.mock('../../../src/lib/refreshReplayToken', () => ({
   MAX_REFRESH_REPLAYS: 3,
   openReplayToken: vi.fn(),
-  refreshReplayWindowMs: vi.fn(() => 10_000),
+  refreshReplayWindowMs: vi.fn(() => 5_000),
 }));
 
 vi.mock('../../../src/lib/token', () => ({
@@ -414,7 +414,7 @@ describe('sessionService', () => {
       successor = successorRow() as unknown,
       opened = 'successor-token' as string | null,
       claimed = 1,
-      windowMs = 10_000,
+      windowMs = 5_000,
     } = {}) {
       const { Session } = await import('../../../src/models/sessions');
       const { User } = await import('../../../src/models/users');
@@ -461,7 +461,7 @@ describe('sessionService', () => {
 
     it('refuses once the window has passed, and discards the sealed token', async () => {
       const { Session, replayRefreshRotation } = await setUp();
-      const session = rotatedRow({ rotatedAt: new Date(now.getTime() - 11_000) });
+      const session = rotatedRow({ rotatedAt: new Date(now.getTime() - 6_000) });
 
       expect(await replayRefreshRotation(session as any, 'predecessor-token', now)).toBeNull();
       expect(Session.update).toHaveBeenCalledWith(

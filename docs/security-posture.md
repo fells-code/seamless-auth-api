@@ -446,7 +446,7 @@ on serverless, two instances can each receive a request carrying the same expire
 token and both refresh. One wins the rotation and the other used to trip reuse detection,
 which signed the user out at random under horizontal scale.
 
-For `REFRESH_REPLAY_WINDOW_SECONDS` (10 by default, at most 60) after a rotation, the
+For `REFRESH_REPLAY_WINDOW_SECONDS` (5 by default, at most 60) after a rotation, the
 rotated token is answered with the same response the winner got: the same `refreshToken`
 and `sessionId`, and a freshly signed access token for that session. This applies only:
 

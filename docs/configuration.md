@@ -103,7 +103,7 @@ rather than a policy changed at runtime. See
 
 | Variable                        | Required | Default | Notes                                                                                                                                                                                                                                                                        |
 | ------------------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `REFRESH_REPLAY_WINDOW_SECONDS` | No       | `10`    | How long after a refresh token rotates it is still answered with the same successor, up to three times, so two adapter instances refreshing at once do not read as reuse. Capped at `60`; `0` turns it off. Outside it, a rotated token is reuse and ends the session chain. |
+| `REFRESH_REPLAY_WINDOW_SECONDS` | No       | `5`     | How long after a refresh token rotates it is still answered with the same successor, up to three times, so two adapter instances refreshing at once do not read as reuse. Capped at `60`; `0` turns it off. Outside it, a rotated token is reuse and ends the session chain. |
 
 Not a `system_config` key, for the same reason as the `/login` floor. See
 [security-posture.md](./security-posture.md#refresh-replay-window).

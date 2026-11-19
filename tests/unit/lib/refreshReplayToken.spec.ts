@@ -14,13 +14,13 @@ const binding = {
 };
 
 describe('refreshReplayWindowMs', () => {
-  it('defaults to ten seconds', () => {
-    expect(refreshReplayWindowMs({})).toBe(10_000);
-    expect(refreshReplayWindowMs({ REFRESH_REPLAY_WINDOW_SECONDS: ' ' })).toBe(10_000);
+  it('defaults to five seconds', () => {
+    expect(refreshReplayWindowMs({})).toBe(5_000);
+    expect(refreshReplayWindowMs({ REFRESH_REPLAY_WINDOW_SECONDS: ' ' })).toBe(5_000);
   });
 
   it('reads the configured window and caps it at a minute', () => {
-    expect(refreshReplayWindowMs({ REFRESH_REPLAY_WINDOW_SECONDS: '5' })).toBe(5_000);
+    expect(refreshReplayWindowMs({ REFRESH_REPLAY_WINDOW_SECONDS: '12' })).toBe(12_000);
     expect(refreshReplayWindowMs({ REFRESH_REPLAY_WINDOW_SECONDS: '3600' })).toBe(60_000);
   });
 

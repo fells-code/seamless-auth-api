@@ -8,7 +8,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'crypt
 
 import { authSecret } from '../config/authSecrets.js';
 
-const DEFAULT_WINDOW_SECONDS = 10;
+const DEFAULT_WINDOW_SECONDS = 5;
 const MAX_WINDOW_SECONDS = 60;
 
 /** How many times a rotated refresh token may be answered again inside the window. */

@@ -34,7 +34,6 @@ beforeAll(async () => {
     ISSUER: 'http://localhost:5312',
     DISABLE_AUTH_RATE_LIMITS: 'true',
     SEAMLESS_DEV_KEYS_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'seamless-keys-')),
-    REFRESH_REPLAY_WINDOW_SECONDS: '10',
   });
 
   await initializeModels();
@@ -174,7 +173,7 @@ describe('the refresh replay window (#598)', () => {
     const { user, refreshToken, sessionId } = await signIn();
 
     const rotated = await refresh(refreshToken);
-    await ageRotation(sessionId, 11_000);
+    await ageRotation(sessionId, 6_000);
 
     const late = await refresh(refreshToken);
 
