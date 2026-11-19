@@ -22,6 +22,7 @@ import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import { AdapterRouteDeclaration, registerAdapterRoute } from './adapterManifest.js';
 import { expressToOpenAPI } from './convertPath.js';
+import { holdResponseToFloor } from './responseFloor.js';
 import { InferRequest, RouteSchemas } from './routeTypes.js';
 import { generateExample } from './zodExample.js';
 
@@ -46,6 +47,13 @@ interface DefineRouteOptions<S extends RouteSchemas> {
    * enroll a new factor, manage recovery codes, read itself and sign out.
    */
   allowRecoverySession?: boolean;
+
+  /**
+   * Holds every answer to the pre-auth response floor (`responseFloor.ts`). Always on for
+   * ephemeral routes; set it on a public route that answers differently for a real
+   * account and an unknown one.
+   */
+  responseFloor?: boolean;
 
   /**
    * What a server adapter does with this route. Required on public and ephemeral
@@ -426,6 +434,10 @@ export function defineRoute<S extends RouteSchemas>(
   };
 
   const middlewareStack: RequestHandler[] = [];
+
+  if (authType === 'ephemeral' || options.responseFloor) {
+    middlewareStack.push(holdResponseToFloor);
+  }
 
   if (auth) {
     middlewareStack.push(

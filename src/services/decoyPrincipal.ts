@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license information
  */
 
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 import { authSecret } from '../config/authSecrets.js';
 import { User } from '../models/users.js';
@@ -36,6 +36,8 @@ const DECOY_EMAIL_INFO = 'seamless-auth/decoy-email';
 const DECOY_PHONE_INFO = 'seamless-auth/decoy-phone';
 const DECOY_CREDENTIAL_INFO = 'seamless-auth/decoy-credential';
 const DECOY_SHAPE_INFO = 'seamless-auth/decoy-shape';
+const DECOY_REGISTRATION_SEED_INFO = 'seamless-auth/decoy-registration-seed';
+const DECOY_REGISTRATION_TAG_INFO = 'seamless-auth/decoy-registration-tag';
 
 /** A decoy subject derived from a guessable key is not a decoy, so production requires one. */
 function decoySecret() {
@@ -83,6 +85,54 @@ export function decoySubjectFor(identifier: string, identifierType: DecoyIdentif
   );
 }
 
+/** Bytes 9 to 15 of a registration decoy subject; the version and variant bits are before it. */
+const REGISTRATION_TAG_OFFSET = 9;
+
+function registrationTagFor(seed: Buffer) {
+  return derive(DECOY_REGISTRATION_TAG_INFO, seed.toString('hex')).subarray(
+    0,
+    16 - REGISTRATION_TAG_OFFSET,
+  );
+}
+
+/**
+ * The subject `/registration/register` answers with for an address that already belongs
+ * to a verified account, in place of that account's id.
+ *
+ * Stable per address, as a real account's id is across repeated registrations, and
+ * distinct from the subject `/login` derives, so the two cannot be matched against each
+ * other. Its tail is a keyed tag over its head, which is how a continuation recognises it
+ * as a registration decoy and answers as an unverified sign-up would, from the subject
+ * alone. Without the key the tag reads as the random bytes it replaces.
+ */
+export function registrationDecoySubjectFor(email: string) {
+  const bytes = Buffer.from(
+    derive(DECOY_REGISTRATION_SEED_INFO, email.toLowerCase()).subarray(0, 16),
+  );
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  registrationTagFor(bytes.subarray(0, REGISTRATION_TAG_OFFSET)).copy(
+    bytes,
+    REGISTRATION_TAG_OFFSET,
+  );
+
+  return formatAsUuidV4(bytes);
+}
+
+export function isRegistrationDecoySubject(subject: string) {
+  const hex = subject.replace(/-/g, '');
+
+  if (!/^[0-9a-f]{32}$/i.test(hex)) return false;
+
+  const bytes = Buffer.from(hex, 'hex');
+
+  return timingSafeEqual(
+    registrationTagFor(bytes.subarray(0, REGISTRATION_TAG_OFFSET)),
+    bytes.subarray(REGISTRATION_TAG_OFFSET),
+  );
+}
+
 /**
  * A decoy carries a synthetic email and phone because the identity-keyed rate limiters
  * read `req.user.email` and `req.user.phone`. Left undefined they would fall back to an
@@ -125,9 +175,10 @@ export interface DecoyPrincipal {
   email: string;
   phone: string | null;
   roles: string[];
-  verified: true;
-  emailVerified: true;
-  phoneVerified: true;
+  /** False only for a registration decoy, which stands in for an unclaimed sign-up. */
+  verified: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   revoked: false;
   /**
    * Whether this decoy "has" a passkey, for the purpose of the method list `/login`
@@ -162,6 +213,7 @@ function decoyShapeBit(subject: string, index: number) {
 
 export function decoyPrincipalForSubject(subject: string): DecoyPrincipal {
   const hasPhone = decoyShapeBit(subject, 1);
+  const claimed = !isRegistrationDecoySubject(subject);
 
   return {
     id: subject,
@@ -170,11 +222,12 @@ export function decoyPrincipalForSubject(subject: string): DecoyPrincipal {
     // phone_otp, is not distinguishable from a decoy on that basis either.
     phone: hasPhone ? decoyPhoneFor(subject) : null,
     roles: [],
-    verified: true,
-    emailVerified: true,
-    phoneVerified: true,
+    verified: claimed,
+    emailVerified: claimed,
+    phoneVerified: claimed,
     revoked: false,
-    hasPasskey: decoyShapeBit(subject, 0),
+    // A sign-up cannot hold a passkey before it is claimed.
+    hasPasskey: claimed && decoyShapeBit(subject, 0),
     prfCapable: decoyShapeBit(subject, 2),
     transports: decoyShapeBit(subject, 3) ? ['internal', 'hybrid'] : ['usb', 'nfc'],
   };

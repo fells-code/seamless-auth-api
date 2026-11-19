@@ -4,7 +4,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { decoyPrincipalForSubject, decoySubjectFor } from '../../../src/services/decoyPrincipal.js';
+import {
+  decoyPrincipalForSubject,
+  decoySubjectFor,
+  registrationDecoySubjectFor,
+} from '../../../src/services/decoyPrincipal.js';
 
 /**
  * A decoy is only worth issuing if the thirteen endpoints that accept a pre-auth token
@@ -102,16 +106,15 @@ describe('decoy continuation: OTP', () => {
     expect(res.body.token).toBe('decoy-token');
   });
 
-  it('answers a phoneless decoy the way a phoneless account is answered', async () => {
+  it('answers a phoneless decoy as a send, as a phoneless account is answered', async () => {
     principal = PHONELESS_DECOY;
 
     const res = await request(app).get('/otp/generate-phone-otp');
 
-    // About half of decoys are shaped without a phone so that a narrow login method list
-    // proves nothing. Those have to answer 400 here like a real phoneless account, or
-    // the shape that was hiding them becomes the thing that shows them.
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'Invalid data' });
+    // A sign-up's phone is whatever its registrant submitted, which a decoy cannot know,
+    // so a real account with no phone answers as a send here too.
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: 'success', token: 'decoy-token' });
   });
 
   it('never sends a real message for a decoy', async () => {
@@ -185,6 +188,55 @@ describe('decoy continuation: OTP', () => {
 
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'login_method_disabled' });
+  });
+});
+
+/**
+ * `/registration/register` answers a verified account's address with a registration
+ * decoy, which stands in for a sign-up nobody has claimed. Where the real handlers branch
+ * on whether an account is verified, it has to land on the unverified side.
+ */
+describe('decoy continuation: registration decoy', () => {
+  function findRegistrationDecoy(withPhone: boolean) {
+    for (let i = 0; i < 500; i += 1) {
+      const candidate = decoyPrincipalForSubject(registrationDecoySubjectFor(`probe${i}@x.com`));
+
+      if ((candidate.phone !== null) === withPhone) return candidate;
+    }
+
+    throw new Error('no registration decoy of that shape found');
+  }
+
+  it.each([
+    ['/otp/generate-email-otp', 'get', 200, { message: 'success', token: 'decoy-token' }],
+    ['/otp/verify-email-otp', 'post', 401, { error: 'Not allowed' }],
+  ] as const)(
+    'keeps %s open when email OTP is not a login method, as for a sign-up',
+    async (path, method, status, body) => {
+      principal = findRegistrationDecoy(false);
+      (getSystemConfig as any).mockResolvedValue({
+        login_methods: ['passkey', 'magic_link'],
+        passkey_login_fallback_enabled: true,
+      });
+
+      const res =
+        method === 'get'
+          ? await request(app).get(path)
+          : await request(app).post(path).send({ verificationToken: '123456' });
+
+      expect(res.status).toBe(status);
+      expect(res.body).toEqual(body);
+    },
+  );
+
+  it('refuses a login code to the unverified phone it stands in for', async () => {
+    principal = findRegistrationDecoy(true);
+
+    const res = await request(app).get('/otp/generate-login-phone-otp');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid data' });
+    expect(generatePhoneOTP).not.toHaveBeenCalled();
   });
 });
 

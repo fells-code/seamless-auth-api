@@ -26,6 +26,7 @@ registrationRouter.post(
   '/register',
   {
     adapter: { issues: 'registration', delivery: true },
+    responseFloor: true,
     summary: 'Register a new user',
     tags: ['Registration'],
     middleware: [otpIpLimiter, otpIdentityLimiter],

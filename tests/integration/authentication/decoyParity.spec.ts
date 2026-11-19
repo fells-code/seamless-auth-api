@@ -4,7 +4,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
-import { decoyPrincipalForSubject, decoySubjectFor } from '../../../src/services/decoyPrincipal.js';
+import {
+  decoyPrincipalForSubject,
+  decoySubjectFor,
+  registrationDecoySubjectFor,
+} from '../../../src/services/decoyPrincipal.js';
 
 /**
  * Runs the same request through each pre-auth route twice, once as a real account and
@@ -45,6 +49,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
 
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 
+import { signEphemeralToken } from '../../../src/lib/token.js';
 import { Credential } from '../../../src/models/credentials.js';
 import { MagicLinkToken } from '../../../src/models/magicLinks.js';
 import { User } from '../../../src/models/users.js';
@@ -195,5 +200,48 @@ describe('pre-auth parity: magic link polling', () => {
     );
 
     expect(real.status).toBe(204);
+  });
+});
+
+/**
+ * Whether a sign-up has a phone is up to whoever registered it, and a registration decoy
+ * cannot remember what was submitted. Every shape on either side has to answer alike.
+ */
+describe('pre-auth parity: registration phone OTP for an unclaimed sign-up', () => {
+  const registrationDecoys = [true, false].map((withPhone) => {
+    for (let i = 0; i < 500; i += 1) {
+      const candidate = decoyPrincipalForSubject(registrationDecoySubjectFor(`reg${i}@x.com`));
+
+      if ((candidate.phone !== null) === withPhone) return candidate;
+    }
+
+    throw new Error('no registration decoy of that shape found');
+  });
+
+  const signUps = [
+    buildUser({ verified: false, phone: '+14155552671', phoneVerified: false }),
+    buildUser({ verified: false, phone: null }),
+  ];
+
+  it('answers every sign-up and every registration decoy alike', async () => {
+    (signEphemeralToken as any).mockResolvedValue('token');
+
+    const answers = [];
+
+    for (const user of signUps) {
+      caller = { user, decoy: false };
+      const res = await request(app).get('/otp/generate-phone-otp');
+      answers.push({ status: res.status, body: res.body });
+    }
+
+    for (const user of registrationDecoys) {
+      caller = { user, decoy: true };
+      const res = await request(app).get('/otp/generate-phone-otp');
+      answers.push({ status: res.status, body: res.body });
+    }
+
+    expect(answers).toEqual(
+      answers.map(() => ({ status: 200, body: { message: 'success', token: 'token' } })),
+    );
   });
 });

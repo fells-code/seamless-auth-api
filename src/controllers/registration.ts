@@ -16,6 +16,7 @@ import { reviewAccountMetadata } from '../lib/reviewAccounts.js';
 import { signEphemeralToken } from '../lib/token.js';
 import { User } from '../models/users.js';
 import { AuthEventService } from '../services/authEventService.js';
+import { registrationDecoySubjectFor } from '../services/decoyPrincipal.js';
 import { DeliveryError } from '../services/deliveryError.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -178,6 +179,30 @@ export const register = async (req: Request, res: Response) => {
         logger.info('Registration raced another request for the same address');
         user = raced;
       }
+    }
+
+    // The owner's id, a token over it and a code in their inbox would let a caller match
+    // this answer against `/login`'s and learn the account exists, and nothing a stranger
+    // can type should reach the owner. Answered as a sign-up nobody has claimed instead,
+    // with no delivery block, which is how every decoy answers in external mode.
+    if (!created && user.verified) {
+      await AuthEventService.log({
+        userId: user.id,
+        attemptId,
+        subjectEmail: user.email,
+        type: 'informational',
+        req,
+        metadata: { reason: 'Attempted registration with exisiting account.', decoy: true },
+      });
+
+      const subject = registrationDecoySubjectFor(normalizedEmail);
+
+      return res.status(200).json({
+        message: 'Success',
+        sub: subject,
+        token: await signEphemeralToken(subject, attemptId),
+        ttl: EPHEMERAL_TOKEN_TTL_SECONDS,
+      });
     }
 
     let token;
