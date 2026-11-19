@@ -15,6 +15,7 @@ import {
 import { constants, sign } from 'crypto';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
+import type { OidcClient } from '../models/oidcClients.js';
 import { Session } from '../models/sessions.js';
 import { parseDurationToSeconds } from '../utils/utils.js';
 import {
@@ -23,8 +24,17 @@ import {
   providerTokenClaims,
 } from './oidcAccountClaims.js';
 import { deriveAcrAmr, resolveCurrentSession, sessionAuthTime } from './oidcAuthContext.js';
-import { findActiveOidcClient, getOidcClientResourceScopes } from './oidcClientRegistry.js';
-import { hasOidcGrantForSession, recordSessionExchangeToken } from './oidcPayloadStore.js';
+import {
+  findActiveOidcClient,
+  getOidcClientResourceScopes,
+  servedGrantTypes,
+} from './oidcClientRegistry.js';
+import {
+  claimSessionExchangeSource,
+  hasOidcGrantForSession,
+  recordSessionExchangeToken,
+  type SessionExchangeSourceModel,
+} from './oidcPayloadStore.js';
 import { getActiveOidcSigningKey, OidcProviderKeysError } from './oidcProviderKeys.js';
 
 type JsonObject = Record<string, unknown>;
@@ -48,6 +58,10 @@ const MAX_SESSION_EXCHANGE_TOKEN_SECONDS = 120;
 // A token the user just signed in for. A refresh is not a sign-in, and the record has to
 // say which grant to treat the child as.
 const SESSION_EXCHANGE_GRANTS = new Set(['authorization_code', DEVICE_CODE_GRANT]);
+const SESSION_EXCHANGE_SOURCE_GRANTS: Record<SessionExchangeSourceModel, string> = {
+  AuthorizationCode: 'authorization_code',
+  DeviceCode: DEVICE_CODE_GRANT,
+};
 
 const PROTOCOL_CLAIMS = [
   'iss',
@@ -301,13 +315,13 @@ export async function recordProviderActivity(sessionId: string) {
 async function checkUserToken(
   request: OidcSignRequest,
   claims: JsonObject,
-  client: { id: string; grantTypes: string[]; firstParty: boolean; deviceFlowEnabled: boolean },
+  client: OidcClient,
   issuer: string,
 ): Promise<OidcSignOutcome | null> {
   const device = request.grantType === DEVICE_CODE_GRANT;
   if (
     !request.grantType ||
-    !client.grantTypes.includes(request.grantType) ||
+    !servedGrantTypes(client).includes(request.grantType) ||
     (device && !(client.firstParty && client.deviceFlowEnabled))
   ) {
     return refuse('grant_not_allowed');
@@ -415,12 +429,12 @@ async function checkAccountClaims(
 }
 
 /** ADR 0003, X2: a token useful nowhere else, that lives briefly and can be told apart. */
-function checkSessionExchangeToken(
+async function checkSessionExchangeToken(
   request: OidcSignRequest,
   claims: JsonObject,
   issuer: string,
   userId: string,
-): OidcSignOutcome | null {
+): Promise<OidcSignOutcome | null> {
   if (claims.aud !== seamlessBuiltInResource(issuer)) return refuse('audience_mismatch', userId);
   if (claims.scope !== SESSION_EXCHANGE_SCOPE) return refuse('grant_not_allowed', userId);
   if (!SESSION_EXCHANGE_GRANTS.has(request.grantType as string)) {
@@ -436,6 +450,13 @@ function checkSessionExchangeToken(
     (claims.exp as number) - now > MAX_SESSION_EXCHANGE_TOKEN_SECONDS
   ) {
     return refuse('malformed_signing_input', userId);
+  }
+
+  // The grant the edge reports is checked against the code the sign-in consumed, so a refresh
+  // reported as a sign-in, by an edge of any version, finds no code to claim.
+  const source = await claimSessionExchangeSource(request.sessionId as string, request.clientId);
+  if (!source || SESSION_EXCHANGE_SOURCE_GRANTS[source] !== request.grantType) {
+    return refuse('grant_not_allowed', userId);
   }
 
   return null;

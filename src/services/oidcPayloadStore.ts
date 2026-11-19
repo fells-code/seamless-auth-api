@@ -223,6 +223,59 @@ export async function recordSessionExchangeToken(
   }
 }
 
+// Under a model the edge's payload routes cannot name, so it cannot pre-claim or release a code.
+const SESSION_EXCHANGE_SOURCE = 'SessionExchangeSource';
+
+/** The library consumes the code and signs the token in the one token request. */
+export const SESSION_EXCHANGE_SOURCE_WINDOW_MS = 1000 * 60;
+
+const SESSION_EXCHANGE_SOURCE_MODELS = ['AuthorizationCode', 'DeviceCode'] as const;
+export type SessionExchangeSourceModel = (typeof SESSION_EXCHANGE_SOURCE_MODELS)[number];
+
+/**
+ * ADR 0003, X2. A session exchange token is minted only by a sign-in, so it must be backed by
+ * an authorization or device code for this session and client that the edge consumed in the
+ * same token request. Each code backs at most one token. A refresh consumes no code, so it
+ * finds nothing to claim whatever grant the edge reports. Returns the model of the code
+ * claimed, or null.
+ */
+export async function claimSessionExchangeSource(
+  sessionId: string,
+  clientId: string,
+): Promise<SessionExchangeSourceModel | null> {
+  if (!isUuid(sessionId)) return null;
+
+  const now = new Date();
+  const codes = await OidcPayload.findAll({
+    where: {
+      model: { [Op.in]: [...SESSION_EXCHANGE_SOURCE_MODELS] },
+      sessionId,
+      payload: { clientId },
+      consumedAt: { [Op.gte]: new Date(now.getTime() - SESSION_EXCHANGE_SOURCE_WINDOW_MS) },
+    } as WhereOptions<OidcPayloadAttributes>,
+    order: [['consumedAt', 'DESC']],
+  });
+
+  // A claim outlives the window, so a code is never claimable twice.
+  const expiresAt = new Date(now.getTime() + 2 * SESSION_EXCHANGE_SOURCE_WINDOW_MS);
+  for (const code of codes) {
+    if (code.payload.clientId !== clientId) continue;
+    if (
+      await insertIfAbsent(
+        SESSION_EXCHANGE_SOURCE,
+        `${code.model}:${code.id}`,
+        { sessionId, clientId },
+        expiresAt,
+        now,
+      )
+    ) {
+      return code.model as SessionExchangeSourceModel;
+    }
+  }
+
+  return null;
+}
+
 function findBinding(where: Record<string, unknown>) {
   return OidcPayload.findOne({
     where: {

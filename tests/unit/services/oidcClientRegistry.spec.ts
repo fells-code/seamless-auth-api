@@ -144,6 +144,26 @@ describe('getOidcClientMetadata', () => {
     expect((await getOidcClientMetadata('app'))?.grant_types).toEqual(['refresh_token']);
   });
 
+  it('lists no refresh grant for a session exchange client', async () => {
+    const exchange = {
+      clientType: 'public',
+      tokenEndpointAuthMethod: 'none',
+      redirectUris: ['http://127.0.0.1/callback'],
+      sessionExchangeEnabled: true,
+    };
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(client(exchange) as never);
+    expect((await getOidcClientMetadata('app'))?.grant_types).toEqual(['authorization_code']);
+
+    vi.mocked(OidcClient.findByPk).mockResolvedValue(
+      client({ ...exchange, sessionExchangeEnabled: false }) as never,
+    );
+    expect((await getOidcClientMetadata('app'))?.grant_types).toEqual([
+      'authorization_code',
+      'refresh_token',
+    ]);
+  });
+
   it.each(['http://127.0.0.1/cb', 'http://[::1]/cb', 'com.example.app:/cb'])(
     'treats %s as a native redirect',
     async (uri) => {
