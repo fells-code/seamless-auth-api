@@ -229,6 +229,7 @@ describe('GET /magic-link', () => {
     expect(url.searchParams.has('code')).toBe(false);
     expect(created.code_hash).toBe(hashSha256(code!));
     expect(created.token_hash).toBe(hashSha256(res.body.delivery.token));
+    expect(created.redirect_url).not.toContain('#');
   });
 
   it('refuses a requested target outside the configured origins', async () => {

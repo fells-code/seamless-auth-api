@@ -152,7 +152,8 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     user_id: user.id,
     token_hash: tokenHash,
     code_hash: hashSha256(rawCode),
-    redirect_url,
+    // Without the fragment, so a read of this table yields no code to confirm with.
+    redirect_url: redirect_url.split('#')[0],
     ip_hash,
     user_agent_hash,
     attempt_id: authReq.attemptId,
