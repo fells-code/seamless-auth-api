@@ -75,9 +75,68 @@ export class OidcServiceTokenReuseError extends Error {
   }
 }
 
+export const MIN_SERVICE_TOKEN_BYTES = 32;
+
 /**
- * Boot-time check: throws on conflicting values so a misconfigured instance refuses to
- * start, and notes once when only the legacy name is in use.
+ * Values that have shipped in compose files, examples, templates and docs. Several are
+ * long enough to pass the length check, so a deployment that kept one would otherwise boot.
+ */
+export const KNOWN_DEFAULT_SERVICE_TOKENS: readonly string[] = [
+  'local-development-service-token-not-for-deployment',
+  'verify-dev-service-token-not-a-real-secret',
+  'local-dev-service-token-at-least-32-chars',
+  'GRAB_FROM_SEAMLESS_AUTH_PORTAL_DEV',
+  'GRAB_FROM_SEAMLESS_AUTH_PORTAL',
+  '32-byte-hex-string',
+];
+
+const PLACEHOLDER_MARKERS = ['replace-me', 'not-for-deployment', 'not-a-real-secret', 'changeme'];
+
+export function isKnownDefaultServiceToken(value: string): boolean {
+  const lower = value.toLowerCase();
+  return (
+    KNOWN_DEFAULT_SERVICE_TOKENS.some((known) => known.toLowerCase() === lower) ||
+    PLACEHOLDER_MARKERS.some((marker) => lower.includes(marker))
+  );
+}
+
+export class WeakServiceTokenError extends Error {
+  constructor(source: ServiceTokenSource, reason: 'short' | 'default') {
+    const why =
+      reason === 'short'
+        ? `is shorter than ${MIN_SERVICE_TOKEN_BYTES} bytes`
+        : 'is a published default or placeholder value';
+    super(
+      `${source} ${why}. It is the key that signs service tokens, so anyone who can guess it ` +
+        'can call the API as a trusted adapter. Generate one with: openssl rand -base64 48',
+    );
+    this.name = 'WeakServiceTokenError';
+  }
+}
+
+/**
+ * Production only: local stacks and the test suite keep short fixed values, and development
+ * mode is refused off localhost unless SEAMLESS_ALLOW_INSECURE_DEV is set.
+ */
+export function assertServiceTokenStrength(
+  resolved: ResolvedServiceToken,
+  env: EnvSource = process.env,
+) {
+  if (env.NODE_ENV !== 'production' || !resolved.value || !resolved.source) return;
+
+  if (Buffer.byteLength(resolved.value, 'utf8') < MIN_SERVICE_TOKEN_BYTES) {
+    throw new WeakServiceTokenError(resolved.source, 'short');
+  }
+
+  if (isKnownDefaultServiceToken(resolved.value)) {
+    throw new WeakServiceTokenError(resolved.source, 'default');
+  }
+}
+
+/**
+ * Boot-time check: throws on conflicting values, and in production on a weak or default
+ * value, so a misconfigured instance refuses to start. Notes once when only the legacy
+ * name is in use.
  */
 export function assertServiceTokenConfig(env: EnvSource = process.env) {
   const resolved = resolveServiceToken(env);
@@ -87,6 +146,8 @@ export function assertServiceTokenConfig(env: EnvSource = process.env) {
   if (oidc && (oidc === resolved.value || oidc === legacy)) {
     throw new OidcServiceTokenReuseError();
   }
+
+  assertServiceTokenStrength(resolved, env);
 
   if (resolved.source === LEGACY_SERVICE_TOKEN_ENV) {
     logger.info(
