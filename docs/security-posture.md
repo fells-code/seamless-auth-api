@@ -389,9 +389,8 @@ Two kinds of request are deliberately not refused:
 The refusal carries no `Access-Control-Allow-Origin` header. Naming an allowed origin to a caller
 that is not one discloses part of the allowlist and helps the browser not at all.
 
-The refusal is recorded as one `request_suspicious` auth event with the real client address and user
-agent, and the rejected origin in an `origin` metadata field. It used to be recorded with the origin
-string in the `ipAddress` field, which made the trail hard to read.
+The refusal writes no audit event. Any caller can send any `Origin`, so it is counted instead; see
+[Refusals at the auth gate](#refusals-at-the-auth-gate).
 
 ## Refresh rotation
 
@@ -825,6 +824,28 @@ worth reading.
 Widening this waits on retention and bulk export
 ([issue #173](https://github.com/fells-code/seamless-auth-api/issues/173)). Until a window
 can be pruned, a high-volume event type costs the trail more than it adds.
+
+### Other free refusals
+
+The same rule holds outside the bearer gate. These answer exactly as before but write no
+audit event:
+
+- a request from an origin `APP_ORIGINS` does not allow (`403`)
+- a request to a route that does not exist (`404`)
+- `POST /refresh` with no bearer token, or with one that matches no session (`401`)
+
+Each audit row is part of the hash chain, and writing one takes the chain head row lock, so
+a scanner at the general rate limit used to grow the trail and queue real sign-ins behind
+its writes. These refusals are counted in process instead, and each instance logs a
+one-line summary (`Unauthenticated refusals in the last 60s: ...`) at most once a minute,
+when it sees one. Alert on that line, not on the trail.
+
+A refresh token that does match a session is still recorded as `refresh_token_failed`,
+against that session and its user, whether the session expired, idled out or was revoked.
+This server issued that token, so the row names somebody.
+
+Where audit rows are still written, the caller-chosen parts are capped: the stored user
+agent at 512 characters, and the route a refused bearer records at 256.
 
 ### The subject is metadata, not `user_id`
 

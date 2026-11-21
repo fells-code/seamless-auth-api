@@ -16,7 +16,7 @@ import { logRoute } from './middleware/routeLogger.js';
 import { dynamicSlowDown } from './middleware/slowDown.js';
 import { applyTrustedClientContext } from './middleware/trustedClientContext.js';
 import { generateOpenApiDocument } from './openapi/document.js';
-import { AuthEventService } from './services/authEventService.js';
+import { countUnauthenticatedRefusal } from './services/unauthenticatedRefusals.js';
 import getLogger from './utils/logger.js';
 
 const logger = getLogger('app');
@@ -145,12 +145,7 @@ export async function createApp() {
 
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     if (err.message === CORS_REJECTION) {
-      // Recorded here rather than in the delegate so the event carries the real
-      // client address and user agent, with the origin in a field that says origin.
-      void AuthEventService.requestSuspicious(req, {
-        reason: 'Request from an unexpected origin',
-        origin: req.headers.origin ?? null,
-      });
+      countUnauthenticatedRefusal('cors_origin_refused');
       // No Access-Control-Allow-Origin: naming an allowed origin to a caller that
       // is not one tells it part of the allowlist and helps the browser not at all.
       return res.status(403).json({ message: 'CORS policy does not allow this origin.' });
@@ -175,14 +170,7 @@ export async function createApp() {
   });
 
   app.use((req: Request, res: Response) => {
-    logger.warn(
-      `[${req.ip}] ${req.method} ${req.originalUrl} did not match any route. Tracking suspicious behavior`,
-    );
-    void AuthEventService.requestSuspicious(req, {
-      reason: 'Request to an unknown route.',
-      method: req.method,
-      path: req.originalUrl,
-    });
+    countUnauthenticatedRefusal('unknown_route');
     return res.status(404).json({ error: 'Not Found' });
   });
 

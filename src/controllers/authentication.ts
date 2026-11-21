@@ -51,6 +51,7 @@ import {
   replayRefreshRotation,
   revokeSessionChain,
 } from '../services/sessionService.js';
+import { countUnauthenticatedRefusal } from '../services/unauthenticatedRefusals.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
 import {
@@ -650,7 +651,7 @@ export const refreshSession = async (req: Request, res: Response) => {
 
   if (!refreshToken) {
     logger.error('Refresh token provided is not of expected type for auth server configurations');
-    await AuthEventService.refreshTokenFailed(req, { reason: 'Missing refresh token' });
+    countUnauthenticatedRefusal('refresh_token_missing');
     res.status(401).json({ error: 'Not allowed' });
     return;
   }
@@ -691,11 +692,18 @@ export const refreshSession = async (req: Request, res: Response) => {
           chainStartedAt: (presented.chainStartedAt ?? presented.createdAt)?.toISOString(),
         },
       });
-    } else {
-      await AuthEventService.refreshTokenFailed(req, {
-        reason: 'No refresh session found for refresh token',
-        tokenFormat: looksLikeJwt ? 'jwt_like' : 'opaque',
+    } else if (presented) {
+      await AuthEventService.log({
+        userId: presented.userId,
+        sessionId: presented.id,
+        type: 'refresh_token_failed',
+        req,
+        metadata: { reason: 'Refresh session revoked', refusal: 'revoked' },
       });
+    } else {
+      // Matches no session, so anybody could have sent it. A token this server issued
+      // and later revoked is still recorded, above.
+      countUnauthenticatedRefusal('refresh_token_unknown');
     }
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }

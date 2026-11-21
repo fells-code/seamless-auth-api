@@ -75,14 +75,6 @@ describe('Health Routes', () => {
     const res = await request(app).get('/health/unknown');
 
     expect(res.status).toBe(404);
-    expect(AuthEventService.requestSuspicious).toHaveBeenCalledWith(
-      expect.objectContaining({
-        originalUrl: '/health/unknown',
-      }),
-      expect.objectContaining({
-        reason: 'Request to an unknown route.',
-        path: '/health/unknown',
-      }),
-    );
+    expect(AuthEventService.requestSuspicious).not.toHaveBeenCalled();
   });
 });
