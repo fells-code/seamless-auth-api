@@ -6,6 +6,10 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  getUnauthenticatedRefusalCounts,
+  resetUnauthenticatedRefusalsForTests,
+} from '../../../src/services/unauthenticatedRefusals.js';
 import { buildUser } from '../../factories/userFactory.js';
 
 function mockReqRes(authorization?: string) {
@@ -61,6 +65,7 @@ async function loadAuthenticationModule() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetUnauthenticatedRefusalsForTests();
 });
 
 describe('refreshSession', () => {
@@ -70,12 +75,9 @@ describe('refreshSession', () => {
 
     await refreshSession(req, res);
 
-    expect(AuthEventService.refreshTokenFailed).toHaveBeenCalledWith(
-      req,
-      expect.objectContaining({
-        reason: 'Missing refresh token',
-      }),
-    );
+    expect(AuthEventService.refreshTokenFailed).not.toHaveBeenCalled();
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+    expect(getUnauthenticatedRefusalCounts()).toEqual({ refresh_token_missing: 1 });
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
@@ -91,14 +93,38 @@ describe('refreshSession', () => {
     await refreshSession(req, res);
 
     expect(findRefreshSessionByToken).toHaveBeenCalledWith('raw-refresh-token');
-    expect(AuthEventService.refreshTokenFailed).toHaveBeenCalledWith(
-      req,
+    expect(AuthEventService.refreshTokenFailed).not.toHaveBeenCalled();
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+    expect(getUnauthenticatedRefusalCounts()).toEqual({ refresh_token_unknown: 1 });
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });
+  });
+
+  it('still records a revoked session it issued, against its user', async () => {
+    const { refreshSession, AuthEventService, findRefreshSessionByToken } =
+      await loadAuthenticationModule();
+    const { req, res } = mockReqRes('Bearer raw-refresh-token');
+
+    (findRefreshSessionByToken as any).mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-1',
+      replacedBySessionId: null,
+      revokedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+      idleExpiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await refreshSession(req, res);
+
+    expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        reason: 'No refresh session found for refresh token',
-        tokenFormat: 'opaque',
+        userId: 'user-1',
+        sessionId: 'session-1',
+        type: 'refresh_token_failed',
+        metadata: { reason: 'Refresh session revoked', refusal: 'revoked' },
       }),
     );
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(getUnauthenticatedRefusalCounts()).toEqual({});
     expect(res.json).toHaveBeenCalledWith({ error: 'invalid_refresh_token' });
   });
 

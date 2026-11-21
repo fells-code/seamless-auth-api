@@ -14,11 +14,16 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('verifyBearerAuth');
 
-/** The matched route pattern, so path parameters do not turn one route into many. */
+const MAX_ROUTE_LABEL_LENGTH = 256;
+
+/**
+ * The matched route pattern, so path parameters do not turn one route into many. Capped,
+ * since without a matched route it falls back to the request path the caller chose.
+ */
 function routeLabel(req: Request): string {
   const pattern = typeof req.route?.path === 'string' ? req.route.path : req.path;
 
-  return `${req.baseUrl ?? ''}${pattern ?? ''}`;
+  return `${req.baseUrl ?? ''}${pattern ?? ''}`.slice(0, MAX_ROUTE_LABEL_LENGTH);
 }
 
 /**

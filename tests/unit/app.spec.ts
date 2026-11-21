@@ -4,6 +4,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import app, { createApp } from '../../src/app.js';
 import { AuthEventService } from '../../src/services/authEventService.js';
+import {
+  getUnauthenticatedRefusalCounts,
+  resetUnauthenticatedRefusalsForTests,
+} from '../../src/services/unauthenticatedRefusals.js';
 
 let built: Awaited<ReturnType<typeof createApp>>;
 
@@ -71,13 +75,18 @@ describe('CORS origin handling', () => {
     expect(res.body).toEqual({ message: 'CORS policy does not allow this origin.' });
     expect(routeRan).not.toHaveBeenCalled();
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
-    expect(AuthEventService.requestSuspicious).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        reason: 'Request from an unexpected origin',
-        origin: 'http://evil.example',
-      }),
-    );
+  });
+
+  // Anybody can send any Origin, so a refusal is counted rather than written to the audit
+  // chain, where each row takes the chain head lock.
+  it('counts a refused origin without writing an audit event', async () => {
+    resetUnauthenticatedRefusalsForTests();
+
+    await request(built).get('/__test_route_ran').set('Origin', 'http://evil.example');
+
+    expect(AuthEventService.requestSuspicious).not.toHaveBeenCalled();
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+    expect(getUnauthenticatedRefusalCounts()).toEqual({ cors_origin_refused: 1 });
   });
 
   it('refuses a preflight from an unknown origin rather than answering it', async () => {
@@ -136,13 +145,14 @@ describe('createApp error handling', () => {
     expect(res.body).toEqual({ error: 'Internal server error' });
   });
 
-  // The 404 handler records the caller as suspicious. A fault on this side is not the
-  // caller misbehaving, and letting it land there put server bugs into the signal the
-  // anomaly views read.
-  it('does not record a server error as suspicious activity', async () => {
+  // A fault on this side is not the caller misbehaving, so it is not counted as an
+  // unknown route either.
+  it('does not count a server error as an unknown route', async () => {
+    resetUnauthenticatedRefusalsForTests();
+
     await request(built).get('/__test_plain_error');
 
-    expect(AuthEventService.requestSuspicious).not.toHaveBeenCalled();
+    expect(getUnauthenticatedRefusalCounts()).toEqual({});
   });
 
   it('falls back to a 500 when the error pipeline itself throws', async () => {
@@ -152,12 +162,16 @@ describe('createApp error handling', () => {
     expect(res.body).toEqual({ error: 'Internal server error' });
   });
 
-  it('returns 404 and records suspicious activity for an unknown route', async () => {
+  it('returns 404 for an unknown route and counts it without writing an audit event', async () => {
+    resetUnauthenticatedRefusalsForTests();
+
     const res = await request(built).get('/__definitely_not_a_route');
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'Not Found' });
-    expect(AuthEventService.requestSuspicious).toHaveBeenCalled();
+    expect(AuthEventService.requestSuspicious).not.toHaveBeenCalled();
+    expect(AuthEventService.log).not.toHaveBeenCalled();
+    expect(getUnauthenticatedRefusalCounts()).toEqual({ unknown_route: 1 });
   });
 });
 
