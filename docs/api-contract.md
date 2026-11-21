@@ -77,23 +77,37 @@ protocol in [ecosystem.md](./ecosystem.md).
 link lands. Omit it and the link keeps the tenant-wide destination, `frontend_url` falling back
 to the first configured origin, which is what every existing caller gets.
 
-A supplied value is validated against the configured `origins` the same way
-`resolveOAuthRedirectUri` validates an OAuth redirect, and a value outside them answers `400`.
-That is what lets one tenant serve a web client and a mobile client without them sharing a
-single destination. The token is set as a `token` query parameter on the target, replacing one
-of that name the caller had already put there.
+A supplied value must match an entry of the `magic_link_redirect_uris` system config key
+exactly. While that key is empty (the default), the only accepted values are the
+`/verify-magiclink` page on `frontend_url` or on one of the configured `origins`, spelled
+exactly, with no query of its own. Anything else answers `400`. Matching on origin alone used to
+let a link land on any page of the site, including one that forwards its URL to a third party.
 
-A destination that cannot be expressed as an origin, a custom scheme such as `myapp://auth` or a
-universal link on a host that is not a WebAuthn origin, goes in the `magic_link_redirect_uris`
-system config key instead. Entries there are matched exactly, which is what makes a custom
-scheme safe to accept: there is no origin to compare, so only a literal an operator listed is
-allowed. The key defaults to `[]`, and an empty list falls back to comparing against `origins`,
-so a deployment that sets nothing behaves as described above.
+A destination that is not that page, a custom scheme such as `myapp://auth`, a universal link on
+a host that is not a WebAuthn origin, or a second path for a mobile client, goes in
+`magic_link_redirect_uris`. Once the list is non-empty it is the whole allowlist, and the
+default verify page is refused unless it is listed too. A tenant that needs a mobile scheme
+should not have to widen `origins`, which gates passkey ceremonies, to get it.
 
-Setting it narrows rather than widens. Once the list is non-empty it is the whole allowlist, and
-a destination on a configured origin that is not listed is refused. That is deliberate: a tenant
-that needs a mobile scheme should not have to widen `origins`, which gates passkey ceremonies, to
-get it.
+### Magic link token and code
+
+The link carries two values: `?token=` in the query and `#code=` in the fragment. Both replace
+any of that name the target already had. The token finds the link; the code proves the person
+reading the email is the one completing it. A fragment is never sent to a server and never
+appears in a `Referer`, so a page that leaks its query string through a third-party request, an
+analytics beacon or an access log hands out a token that cannot sign anyone in.
+
+- `GET /magic-link/verify/:token` describes the link and never consumes it. It always answers
+  `409 confirmation_required` with `requestedFrom` and `sameDevice`, which is true when the link
+  was opened by the attempt that requested it (the forwarded pre-auth bearer, or the IP and user
+  agent a trusted adapter forwards). A client may confirm without asking when it is true.
+- `POST /magic-link/verify/:token/confirm` takes `{ "code": "<value from the fragment>" }` and
+  consumes the link. A request with no code answers `400` from validation; a wrong code answers
+  `400` and spends the link. The requesting device collects the session from
+  `GET /magic-link/check` as before.
+
+The landing page should read both values and drop them from the address bar
+(`history.replaceState`) before it loads anything else.
 
 ### Native and mobile clients
 
@@ -113,7 +127,7 @@ IP forwarding in the path while the app holds the tokens. What a deployment has 
 - **Magic links.** A universal link on the web origin needs nothing extra. A custom scheme goes
   in `magic_link_redirect_uris` (exact match, see above). The app can also skip the link entirely
   and poll `GET /magic-link/check` with the ephemeral token until the session arrives, since
-  `/magic-link/verify/:token` completes the link from whichever device opened it.
+  `/magic-link/verify/:token/confirm` completes the link from whichever device opened it.
 - **OAuth.** A custom-scheme `redirectUri` is accepted when it is on the provider's
   `redirectUris` allowlist. Some providers refuse custom schemes on a web client type; a
   universal link on the web origin's `/oauth/callback` sidesteps that.

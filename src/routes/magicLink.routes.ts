@@ -15,6 +15,7 @@ import { createRouter } from '../lib/createRouter.js';
 import { magicLinkEmailLimiter, magicLinkIpLimiter } from '../middleware/rateLimit.js';
 import { ErrorSchema, InternalErrorSchema, MessageSchema } from '../schemas/generic.responses.js';
 import {
+  MagicLinkConfirmBodySchema,
   MagicLinkRequestQuerySchema,
   MagicLinkVerifyParamsSchema,
 } from '../schemas/magiclink.requests.js';
@@ -103,18 +104,17 @@ magicLinkRouter.get(
     adapter: {},
     summary: 'Verify magic link token',
     description:
-      'Consumes the link when it is opened on the device that requested it, proven by the ' +
-      "requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by " +
-      'the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers ' +
-      '409 without consuming it; ' +
-      'confirm with POST /magic-link/verify/{token}/confirm.',
+      'Describes the link without consuming it, always answering 409 confirmation_required. ' +
+      '`sameDevice` is true when it was opened by the attempt that requested it, proven by ' +
+      "that attempt's ephemeral bearer token when the adapter forwards it, otherwise by the " +
+      'IP address and user agent a trusted adapter forwards. Consume it with ' +
+      'POST /magic-link/verify/{token}/confirm and the code from the link fragment.',
     tags: ['MagicLinks'],
 
     schemas: {
       params: MagicLinkVerifyParamsSchema,
 
       response: {
-        200: MessageSchema,
         403: ErrorSchema,
         400: ErrorSchema,
         409: MagicLinkConfirmationRequiredSchema,
@@ -129,14 +129,16 @@ magicLinkRouter.post(
   '/verify/:token/confirm',
   {
     adapter: {},
-    summary: 'Confirm a magic link opened on another device',
+    summary: 'Confirm a magic link',
     description:
-      'Consumes the link after the person who opened it has approved signing in the device ' +
-      'that requested it.',
+      'Consumes the link, signing in the device that requested it. Takes the `code` the link ' +
+      'carries in its fragment (`#code=`), which never appears in a query string or a ' +
+      'Referer. A wrong code spends the link.',
     tags: ['MagicLinks'],
 
     schemas: {
       params: MagicLinkVerifyParamsSchema,
+      body: MagicLinkConfirmBodySchema,
 
       response: {
         200: MessageSchema,
