@@ -4,9 +4,12 @@ import {
   assertServiceTokenConfig,
   getOidcServiceToken,
   getServiceToken,
+  isKnownDefaultServiceToken,
+  KNOWN_DEFAULT_SERVICE_TOKENS,
   OidcServiceTokenReuseError,
   resolveServiceToken,
   ServiceTokenConflictError,
+  WeakServiceTokenError,
 } from '../../../src/config/serviceToken.js';
 import getLogger from '../../../src/utils/logger.js';
 
@@ -131,5 +134,70 @@ describe('getOidcServiceToken', () => {
     expect(getOidcServiceToken({ SEAMLESS_OIDC_SERVICE_TOKEN: ' ' })).toBeUndefined();
     vi.stubEnv('SEAMLESS_OIDC_SERVICE_TOKEN', 'from-env');
     expect(getOidcServiceToken()).toBe('from-env');
+  });
+});
+
+describe('service token strength in production', () => {
+  const strong = 'q8VfX2m0bN7rT4yK1wZ9cH6jL3pD5sGa';
+
+  it('refuses a token shorter than 32 bytes', () => {
+    expect(() =>
+      assertServiceTokenConfig({ NODE_ENV: 'production', SEAMLESS_SERVICE_TOKEN: strong.slice(1) }),
+    ).toThrow(new WeakServiceTokenError('SEAMLESS_SERVICE_TOKEN', 'short'));
+  });
+
+  it('counts bytes, not characters', () => {
+    expect(() =>
+      assertServiceTokenConfig({ NODE_ENV: 'production', SEAMLESS_SERVICE_TOKEN: 'é'.repeat(16) }),
+    ).not.toThrow();
+  });
+
+  it.each(KNOWN_DEFAULT_SERVICE_TOKENS.filter((value) => value.length >= 32))(
+    'refuses the published default %s',
+    (value) => {
+      expect(() =>
+        assertServiceTokenConfig({ NODE_ENV: 'production', SEAMLESS_SERVICE_TOKEN: value }),
+      ).toThrow(/published default or placeholder/);
+    },
+  );
+
+  it('refuses the compose default through the legacy name, naming that variable', () => {
+    expect(() =>
+      assertServiceTokenConfig({
+        NODE_ENV: 'production',
+        API_SERVICE_TOKEN: 'local-development-service-token-not-for-deployment',
+      }),
+    ).toThrow(/^API_SERVICE_TOKEN is a published default/);
+  });
+
+  it('refuses placeholder markers whatever the case', () => {
+    expect(isKnownDefaultServiceToken('my-service-token-REPLACE-ME-before-launch')).toBe(true);
+    expect(isKnownDefaultServiceToken('grab_from_seamless_auth_portal_dev')).toBe(true);
+    expect(isKnownDefaultServiceToken(strong)).toBe(false);
+  });
+
+  it('accepts a strong token', () => {
+    expect(
+      assertServiceTokenConfig({ NODE_ENV: 'production', SEAMLESS_SERVICE_TOKEN: strong }),
+    ).toEqual({
+      value: strong,
+      source: 'SEAMLESS_SERVICE_TOKEN',
+    });
+  });
+
+  it('leaves an unset token to the presence checks', () => {
+    expect(() => assertServiceTokenConfig({ NODE_ENV: 'production' })).not.toThrow();
+  });
+
+  it('keeps short and default values working outside production', () => {
+    expect(() =>
+      assertServiceTokenConfig({ NODE_ENV: 'development', SEAMLESS_SERVICE_TOKEN: 'devtoken' }),
+    ).not.toThrow();
+    expect(() =>
+      assertServiceTokenConfig({
+        NODE_ENV: 'test',
+        SEAMLESS_SERVICE_TOKEN: 'local-development-service-token-not-for-deployment',
+      }),
+    ).not.toThrow();
   });
 });

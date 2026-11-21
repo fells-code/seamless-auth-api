@@ -94,7 +94,9 @@ is no GitHub artifact attestation for the image, so `gh attestation verify` does
 
 Production deployments should define:
 
-- `SEAMLESS_SERVICE_TOKEN` (the older `API_SERVICE_TOKEN` name is still accepted as a fallback)
+- `SEAMLESS_SERVICE_TOKEN` (the older `API_SERVICE_TOKEN` name is still accepted as a fallback).
+  It is the key that signs service tokens, so the server refuses to start in production when it is
+  shorter than 32 bytes or a published default. Generate one with `openssl rand -base64 48`.
 - `REFRESH_TOKEN_LOOKUP_SECRET`
 - `TOTP_SECRET_ENCRYPTION_KEY`
 - `OAUTH_STATE_SECRET`
