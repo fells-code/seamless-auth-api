@@ -20,6 +20,7 @@ export class MagicLinkToken extends Model<
   declare id: CreationOptional<string>;
   declare user_id: string;
   declare token_hash: string;
+  declare code_hash: string | null;
   declare redirect_url: string | null;
   declare ip_hash: string | null;
   declare user_agent_hash: string | null;
@@ -54,6 +55,10 @@ const initializeMagicTokenModel = (sequelize: Sequelize) => {
         type: DataTypes.TEXT,
         allowNull: false,
         unique: true,
+      },
+      code_hash: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       redirect_url: {
         type: DataTypes.TEXT,

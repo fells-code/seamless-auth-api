@@ -224,10 +224,8 @@ export const decoyRequestMagicLink = async (req: Request, res: Response) => {
   // of one deliberately bad request. The URL the first one builds goes nowhere, since
   // nothing is mailed; the call is made for its refusal.
   try {
-    await resolveMagicLinkUrl(
-      decoyCredentialIdFor(decoySubject(req)),
-      req.query.redirectUri as string | undefined,
-    );
+    const decoyId = decoyCredentialIdFor(decoySubject(req));
+    await resolveMagicLinkUrl(decoyId, decoyId, req.query.redirectUri as string | undefined);
   } catch (error) {
     if (error instanceof MagicLinkRedirectNotAllowedError) {
       return res.status(400).json({ error: 'Redirect URI is not allowed' });

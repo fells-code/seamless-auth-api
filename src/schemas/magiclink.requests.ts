@@ -15,9 +15,18 @@ export { MagicLinkVerifyParamsSchema } from '@seamless-auth/types';
  */
 export const MagicLinkRequestQuerySchema = z.object({
   /**
-   * Where the link should land. Validated against the configured origins, so this cannot
-   * be used to point a link on the tenant's domain at somewhere else. Omit it to keep the
-   * tenant-wide destination.
+   * Where the link should land. Must match an entry of `magic_link_redirect_uris` exactly,
+   * or, when that is empty, the `/verify-magiclink` page on a configured origin. Omit it to
+   * keep the tenant-wide destination.
    */
   redirectUri: z.url().optional(),
+});
+
+/**
+ * The `code` is the value the link carries in its fragment (`#code=`). The query string
+ * holds only the token, so a URL that leaks through a Referer or a log is not enough to
+ * confirm the link.
+ */
+export const MagicLinkConfirmBodySchema = z.object({
+  code: z.string().min(1).max(256),
 });
