@@ -7393,6 +7393,7 @@ export interface paths {
              *         "seq": 0,
              *         "hash": "string"
              *       },
+             *       "headSigned": true,
              *       "firstFailure": {
              *         "seq": 0,
              *         "id": "string",
@@ -7411,11 +7412,17 @@ export interface paths {
                 seq: number;
                 hash: string | null;
               } | null;
+              headSigned: boolean;
               firstFailure: {
                 seq: number;
                 id: string | null;
                 /** @enum {string} */
-                reason: 'hash_mismatch' | 'broken_link' | 'sequence_gap' | 'head_mismatch';
+                reason:
+                  | 'hash_mismatch'
+                  | 'broken_link'
+                  | 'sequence_gap'
+                  | 'head_mismatch'
+                  | 'head_unsigned';
               } | null;
             };
           };

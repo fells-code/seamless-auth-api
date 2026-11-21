@@ -17,6 +17,7 @@ import { initializeModels } from './models/index.js';
 import { LoginHook } from './models/loginHooks.js';
 import { TotpCredential } from './models/totpCredentials.js';
 import { WebhookEndpoint } from './models/webhookEndpoints.js';
+import { warnIfAuditChainKeyUnset } from './services/auditHeadSignature.js';
 import { startAuditMaintenance } from './services/auditRetention.js';
 import { startAuditSinkDelivery } from './services/auditSinkService.js';
 import { warnOnBreakGlassMisconfiguration } from './services/breakGlassService.js';
@@ -42,6 +43,7 @@ async function startServer() {
     assertServiceTokenConfig();
     assertDevModeIsLocal();
     warnIfUnboundOAuthStateSet();
+    warnIfAuditChainKeyUnset();
 
     const models = await initializeModels();
 

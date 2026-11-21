@@ -38,7 +38,7 @@ export interface AuthEventAttributes {
   updated_at?: Date;
 }
 
-type AuthEventCreationAttributes = Optional<
+export type AuthEventCreationAttributes = Optional<
   AuthEventAttributes,
   | 'id'
   | 'created_at'
