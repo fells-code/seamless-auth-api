@@ -559,9 +559,12 @@ reverts it to the environment variable. The value looks correct in the database 
 process restarts. Change it through the admin endpoints, or change the environment variable, rather
 than editing the row.
 
-Reads are cached in-process for five minutes. Both write paths already invalidate that cache, so a
-change through the admin endpoints takes effect immediately; a direct database edit does not, and
-is not visible until the entry expires. See [`getSystemConfig.ts`](../src/config/getSystemConfig.ts).
+Reads are cached in-process. Once a second at most, each instance compares an `md5` of the stored
+rows with the copy it holds and reloads when they differ, so a change made through the admin
+endpoints on any instance, or a direct database edit, applies everywhere within about a second.
+The instance that took an admin write also clears its own cache at once. If that check cannot reach
+the database, the read fails rather than serve a copy it cannot show is current. See
+[`getSystemConfig.ts`](../src/config/getSystemConfig.ts).
 
 ### Policy versions
 

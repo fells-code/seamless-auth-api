@@ -35,6 +35,7 @@ vi.mock('../../src/models/systemConfig.js', () => ({
       // The transaction object carries LOCK because the provider edits read the row
       // FOR UPDATE, so the double has to offer what the real one does.
       transaction: vi.fn((fn: any) => fn({ LOCK: { UPDATE: 'UPDATE' } })),
+      query: vi.fn(async () => [{ fingerprint: '' }]),
     },
   },
 }));
