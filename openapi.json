@@ -7785,6 +7785,7 @@
                   "lastSeq": 0,
                   "anchorHash": "string",
                   "head": { "seq": 0, "hash": "string" },
+                  "headSigned": true,
                   "firstFailure": { "seq": 0, "id": "string", "reason": null }
                 },
                 "schema": {
@@ -7805,6 +7806,7 @@
                       },
                       "required": ["seq", "hash"]
                     },
+                    "headSigned": { "type": "boolean" },
                     "firstFailure": {
                       "type": "object",
                       "nullable": true,
@@ -7813,7 +7815,13 @@
                         "id": { "type": "string", "nullable": true },
                         "reason": {
                           "type": "string",
-                          "enum": ["hash_mismatch", "broken_link", "sequence_gap", "head_mismatch"]
+                          "enum": [
+                            "hash_mismatch",
+                            "broken_link",
+                            "sequence_gap",
+                            "head_mismatch",
+                            "head_unsigned"
+                          ]
                         }
                       },
                       "required": ["seq", "id", "reason"]
@@ -7827,6 +7835,7 @@
                     "lastSeq",
                     "anchorHash",
                     "head",
+                    "headSigned",
                     "firstFailure"
                   ]
                 }
