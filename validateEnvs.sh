@@ -67,6 +67,36 @@ if [ -z "${SEAMLESS_SERVICE_TOKEN:-}" ] && [ -z "${API_SERVICE_TOKEN:-}" ]; then
   exit 1
 fi
 
+# Mirrors assertServiceTokenStrength in src/config/serviceToken.ts, so a weak token stops
+# the container before migrations run. Keep the two lists in step.
+if [ "${NODE_ENV:-development}" = "production" ]; then
+  if [ -n "${SEAMLESS_SERVICE_TOKEN:-}" ]; then
+    token_name="SEAMLESS_SERVICE_TOKEN"
+    token_value="$SEAMLESS_SERVICE_TOKEN"
+  else
+    token_name="API_SERVICE_TOKEN"
+    token_value="$API_SERVICE_TOKEN"
+  fi
+
+  if [ "$(printf '%s' "$token_value" | wc -c | tr -d ' ')" -lt 32 ]; then
+    echo "$token_name is shorter than 32 bytes. Generate one with: openssl rand -base64 48"
+    exit 1
+  fi
+
+  case "$(printf '%s' "$token_value" | tr '[:upper:]' '[:lower:]')" in
+    local-development-service-token-not-for-deployment | \
+      verify-dev-service-token-not-a-real-secret | \
+      local-dev-service-token-at-least-32-chars | \
+      grab_from_seamless_auth_portal_dev | \
+      grab_from_seamless_auth_portal | \
+      32-byte-hex-string | \
+      *replace-me* | *not-for-deployment* | *not-a-real-secret* | *changeme*)
+      echo "$token_name is a published default or placeholder value. Generate one with: openssl rand -base64 48"
+      exit 1
+      ;;
+  esac
+fi
+
 if [ "${NODE_ENV:-development}" = "production" ]; then
   require_var SEAMLESS_JWKS_ACTIVE_KID
   require_var SEAMLESS_JWKS_PUBLIC_KEYS

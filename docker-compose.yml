@@ -59,9 +59,8 @@ services:
       DB_PASSWORD: seamless
       DB_LOGGING: ${DB_LOGGING:-false}
 
-      # Local-only shared secret. Outside development the API derives the refresh-token
-      # lookup, TOTP encryption, and OAuth state secrets from this when they are unset,
-      # so a deployed instance must set real, separate values.
+      # Local-only shared secret. With NODE_ENV=production the API refuses to start on
+      # this default or on any value shorter than 32 bytes.
       SEAMLESS_SERVICE_TOKEN: ${SEAMLESS_SERVICE_TOKEN:-${API_SERVICE_TOKEN:-local-development-service-token-not-for-deployment}}
 
       # Returns OTP codes and magic-link URLs in the response instead of sending them,
