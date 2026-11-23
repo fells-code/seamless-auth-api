@@ -14,40 +14,57 @@ export class MagicLinkRedirectNotAllowedError extends Error {
   }
 }
 
-const DEFAULT_VERIFY_PATH = '/verify-magiclink';
+export const DEFAULT_VERIFY_PATH = '/verify-magiclink';
+
+function defaultLandingPages(origins: string[], frontendUrl?: string) {
+  return [...new Set([frontendUrl, ...origins])]
+    .filter((origin): origin is string => Boolean(origin))
+    .map((origin) => `${origin.replace(/\/+$/, '')}${DEFAULT_VERIFY_PATH}`);
+}
 
 /**
  * Builds the link a magic link email points at.
  *
- * Without a requested target this stays on the tenant-wide value it always used, so an
- * instance that asks for nothing sees no change. A caller that does ask is validated the
- * same way OAuth validates its redirect URI, against the configured origins, which is
- * what lets a tenant's web and mobile clients each receive a link that lands in the right
- * place rather than sharing one destination.
+ * The token rides in the query and the code in the fragment. A fragment is never sent to
+ * a server, never appears in a Referer, and is left out of most analytics, so a landing
+ * page that leaks its query string leaks a lookup handle that cannot sign anyone in.
+ *
+ * Without a requested target this stays on the tenant-wide value it always used. A caller
+ * that does ask is held to `magic_link_redirect_uris` when set, and otherwise to the
+ * verify page on a configured origin. Matching on origin alone let a link land on any
+ * page of the tenant's site, including one that forwards its URL somewhere else.
  */
-export async function resolveMagicLinkUrl(token: string, requestedRedirectUri?: string) {
+export async function resolveMagicLinkUrl(
+  token: string,
+  code: string,
+  requestedRedirectUri?: string,
+) {
   const config = await getSystemConfig();
+  const frontendUrl = config.frontend_url ?? config.origins[0];
+
+  let url: URL;
 
   if (!requestedRedirectUri) {
-    const frontendUrl = config.frontend_url ?? config.origins[0];
-    return `${frontendUrl}${DEFAULT_VERIFY_PATH}?token=${token}`;
+    url = new URL(`${frontendUrl}${DEFAULT_VERIFY_PATH}`);
+  } else {
+    // Exact match in both cases. `magic_link_redirect_uris` exists for targets whose
+    // origin cannot be compared, such as `myapp://auth` or a universal link on a host
+    // that should not also be a WebAuthn origin.
+    const configured = config.magic_link_redirect_uris ?? [];
+    const allowed =
+      configured.length > 0 ? configured : defaultLandingPages(config.origins, config.frontend_url);
+
+    if (!allowedRedirect(requestedRedirectUri, allowed, [])) {
+      throw new MagicLinkRedirectNotAllowedError();
+    }
+
+    url = new URL(requestedRedirectUri);
   }
 
-  // `magic_link_redirect_uris` is matched exactly when set, because it exists for
-  // targets whose origin cannot be compared: a custom application scheme such as
-  // `myapp://auth`, or a universal link on a host that should not also be a WebAuthn
-  // origin. Empty by default, and an empty list falls back to comparing against
-  // `origins`, so a deployment that sets nothing is unaffected.
-  if (
-    !allowedRedirect(requestedRedirectUri, config.magic_link_redirect_uris ?? [], config.origins)
-  ) {
-    throw new MagicLinkRedirectNotAllowedError();
-  }
-
-  // Set rather than appended: a caller is free to carry its own query, and a second
-  // `token=` would leave which one wins up to whoever parses it.
-  const url = new URL(requestedRedirectUri);
+  // Set rather than appended: a second `token=` would leave which one wins up to whoever
+  // parses it. Any fragment the target carried is replaced for the same reason.
   url.searchParams.set('token', token);
+  url.hash = new URLSearchParams({ code }).toString();
 
   return url.toString();
 }

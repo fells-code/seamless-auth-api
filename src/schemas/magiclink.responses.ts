@@ -22,12 +22,14 @@ export const MagicLinkPollResponseSchema = z.union([
 ]);
 
 /**
- * A link opened on a device other than the one that asked for it. The link is still
- * unused; confirming it from this device signs the requesting device in.
+ * Every open of a link answers this, and the link stays unused until it is confirmed
+ * with the code from its fragment. `sameDevice` says whether it was opened by the
+ * attempt that requested it, so a client can confirm without asking when it was.
  */
 export const MagicLinkConfirmationRequiredSchema = z.object({
   error: z.literal('confirmation_required'),
   message: z.string(),
+  sameDevice: z.boolean(),
   requestedFrom: z.object({
     deviceClass: z.enum(DEVICE_CLASSES),
     requestedAt: z.string(),

@@ -95,7 +95,7 @@ A decoy responder that only reproduces the success path is not finished. Any `40
 account can be made to answer is an oracle if a decoy answers `200` to the same request,
 and the ones that matter are the ones a caller can trigger on purpose:
 
-- `/magic-link?redirectUri=` pointing somewhere the configured origins do not allow
+- `/magic-link?redirectUri=` pointing somewhere the magic link allowlist does not allow
   answers `400 Redirect URI is not allowed`. A caller picks that value, so this is one
   deliberately bad request away. The decoy responder runs the same `resolveMagicLinkUrl`
   validation.

@@ -13,7 +13,10 @@ import { classifyDeviceClass } from '../lib/deviceClass.js';
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { MagicLinkToken } from '../models/magicLinks.js';
 import { User } from '../models/users.js';
-import { MagicLinkRequestQuerySchema } from '../schemas/magiclink.requests.js';
+import {
+  MagicLinkConfirmBodySchema,
+  MagicLinkRequestQuerySchema,
+} from '../schemas/magiclink.requests.js';
 import { claimUnverifiedAccount } from '../services/accountClaim.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectWeakFactorForBreakGlass } from '../services/breakGlassService.js';
@@ -105,11 +108,12 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
 
   const rawToken = crypto.randomBytes(32).toString('base64url');
   const tokenHash = hashSha256(rawToken);
+  const rawCode = crypto.randomBytes(32).toString('base64url');
 
   let redirect_url: string;
 
   try {
-    redirect_url = await resolveMagicLinkUrl(rawToken, req.query.redirectUri);
+    redirect_url = await resolveMagicLinkUrl(rawToken, rawCode, req.query.redirectUri);
   } catch (error) {
     if (error instanceof MagicLinkRedirectNotAllowedError) {
       await logMagicLinkFailure(req, 'Redirect URI not allowed', user.id);
@@ -147,7 +151,9 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
   const magicLinkRecord = await MagicLinkToken.create({
     user_id: user.id,
     token_hash: tokenHash,
-    redirect_url,
+    code_hash: hashSha256(rawCode),
+    // Without the fragment, so a read of this table yields no code to confirm with.
+    redirect_url: redirect_url.split('#')[0],
     ip_hash,
     user_agent_hash,
     attempt_id: authReq.attemptId,
@@ -274,13 +280,15 @@ async function consumeLink(
 /**
  * Whether the request that opened the link comes from the device that asked for it.
  *
- * The session goes to the requesting device, so a link opened anywhere else must not
- * complete silently: anyone can request a link for someone else's address from their
- * own machine. The pre-auth token, when the adapter forwards it, proves the attempt.
- * Without it the IP and user agent are the only signal, which people behind one
- * address with the same browser can share. They count only when a trusted adapter
- * vouched for them: otherwise every request carries the adapter's own address, and
- * every device would look like the one that asked.
+ * The pre-auth token, when the adapter forwards it, proves the attempt. Without it the
+ * IP and user agent are the only signal, which people behind one address with the same
+ * browser can share. They count only when a trusted adapter vouched for them: otherwise
+ * every request carries the adapter's own address, and every device would look like the
+ * one that asked.
+ *
+ * This only decides whether the client asks the person before confirming. It is not a
+ * reason to consume the link: the attempt belongs to whoever requested it, and anyone
+ * can request a link for someone else's address.
  */
 async function openedOnRequestingDevice(req: RouteRequest, record: MagicLinkToken) {
   const auth = req.headers.authorization;
@@ -306,6 +314,21 @@ async function openedOnRequestingDevice(req: RouteRequest, record: MagicLinkToke
   );
 }
 
+function codeMatches(code: string, codeHash: string) {
+  const presented = Buffer.from(hashSha256(code));
+  const stored = Buffer.from(codeHash);
+
+  return presented.length === stored.length && crypto.timingSafeEqual(presented, stored);
+}
+
+/**
+ * Describes a link without consuming it.
+ *
+ * Consuming takes the code from the link's fragment, which only the confirm request
+ * carries. The token alone is in the query string, which is the part of a URL that leaks
+ * through a Referer, an analytics beacon or an access log, so it must not be enough to
+ * sign anyone in, even from the device that requested the link.
+ */
 export async function verifyMagicLink(req: RouteRequest, res: Response) {
   logger.debug('Verifying magic link');
 
@@ -315,34 +338,55 @@ export async function verifyMagicLink(req: RouteRequest, res: Response) {
     return;
   }
 
-  if (!(await openedOnRequestingDevice(req, record))) {
-    await AuthEventService.log({
-      userId: record.user_id,
-      type: 'magic_link_confirmation_required',
-      req,
-    });
+  const sameDevice = await openedOnRequestingDevice(req, record);
 
-    return res.status(409).json({
-      error: 'confirmation_required',
-      message: 'This link was requested from another device. Confirm to sign that device in.',
-      requestedFrom: {
-        deviceClass: record.requested_device_class ?? 'unknown',
-        requestedAt: new Date(record.created_at).toISOString(),
-      },
-    });
-  }
+  await AuthEventService.log({
+    userId: record.user_id,
+    type: 'magic_link_confirmation_required',
+    req,
+    metadata: { sameDevice },
+  });
 
-  return consumeLink(req, res, record, 'same_device');
+  return res.status(409).json({
+    error: 'confirmation_required',
+    message: sameDevice
+      ? 'Confirm to finish signing in.'
+      : 'This link was requested from another device. Confirm to sign that device in.',
+    sameDevice,
+    requestedFrom: {
+      deviceClass: record.requested_device_class ?? 'unknown',
+      requestedAt: new Date(record.created_at).toISOString(),
+    },
+  });
 }
 
-export async function confirmMagicLink(req: RouteRequest, res: Response) {
+export async function confirmMagicLink(
+  req: Request<Record<string, string>, unknown, z.infer<typeof MagicLinkConfirmBodySchema>>,
+  res: Response,
+) {
   const record = await findUsableLink(req, res);
 
   if (!record) {
     return;
   }
 
-  return consumeLink(req, res, record, 'confirmed');
+  // A link from before codes existed was mailed without one, so nothing can prove it.
+  if (!record.code_hash || !codeMatches(req.body.code, record.code_hash)) {
+    logger.warn('Magic link code did not match');
+
+    // Someone holding the token without the code is what a leaked query string looks
+    // like, so the link is spent rather than left open to further guesses.
+    await MagicLinkToken.update(
+      { expires_at: new Date() },
+      { where: { id: record.id, used_at: null } },
+    );
+    await logMagicLinkFailure(req, 'Invalid confirmation code', record.user_id);
+    return res.status(400).json({ error: 'Invalid verification token' });
+  }
+
+  const sameDevice = await openedOnRequestingDevice(req, record);
+
+  return consumeLink(req, res, record, sameDevice ? 'same_device' : 'confirmed');
 }
 
 export async function pollMagicLinkConfirmation(req: Request, res: Response) {

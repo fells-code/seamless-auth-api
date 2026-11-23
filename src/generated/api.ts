@@ -15961,7 +15961,7 @@ export interface paths {
     };
     /**
      * Verify magic link token
-     * @description Consumes the link when it is opened on the device that requested it, proven by the requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers 409 without consuming it; confirm with POST /magic-link/verify/{token}/confirm.
+     * @description Describes the link without consuming it, always answering 409 confirmation_required. `sameDevice` is true when it was opened by the attempt that requested it, proven by that attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Consume it with POST /magic-link/verify/{token}/confirm and the code from the link fragment.
      */
     get: {
       parameters: {
@@ -15974,92 +15974,6 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description HTTP 200 */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            /**
-             * @example {
-             *       "message": "string",
-             *       "token": "string",
-             *       "delivery": null
-             *     }
-             */
-            'application/json': {
-              message: string;
-              token?: string;
-              delivery?:
-                | {
-                    /** @enum {string} */
-                    kind: 'otp_email';
-                    to: string;
-                    token: string;
-                    /** @enum {string} */
-                    purpose?: 'account_recovery';
-                  }
-                | {
-                    /** @enum {string} */
-                    kind: 'otp_sms';
-                    to: string;
-                    token: string | number;
-                    /** @enum {string} */
-                    purpose?: 'account_recovery';
-                  }
-                | {
-                    /** @enum {string} */
-                    kind: 'magic_link_email';
-                    to: string;
-                    token?: string;
-                    magicLinkUrl: string;
-                  }
-                | {
-                    /** @enum {string} */
-                    kind: 'enrollment_invite_email';
-                    to: string;
-                    signInUrl: string;
-                  }
-                | {
-                    /** @enum {string} */
-                    kind: 'account_notice_email';
-                    /** @enum {string} */
-                    notice:
-                      | 'account_recovery_opened'
-                      | 'account_recovery_completed'
-                      | 'recovery_code_used'
-                      | 'identity_changed'
-                      | 'application_notice';
-                    to: string;
-                    subject: string;
-                    text: string;
-                    cancelUrl?: string;
-                    application?: {
-                      clientId: string;
-                      name: string;
-                    };
-                  }
-                | {
-                    /** @enum {string} */
-                    kind: 'account_notice_sms';
-                    /** @enum {string} */
-                    notice:
-                      | 'account_recovery_opened'
-                      | 'account_recovery_completed'
-                      | 'recovery_code_used'
-                      | 'identity_changed'
-                      | 'application_notice';
-                    to: string;
-                    text: string;
-                    cancelUrl?: string;
-                    application?: {
-                      clientId: string;
-                      name: string;
-                    };
-                  };
-            };
-          };
-        };
         /** @description HTTP 400 */
         400: {
           headers: {
@@ -16118,6 +16032,7 @@ export interface paths {
              * @example {
              *       "error": null,
              *       "message": "string",
+             *       "sameDevice": true,
              *       "requestedFrom": {
              *         "deviceClass": null,
              *         "requestedAt": "string"
@@ -16128,6 +16043,7 @@ export interface paths {
               /** @enum {string} */
               error: 'confirmation_required';
               message: string;
+              sameDevice: boolean;
               requestedFrom: {
                 /** @enum {string} */
                 deviceClass:
@@ -16200,8 +16116,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Confirm a magic link opened on another device
-     * @description Consumes the link after the person who opened it has approved signing in the device that requested it.
+     * Confirm a magic link
+     * @description Consumes the link, signing in the device that requested it. Takes the `code` the link carries in its fragment (`#code=`), which never appears in a query string or a Referer. A wrong code spends the link.
      */
     post: {
       parameters: {
@@ -16212,7 +16128,13 @@ export interface paths {
         };
         cookie?: never;
       };
-      requestBody?: never;
+      requestBody?: {
+        content: {
+          'application/json': {
+            code: string;
+          };
+        };
+      };
       responses: {
         /** @description HTTP 200 */
         200: {
