@@ -95,7 +95,7 @@ A decoy responder that only reproduces the success path is not finished. Any `40
 account can be made to answer is an oracle if a decoy answers `200` to the same request,
 and the ones that matter are the ones a caller can trigger on purpose:
 
-- `/magic-link?redirectUri=` pointing somewhere the configured origins do not allow
+- `/magic-link?redirectUri=` pointing somewhere the magic link allowlist does not allow
   answers `400 Redirect URI is not allowed`. A caller picks that value, so this is one
   deliberately bad request away. The decoy responder runs the same `resolveMagicLinkUrl`
   validation.
@@ -681,46 +681,102 @@ not cover them, because lockout only ever reads a short window of them.
   one-row table, `auth_event_chain_head`, advanced with an UPDATE so that concurrent
   inserts queue on its row lock rather than linking to the same predecessor.
 - **Append-only.** A trigger refuses every UPDATE and TRUNCATE on the table, and every
-  DELETE unless the transaction has set `seamless.audit_retention = 'on'`, which only
-  the retention job does.
+  DELETE unless the transaction has set `seamless.audit_retention = 'on'`.
+- **A protected head.** A trigger on `auth_event_chain_head` refuses INSERT, DELETE and
+  TRUNCATE, and refuses any change to `seq` or `last_hash` that does not come from the
+  insert trigger. The insert trigger runs as SECURITY DEFINER, so the application role
+  needs no write access to those columns. Without this, a role that could delete the
+  newest events could move the head back to match and the chain still verified.
 - **No user foreign key.** It used to null `user_id` when a user was deleted. A row now
   keeps the id of the user it was about after that user is gone. The id is a UUID, and
   removing old rows is a job for retention, not for user deletion.
+
+The retention setting is not an access control. `seamless.audit_retention` is a custom
+setting, and any session can set it, so the trigger only stops the application deleting
+events by accident. What decides who can delete events is the DELETE privilege, which is
+why the grants below take it away from the application role.
+
+### A signed head
+
+With `AUDIT_CHAIN_KEY` set (see [configuration](./configuration.md#audit-retention)), the
+head also carries `signature`, an HMAC-SHA256 under that key of the head's `seq` and hash,
+and `signed_seq`, the `seq` it was made for. The database never sees the key. Every insert
+moves the signature onto the new head in the same transaction, while the head is still
+locked.
+
+A head moved back over a truncated tail, or onto forged events, then has no valid
+signature, and making one takes the key. This holds even against a role that owns the
+tables and can disable their triggers.
+
+The application only signs forward from a signature that verifies. A head that is
+unsigned, or whose signature is wrong, stays that way and keeps failing the check, since
+signing over it would erase the evidence. The head trigger also refuses clearing the
+signature or moving `signed_seq` backwards.
+
+Setting it up:
+
+- **New deployment.** Set `AUDIT_CHAIN_KEY` before the first migration. The migration
+  that adds the signature signs the head when the key is set while it runs.
+- **Existing deployment.** Set `AUDIT_CHAIN_KEY` on every instance, then run the upgrade.
+  If the key was not set while the migration ran, sign the head once by hand with
+  `node dist/scripts/sealAuditHead.js`, run with the server's database environment. It
+  refuses a chain that does not verify.
+- **Every instance needs the same key.** An event written by an instance without it leaves
+  the head unsigned (`head_unsigned`) until an instance with the key writes the next one.
+- **Rotating the key.** Set the new key on every instance and run the seal script once.
+  Until then the check reports `head_mismatch`, and new events are not signed.
+
+Without the key nothing is signed, the check works as before, and its report carries
+`headSigned: false`. Production logs a warning at boot while the key is unset.
 
 ### Checking it
 
 `GET /admin/auth-events/integrity` (admin, read) recomputes every hash and reports the
 first failure:
 
-| `reason`        | Meaning                                                          |
-| --------------- | ---------------------------------------------------------------- |
-| `hash_mismatch` | the row's content no longer matches its hash: it was edited      |
-| `sequence_gap`  | rows are missing from the middle of the chain                    |
-| `broken_link`   | `prev_hash` does not match the previous row: rows were reordered |
-| `head_mismatch` | the newest rows are missing, or the head itself was changed      |
+| `reason`        | Meaning                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `hash_mismatch` | the row's content no longer matches its hash: it was edited                                |
+| `sequence_gap`  | rows are missing from the middle of the chain                                              |
+| `broken_link`   | `prev_hash` does not match the previous row: rows were reordered                           |
+| `head_mismatch` | the newest rows are missing, the head itself was changed, or its signature does not verify |
+| `head_unsigned` | `AUDIT_CHAIN_KEY` is set and the head has no signature, or one for an older `seq`          |
 
-It also returns `head` (the latest `seq` and hash) and `anchorHash`, which is the
-`prev_hash` of the oldest remaining row. Once retention has removed old rows, that is the
-hash of the last row archived, and it ties the remaining chain to the archive.
+It also returns `head` (the latest `seq` and hash), `headSigned`, and `anchorHash`, which
+is the `prev_hash` of the oldest remaining row. Once retention has removed old rows, that is
+the hash of the last row archived, and it ties the remaining chain to the archive.
 
 ### What it does not stop
 
-A role that owns the table can disable the triggers and rewrite the whole chain
-consistently. Nothing inside the database can detect that, so two things outside it close
-the gap:
+A role that owns the tables can disable the triggers and rewrite the whole chain
+consistently. Without the key it can also move the head to match, and with the key it can
+still put back an older head and signature that it copied while they were current. Nothing
+inside the database can detect either, so two things outside it close the gap:
 
 1. **Least privilege.** Run migrations as the table owner and the application as a role
-   without UPDATE, DELETE or TRUNCATE on `auth_events`:
+   that cannot change the trail or its head:
 
    ```sql
    REVOKE UPDATE, DELETE, TRUNCATE ON public.auth_events FROM seamless_app;
+   REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.auth_event_chain_head FROM seamless_app;
+   GRANT SELECT ON public.auth_event_chain_head TO seamless_app;
+   GRANT UPDATE (signed_seq, signature) ON public.auth_event_chain_head TO seamless_app;
+   REVOKE CREATE ON SCHEMA public FROM PUBLIC, seamless_app;
    ```
 
-   The retention job then needs DELETE, from a separate role.
+   Postgres 15 and later no longer grant CREATE on `public` to everyone, but a cluster
+   upgraded from an older version keeps that grant. No role but the owner should create
+   objects in the schema the audit functions live in.
+
+   The application keeps INSERT on `auth_events`, which the insert trigger chains, and may
+   only write the signature columns of the head, which it cannot forge without the key.
+   The retention job needs DELETE on `auth_events`, from a separate role
+   (`AUDIT_RETENTION_DATABASE_URL`). That role can still delete the newest events, but it
+   cannot move the head, so the check reports the loss as `head_mismatch`.
 
 2. **External anchors.** Record `head` somewhere the database cannot reach: the evidence
-   package, a ticket, or a log store. A later check whose chain does not pass through a
-   recorded head shows the history was rewritten.
+   package, a ticket, or a log store. The retention job logs it daily. A later check whose
+   chain does not pass through a recorded head shows the history was rewritten.
 
 ### Retention and export
 

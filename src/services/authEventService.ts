@@ -9,10 +9,12 @@ import { Request } from 'express';
 import { classifyDeviceClass } from '../lib/deviceClass.js';
 import { mailProviderFor } from '../lib/mailProvider.js';
 import { isOwnerEmail } from '../lib/ownerAdmin.js';
-import { AuthEvent } from '../models/authEvents.js';
+import { AuthEvent, AuthEventCreationAttributes } from '../models/authEvents.js';
+import { getSequelize } from '../models/index.js';
 import type { AuthEventType } from '../schemas/authEvent.types.js';
 import type { AuthenticatedRequest } from '../types/types.js';
 import { redactMetadata } from '../utils/redaction.js';
+import { auditChainKey, signInsertedAuditHead } from './auditHeadSignature.js';
 import { recordAuditWriteFailure } from './auditHealth.js';
 import { recordAuthFailure } from './authFailureCounter.js';
 
@@ -84,6 +86,22 @@ function capUserAgent(userAgent: string | null | undefined) {
   return userAgent?.slice(0, MAX_AUDIT_USER_AGENT_LENGTH) || null;
 }
 
+async function appendAuthEvent(values: AuthEventCreationAttributes) {
+  const key = auditChainKey();
+
+  if (!key) {
+    await AuthEvent.create(values);
+    return;
+  }
+
+  // One transaction, so the head row lock the insert trigger takes is still held when
+  // the signature moves onto the new head.
+  await getSequelize().transaction(async (transaction) => {
+    const event = await AuthEvent.create(values, { transaction });
+    await signInsertedAuditHead(event, transaction, key);
+  });
+}
+
 function deploymentId() {
   return process.env.APP_ID?.trim() || null;
 }
@@ -125,7 +143,7 @@ export class AuthEventService {
     await recordAuthFailure({ userId, type: normalizedType });
 
     try {
-      await AuthEvent.create({
+      await appendAuthEvent({
         user_id: userId,
         actor_user_id: actorUserId,
         session_id: sessionId,

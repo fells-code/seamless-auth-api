@@ -516,6 +516,7 @@ describe('GET /admin/auth-events/integrity', () => {
       lastSeq: 10,
       anchorHash: null,
       head: { seq: 10, hash: 'a'.repeat(64) },
+      headSigned: false,
       firstFailure: { seq: 4, id: 'event-4', reason: 'hash_mismatch' },
     };
     (verifyAuthEventChain as any).mockResolvedValue(report);

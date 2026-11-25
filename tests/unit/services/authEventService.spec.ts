@@ -6,6 +6,16 @@ vi.mock('../../../src/models/authEvents.js', () => ({
   },
 }));
 
+const transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn({ id: 'tx' }));
+vi.mock('../../../src/models/index.js', () => ({
+  getSequelize: () => ({ transaction }),
+}));
+
+vi.mock('../../../src/services/auditHeadSignature.js', () => ({
+  auditChainKey: vi.fn(() => null),
+  signInsertedAuditHead: vi.fn(async () => true),
+}));
+
 vi.mock('../../../src/utils/logger.js', () => ({
   default: vi.fn(() => ({
     error: vi.fn(),
@@ -44,6 +54,26 @@ describe('AuthEventService', () => {
 
     const stored = vi.mocked(AuthEvent.create).mock.calls[0][0] as { user_agent: string };
     expect(stored.user_agent).toHaveLength(512);
+  });
+
+  it('signs the new head in the same transaction when AUDIT_CHAIN_KEY is set', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { auditChainKey, signInsertedAuditHead } =
+      await import('../../../src/services/auditHeadSignature.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+    const event = { seq: '9', hash: 'a'.repeat(64), prev_hash: null };
+    vi.mocked(auditChainKey).mockReturnValue('key');
+    vi.mocked(AuthEvent.create).mockResolvedValue(event as never);
+
+    await AuthEventService.log({ type: 'login_success', req: buildReq() });
+
+    expect(AuthEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'login_success' }),
+      {
+        transaction: { id: 'tx' },
+      },
+    );
+    expect(signInsertedAuditHead).toHaveBeenCalledWith(event, { id: 'tx' }, 'key');
   });
 
   it('logs event successfully', async () => {

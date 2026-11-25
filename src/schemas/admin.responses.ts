@@ -30,11 +30,18 @@ export const AuditIntegrityResponseSchema = z.object({
   lastSeq: z.number().int().nullable(),
   anchorHash: z.string().nullable(),
   head: z.object({ seq: z.number().int(), hash: z.string().nullable() }).nullable(),
+  headSigned: z.boolean(),
   firstFailure: z
     .object({
       seq: z.number().int(),
       id: z.string().nullable(),
-      reason: z.enum(['hash_mismatch', 'broken_link', 'sequence_gap', 'head_mismatch']),
+      reason: z.enum([
+        'hash_mismatch',
+        'broken_link',
+        'sequence_gap',
+        'head_mismatch',
+        'head_unsigned',
+      ]),
     })
     .nullable(),
 });

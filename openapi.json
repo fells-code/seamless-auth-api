@@ -7785,6 +7785,7 @@
                   "lastSeq": 0,
                   "anchorHash": "string",
                   "head": { "seq": 0, "hash": "string" },
+                  "headSigned": true,
                   "firstFailure": { "seq": 0, "id": "string", "reason": null }
                 },
                 "schema": {
@@ -7805,6 +7806,7 @@
                       },
                       "required": ["seq", "hash"]
                     },
+                    "headSigned": { "type": "boolean" },
                     "firstFailure": {
                       "type": "object",
                       "nullable": true,
@@ -7813,7 +7815,13 @@
                         "id": { "type": "string", "nullable": true },
                         "reason": {
                           "type": "string",
-                          "enum": ["hash_mismatch", "broken_link", "sequence_gap", "head_mismatch"]
+                          "enum": [
+                            "hash_mismatch",
+                            "broken_link",
+                            "sequence_gap",
+                            "head_mismatch",
+                            "head_unsigned"
+                          ]
                         }
                       },
                       "required": ["seq", "id", "reason"]
@@ -7827,6 +7835,7 @@
                     "lastSeq",
                     "anchorHash",
                     "head",
+                    "headSigned",
                     "firstFailure"
                   ]
                 }
@@ -17190,128 +17199,12 @@
     "/magic-link/verify/{token}": {
       "get": {
         "summary": "Verify magic link token",
-        "description": "Consumes the link when it is opened on the device that requested it, proven by the requesting attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Opened anywhere else, answers 409 without consuming it; confirm with POST /magic-link/verify/{token}/confirm.",
+        "description": "Describes the link without consuming it, always answering 409 confirmation_required. `sameDevice` is true when it was opened by the attempt that requested it, proven by that attempt's ephemeral bearer token when the adapter forwards it, otherwise by the IP address and user agent a trusted adapter forwards. Consume it with POST /magic-link/verify/{token}/confirm and the code from the link fragment.",
         "tags": ["MagicLinks"],
         "parameters": [
           { "schema": { "type": "string" }, "required": true, "name": "token", "in": "path" }
         ],
         "responses": {
-          "200": {
-            "description": "HTTP 200",
-            "content": {
-              "application/json": {
-                "example": { "message": "string", "token": "string", "delivery": null },
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": { "type": "string" },
-                    "token": { "type": "string" },
-                    "delivery": {
-                      "oneOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "kind": { "type": "string", "enum": ["otp_email"] },
-                            "to": { "type": "string" },
-                            "token": { "type": "string" },
-                            "purpose": { "type": "string", "enum": ["account_recovery"] }
-                          },
-                          "required": ["kind", "to", "token"]
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "kind": { "type": "string", "enum": ["otp_sms"] },
-                            "to": { "type": "string" },
-                            "token": { "anyOf": [{ "type": "string" }, { "type": "number" }] },
-                            "purpose": { "type": "string", "enum": ["account_recovery"] }
-                          },
-                          "required": ["kind", "to", "token"]
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "kind": { "type": "string", "enum": ["magic_link_email"] },
-                            "to": { "type": "string" },
-                            "token": { "type": "string" },
-                            "magicLinkUrl": { "type": "string" }
-                          },
-                          "required": ["kind", "to", "magicLinkUrl"]
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "kind": { "type": "string", "enum": ["enrollment_invite_email"] },
-                            "to": { "type": "string" },
-                            "signInUrl": { "type": "string" }
-                          },
-                          "required": ["kind", "to", "signInUrl"]
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "kind": { "type": "string", "enum": ["account_notice_email"] },
-                            "notice": {
-                              "type": "string",
-                              "enum": [
-                                "account_recovery_opened",
-                                "account_recovery_completed",
-                                "recovery_code_used",
-                                "identity_changed",
-                                "application_notice"
-                              ]
-                            },
-                            "to": { "type": "string" },
-                            "subject": { "type": "string" },
-                            "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" },
-                            "application": {
-                              "type": "object",
-                              "properties": {
-                                "clientId": { "type": "string" },
-                                "name": { "type": "string" }
-                              },
-                              "required": ["clientId", "name"]
-                            }
-                          },
-                          "required": ["kind", "notice", "to", "subject", "text"]
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "kind": { "type": "string", "enum": ["account_notice_sms"] },
-                            "notice": {
-                              "type": "string",
-                              "enum": [
-                                "account_recovery_opened",
-                                "account_recovery_completed",
-                                "recovery_code_used",
-                                "identity_changed",
-                                "application_notice"
-                              ]
-                            },
-                            "to": { "type": "string" },
-                            "text": { "type": "string" },
-                            "cancelUrl": { "type": "string" },
-                            "application": {
-                              "type": "object",
-                              "properties": {
-                                "clientId": { "type": "string" },
-                                "name": { "type": "string" }
-                              },
-                              "required": ["clientId", "name"]
-                            }
-                          },
-                          "required": ["kind", "notice", "to", "text"]
-                        }
-                      ]
-                    }
-                  },
-                  "required": ["message"]
-                }
-              }
-            }
-          },
           "400": {
             "description": "HTTP 400",
             "content": {
@@ -17373,6 +17266,7 @@
                 "example": {
                   "error": null,
                   "message": "string",
+                  "sameDevice": true,
                   "requestedFrom": { "deviceClass": null, "requestedAt": "string" }
                 },
                 "schema": {
@@ -17380,6 +17274,7 @@
                   "properties": {
                     "error": { "type": "string", "enum": ["confirmation_required"] },
                     "message": { "type": "string" },
+                    "sameDevice": { "type": "boolean" },
                     "requestedFrom": {
                       "type": "object",
                       "properties": {
@@ -17401,7 +17296,7 @@
                       "required": ["deviceClass", "requestedAt"]
                     }
                   },
-                  "required": ["error", "message", "requestedFrom"]
+                  "required": ["error", "message", "sameDevice", "requestedFrom"]
                 }
               }
             }
@@ -17437,12 +17332,23 @@
     },
     "/magic-link/verify/{token}/confirm": {
       "post": {
-        "summary": "Confirm a magic link opened on another device",
-        "description": "Consumes the link after the person who opened it has approved signing in the device that requested it.",
+        "summary": "Confirm a magic link",
+        "description": "Consumes the link, signing in the device that requested it. Takes the `code` the link carries in its fragment (`#code=`), which never appears in a query string or a Referer. A wrong code spends the link.",
         "tags": ["MagicLinks"],
         "parameters": [
           { "schema": { "type": "string" }, "required": true, "name": "token", "in": "path" }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "code": { "type": "string", "minLength": 1, "maxLength": 256 } },
+                "required": ["code"]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "HTTP 200",

@@ -94,7 +94,9 @@ is no GitHub artifact attestation for the image, so `gh attestation verify` does
 
 Production deployments should define:
 
-- `SEAMLESS_SERVICE_TOKEN` (the older `API_SERVICE_TOKEN` name is still accepted as a fallback)
+- `SEAMLESS_SERVICE_TOKEN` (the older `API_SERVICE_TOKEN` name is still accepted as a fallback).
+  It is the key that signs service tokens, so the server refuses to start in production when it is
+  shorter than 32 bytes or a published default. Generate one with `openssl rand -base64 48`.
 - `REFRESH_TOKEN_LOOKUP_SECRET`
 - `TOTP_SECRET_ENCRYPTION_KEY`
 - `OAUTH_STATE_SECRET`
@@ -217,14 +219,15 @@ Everything that has to agree between instances lives in Postgres: sessions and r
 (the rotation claim is a single statement the database serialises), the lockout counter
 (`auth_failures`), OTP codes, magic links, WebAuthn challenges, the OAuth `state` replay record
 (`oidc_payloads`), `system_config` and the audit trail.
-Several instances behind a load balancer share all of it.
+Several instances behind a load balancer share all of it. Each instance caches `system_config`, but
+checks it against the stored rows at most once a second, so a config write on one instance applies
+on the others within about a second.
 
 Some state is held in each process, and with more than one instance it behaves differently:
 
 | State                             | Where                                                                                                 | With N instances                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Rate limit and slow-down counters | `express-rate-limit` and `express-slow-down` in-memory stores ([`src/middleware`](../src/middleware)) | Each instance counts on its own, so a client whose requests are spread across instances gets up to N times the configured budget. Route by client address at the load balancer, or enforce a limit at the proxy as well. The account notice limits on `POST /applications/account-notices` are keyed by application and user rather than address, so an application can send up to N times its notice allowance however requests are routed. |
-| `system_config` cache             | Five minutes per process ([`getSystemConfig.ts`](../src/config/getSystemConfig.ts))                   | A config write clears the cache only on the instance that served it. The others keep the old values (roles, origins, login methods, lockout policy, token lifetimes) for up to five minutes. Restart the instances when a change must apply at once.                                                                                                                                                                                         |
 | Audit degraded flag               | Five minutes after a failed audit write ([`auditHealth.ts`](../src/services/auditHealth.ts))          | `/health/status` reports `degraded` only on the instance whose write failed. Monitor every instance, not one.                                                                                                                                                                                                                                                                                                                                |
 
 ## Redaction
