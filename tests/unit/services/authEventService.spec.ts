@@ -43,6 +43,19 @@ describe('AuthEventService', () => {
     vi.clearAllMocks();
   });
 
+  it('caps the stored user agent, which the caller chooses', async () => {
+    const { AuthEvent } = await import('../../../src/models/authEvents.js');
+    const { AuthEventService } = await import('../../../src/services/authEventService.js');
+
+    await AuthEventService.log({
+      type: 'login_failed',
+      req: buildReq({ headers: { 'user-agent': 'x'.repeat(10_000) } }),
+    });
+
+    const stored = vi.mocked(AuthEvent.create).mock.calls[0][0] as { user_agent: string };
+    expect(stored.user_agent).toHaveLength(512);
+  });
+
   it('signs the new head in the same transaction when AUDIT_CHAIN_KEY is set', async () => {
     const { AuthEvent } = await import('../../../src/models/authEvents.js');
     const { auditChainKey, signInsertedAuditHead } =

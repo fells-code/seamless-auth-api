@@ -18,9 +18,9 @@ const logger = getLogger('internalSecurity');
 /**
  * Rows one call will return.
  *
- * Bounded because the matched set is attacker-controlled: `request_suspicious` is
- * recorded for every unmatched route and every refused origin, so a scanner alone can
- * make a day's window arbitrarily large.
+ * Bounded because the matched set can be driven by callers: failed sign-ins and
+ * suspicious requests are recorded per attempt, so one busy attacker can make a day's
+ * window large.
  */
 const ANOMALY_LIMIT = 200;
 

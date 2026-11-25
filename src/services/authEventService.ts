@@ -79,6 +79,13 @@ interface AuthEventContextOptions {
   metadata?: Record<string, unknown> | null;
 }
 
+// Real user agents run to a few hundred characters; the header itself is unbounded.
+const MAX_AUDIT_USER_AGENT_LENGTH = 512;
+
+function capUserAgent(userAgent: string | null | undefined) {
+  return userAgent?.slice(0, MAX_AUDIT_USER_AGENT_LENGTH) || null;
+}
+
 async function appendAuthEvent(values: AuthEventCreationAttributes) {
   const key = auditChainKey();
 
@@ -127,6 +134,7 @@ export class AuthEventService {
     metadata = null,
   }: AuthEventContextOptions) {
     const normalizedType = normalizeAuthEventType(type);
+    const cappedUserAgent = capUserAgent(userAgent);
 
     // Counted before the audit write and in its own statement, so a trail that
     // cannot be written no longer takes the lockout control down with it. This
@@ -141,9 +149,9 @@ export class AuthEventService {
         session_id: sessionId,
         type: normalizedType,
         ip_address: ipAddress || 'unknown',
-        user_agent: userAgent || 'unknown',
+        user_agent: cappedUserAgent || 'unknown',
         deployment_id: deploymentId(),
-        device_class: classifyDeviceClass(userAgent),
+        device_class: classifyDeviceClass(cappedUserAgent),
         mail_provider: mailProviderFor(subjectEmail),
         owner: subjectEmail ? isOwnerEmail(subjectEmail) : null,
         attempt_id: attemptId,

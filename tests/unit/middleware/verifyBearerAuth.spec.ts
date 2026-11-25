@@ -246,6 +246,19 @@ describe('verifyBearerAuth', () => {
       );
     });
 
+    it('caps the recorded path, which the caller chooses', async () => {
+      req.headers.authorization = bearerOfType('access');
+      req.path = `/${'a'.repeat(5000)}`;
+
+      (validateBearerToken as any).mockResolvedValue(null);
+      (verifyJwtWithKid as any).mockResolvedValue({ typ: 'access', sub: 'user-1' });
+
+      await verifyBearerAuth(req, res, next, 'ephemeral');
+
+      const [{ metadata }] = (AuthEventService.log as any).mock.calls[0];
+      expect(metadata.route).toHaveLength(256);
+    });
+
     it('records nothing for an ordinary refusal of the expected token type', async () => {
       req.headers.authorization = bearerOfType('access');
 
