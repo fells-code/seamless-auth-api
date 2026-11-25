@@ -139,7 +139,7 @@ export const decoySendPhoneOtp = async (req: Request, res: Response) => {
 
   await logDecoy(req, 'otp:otp_sms');
 
-  const token = await signEphemeralToken(decoySubject(req), authReq.attemptId);
+  const token = await reissueEphemeralToken(decoySubject(req), authReq);
 
   return res.status(200).json({ message: 'success', token });
 };

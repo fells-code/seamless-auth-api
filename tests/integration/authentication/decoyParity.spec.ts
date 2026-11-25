@@ -49,7 +49,7 @@ vi.mock('../../../src/middleware/attachAuthMiddleware.js', async (importOriginal
 
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 
-import { signEphemeralToken } from '../../../src/lib/token.js';
+import { reissueEphemeralToken } from '../../../src/lib/token.js';
 import { Credential } from '../../../src/models/credentials.js';
 import { MagicLinkToken } from '../../../src/models/magicLinks.js';
 import { User } from '../../../src/models/users.js';
@@ -240,7 +240,7 @@ describe('pre-auth parity: registration phone OTP for an unclaimed sign-up', () 
   ];
 
   it('answers every sign-up and every registration decoy alike', async () => {
-    (signEphemeralToken as any).mockResolvedValue('token');
+    (reissueEphemeralToken as any).mockResolvedValue('token');
 
     const answers = [];
 
