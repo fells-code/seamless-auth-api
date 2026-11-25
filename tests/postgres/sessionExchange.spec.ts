@@ -1585,6 +1585,21 @@ describe('session lists', () => {
   });
 });
 
+/** Dates the user's factors to before they signed in, since a newer one cannot step up. */
+async function backdateFactors(userId: string) {
+  const { TotpCredential } = await import('../../src/models/totpCredentials.js');
+  const { Credential } = await import('../../src/models/credentials.js');
+  const at = new Date(Date.now() - 24 * 60 * 60_000);
+
+  await TotpCredential.update({ verifiedAt: at }, { where: { userId } });
+  await Credential.sequelize!.query(
+    'UPDATE credentials SET "createdAt" = :at WHERE "userId" = :userId',
+    {
+      replacements: { at, userId },
+    },
+  );
+}
+
 describe('factor changes on a device child', () => {
   const ADMIN_ROLES = ['admin:read', 'admin:write'];
 
@@ -1627,6 +1642,7 @@ describe('factor changes on a device child', () => {
       generateTotpCode({ secret, counter: getTotpCounter() - 1 }),
     );
     expect(enrolled.verified).toBe(true);
+    await backdateFactors(user.id);
     return { secret, code: () => generateTotpCode({ secret }) };
   }
 
@@ -1798,7 +1814,7 @@ describe('factor changes on a device child', () => {
 
   it('does not change a first-party session', async () => {
     const user = await createUser();
-    const session = await createSession(user.id);
+    const session = await createSession(user.id, { authTime: new Date() });
     const token = await accessTokenFor(session);
 
     expect((await request(app).post('/totp/enroll/start').set(bearer(token))).status).toBe(200);
@@ -1921,6 +1937,7 @@ describe('organization routes on a device child', () => {
       user.id,
       generateTotpCode({ secret, counter: getTotpCounter() - 1 }),
     );
+    await backdateFactors(user.id);
     const stepUp = await request(app)
       .post('/totp/verify-mfa')
       .set(bearer(token))
@@ -2129,7 +2146,9 @@ describe('a passkey step-up on a device child', () => {
   /** The user's own passkey, registered from a first-party session, and a device sign-in. */
   async function signedInWithPasskey() {
     const { SoftwareAuthenticator } = await import('../factories/softwareAuthenticator.js');
-    const { client, user, parent } = await signedInToCli({}, {}, ['admin:read']);
+    const { client, user, parent } = await signedInToCli({ authTime: new Date() }, {}, [
+      'admin:read',
+    ]);
     const browser = await accessTokenFor(parent, ['admin:read']);
     const passkey = new SoftwareAuthenticator();
 
@@ -2146,6 +2165,7 @@ describe('a passkey step-up on a device child', () => {
         }),
       });
     expect(finish.status).toBe(200);
+    await backdateFactors(user.id);
 
     const { token: subject } = await signSubject(client, parent, { grantType: DEVICE_CODE });
     const child = await exchange(subject);
