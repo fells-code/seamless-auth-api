@@ -69,6 +69,10 @@ export const holdResponseToFloor: RequestHandler = (_req, res, next) => {
     const headers = res.getHeaders();
 
     setTimeout(() => {
+      if (res.headersSent) {
+        end(...args);
+        return;
+      }
       for (const name of res.getHeaderNames()) res.removeHeader(name);
       for (const [name, value] of Object.entries(headers)) {
         if (value !== undefined) res.setHeader(name, value);

@@ -27,6 +27,10 @@ function buildApp() {
     res.set('X-Answer', 'first').status(200).json({ token: 'issued' });
     next(new Error('a write after the answer failed'));
   });
+  app.get('/flushed', holdResponseToFloor, (_req, res) => {
+    res.status(200).flushHeaders();
+    res.end('done');
+  });
   app.use(
     (
       _error: unknown,
@@ -106,5 +110,14 @@ describe('holdResponseToFloor', () => {
     expect(res.headers['x-answer']).toBe('first');
     expect(res.headers['content-length']).toBe(String(Buffer.byteLength(res.text)));
     expect(res.body).toEqual({ token: 'issued' });
+  });
+
+  it('finishes a response whose headers went out before the hold', async () => {
+    vi.stubEnv('LOGIN_RESPONSE_FLOOR_MS', String(FLOOR_MS));
+
+    const { res } = await time(buildApp(), '/flushed');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('done');
   });
 });
