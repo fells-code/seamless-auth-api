@@ -23,6 +23,21 @@ function buildApp() {
     res.json({ ok: true });
   });
 
+  app.get('/fails-after', holdResponseToFloor, async (_req, res, next) => {
+    res.set('X-Answer', 'first').status(200).json({ token: 'issued' });
+    next(new Error('a write after the answer failed'));
+  });
+  app.use(
+    (
+      _error: unknown,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction,
+    ) => {
+      res.status(500).set('X-Answer', 'second').json({ error: 'Internal Server error' });
+    },
+  );
+
   return app;
 }
 
@@ -80,5 +95,16 @@ describe('holdResponseToFloor', () => {
     const { elapsed } = await time(buildApp(), '/ok');
 
     expect(elapsed).toBeLessThan(FLOOR_MS);
+  });
+
+  it('keeps the first answer when an error follows it during the hold', async () => {
+    vi.stubEnv('LOGIN_RESPONSE_FLOOR_MS', String(FLOOR_MS));
+
+    const { res } = await time(buildApp(), '/fails-after');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-answer']).toBe('first');
+    expect(res.headers['content-length']).toBe(String(Buffer.byteLength(res.text)));
+    expect(res.body).toEqual({ token: 'issued' });
   });
 });

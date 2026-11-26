@@ -41,19 +41,42 @@ export async function holdUntilFloor(startedAt: number) {
 /**
  * Holds whatever the rest of the route answers, success or failure, until the floor.
  * Mounted ahead of authentication so the subject lookup is inside the measured time.
+ *
+ * The first answer is final. Nothing has reached the socket while it is held, so
+ * `headersSent` is still false and an error thrown after the handler answered would
+ * otherwise rewrite the status and headers of a response whose body is already decided.
  */
 export const holdResponseToFloor: RequestHandler = (_req, res, next) => {
   const startedAt = Date.now();
   const end = res.end.bind(res) as (...args: unknown[]) => typeof res;
+  const write = res.write.bind(res) as (...args: unknown[]) => boolean;
+  let held = false;
+
+  res.write = ((...args: unknown[]) => (held ? true : write(...args))) as typeof res.write;
 
   res.end = ((...args: unknown[]) => {
+    if (held) return res;
+
     const remaining = responseFloorMs() - (Date.now() - startedAt);
 
     if (remaining <= 0) {
       return end(...args);
     }
 
-    setTimeout(() => end(...args), remaining);
+    held = true;
+    const statusCode = res.statusCode;
+    const statusMessage = res.statusMessage;
+    const headers = res.getHeaders();
+
+    setTimeout(() => {
+      for (const name of res.getHeaderNames()) res.removeHeader(name);
+      for (const [name, value] of Object.entries(headers)) {
+        if (value !== undefined) res.setHeader(name, value);
+      }
+      res.statusCode = statusCode;
+      res.statusMessage = statusMessage;
+      end(...args);
+    }, remaining);
     return res;
   }) as typeof res.end;
 
