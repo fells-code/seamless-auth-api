@@ -177,6 +177,22 @@ describe('pre-auth parity: WebAuthn login finish', () => {
     expect(real.status).toBe(401);
     expect(real.body).toEqual({ error: 'Authentication failed.' });
   });
+
+  it.each([[{}], [{ id: 'cred\u0000' }], [{ id: 7 }], [{ id: 'x'.repeat(2000) }]])(
+    'answers a malformed credential id the same way (%o)',
+    async (assertionResponse) => {
+      const real = await expectParity(
+        (agent) => request(agent).post('/webauthn/login/finish').send({ assertionResponse }),
+        () => {
+          (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
+          (Credential.findOne as any).mockRejectedValue(new Error('invalid input syntax'));
+        },
+      );
+
+      expect(real.status).toBe(401);
+      expect(Credential.findOne).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('pre-auth parity: magic link polling', () => {

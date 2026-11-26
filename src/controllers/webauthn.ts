@@ -48,6 +48,9 @@ import getLogger from '../utils/logger.js';
 
 const logger = getLogger('webauthn');
 
+// WebAuthn caps a credential id at 1023 bytes, which is 1364 characters of base64url.
+const MAX_CREDENTIAL_ID_LENGTH = 1364;
+
 function getRegistrationChallengeContext(context: Record<string, unknown> | null | undefined) {
   if (!context) {
     return { prfRequested: false, requirePrf: false };
@@ -583,9 +586,16 @@ const verifyWebAuthn = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication failed.' });
     }
 
-    const cred = await Credential.findOne({
-      where: { userId: user.id, id: assertionResponse.id },
-    });
+    // The body schema only promises an object, and a missing or NUL-bearing id would throw
+    // in the lookup and answer 500, where a decoy answers 401.
+    const credentialId = assertionResponse?.id;
+    const cred =
+      typeof credentialId === 'string' &&
+      credentialId.length > 0 &&
+      credentialId.length <= MAX_CREDENTIAL_ID_LENGTH &&
+      !credentialId.includes('\0')
+        ? await Credential.findOne({ where: { userId: user.id, id: credentialId } })
+        : null;
 
     if (!cred) {
       logger.error('Failed to find the credential for the user');
