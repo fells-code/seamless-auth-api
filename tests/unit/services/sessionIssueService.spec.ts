@@ -18,6 +18,7 @@ vi.mock('../../../src/models/sessions.js', () => ({
   Session: {
     create: vi.fn(),
     findOne: vi.fn(),
+    findByPk: vi.fn(),
     update: vi.fn(),
   },
 }));
@@ -56,7 +57,7 @@ import {
 import { Session } from '../../../src/models/sessions.js';
 import { enforceConcurrentSessionLimit } from '../../../src/services/concurrentSessionPolicy.js';
 import { runLoginHook } from '../../../src/services/loginHookService.js';
-import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { revokeSessionChain } from '../../../src/services/sessionService.js';
 import { getDefaultOrganizationIdForUser } from '../../../src/services/organizationService.js';
 import { computeSessionTimes, parseDurationToSeconds } from '../../../src/utils/utils.js';
 
@@ -721,6 +722,10 @@ describe('liftRecoveryRestrictionAfterHooks', () => {
     ...overrides,
   });
 
+  beforeEach(() => {
+    (Session.update as any).mockResolvedValue([1]);
+  });
+
   function hooksAnswer(
     postLogin: Awaited<ReturnType<typeof runLoginHook>>,
     preToken: Awaited<ReturnType<typeof runLoginHook>> = { outcome: 'skipped' },
@@ -758,9 +763,9 @@ describe('liftRecoveryRestrictionAfterHooks', () => {
     });
     expect(Session.update).toHaveBeenCalledWith(
       { recovery: false, hookClaims: { tier: 'gold' } },
-      { where: { id: 'session-1', recovery: true, revokedAt: null } },
+      { where: { id: 'session-1', recovery: true, revokedAt: null, replacedBySessionId: null } },
     );
-    expect(hardRevokeSession).not.toHaveBeenCalled();
+    expect(revokeSessionChain).not.toHaveBeenCalled();
   });
 
   it('names account recovery as the method when the session recorded no factor', async () => {
@@ -796,7 +801,7 @@ describe('liftRecoveryRestrictionAfterHooks', () => {
       body: { error: 'login_denied', message: 'Your account is on hold.' },
     });
     expect(runLoginHook).toHaveBeenCalledTimes(1);
-    expect(hardRevokeSession).toHaveBeenCalledWith(session, RECOVERY_HOOK_REFUSED);
+    expect(revokeSessionChain).toHaveBeenCalledWith(session, RECOVERY_HOOK_REFUSED);
     expect(Session.update).not.toHaveBeenCalled();
   });
 
@@ -812,7 +817,7 @@ describe('liftRecoveryRestrictionAfterHooks', () => {
         req: mockReq(),
       }),
     ).toEqual({ status: 503, body: { error: 'login_hook_unavailable' } });
-    expect(hardRevokeSession).toHaveBeenCalledWith(session, RECOVERY_HOOK_REFUSED);
+    expect(revokeSessionChain).toHaveBeenCalledWith(session, RECOVERY_HOOK_REFUSED);
     expect(Session.update).not.toHaveBeenCalled();
   });
 
@@ -832,8 +837,52 @@ describe('liftRecoveryRestrictionAfterHooks', () => {
     expect(runLoginHook).not.toHaveBeenCalled();
     expect(Session.update).toHaveBeenCalledWith(
       { recovery: false, hookClaims: null },
-      { where: { id: 'session-1', recovery: true, revokedAt: null } },
+      { where: { id: 'session-1', recovery: true, revokedAt: null, replacedBySessionId: null } },
     );
+  });
+
+  it('lifts the row a refresh rotated to while the hooks ran', async () => {
+    const session = recoverySession({
+      reload: vi.fn(async function (this: Record<string, unknown>) {
+        this.replacedBySessionId = 'session-2';
+      }),
+    });
+    (Session.findOne as any).mockResolvedValue(session);
+    (Session.findByPk as any).mockResolvedValue(recoverySession({ id: 'session-2' }));
+    (Session.update as any).mockResolvedValueOnce([0]).mockResolvedValueOnce([1]);
+    hooksAnswer({ outcome: 'allowed', claims: null });
+
+    await liftRecoveryRestrictionAfterHooks({
+      sessionId: 'session-1',
+      user: mockUser,
+      req: mockReq(),
+    });
+
+    expect(Session.findByPk).toHaveBeenCalledWith('session-2');
+    expect(Session.update).toHaveBeenLastCalledWith(
+      { recovery: false, hookClaims: null },
+      { where: { id: 'session-2', recovery: true, revokedAt: null, replacedBySessionId: null } },
+    );
+  });
+
+  it('stops at a session revoked while the hooks ran', async () => {
+    const session = recoverySession({
+      reload: vi.fn(async function (this: Record<string, unknown>) {
+        this.revokedAt = new Date();
+      }),
+    });
+    (Session.findOne as any).mockResolvedValue(session);
+    (Session.update as any).mockResolvedValue([0]);
+    hooksAnswer({ outcome: 'allowed', claims: null });
+
+    await liftRecoveryRestrictionAfterHooks({
+      sessionId: 'session-1',
+      user: mockUser,
+      req: mockReq(),
+    });
+
+    expect(Session.update).toHaveBeenCalledTimes(1);
+    expect(Session.findByPk).not.toHaveBeenCalled();
   });
 
   it('does nothing without a live recovery session', async () => {

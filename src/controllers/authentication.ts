@@ -821,6 +821,15 @@ export const refreshSession = async (req: Request, res: Response) => {
     );
   }
 
+  // A recovery lift that ran between reading this session and claiming its link updated
+  // the row being replaced, so the replacement takes the lifted state from it.
+  if (session.recovery === true) {
+    await session.reload();
+    if (session.recovery !== true) {
+      await newSession.update({ recovery: false, hookClaims: session.hookClaims ?? null });
+    }
+  }
+
   // Read again because a revoke-all can land while this rotation is in flight. Its cutoff
   // covers the session the rotation started from, so the replacement is refused whether
   // or not the bulk update reached its row.

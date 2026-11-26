@@ -37,7 +37,7 @@ import { Session } from '../../../src/models/sessions.js';
 import { User } from '../../../src/models/users.js';
 import { WebAuthnChallenge } from '../../../src/models/webauthnChallenges.js';
 import { runLoginHook } from '../../../src/services/loginHookService.js';
-import { hardRevokeSession } from '../../../src/services/sessionService.js';
+import { revokeSessionChain } from '../../../src/services/sessionService.js';
 import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
 import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory.js';
@@ -104,6 +104,7 @@ beforeEach(async () => {
     buildWebAuthnChallenge({ purpose: 'registration' }),
   );
   (Session.findOne as any).mockResolvedValue(recoverySession);
+  (Session.update as any).mockResolvedValue([1]);
 });
 
 describe('passkey enrollment from a recovery session', () => {
@@ -123,7 +124,7 @@ describe('passkey enrollment from a recovery session', () => {
     ]);
     expect(Session.update).toHaveBeenCalledWith(
       { recovery: false, hookClaims: { tier: 'gold' } },
-      { where: { id: 'session-1', recovery: true, revokedAt: null } },
+      { where: { id: 'session-1', recovery: true, revokedAt: null, replacedBySessionId: null } },
     );
   });
 
@@ -138,7 +139,7 @@ describe('passkey enrollment from a recovery session', () => {
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'login_denied', message: 'Your account is on hold.' });
     expect(Credential.create).toHaveBeenCalled();
-    expect(hardRevokeSession).toHaveBeenCalledWith(recoverySession, expect.any(String));
+    expect(revokeSessionChain).toHaveBeenCalledWith(recoverySession, expect.any(String));
     expect(Session.update).not.toHaveBeenCalled();
   });
 

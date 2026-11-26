@@ -24,7 +24,7 @@ import {
 } from './loginHookService.js';
 import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
-import { hardRevokeSession } from './sessionService.js';
+import { revokeSessionChain } from './sessionService.js';
 
 /** The factor that proved the user, as far as session issuance needs to know it. */
 export type SessionMethod =
@@ -285,16 +285,38 @@ export async function liftRecoveryRestrictionAfterHooks(params: {
     });
 
     if ('refusal' in outcome) {
-      await hardRevokeSession(session, RECOVERY_HOOK_REFUSED);
+      // The hooks can take seconds, and a refresh in that time moves the session on, so
+      // the whole chain is ended rather than the row read before they ran.
+      await revokeSessionChain(session, RECOVERY_HOOK_REFUSED);
       return outcome.refusal;
     }
     hookClaims = outcome.claims;
   }
 
-  await Session.update(
-    { recovery: false, hookClaims },
-    { where: { id: session.id, recovery: true, revokedAt: null } },
-  );
+  await liftAtChainHead(session, hookClaims);
 
   return null;
+}
+
+const MAX_LIFT_HOPS = 8;
+
+/**
+ * Lifts the restriction on whichever row is the chain's head now. A rotation that claims
+ * the head after this update copies the lifted state itself (see `refreshSession`).
+ */
+async function liftAtChainHead(session: Session, hookClaims: HookClaims | null) {
+  let current: Session | null = session;
+
+  for (let hops = 0; current && hops < MAX_LIFT_HOPS; hops += 1) {
+    const [lifted] = await Session.update(
+      { recovery: false, hookClaims },
+      { where: { id: current.id, recovery: true, revokedAt: null, replacedBySessionId: null } },
+    );
+    if (lifted > 0) return;
+
+    await current.reload();
+    if (current.revokedAt || !current.replacedBySessionId) return;
+
+    current = await Session.findByPk(current.replacedBySessionId);
+  }
 }
