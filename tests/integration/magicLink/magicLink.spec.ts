@@ -702,8 +702,8 @@ describe('GET /magic-link/check', () => {
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
-        type: 'magic_link_failed',
-        metadata: { reason: 'Polling device IP mismatch' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Polling device IP mismatch', flow: 'magic_link' },
       }),
     );
     expect(Session.create).not.toHaveBeenCalled();
@@ -721,8 +721,8 @@ describe('GET /magic-link/check', () => {
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
-        type: 'magic_link_failed',
-        metadata: { reason: 'Polling device user agent mismatch' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Polling device user agent mismatch', flow: 'magic_link' },
       }),
     );
     expect(Session.create).not.toHaveBeenCalled();
@@ -992,8 +992,8 @@ describe('magic link without an attempt id', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'magic_link_failed',
-        metadata: { reason: 'Ephemeral token has no attempt id' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Ephemeral token has no attempt id', flow: 'magic_link' },
       }),
     );
     expect(MagicLinkToken.create).not.toHaveBeenCalled();
@@ -1007,8 +1007,8 @@ describe('magic link without an attempt id', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'magic_link_failed',
-        metadata: { reason: 'Ephemeral token has no attempt id' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Ephemeral token has no attempt id', flow: 'magic_link' },
       }),
     );
     expect(MagicLinkToken.findOne).not.toHaveBeenCalled();

@@ -71,6 +71,20 @@ async function rejectDisabledMagicLink(
   return true;
 }
 
+/**
+ * For a refusal that checked nothing the caller had to know. Recorded, but not as a failed
+ * sign-in: anyone with a pre-auth token from `/login` can produce one, so counting it
+ * toward lockout let a stranger lock an account's code factors without guessing.
+ */
+async function logMagicLinkRefusal(req: Request, reason: string, userId: string) {
+  await AuthEventService.log({
+    userId,
+    type: 'login_suspicious',
+    req,
+    metadata: { reason, flow: 'magic_link' },
+  });
+}
+
 async function logMagicLinkFailure(req: Request, reason: string, userId?: string | null) {
   await AuthEventService.log({
     userId: userId ?? null,
@@ -116,7 +130,7 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
     redirect_url = await resolveMagicLinkUrl(rawToken, rawCode, req.query.redirectUri);
   } catch (error) {
     if (error instanceof MagicLinkRedirectNotAllowedError) {
-      await logMagicLinkFailure(req, 'Redirect URI not allowed', user.id);
+      await logMagicLinkRefusal(req, 'Redirect URI not allowed', user.id);
       return res.status(400).json({ error: 'Redirect URI is not allowed' });
     }
 
@@ -133,7 +147,7 @@ export async function requestMagicLink(req: MagicLinkRequest, res: Response) {
   // The poll collects the session by attempt, so a link without one could never be
   // collected. Every ephemeral token minted by a current server carries it.
   if (!authReq.attemptId) {
-    await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
+    await logMagicLinkRefusal(req, 'Ephemeral token has no attempt id', user.id);
     return res.status(400).json({ error: 'Invalid request' });
   }
   // Only this attempt's earlier links. Anyone who knows the address can start an attempt,
@@ -406,7 +420,7 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   }
 
   if (!authReq.attemptId) {
-    await logMagicLinkFailure(req, 'Ephemeral token has no attempt id', user.id);
+    await logMagicLinkRefusal(req, 'Ephemeral token has no attempt id', user.id);
     return res.status(400).json({ error: 'Invalid request' });
   }
 
@@ -427,12 +441,12 @@ export async function pollMagicLinkConfirmation(req: Request, res: Response) {
   const { ip_hash, user_agent_hash } = hashDeviceFingerprint(req.ip, req.headers['user-agent']);
 
   if (record.ip_hash && record.ip_hash !== ip_hash) {
-    await logMagicLinkFailure(req, 'Polling device IP mismatch', user.id);
+    await logMagicLinkRefusal(req, 'Polling device IP mismatch', user.id);
     return res.status(204).end();
   }
 
   if (record.user_agent_hash && record.user_agent_hash !== user_agent_hash) {
-    await logMagicLinkFailure(req, 'Polling device user agent mismatch', user.id);
+    await logMagicLinkRefusal(req, 'Polling device user agent mismatch', user.id);
     return res.status(204).end();
   }
 

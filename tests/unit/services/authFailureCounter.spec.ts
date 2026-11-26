@@ -90,6 +90,8 @@ describe('isLockoutFailureType', () => {
     // step-up was the one code-checking endpoint whose guesses reached no counter.
     expect(isLockoutFailureType('mfa_otp_failed')).toBe(true);
     expect(isLockoutFailureType('login_success')).toBe(false);
+    // Magic link refusals that check nothing the caller had to know.
+    expect(isLockoutFailureType('login_suspicious')).toBe(false);
     // An assertion cannot be guessed, so a failed one does not count towards a lock.
     expect(isLockoutFailureType('webauthn_login_failed')).toBe(false);
   });
