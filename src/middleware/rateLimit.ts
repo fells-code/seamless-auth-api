@@ -28,12 +28,25 @@ function clientAddressKey(req: Request) {
   return address ? ipKeyGenerator(address) : 'unknown';
 }
 
+/**
+ * A request on a token is counted against its subject, not the subject's address. A decoy's
+ * address is synthetic, so keying a continuation on it would give a decoy a fresh bucket
+ * where a real account shares the one `/login` or `/registration/register` spent, and the
+ * rate-limit headers would tell them apart.
+ */
+function subjectKey(req: Request) {
+  const id = (req as AuthenticatedRequest).user?.id;
+
+  return id ? `subject:${id}` : null;
+}
+
 function getMagicLinkIdentityKey(req: Request) {
-  const authReq = req as AuthenticatedRequest;
+  const subject = subjectKey(req);
+  if (subject) return subject;
+
   const body = req.body as { email?: unknown } | undefined;
   const query = req.query as { email?: unknown } | undefined;
   const email =
-    authReq.user?.email ??
     (typeof body?.email === 'string' ? body.email : undefined) ??
     (typeof query?.email === 'string' ? query.email : undefined);
 
@@ -45,10 +58,12 @@ function getMagicLinkIdentityKey(req: Request) {
 }
 
 function getOtpIdentityKey(req: Request) {
-  const authReq = req as AuthenticatedRequest;
+  const subject = subjectKey(req);
+  if (subject) return subject;
+
   const body = req.body as { email?: unknown; phone?: unknown } | undefined;
-  const email = authReq.user?.email ?? (typeof body?.email === 'string' ? body.email : undefined);
-  const phone = authReq.user?.phone ?? (typeof body?.phone === 'string' ? body.phone : undefined);
+  const email = typeof body?.email === 'string' ? body.email : undefined;
+  const phone = typeof body?.phone === 'string' ? body.phone : undefined;
 
   if (email) {
     return `email:${email.toLowerCase()}`;
