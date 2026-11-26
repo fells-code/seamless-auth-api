@@ -206,7 +206,10 @@ key there means a coordinated release across both SDKs for an operational tuning
   `retryAfterSeconds`. Only a real account can be locked, so either answer discloses
   existence. It requires prior failed attempts against that specific account, and
   suppressing it would leave a locked-out user with no way to understand what happened.
-  Accepted. See [Account lockout](#account-lockout).
+  The same holds after `/registration/register`: wrong codes lock a real sign-up, and the
+  registration decoy for a verified address is never locked. That tells a caller no more
+  than locking the account from `/login` already does. Accepted. See
+  [Account lockout](#account-lockout).
 - **A malformed identifier** answers `400`. This does not depend on whether any account
   exists, so it is not an enumeration signal.
 - **External delivery mode** answers a real OTP or magic link request with a `delivery`
