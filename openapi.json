@@ -19138,6 +19138,14 @@
                   "sessionId": { "type": "string", "minLength": 1 },
                   "grantType": {
                     "type": "string",
+                    "enum": [
+                      "authorization_code",
+                      "urn:ietf:params:oauth:grant-type:device_code",
+                      "refresh_token"
+                    ]
+                  },
+                  "originGrantType": {
+                    "type": "string",
                     "enum": ["authorization_code", "urn:ietf:params:oauth:grant-type:device_code"]
                   },
                   "signingInput": {

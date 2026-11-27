@@ -202,11 +202,25 @@ function subjectClaims(client: OidcClient, userId: string, overrides = {}) {
 }
 
 /** Has `/oidc/sign` sign an access token, the way the edge asks for one. */
+/** The code the edge's token request consumes just before it asks for the signature. */
+async function consumeCode(client: OidcClient, parent: Session, grantType = AUTHORIZATION_CODE) {
+  const model = grantType === DEVICE_CODE ? 'DeviceCode' : 'AuthorizationCode';
+  const id = randomUUID();
+  await store.upsertOidcPayload(model, id, {
+    payload: { clientId: client.id, accountId: parent.userId, grantId: randomUUID() },
+    expiresIn: 300,
+    sessionId: parent.id,
+  });
+  expect(await store.consumeOidcPayload(model, id)).toBe(true);
+  return { model, id };
+}
+
 async function signSubject(
   client: OidcClient,
   parent: Session,
-  { grantType = AUTHORIZATION_CODE, claims = {} } = {},
+  { grantType = AUTHORIZATION_CODE, claims = {}, code = true } = {},
 ) {
+  if (code) await consumeCode(client, parent, grantType);
   const body = subjectClaims(client, parent.userId, claims);
   const signingInput = jwtInput({ alg: 'RS256', kid: KID, typ: 'at+jwt' }, body);
   const outcome = await signing.signForOidcEdge({
@@ -594,6 +608,89 @@ describe('/oidc/sign for a session:exchange token', () => {
     expect(outcome).toMatchObject({ ok: false, code: 'malformed_signing_input' });
     const record = await OidcPayload.findOne({ where: { model: 'SessionExchangeToken', id: jti } });
     expect(record?.consumedAt).not.toBeNull();
+  });
+
+  describe('ties each token to the code its sign-in consumed', () => {
+    it('refuses a refresh reported as a code grant, since a refresh consumes no code', async () => {
+      const { client, parent } = await eligible();
+
+      const { outcome, jti } = await signSubject(client, parent, { code: false });
+
+      expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+      expect(
+        await OidcPayload.findOne({ where: { model: 'SessionExchangeToken', id: jti } }),
+      ).toBeNull();
+    });
+
+    it('signs one token per code', async () => {
+      const { client, parent } = await eligible();
+
+      expect((await signSubject(client, parent)).outcome.ok).toBe(true);
+      const again = await signSubject(client, parent, { code: false });
+
+      expect(again.outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+    });
+
+    it('refuses a code consumed before the window', async () => {
+      const { client, parent } = await eligible();
+      const { model, id } = await consumeCode(client, parent);
+      await OidcPayload.update(
+        { consumedAt: new Date(Date.now() - store.SESSION_EXCHANGE_SOURCE_WINDOW_MS - 1000) },
+        { where: { model, id } },
+      );
+
+      const { outcome } = await signSubject(client, parent, { code: false });
+
+      expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+    });
+
+    it('refuses a code that was stored but never consumed', async () => {
+      const { client, parent } = await eligible();
+      await store.upsertOidcPayload('AuthorizationCode', randomUUID(), {
+        payload: { clientId: client.id, accountId: parent.userId },
+        expiresIn: 300,
+        sessionId: parent.id,
+      });
+
+      const { outcome } = await signSubject(client, parent, { code: false });
+
+      expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+    });
+
+    it('refuses a code another client consumed on the same session', async () => {
+      const { client, parent } = await eligible();
+      await consumeCode(await nativeClient(), parent);
+
+      const { outcome } = await signSubject(client, parent, { code: false });
+
+      expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+    });
+
+    it('refuses a grant the edge reports that differs from the code consumed', async () => {
+      const { client, parent } = await eligible();
+      await consumeCode(client, parent, DEVICE_CODE);
+
+      const { outcome } = await signSubject(client, parent, { code: false });
+
+      expect(outcome).toMatchObject({ ok: false, code: 'grant_not_allowed' });
+    });
+
+    it('keeps the claims out of reach of the edge payload routes', async () => {
+      const { OidcPayloadModelSchema } = await import('@seamless-auth/types');
+
+      expect(OidcPayloadModelSchema.safeParse('SessionExchangeSource').success).toBe(false);
+    });
+  });
+
+  it('serves an exchange client no refresh grant, whatever it stores', async () => {
+    const client = await nativeClient({
+      grantTypes: [AUTHORIZATION_CODE, 'refresh_token', DEVICE_CODE],
+    });
+
+    expect((await registry.getOidcClientMetadata(client.id))?.grant_types).toEqual([
+      AUTHORIZATION_CODE,
+      DEVICE_CODE,
+    ]);
   });
 
   it('keeps the record out of reach of the edge payload routes', async () => {

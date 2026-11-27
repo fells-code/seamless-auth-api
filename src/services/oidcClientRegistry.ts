@@ -75,6 +75,21 @@ export async function findSessionExchangeClient(id: string) {
   return client && isSessionExchangeClient(client) ? client : null;
 }
 
+/**
+ * The grants a client may use, whatever the stored list says. The device grant only for a
+ * first-party client with the flag on (ADR 0001, D10). No refresh grant for a session exchange
+ * client (ADR 0003, X2): its sign-ins are each one user confirmation, and a refresh token
+ * would let it keep asking for tokens without one.
+ */
+export function servedGrantTypes(client: OidcClient) {
+  const exchange = isSessionExchangeClient(client);
+  return client.grantTypes.filter(
+    (grant) =>
+      (grant !== DEVICE_CODE_GRANT || (client.firstParty && client.deviceFlowEnabled)) &&
+      (grant !== 'refresh_token' || !exchange),
+  );
+}
+
 export async function getOidcClientMetadata(id: string): Promise<OidcClientMetadata | null> {
   const client = await findActiveOidcClient(id);
 
@@ -85,11 +100,7 @@ export async function getOidcClientMetadata(id: string): Promise<OidcClientMetad
     client_name: client.name,
     application_type: client.redirectUris.some(isNativeRedirectUri) ? 'native' : 'web',
     token_endpoint_auth_method: client.tokenEndpointAuthMethod,
-    // The device grant only for a first-party client with the flag on (ADR 0001, D10),
-    // whatever the stored grant list says.
-    grant_types: client.grantTypes.filter(
-      (grant) => grant !== DEVICE_CODE_GRANT || (client.firstParty && client.deviceFlowEnabled),
-    ) as OidcClientMetadata['grant_types'],
+    grant_types: servedGrantTypes(client) as OidcClientMetadata['grant_types'],
     response_types: client.grantTypes.includes('authorization_code') ? ['code'] : [],
     redirect_uris: client.redirectUris,
     post_logout_redirect_uris: client.postLogoutRedirectUris,

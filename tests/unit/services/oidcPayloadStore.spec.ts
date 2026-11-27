@@ -6,6 +6,7 @@ vi.mock('../../../src/models/oidcPayloads', () => ({
     create: vi.fn(),
     upsert: vi.fn(),
     findOne: vi.fn(),
+    findAll: vi.fn(),
     update: vi.fn(),
     destroy: vi.fn(),
     sequelize: { query: vi.fn() },
@@ -32,6 +33,7 @@ import {
   DEVICE_CODE_EXPIRED_GRACE_MS,
   bindOidcSession,
   claimOAuthStateUse,
+  claimSessionExchangeSource,
   consumeOidcPayload,
   destroyOidcPayload,
   ExpiryTooLongError,
@@ -46,6 +48,7 @@ import {
   MAX_EXPIRES_IN_SECONDS,
   purgeExpiredOidcPayloads,
   revokeOidcPayloadsByGrant,
+  SESSION_EXCHANGE_SOURCE_WINDOW_MS,
   startOidcPayloadPurge,
   upsertOidcPayload,
 } from '../../../src/services/oidcPayloadStore';
@@ -149,6 +152,75 @@ describe('claimOAuthStateUse', () => {
         }),
       }),
     );
+  });
+});
+
+describe('claimSessionExchangeSource', () => {
+  const code = (model: string, id: string, clientId = 'cli') =>
+    ({ model, id, payload: { clientId } }) as never;
+
+  beforeEach(() => {
+    vi.mocked(OidcPayload.findAll).mockReset();
+    vi.mocked(OidcPayload.sequelize!.query).mockReset();
+  });
+
+  it('claims a code this session and client consumed just now', async () => {
+    vi.mocked(OidcPayload.findAll).mockResolvedValueOnce([code('AuthorizationCode', 'c1')]);
+    vi.mocked(OidcPayload.sequelize!.query).mockResolvedValueOnce([{ id: 'x' }] as never);
+    const before = Date.now();
+
+    expect(await claimSessionExchangeSource(SESSION, 'cli')).toBe('AuthorizationCode');
+
+    const { where } = vi.mocked(OidcPayload.findAll).mock.calls[0][0] as {
+      where: Record<string, unknown> & { consumedAt: { [Op.gte]: Date } };
+    };
+    expect(where).toMatchObject({
+      model: { [Op.in]: ['AuthorizationCode', 'DeviceCode'] },
+      sessionId: SESSION,
+      payload: { clientId: 'cli' },
+    });
+    expect(where.consumedAt[Op.gte].getTime()).toBeGreaterThanOrEqual(
+      before - SESSION_EXCHANGE_SOURCE_WINDOW_MS,
+    );
+    expect(vi.mocked(OidcPayload.sequelize!.query).mock.calls[0][1]).toMatchObject({
+      replacements: { id: 'AuthorizationCode:c1', model: 'SessionExchangeSource' },
+    });
+  });
+
+  it('moves on to the next code when one is already claimed', async () => {
+    vi.mocked(OidcPayload.findAll).mockResolvedValueOnce([
+      code('AuthorizationCode', 'c1'),
+      code('DeviceCode', 'd1'),
+    ]);
+    vi.mocked(OidcPayload.sequelize!.query)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([{ id: 'x' }] as never);
+
+    expect(await claimSessionExchangeSource(SESSION, 'cli')).toBe('DeviceCode');
+  });
+
+  it('finds nothing to claim for a refresh, which consumes no code', async () => {
+    vi.mocked(OidcPayload.findAll).mockResolvedValueOnce([]);
+    expect(await claimSessionExchangeSource(SESSION, 'cli')).toBeNull();
+  });
+
+  it('refuses when every code is already claimed', async () => {
+    vi.mocked(OidcPayload.findAll).mockResolvedValueOnce([code('AuthorizationCode', 'c1')]);
+    vi.mocked(OidcPayload.sequelize!.query).mockResolvedValueOnce([] as never);
+    expect(await claimSessionExchangeSource(SESSION, 'cli')).toBeNull();
+  });
+
+  it('skips a code for another client', async () => {
+    vi.mocked(OidcPayload.findAll).mockResolvedValueOnce([
+      code('AuthorizationCode', 'c1', 'other'),
+    ]);
+    expect(await claimSessionExchangeSource(SESSION, 'cli')).toBeNull();
+    expect(OidcPayload.sequelize!.query).not.toHaveBeenCalled();
+  });
+
+  it('refuses a malformed session id without a query', async () => {
+    expect(await claimSessionExchangeSource('not-a-uuid', 'cli')).toBeNull();
+    expect(OidcPayload.findAll).not.toHaveBeenCalled();
   });
 });
 
