@@ -16,6 +16,7 @@ import {
   getCustomClaimSource,
   listCustomClaimSources,
   resolveCustomClaims,
+  rolesWithCustomClaims,
   serializeCustomClaimSource,
   setCustomClaimSource,
 } from '../../../src/services/customClaimService.js';
@@ -265,5 +266,22 @@ describe('admin', () => {
         where: expect.objectContaining({ sourceKind: 'organization_role' }),
       }),
     );
+  });
+});
+
+describe('rolesWithCustomClaims', () => {
+  it('names only roles with a non-empty set, and skips the read for none', async () => {
+    await expect(rolesWithCustomClaims('organization_role', [])).resolves.toEqual([]);
+    expect(CustomClaim.findAll).not.toHaveBeenCalled();
+
+    vi.mocked(CustomClaim.findAll).mockResolvedValue([
+      { sourceName: 'billing', claims: { tier: 'x' } },
+      { sourceName: 'viewer', claims: {} },
+      { sourceName: 'legacy', claims: null },
+    ] as never);
+
+    await expect(
+      rolesWithCustomClaims('organization_role', ['billing', 'viewer', 'legacy']),
+    ).resolves.toEqual(['billing']);
   });
 });

@@ -24839,7 +24839,7 @@ export interface paths {
     head?: never;
     /**
      * Update organization member
-     * @description Only an owner or an instance `admin:write` can grant or remove `owner`, and any other manager can only grant a role whose permissions they hold. Added roles have to be in the catalogue.
+     * @description Only an owner or an instance `admin:write` can grant or remove `owner`. Except for an instance `admin:write`, nobody can add a role to their own membership, and a role granted to someone else can only carry permissions the manager holds, and custom claims only if the manager holds that role. Added roles have to be in the catalogue.
      */
     patch: {
       parameters: {

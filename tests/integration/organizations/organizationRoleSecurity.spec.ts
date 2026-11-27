@@ -5,6 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../../src/app';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
+import { CustomClaim } from '../../../src/models/customClaims.js';
 import { OrganizationMembership } from '../../../src/models/organizationMemberships.js';
 import { OrganizationRole } from '../../../src/models/organizationRoles.js';
 import { Organization } from '../../../src/models/organizations.js';
@@ -55,6 +56,7 @@ beforeEach(() => {
   (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
   (RolePermission.findAll as any).mockResolvedValue([]);
+  (CustomClaim.findAll as any).mockResolvedValue([]);
   (OrganizationRole.findAll as any).mockImplementation(async ({ where }: any) =>
     where.name[Op.in].map((name: string) => ({ name })),
   );
@@ -147,13 +149,68 @@ describe('who can grant organization roles', () => {
     expect(res.status).toBe(200);
   });
 
-  it('exempts an owner from holding the permissions, which depend on the mapping', async () => {
+  it('holds an owner to the permissions they hold too', async () => {
     mockMemberships(['owner']);
     mappings({ finance: ['payments:approve'] });
 
     const res = await request(app)
       .patch(`/organizations/${testOrganizationId}/members/${memberId}`)
       .send({ roles: ['finance'] });
+
+    expect(res.status).toBe(403);
+    expect(res.body.details.roles).toEqual(['finance']);
+  });
+
+  it("treats the row being changed as the caller's own, whatever the path id looks like", async () => {
+    mockMemberships(['owner', 'admin']);
+    (OrganizationMembership.findOne as any).mockImplementation(async () =>
+      buildOrganizationMembership({ userId: 'user-1', roles: ['owner', 'admin'] }),
+    );
+
+    const res = await request(app)
+      .patch(`/organizations/${testOrganizationId}/members/${memberId.toUpperCase()}`)
+      .send({ roles: ['owner', 'admin', 'viewer'] });
+
+    expect(res.status).toBe(403);
+    expect(res.body.details.roles).toEqual(['viewer']);
+  });
+
+  it('refuses a role carrying custom claims the manager does not hold', async () => {
+    mockMemberships(['admin']);
+    (CustomClaim.findAll as any).mockResolvedValue([
+      { sourceKind: 'organization_role', sourceName: 'billing', claims: { tier: 'enterprise' } },
+    ]);
+
+    const res = await request(app)
+      .patch(`/organizations/${testOrganizationId}/members/${memberId}`)
+      .send({ roles: ['billing'] });
+
+    expect(res.status).toBe(403);
+    expect(res.body.details.roles).toEqual(['billing']);
+  });
+
+  it('allows a role with custom claims that the manager holds', async () => {
+    mockMemberships(['admin', 'billing']);
+    (CustomClaim.findAll as any).mockResolvedValue([
+      { sourceKind: 'organization_role', sourceName: 'billing', claims: { tier: 'enterprise' } },
+    ]);
+
+    const res = await request(app)
+      .patch(`/organizations/${testOrganizationId}/members/${memberId}`)
+      .send({ roles: ['billing'] });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('treats an empty claim set as no claims', async () => {
+    mockMemberships(['admin']);
+    (CustomClaim.findAll as any).mockResolvedValue([
+      { sourceKind: 'organization_role', sourceName: 'viewer', claims: {} },
+    ]);
+
+    const res = await request(app)
+      .patch(`/organizations/${testOrganizationId}/members/${memberId}`)
+      .send({ roles: ['viewer'] });
 
     expect(res.status).toBe(200);
   });

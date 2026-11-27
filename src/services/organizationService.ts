@@ -10,6 +10,7 @@ import { hasScopedRole } from '../lib/scopedRoles.js';
 import { OrganizationMembership } from '../models/organizationMemberships.js';
 import { Organization } from '../models/organizations.js';
 import { User } from '../models/users.js';
+import { rolesWithCustomClaims } from './customClaimService.js';
 import { permissionsForRoles } from './permissionService.js';
 import { revokeAllSessionsForUsers } from './sessionRevocation.js';
 
@@ -234,38 +235,49 @@ export function isOrganizationManager(user: User, membership?: OrganizationMembe
 }
 
 /**
- * ADR 0004, P7. Whether this manager may move a member from `current` to `next` roles. Owner
- * is the only role that can touch owners, and otherwise a manager can only hand out what they
- * hold themselves, so managing members is not a way to gain a permission. An instance
- * `admin:write` and an owner are exempt: an instance is theirs to run, and an owner's
- * permissions depend on whatever the role happens to be mapped to. Returns what stood in the way.
+ * ADR 0004, P7. Whether this manager may move a member from `current` to `next` roles, and if
+ * not, which roles stood in the way. Only an instance `admin:write` is exempt. Otherwise owner is
+ * the only role that can touch owners, nobody adds a role to their own membership, and a role
+ * granted to someone else may carry only permissions the manager holds and custom claims only if
+ * the manager holds that role. Owners are held to this too: anyone can create an organization and
+ * own it, so owning one is no entitlement to the rest of the instance-wide catalogue.
  */
 export async function refusedRoleChanges(
   user: User,
   membership: OrganizationMembership | null | undefined,
+  targetUserId: string,
   current: string[],
   next: string[],
 ) {
   if (hasScopedRole(user.roles, 'admin:write')) return [];
 
   const held = membership?.roles ?? [];
-
-  if (held.includes('owner')) return [];
-
   const added = next.filter((role) => !current.includes(role));
   const removed = current.filter((role) => !next.includes(role));
-  const refused: string[] = [...added, ...removed].filter((role) => role === 'owner');
-  const heldPermissions = new Set(await permissionsForRoles('organization', held));
+  const refused = new Set<string>(
+    held.includes('owner') ? [] : [...added, ...removed].filter((role) => role === 'owner'),
+  );
 
-  for (const role of added.filter((name) => name !== 'owner')) {
+  if (targetUserId === user.id) {
+    for (const role of added) refused.add(role);
+    return [...refused];
+  }
+
+  const candidates = added.filter((role) => !refused.has(role) && !held.includes(role));
+  if (candidates.length === 0) return [...refused];
+
+  const heldPermissions = new Set(await permissionsForRoles('organization', held));
+  const withClaims = new Set(await rolesWithCustomClaims('organization_role', candidates));
+
+  for (const role of candidates) {
     const granted = await permissionsForRoles('organization', [role]);
 
-    if (granted.some((permission) => !heldPermissions.has(permission))) {
-      refused.push(role);
+    if (withClaims.has(role) || granted.some((permission) => !heldPermissions.has(permission))) {
+      refused.add(role);
     }
   }
 
-  return refused;
+  return [...refused];
 }
 
 export function hasOrganizationScope(

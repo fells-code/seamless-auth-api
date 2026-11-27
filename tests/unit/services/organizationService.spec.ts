@@ -14,6 +14,7 @@ import {
   createOrganizationForUser,
   normalizeMembershipValues,
   normalizeOrganizationSlug,
+  refusedRoleChanges,
 } from '../../../src/services/organizationService.js';
 
 describe('normalizeMembershipValues', () => {
@@ -104,5 +105,56 @@ describe('createOrganizationForUser', () => {
       'connection reset',
     );
     expect((Organization.create as any).mock.calls).toHaveLength(1);
+  });
+});
+
+describe('refusedRoleChanges', () => {
+  it('exempts an instance admin:write, for their own membership too', async () => {
+    const admin = { id: 'admin-1', roles: ['admin'] } as unknown as User;
+
+    await expect(
+      refusedRoleChanges(admin, null, 'admin-1', ['member'], ['owner', 'finance']),
+    ).resolves.toEqual([]);
+  });
+
+  it('refuses an owner adding any role to their own membership', async () => {
+    const user = { id: 'user-1', roles: ['user'] } as unknown as User;
+    const membership = { roles: ['owner', 'admin'] } as unknown as OrganizationMembership;
+
+    await expect(
+      refusedRoleChanges(
+        user,
+        membership,
+        'user-1',
+        ['owner', 'admin'],
+        ['owner', 'admin', 'finance', 'viewer'],
+      ),
+    ).resolves.toEqual(['finance', 'viewer']);
+  });
+
+  it('lets a manager drop their own role', async () => {
+    const user = { id: 'user-1', roles: ['user'] } as unknown as User;
+    const membership = { roles: ['owner', 'admin'] } as unknown as OrganizationMembership;
+
+    await expect(
+      refusedRoleChanges(user, membership, 'user-1', ['owner', 'admin'], ['owner']),
+    ).resolves.toEqual([]);
+  });
+
+  it('refuses owner to a non-owner even on their own membership', async () => {
+    const user = { id: 'user-1', roles: ['user'] } as unknown as User;
+    const membership = { roles: ['admin'] } as unknown as OrganizationMembership;
+
+    await expect(
+      refusedRoleChanges(user, membership, 'user-1', ['admin'], ['admin', 'owner']),
+    ).resolves.toEqual(['owner']);
+  });
+
+  it('refuses a manager with no membership anything with permissions', async () => {
+    const user = { id: 'user-1', roles: ['user'] } as unknown as User;
+
+    await expect(refusedRoleChanges(user, null, 'user-2', [], ['owner'])).resolves.toEqual([
+      'owner',
+    ]);
   });
 });
