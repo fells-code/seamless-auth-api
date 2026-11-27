@@ -10,3 +10,6 @@ Pre-auth endpoints answer the same way whether or not an account exists.
 - `GET /magic-link/check` from a device that does not match the request answers `204` instead of `403`.
 - `POST /webauthn/login/finish` answers `401 Authentication failed.` instead of `500` when the assertion fails verification, and refuses PRF output with `400 prf_output_not_allowed` for every subject.
 - The four OTP verify endpoints answer every failure with `401 { "error": "Not allowed" }`.
+- A malformed credential id on `POST /webauthn/login/finish` answers `401` like any other failed assertion.
+- The OTP and magic link rate limits count a request that carries a pre-auth token against the account it names, instead of the address in the request. `/registration/register` and `/login` still count against the address.
+- Magic link refusals that check nothing the caller had to know, such as a redirect URI that is not allowed or a poll from another device, are recorded as `login_suspicious` and no longer count toward sign-in lockout.
