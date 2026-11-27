@@ -192,6 +192,41 @@ describe('token utils', () => {
     expect(signExpirations.at(-1)).toBe(`${EPHEMERAL_TOKEN_TTL_SECONDS}s`);
   });
 
+  it('re-mints within the attempt, keeping its id and its original expiry', async () => {
+    const { getSigningKey } = await import('../../../src/utils/signingKeyStore');
+
+    (getSigningKey as any).mockResolvedValue({
+      kid: 'kid',
+      privateKeyPem: 'pem',
+    });
+
+    signJtis.length = 0;
+    signExpirations.length = 0;
+
+    const { reissueEphemeralToken } = await import('../../../src/lib/token');
+
+    await reissueEphemeralToken('user', {
+      attemptId: 'attempt-1',
+      attemptExpiresAt: 1_700_000_300,
+    });
+
+    expect(signJtis.at(-1)).toBe('attempt-1');
+    expect(signExpirations.at(-1)).toBe(1_700_000_300);
+  });
+
+  it.each([
+    [{ attemptExpiresAt: 1_700_000_300 }],
+    [{ attemptId: 'attempt-1' }],
+    [{ attemptId: 'attempt-1', attemptExpiresAt: Number.NaN }],
+  ])('refuses to re-mint without the attempt it belongs to (%o)', async (attempt) => {
+    signJtis.length = 0;
+
+    const { reissueEphemeralToken } = await import('../../../src/lib/token');
+
+    await expect(reissueEphemeralToken('user', attempt)).rejects.toThrow();
+    expect(signJtis).toHaveLength(0);
+  });
+
   it('throws if signing fails', async () => {
     const jose = await import('jose');
 

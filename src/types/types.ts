@@ -33,6 +33,11 @@ export interface AuthenticatedRequest extends RouteRequest {
    * Unset on access sessions, and on ephemeral tokens minted before the claim existed.
    */
   attemptId?: string;
+  /**
+   * When the attempt's ephemeral token expires, in seconds since the epoch. A token
+   * re-minted within the attempt keeps it, so an attempt cannot outlive its first token.
+   */
+  attemptExpiresAt?: number;
   /** Set on an access session a recovery issued; see `allowRecoverySession`. */
   recoverySession?: boolean;
   /** The step-up state of a session exchanged from a device grant; see `requireAdmin`. */

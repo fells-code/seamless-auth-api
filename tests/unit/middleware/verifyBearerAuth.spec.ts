@@ -158,6 +158,7 @@ describe('verifyBearerAuth', () => {
     expect(req.user).toEqual(mockUser);
     expect(req.sessionId).toBeUndefined();
     expect(req.attemptId).toBeUndefined();
+    expect(req.attemptExpiresAt).toBeUndefined();
     expect(next).toHaveBeenCalled();
   });
 
@@ -167,11 +168,13 @@ describe('verifyBearerAuth', () => {
     (validateBearerToken as any).mockResolvedValue({
       user: { id: 'user-1' },
       attemptId: 'attempt-1',
+      attemptExpiresAt: 1_700_000_300,
     });
 
     await verifyBearerAuth(req, res, next, 'ephemeral');
 
     expect(req.attemptId).toBe('attempt-1');
+    expect(req.attemptExpiresAt).toBe(1_700_000_300);
     expect(next).toHaveBeenCalled();
   });
 

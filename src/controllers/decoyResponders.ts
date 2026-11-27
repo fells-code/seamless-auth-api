@@ -8,7 +8,7 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
-import { signEphemeralToken } from '../lib/token.js';
+import { reissueEphemeralToken } from '../lib/token.js';
 import { buildPrfAuthenticationExtensions, containsPrfOutput } from '../lib/webauthnPrf.js';
 import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
@@ -120,7 +120,7 @@ async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | '
     return res.status(400).json({ error: 'Invalid data' });
   }
 
-  const token = await signEphemeralToken(subject, authReq.attemptId);
+  const token = await reissueEphemeralToken(subject, authReq);
 
   return res.status(200).json({ message: 'success', token });
 }
@@ -139,7 +139,7 @@ export const decoySendPhoneOtp = async (req: Request, res: Response) => {
 
   await logDecoy(req, 'otp:otp_sms');
 
-  const token = await signEphemeralToken(decoySubject(req), authReq.attemptId);
+  const token = await reissueEphemeralToken(decoySubject(req), authReq);
 
   return res.status(200).json({ message: 'success', token });
 };

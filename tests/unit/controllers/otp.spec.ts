@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mintInternalServiceToken } from '../../factories/serviceTokenFactory.js';
 
-const signEphemeralTokenMock = vi.fn();
+const reissueEphemeralTokenMock = vi.fn();
 const authEventLogMock = vi.fn();
 const issueSessionAndRespondMock = vi.fn(async () => true);
 const generateEmailOTPMock = vi.fn();
@@ -22,7 +22,7 @@ const loggerMock = {
 };
 
 vi.mock('../../../src/lib/token.js', () => ({
-  signEphemeralToken: signEphemeralTokenMock,
+  reissueEphemeralToken: reissueEphemeralTokenMock,
 }));
 
 vi.mock('../../../src/services/authEventService.js', () => ({
@@ -131,7 +131,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
 
-  signEphemeralTokenMock.mockResolvedValue('ephemeral-token');
+  reissueEphemeralTokenMock.mockResolvedValue('ephemeral-token');
   generatePhoneOTPMock.mockResolvedValue('654321');
   generateEmailOTPMock.mockResolvedValue('ABCDEF');
   getSystemConfigMock.mockResolvedValue({
@@ -159,8 +159,7 @@ describe('otp controller', () => {
     await sendPhoneOTP(req, res);
 
     expect(generatePhoneOTPMock).toHaveBeenCalledWith(user, { sendMessage: false });
-    // No attempt arrived on the request, so the re-mint starts one.
-    expect(signEphemeralTokenMock).toHaveBeenCalledWith(user.id, undefined);
+    expect(reissueEphemeralTokenMock).toHaveBeenCalledWith(user.id, req);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: 'success',
@@ -1012,11 +1011,31 @@ describe('otp controller', () => {
 
       await sendEmailOTP(req, res);
 
-      expect(signEphemeralTokenMock).toHaveBeenCalledWith(user.id, 'attempt-1');
+      expect(reissueEphemeralTokenMock).toHaveBeenCalledWith(
+        user.id,
+        expect.objectContaining({ attemptId: 'attempt-1' }),
+      );
       expect(authEventLogMock).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'otp_success', metadata: { channel: 'email' } }),
       );
     });
+
+    it.each([['sendEmailOTP' as const], ['sendPhoneOTP' as const]])(
+      '%s sends nothing when the attempt cannot be continued',
+      async (name) => {
+        const controller = await loadOtpController();
+        const user = buildUser();
+        const res = buildRes();
+
+        reissueEphemeralTokenMock.mockRejectedValue(new Error('no attempt'));
+
+        await controller[name](buildReq(user), res);
+
+        expect(generateEmailOTPMock).not.toHaveBeenCalled();
+        expect(generatePhoneOTPMock).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(500);
+      },
+    );
 
     it('records the channel on a phone OTP send', async () => {
       const { sendPhoneOTP } = await loadOtpController();

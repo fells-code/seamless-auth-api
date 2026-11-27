@@ -383,6 +383,8 @@ export interface ValidatedBearerToken {
   decoy?: boolean;
   /** The ephemeral token's `jti`, absent on tokens minted before it was set. */
   attemptId?: string;
+  /** The ephemeral token's `exp`, which a re-minted token for the same attempt keeps. */
+  attemptExpiresAt?: number;
   /** An access session a recovery issued, restricted until a new factor is enrolled. */
   recovery?: boolean;
   /** The step-up state of a session exchanged from a device grant (ADR 0003, X7). */
@@ -396,7 +398,10 @@ export async function validateEphemeralToken(token: string): Promise<ValidatedBe
     return null;
   }
 
-  const attempt = typeof payload.jti === 'string' ? { attemptId: payload.jti } : {};
+  const attempt = {
+    ...(typeof payload.jti === 'string' ? { attemptId: payload.jti } : {}),
+    ...(typeof payload.exp === 'number' ? { attemptExpiresAt: payload.exp } : {}),
+  };
 
   const user = await User.findOne({
     where: { id: payload.sub, revoked: false },

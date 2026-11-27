@@ -397,6 +397,7 @@ vi.mock('../../src/lib/providerTransport.js', () => ({
 
 vi.mock('../../src/lib/token.js', () => ({
   signEphemeralToken: vi.fn(),
+  reissueEphemeralToken: vi.fn(),
   signAccessToken: vi.fn(),
   generateRefreshToken: vi.fn(),
   createRefreshTokenLookup: vi.fn(),

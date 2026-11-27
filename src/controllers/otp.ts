@@ -8,7 +8,7 @@ import { Request, Response } from 'express';
 
 import { canReturnExternalDelivery } from '../lib/externalDelivery.js';
 import { reviewAccountMetadata } from '../lib/reviewAccounts.js';
-import { signEphemeralToken } from '../lib/token.js';
+import { reissueEphemeralToken } from '../lib/token.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { rejectWeakFactorForBreakGlass } from '../services/breakGlassService.js';
 import { DeliveryError } from '../services/deliveryError.js';
@@ -97,6 +97,9 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
     }
 
     logger.info('User requested a phone OTP');
+    // Re-minted with the attempt it arrived on, so a resend neither starts a new one nor
+    // extends it. Before the send, so an attempt that cannot continue sends nothing.
+    const token = await reissueEphemeralToken(user.id, authReq);
     const generatedToken = await generatePhoneOTP(user, {
       sendMessage: !useExternalDelivery,
     });
@@ -107,9 +110,6 @@ export const sendPhoneOTP = async (req: Request, res: Response) => {
       req,
       metadata: { channel: 'sms' },
     });
-
-    // Re-minted with the attempt it arrived on, so a resend does not start a new one.
-    const token = await signEphemeralToken(user.id, authReq.attemptId);
 
     return res.status(200).json({
       message: 'success',
@@ -176,6 +176,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
     }
 
     logger.info('User requested an email OTP');
+    const token = await reissueEphemeralToken(user.id, authReq);
     const generatedToken = await generateEmailOTP(user, {
       sendMessage: !useExternalDelivery,
     });
@@ -185,8 +186,6 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       req,
       metadata: { channel: 'email', ...reviewAccountMetadata(email) },
     });
-
-    const token = await signEphemeralToken(user.id, authReq.attemptId);
 
     return res.status(200).json({
       message: 'success',
@@ -267,7 +266,7 @@ export const sendRegistrationPhoneOTP = async (req: Request, res: Response) => {
           : 'Registration phone OTP requested for an account with no phone.',
       },
     });
-    const token = await signEphemeralToken(user.id, authReq.attemptId);
+    const token = await reissueEphemeralToken(user.id, authReq);
     return res.status(200).json({ message: 'success', token });
   }
 
