@@ -33472,7 +33472,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Verify TOTP enrollment */
+    /**
+     * Verify TOTP enrollment
+     * @description From a recovery session, enrolling lifts its restriction once the login hooks allow it. A hook can refuse: 403 `login_denied` with the hook's `message`, or 503 `login_hook_unavailable`. Either way the recovery session is revoked and the new factor is kept, so the user signs in with it.
+     */
     post: {
       parameters: {
         query?: never;
@@ -33601,6 +33604,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -35265,7 +35286,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Finish WebAuthn registration */
+    /**
+     * Finish WebAuthn registration
+     * @description From a recovery session, enrolling lifts its restriction once the login hooks allow it. A hook can refuse: 403 `login_denied` with the hook's `message`, or 503 `login_hook_unavailable`. Either way the recovery session is revoked and the new factor is kept, so the user signs in with it.
+     */
     post: {
       parameters: {
         query?: never;
@@ -35442,6 +35466,24 @@ export interface paths {
         };
         /** @description HTTP 500 */
         500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "message": "string",
+             *       "error": "string"
+             *     }
+             */
+            'application/json': {
+              message?: string;
+              error: string;
+            };
+          };
+        };
+        /** @description HTTP 503 */
+        503: {
           headers: {
             [name: string]: unknown;
           };

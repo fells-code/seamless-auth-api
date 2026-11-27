@@ -74,7 +74,8 @@ The chain trigger updates the chain head row on every insert and holds that lock
 - `pre_token` runs when a token is minted for a new session and on organization switch. It may add claims or deny. It is not called on refresh: its claims are kept on the session, so refresh never waits on an adopter's server.
 - One hook per trigger. Timeout 2 seconds by default, 5 at most, one attempt.
 - Failure mode per hook, `closed` by default. A timeout, a non-2xx, a body that does not parse, or claims over the budget fail the sign-in when closed and are ignored when open. Every invocation is audited.
-- Break-glass sign-in and recovery sessions never call a hook, so a hook that is down cannot lock out the administrator who would fix it.
+- Break-glass sign-in never calls a hook, so a hook that is down cannot lock out the administrator who would fix it.
+- A recovery session is issued without calling a hook, so a hook that is down cannot stop a user from getting a factor back. Both hooks run when its restriction lifts after the user enrolls a factor, since that is when it becomes a full session. A refusal there revokes the session and keeps the new factor, so the next sign-in with it runs the hooks again.
 - The call carries the user, method, organization, OpenID client, IP and user agent, never a token, code or secret. `reason` in the answer is audited and not shown; `userMessage` (200 characters) is.
 
 ### E6. Custom claims

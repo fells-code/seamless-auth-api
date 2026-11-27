@@ -312,7 +312,6 @@ vi.mock('../../src/services/sessionService.js', () => ({
   revokeSessionChain: vi.fn(),
   hardRevokeSession: vi.fn(),
   revokeOrphanedChildSessions: vi.fn(),
-  liftRecoveryRestriction: vi.fn(async () => true),
 }));
 
 vi.mock('../../src/middleware/attachAuthMiddleware.js', async (importOriginal) => {

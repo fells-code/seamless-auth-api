@@ -14,9 +14,17 @@ import { computeSessionTimes, parseDurationToSeconds } from '../utils/utils.js';
 import { mintAccessToken } from './accessTokenService.js';
 import { AuthEventService } from './authEventService.js';
 import { enforceConcurrentSessionLimit } from './concurrentSessionPolicy.js';
-import { loginHookRefusal, runLoginHook, verdictClaims } from './loginHookService.js';
+import {
+  type HookClaims,
+  type LoginHookContext,
+  type LoginHookRefusal,
+  loginHookRefusal,
+  runLoginHook,
+  verdictClaims,
+} from './loginHookService.js';
 import { isPasskeyRequiredForUser } from './loginPolicyService.js';
 import { getDefaultOrganizationIdForUser } from './organizationService.js';
+import { revokeSessionChain } from './sessionService.js';
 
 /** The factor that proved the user, as far as session issuance needs to know it. */
 export type SessionMethod =
@@ -95,6 +103,19 @@ type IssueSessionParams = {
   extraFields?: Record<string, unknown>;
 };
 
+async function runSignInHooks(
+  context: LoginHookContext,
+): Promise<{ claims: HookClaims | null } | { refusal: LoginHookRefusal }> {
+  const postLoginRefusal = loginHookRefusal(await runLoginHook('post_login', context));
+  if (postLoginRefusal) return { refusal: postLoginRefusal };
+
+  const preToken = await runLoginHook('pre_token', context);
+  const preTokenRefusal = loginHookRefusal(preToken);
+  if (preTokenRefusal) return { refusal: preTokenRefusal };
+
+  return { claims: verdictClaims(preToken) };
+}
+
 /**
  * Answers the request either way. Resolves false when a login hook refused the sign-in, so the
  * caller stops before anything it does only for a completed sign-in.
@@ -116,7 +137,7 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   // gates. It covers both rules, phishing-resistant-only mode and an account that holds a
   // passkey while fallback is off, because OAuth once shipped without the second. A
   // break-glass admin is held to its own rule instead: a strong factor, whatever the
-  // policy says. A recovery session is exempt: enrolling a passkey is all it can do.
+  // policy says. A recovery session is exempt: enrolling a factor is all it can do.
   const breakGlass = isBreakGlassAdmin(user);
 
   if (breakGlass && !accountVerification && !BREAK_GLASS_FACTORS.has(method)) {
@@ -136,26 +157,17 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   const organizationId = await getDefaultOrganizationIdForUser(user.id);
   let hookClaims: Record<string, unknown> | null = null;
 
-  // A hook that is down must not lock out the administrator who would fix it, and a recovery
-  // session can only enroll a factor. Both run before the concurrent session limit, so a
+  // A hook that is down must not lock out the administrator who would fix it. A recovery
+  // session runs the hooks when its restriction lifts instead (see
+  // `liftRecoveryRestrictionAfterHooks`). Both run before the concurrent session limit, so a
   // refused sign-in cannot cost the user a session they already had.
   if (!breakGlass && !recovery) {
-    const context = { user, method, organizationId, req };
-
-    const postLogin = await runLoginHook('post_login', context);
-    const postLoginRefusal = loginHookRefusal(postLogin);
-    if (postLoginRefusal) {
-      res.status(postLoginRefusal.status).json(postLoginRefusal.body);
+    const outcome = await runSignInHooks({ user, method, organizationId, req });
+    if ('refusal' in outcome) {
+      res.status(outcome.refusal.status).json(outcome.refusal.body);
       return false;
     }
-
-    const preToken = await runLoginHook('pre_token', context);
-    const preTokenRefusal = loginHookRefusal(preToken);
-    if (preTokenRefusal) {
-      res.status(preTokenRefusal.status).json(preTokenRefusal.body);
-      return false;
-    }
-    hookClaims = verdictClaims(preToken);
+    hookClaims = outcome.claims;
   }
 
   const refreshToken = generateRefreshToken();
@@ -234,4 +246,77 @@ export async function issueSessionAndRespond(params: IssueSessionParams): Promis
   });
 
   return true;
+}
+
+export const RECOVERY_HOOK_REFUSED = 'recovery_login_hook_refused';
+
+/**
+ * Ends a recovery session's restriction once the user has enrolled a factor of their own.
+ * The session was issued without the login hooks, so they run here, the first point at which
+ * it can do more than enroll. A refusal revokes the session rather than leaving it restricted:
+ * the factor just enrolled is kept, and signing in with it runs the hooks again.
+ *
+ * Resolves the refusal for the caller to answer with, or null when the session is now
+ * unrestricted (or was not a recovery session to begin with).
+ */
+export async function liftRecoveryRestrictionAfterHooks(params: {
+  sessionId: string | undefined;
+  user: { id: string; email: string; phone: string | null; roles?: string[] };
+  req: Request;
+}): Promise<LoginHookRefusal | null> {
+  const { sessionId, req } = params;
+  const { id, email, phone, roles } = params.user;
+  const user = { id, email, phone, roles: roles ?? [] };
+  if (!sessionId) return null;
+
+  const session = await Session.findOne({
+    where: { id: sessionId, userId: user.id, recovery: true, revokedAt: null },
+  });
+  if (!session) return null;
+
+  let hookClaims: HookClaims | null = null;
+
+  if (!isBreakGlassAdmin(user)) {
+    const outcome = await runSignInHooks({
+      user,
+      method: session.authMethods?.[0]?.method ?? 'account_recovery',
+      organizationId: session.organizationId ?? null,
+      req,
+    });
+
+    if ('refusal' in outcome) {
+      // The hooks can take seconds, and a refresh in that time moves the session on, so
+      // the whole chain is ended rather than the row read before they ran.
+      await revokeSessionChain(session, RECOVERY_HOOK_REFUSED);
+      return outcome.refusal;
+    }
+    hookClaims = outcome.claims;
+  }
+
+  await liftAtChainHead(session, hookClaims);
+
+  return null;
+}
+
+const MAX_LIFT_HOPS = 8;
+
+/**
+ * Lifts the restriction on whichever row is the chain's head now. A rotation that claims
+ * the head after this update copies the lifted state itself (see `refreshSession`).
+ */
+async function liftAtChainHead(session: Session, hookClaims: HookClaims | null) {
+  let current: Session | null = session;
+
+  for (let hops = 0; current && hops < MAX_LIFT_HOPS; hops += 1) {
+    const [lifted] = await Session.update(
+      { recovery: false, hookClaims },
+      { where: { id: current.id, recovery: true, revokedAt: null, replacedBySessionId: null } },
+    );
+    if (lifted > 0) return;
+
+    await current.reload();
+    if (current.revokedAt || !current.replacedBySessionId) return;
+
+    current = await Session.findByPk(current.replacedBySessionId);
+  }
 }

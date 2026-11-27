@@ -40,8 +40,10 @@ import {
   ensureMetadataServiceReady,
   hasMetadataStatement,
 } from '../services/metadataServiceBootstrap.js';
-import { issueSessionAndRespond } from '../services/sessionIssuance.js';
-import { liftRecoveryRestriction } from '../services/sessionService.js';
+import {
+  issueSessionAndRespond,
+  liftRecoveryRestrictionAfterHooks,
+} from '../services/sessionIssuance.js';
 import { consumeChallenge, issueChallenge } from '../services/webauthnChallengeService.js';
 import { AuthenticatedRequest } from '../types/types.js';
 import getLogger from '../utils/logger.js';
@@ -414,7 +416,12 @@ const verifyWebAuthnRegistration = async (req: Request, res: Response) => {
     }
 
     if (authReq.recoverySession) {
-      await liftRecoveryRestriction(authReq.sessionId);
+      const refusal = await liftRecoveryRestrictionAfterHooks({
+        sessionId: authReq.sessionId,
+        user,
+        req,
+      });
+      if (refusal) return res.status(refusal.status).json(refusal.body);
     }
 
     // Enrollment is not a sign-in. The caller reached here with an access session, so

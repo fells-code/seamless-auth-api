@@ -241,6 +241,56 @@ describe('refreshSession', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('takes a recovery lift that landed during the rotation onto the new session', async () => {
+    const {
+      refreshSession,
+      getSystemConfig,
+      Session,
+      User,
+      findRefreshSessionByToken,
+      generateRefreshToken,
+      createRefreshTokenLookup,
+      signAccessToken,
+    } = await loadAuthenticationModule();
+    const { req, res } = mockReqRes('Bearer raw-refresh-token');
+    const user = buildUser({ id: 'user-1', roles: ['user'] });
+    const session: Record<string, unknown> = {
+      id: 'session-1',
+      replacedBySessionId: null,
+      revokedAt: null,
+      userId: user.id,
+      recovery: true,
+      hookClaims: null,
+      save: vi.fn(),
+    };
+    session.reload = vi.fn(async () => {
+      session.recovery = false;
+      session.hookClaims = { plan: 'pro' };
+    });
+    const newSession: Record<string, unknown> = { id: 'session-2', recovery: true };
+    newSession.update = vi.fn(async (values: Record<string, unknown>) =>
+      Object.assign(newSession, values),
+    );
+
+    (findRefreshSessionByToken as any).mockResolvedValue(session);
+    (User.findOne as any).mockResolvedValue(user);
+    (generateRefreshToken as any).mockReturnValue('new-raw-refresh-token');
+    (createRefreshTokenLookup as any).mockReturnValue('new-refresh-lookup');
+    (Session.create as any).mockResolvedValue(newSession);
+    (signAccessToken as any).mockResolvedValue('new-access-token');
+    (getSystemConfig as any).mockResolvedValue({ access_token_ttl: '15m' });
+
+    await refreshSession(req, res);
+
+    expect(Session.create).toHaveBeenCalledWith(expect.objectContaining({ recovery: true }));
+    expect(newSession.update).toHaveBeenCalledWith({
+      recovery: false,
+      hookClaims: { plan: 'pro' },
+    });
+    expect(newSession.recovery).toBe(false);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   describe('absolute session lifetime', () => {
     const hour = 60 * 60 * 1000;
 

@@ -8,6 +8,9 @@ const verifyEnabledTotpMock = vi.fn();
 const authEventLogMock = vi.fn();
 const rejectIfUserLockedMock = vi.fn();
 const issueSessionAndRespondMock = vi.fn(async () => true);
+const liftRecoveryRestrictionAfterHooksMock = vi.fn<
+  (params: unknown) => Promise<{ status: number; body: { error: string } } | null>
+>(async () => null);
 const recordStepUpVerificationMock = vi.fn();
 const getStepUpSignInTimeMock = vi.fn();
 const signedInAt = new Date('2026-11-01T00:00:00Z');
@@ -40,6 +43,7 @@ vi.mock('../../../src/services/lockoutPolicyService.js', () => ({
 
 vi.mock('../../../src/services/sessionIssuance.js', () => ({
   issueSessionAndRespond: issueSessionAndRespondMock,
+  liftRecoveryRestrictionAfterHooks: liftRecoveryRestrictionAfterHooksMock,
 }));
 
 vi.mock('../../../src/services/stepUpService.js', () => ({
@@ -264,9 +268,34 @@ describe('totp controller', () => {
 
   describe('enrolling from a recovery session', () => {
     it('lifts the restriction once the new factor is confirmed', async () => {
-      const { liftRecoveryRestriction } = await import('../../../src/services/sessionService.js');
       const { verifyCurrentTotpEnrollment } = await loadTotpController();
       verifyTotpEnrollmentMock.mockResolvedValue({ verified: true });
+      const res = buildRes();
+      const user = buildUser();
+      const req = buildReq(user, {
+        body: { code: '123456' },
+        recoverySession: true,
+        sessionId: 'session-1',
+      });
+
+      await verifyCurrentTotpEnrollment(req, res);
+
+      expect(liftRecoveryRestrictionAfterHooksMock).toHaveBeenCalledWith({
+        sessionId: 'session-1',
+        user,
+        req,
+      });
+      expect(res.json).toHaveBeenCalledWith({ message: 'Success' });
+    });
+
+    it('answers with the hook refusal when a login hook stops the lift', async () => {
+      const { verifyCurrentTotpEnrollment } = await loadTotpController();
+      verifyTotpEnrollmentMock.mockResolvedValue({ verified: true });
+      liftRecoveryRestrictionAfterHooksMock.mockResolvedValueOnce({
+        status: 403,
+        body: { error: 'login_denied' },
+      });
+      const res = buildRes();
 
       await verifyCurrentTotpEnrollment(
         buildReq(buildUser(), {
@@ -274,14 +303,14 @@ describe('totp controller', () => {
           recoverySession: true,
           sessionId: 'session-1',
         }),
-        buildRes(),
+        res,
       );
 
-      expect(liftRecoveryRestriction).toHaveBeenCalledWith('session-1');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'login_denied' });
     });
 
     it('leaves an ordinary session alone', async () => {
-      const { liftRecoveryRestriction } = await import('../../../src/services/sessionService.js');
       const { verifyCurrentTotpEnrollment } = await loadTotpController();
       verifyTotpEnrollmentMock.mockResolvedValue({ verified: true });
 
@@ -290,7 +319,7 @@ describe('totp controller', () => {
         buildRes(),
       );
 
-      expect(liftRecoveryRestriction).not.toHaveBeenCalled();
+      expect(liftRecoveryRestrictionAfterHooksMock).not.toHaveBeenCalled();
     });
   });
 

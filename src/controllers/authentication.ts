@@ -768,7 +768,8 @@ export const refreshSession = async (req: Request, res: Response) => {
     // the sign-in.
     authMethods: session.authMethods ?? [],
     authTime: session.authTime ?? null,
-    // The pre_token hook is not called on refresh, so its claims ride the chain.
+    // The pre_token hook is not called on refresh, so its claims ride the chain. A recovery
+    // session gets them when its restriction lifts, which is also when the hooks first run.
     hookClaims: session.hookClaims ?? null,
     parentSessionId: session.parentSessionId ?? null,
     exchangeClientId: session.exchangeClientId ?? null,
@@ -818,6 +819,15 @@ export const refreshSession = async (req: Request, res: Response) => {
       refreshToken,
       'Refresh token rotated twice concurrently',
     );
+  }
+
+  // A recovery lift that ran between reading this session and claiming its link updated
+  // the row being replaced, so the replacement takes the lifted state from it.
+  if (session.recovery === true) {
+    await session.reload();
+    if (session.recovery !== true) {
+      await newSession.update({ recovery: false, hookClaims: session.hookClaims ?? null });
+    }
   }
 
   // Read again because a revoke-all can land while this rotation is in flight. Its cutoff

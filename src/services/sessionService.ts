@@ -467,19 +467,3 @@ export async function validateBearerToken(
       }
     : null;
 }
-
-/**
- * Ends a recovery session's restriction once the user has enrolled a factor of their
- * own. The API reads the flag from the row, so this applies to the very next request;
- * the access token keeps its `recovery` claim until the client refreshes.
- */
-export async function liftRecoveryRestriction(sessionId: string | undefined) {
-  if (!sessionId) return false;
-
-  const [updated] = await Session.update(
-    { recovery: false },
-    { where: { id: sessionId, recovery: true } },
-  );
-
-  return updated > 0;
-}
