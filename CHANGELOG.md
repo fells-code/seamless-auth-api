@@ -1,5 +1,75 @@
 # seamless-auth-api
 
+## 0.24.0
+
+### Minor Changes
+
+- e2bd56e: The audit chain head is protected and can be signed (#595).
+
+  - A new migration adds a trigger to `auth_event_chain_head` that refuses INSERT, DELETE and TRUNCATE, and any change to `seq` or `last_hash` outside the `auth_events` insert trigger, which now runs as SECURITY DEFINER. A role that deletes the newest audit events can no longer move the head back to hide it, so `GET /admin/auth-events/integrity` reports the loss as `head_mismatch`.
+  - New optional `AUDIT_CHAIN_KEY`. When set, every audit insert signs the new head with an HMAC under it, and the integrity check fails a head whose signature is missing (`head_unsigned`, a new `reason`) or does not verify (`head_mismatch`). Set it on every instance. The migration signs the head when the key is set while it runs. Otherwise sign it once with `node dist/scripts/sealAuditHead.js`, and again after rotating the key. Production warns at boot while it is unset.
+  - The integrity report gains `headSigned`.
+  - `docs/security-posture.md` now recommends revoking writes on `auth_event_chain_head` as well, and notes that the retention setting is open to any session, so the DELETE privilege is the control.
+
+- edb274f: Magic links now need a code from the link fragment to sign in, and a requested `redirectUri` must match exactly (#594).
+
+  Breaking, in two places:
+
+  - `redirectUri` on `POST /magic-link` is no longer accepted on its origin alone. With `magic_link_redirect_uris` empty, the only accepted value is the `/verify-magiclink` page on `frontend_url` or a configured origin, spelled exactly with no query. Any other path, such as a mobile landing page, has to be listed in `magic_link_redirect_uris`.
+  - The link is now `...?token=<token>#code=<code>`. `GET /magic-link/verify/:token` no longer consumes the link, even on the device that requested it: it always answers `409 confirmation_required`, with a new `sameDevice` boolean. `POST /magic-link/verify/:token/confirm` now requires a JSON body `{ "code": "<code>" }` and answers `400` without it. A wrong code spends the link. Links mailed before the upgrade carry no code and can no longer be completed, so a user with one in flight requests another.
+
+  Clients need to read `code` from the fragment, confirm with it, and confirm without asking when `sameDevice` is true. Release a client that does this before upgrading the API: it keeps working against older API versions, which ignore the body. A caller using external delivery that builds its own URL from `delivery.token` has to switch to `delivery.magicLinkUrl`, which carries the code.
+
+  Run the database migrations: this adds `magic_link_tokens.code_hash`.
+
+- a2e0ae6: The OIDC edge contract is now version 4 (`@seamless-auth/types` 0.41). `/oidc/sign` accepts `grantType: refresh_token` with the sign-in grant it continues in `originGrantType`, and applies the device-grant rules (ADR 0001, D10) to a refresh of a device approval. The client must still hold both grants. An OpenID Provider service on contract 3 refuses to start against this API, so upgrade `@seamless-auth/oidc-provider` together with the API.
+- 6b53945: Organization role grants are stricter. Except for an instance `admin:write`, nobody can add a role to their own membership, and a role granted to someone else can only carry permissions the manager holds, and custom claims only if the manager holds that role. Owners are no longer exempt. `PATCH /organizations/:organizationId/members/:userId` answers `403` naming the refused roles, as before.
+
+  Any signed-in user can create an organization and becomes its `owner` and `admin`, so permissions and custom claims mapped onto those built-in roles are available to every user. Move anything that should be granted deliberately to another role. To review grants made before this release, look for `organization_member_updated` audit events whose actor is also the member and whose `rolesAdded` is not empty.
+
+- 74eb8d7: Pre-auth endpoints answer the same way whether or not an account exists.
+
+  - `POST /registration/register` for an address that belongs to a verified account answers as a new, unclaimed sign-up: a different `sub`, a pre-auth token over it, no code sent to the owner and no `delivery` block. A user who already has an account signs in instead. An unverified account is answered as before.
+  - Every route that accepts a pre-auth token, and `/registration/register`, is held to `LOGIN_RESPONSE_FLOOR_MS` (default `250`), success or failure. A deployment whose mail or SMS provider is slower than that should raise it.
+  - `GET /otp/generate-phone-otp` for an account with no phone answers `200` and sends nothing, instead of `400 Invalid data`, as it already did for a verified account.
+  - `GET /magic-link/check` from a device that does not match the request answers `204` instead of `403`.
+  - `POST /webauthn/login/finish` answers `401 Authentication failed.` instead of `500` when the assertion fails verification, and refuses PRF output with `400 prf_output_not_allowed` for every subject.
+  - The four OTP verify endpoints answer every failure with `401 { "error": "Not allowed" }`.
+  - A malformed credential id on `POST /webauthn/login/finish` answers `401` like any other failed assertion.
+  - The OTP and magic link rate limits count a request that carries a pre-auth token against the account it names, instead of the address in the request. `/registration/register` and `/login` still count against the address.
+  - Magic link refusals that check nothing the caller had to know, such as a redirect URI that is not allowed or a poll from another device, are recorded as `login_suspicious` and no longer count toward sign-in lockout.
+
+- a335f78: Refresh rotation fixes:
+
+  - `DELETE /sessions/:id` and `DELETE /admin/sessions/by-id/:id` revoke the whole chain from the row given, so a session that rotated after it was listed is revoked at its head instead of surviving while the API answers 200 (#592).
+  - A rotated refresh token is treated as reuse however long after its rotation it is presented. It used to be answered `401 invalid_refresh_token` once the rotated row's idle window had passed, without revoking the chain. It is now `401 refresh_token_reused` and the chain is revoked (#593).
+  - New refresh replay window (#598): for `REFRESH_REPLAY_WINDOW_SECONDS` (default 5, at most 60, `0` disables) after a rotation, the rotated token is answered with the same successor, up to three times, so two adapter instances refreshing at once no longer sign the user out. The response shape is unchanged. Only the immediate predecessor of a live head qualifies. The successor token is stored encrypted on the rotated row and cleared when the window lapses or the chain is revoked.
+
+  Adds a migration for the `rotatedAt`, `replayTokenCiphertext` and `replayCount` session columns.
+
+- 45530a8: With `NODE_ENV=production`, the server now refuses to start when `SEAMLESS_SERVICE_TOKEN` (or the fallback `API_SERVICE_TOKEN`) is shorter than 32 bytes or is a published default or placeholder value, such as `local-development-service-token-not-for-deployment` from `docker-compose.yml` or `GRAB_FROM_SEAMLESS_AUTH_PORTAL_DEV` from the templates (#599). The token is the key that signs service tokens, so a guessable value lets anyone call the API as a trusted adapter. `validateEnvs.sh` applies the same check before migrations run, and `src/config/serviceToken.ts` applies it at boot.
+
+  This is a breaking change for a production deployment that kept one of those values. Before upgrading, set a new token with `openssl rand -base64 48` on the API and on every server adapter that calls it. Development and test runs are unchanged.
+
+- b69feaf: Step-up and factor enrollment are stricter.
+
+  - A step-up only accepts a passkey or TOTP enrolled before the session signed in. One added during the session works from the next sign-in. `/totp/verify-mfa` answers `401 step_up_unavailable` for a TOTP that is too new, and `/step-up/webauthn/start` leaves out passkeys that are too new.
+  - Passkey and TOTP enrollment, phone registration and recovery code generation need a fresh step-up (`403 step_up_required`) when the account already has a passkey or TOTP. An account with neither needs a sign-in from the last five minutes, and otherwise gets `403 reauthentication_required`. Recovery sessions are exempt.
+  - `DELETE /users/credentials` needs a fresh step-up.
+
+  Clients that add a passkey or TOTP from an existing session should run a step-up when they get `step_up_required`, and ask the user to sign in again when they get `reauthentication_required`.
+
+- fbdecb7: Refusals anyone can produce for free no longer write audit events (#596). A request from a disallowed origin (`403`), a request to an unknown route (`404`), and `POST /refresh` with no token or one that matches no session (`401`) used to each write a hash-chained `request_suspicious` or `refresh_token_failed` row, taking the chain head lock. They are now counted in process, and each instance logs a one-line summary at most once a minute. Responses are unchanged. Expect far fewer `request_suspicious` rows in the trail and the security anomaly view. A refresh token that matches a revoked session is still recorded, now against that session and its user. The stored audit user agent is capped at 512 characters and a refused bearer's recorded route at 256.
+
+### Patch Changes
+
+- 9246f19: A pre-auth token re-minted within an attempt, such as by an OTP resend, now expires when the attempt's first token did, five minutes after `/login` or `/registration/register`. Before, each resend opened a new five-minute window. A user who resends a code late in the window has less time to enter it, and starts again from `/login` once it runs out. Completing an account recovery after its delay always takes a new attempt that proves the channel again.
+- e5ad08e: Self-service account recovery codes are stronger and their guesses are counted per account. Email codes are now six letters, like the sign-in code, and phone codes are eight digits. Each account may spend ten wrong recovery codes per channel in any 24 hours, counted across every `/recovery/start` and kept in the database. Once the budget is spent, `/recovery/start` sends no code and `/recovery/verify` checks none until the oldest wrong code is 24 hours old. Both answer as they otherwise would (`200` and `401 invalid_recovery_code`). The budget is separate for each channel and does not affect sign-in lockout or recovery codes. If it cannot be read, the channel is treated as spent.
+- 564a023: A recovery session now runs the `post_login` and `pre_token` login hooks when its restriction lifts, after the user enrolls a passkey or authenticator app. The `pre_token` claims are kept on the session from then on. If a hook refuses, `POST /webauthn/register/finish` and `POST /totp/enroll/verify` answer 403 `login_denied` or 503 `login_hook_unavailable`, and the recovery session is revoked. The new factor is kept, so the user signs in with it, and that sign-in runs the hooks. Break-glass administrators still skip the hooks.
+- a2e0ae6: Session exchange tokens are now signed only for a sign-in. `/oidc/sign` ties each `session:exchange` token to the authorization or device code the edge consumed in the same token request, signs at most one token per code, and refuses a token whose reported grant does not match that code. A refresh grant consumes no code, so it can no longer mint a session exchange token, whatever grant type the edge reports. Session exchange clients are no longer served the `refresh_token` grant, whatever their stored grant list says, and `/oidc/sign` refuses refresh grant tokens for them.
+- 5902e00: Syslog audit sinks are available (#586). Creating or updating a syslog sink no longer returns a 400. Records go over RFC 5424 on TLS with octet counting, and carry `seq` and `hash` in the structured data element `seamless@67592`, under the Fells Code IANA Private Enterprise Number 67592. Key collector parsing rules on that SD-ID.
+- cc2a474: A `system_config` change now takes effect on every instance within about a second, not only on the instance that took the write (#597). Each instance used to cache config for five minutes, so disabling a login method, removing an OAuth provider or turning on `phishing_resistant_only` could stay ineffective on the other replicas for that long. Each instance now compares a hash of the stored rows with its cached copy at most once a second and reloads when they differ. Direct database edits are picked up the same way. If that check cannot reach the database, the config read fails instead of serving a copy it cannot show is current.
+
 ## 0.23.0
 
 ### Minor Changes
