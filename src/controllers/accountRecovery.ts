@@ -112,6 +112,17 @@ export const startAccountRecovery = async (req: Request, res: Response) => {
   try {
     const code = await startRecovery(user.id, channel, attemptId);
 
+    // Answers as if sent, so a spent budget does not confirm the account has the address.
+    if (code === null) {
+      await AuthEventService.log({
+        userId: user.id,
+        type: 'account_recovery_started',
+        req,
+        metadata: { channel, sent: false, reason: 'Recovery failure budget spent' },
+      });
+      return res.status(200).json({ message: RECOVERY_STARTED_MESSAGE });
+    }
+
     if (!external) {
       if (channel === 'email') {
         await sendOTPEmail(to, code);
@@ -189,12 +200,15 @@ export const verifyAccountRecovery = async (req: Request, res: Response) => {
     ? await verifyRecovery(user.id, attemptId, req.body.code, delaySeconds)
     : ({ outcome: 'invalid' } as const);
 
-  if (result.outcome === 'invalid') {
+  // A spent budget answers like a wrong code, so it is not an oracle on the account.
+  if (result.outcome === 'invalid' || result.outcome === 'locked') {
     await AuthEventService.log({
       userId: user.id,
       type: 'account_recovery_failed',
       req,
-      metadata: { reason: 'Invalid code' },
+      metadata: {
+        reason: result.outcome === 'locked' ? 'Recovery failure budget spent' : 'Invalid code',
+      },
     });
     return res.status(401).json({ error: 'invalid_recovery_code' });
   }
