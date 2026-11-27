@@ -16,6 +16,7 @@ import {
 import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
 import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
+import { requireFactorEnrollmentProof } from '../middleware/requireFactorEnrollmentProof.js';
 import {
   ErrorSchema,
   InternalErrorSchema,
@@ -54,7 +55,7 @@ totpRouter.get(
 totpRouter.post(
   '/enroll/start',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireFactorEnrollmentProof],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Start TOTP enrollment',
@@ -75,7 +76,7 @@ totpRouter.post(
 totpRouter.post(
   '/enroll/verify',
   {
-    middleware: [requireDeviceSessionStepUp, otpIpLimiter, otpIdentityLimiter],
+    middleware: [requireFactorEnrollmentProof, otpIpLimiter, otpIdentityLimiter],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Verify TOTP enrollment',

@@ -839,13 +839,27 @@ step-up has to happen on that same session within five minutes. The full route l
 `403 step_up_required` body are in
 [Admin Operations](./admin-operations.md#step-up-on-admin-writes).
 
+A step-up only counts when it is made with a factor the account had before the session signed
+in. A passkey or TOTP added since, by whoever holds the session, cannot vouch for that session;
+it is accepted after the next sign-in. For a session from a token exchange, "signed in" means
+the earliest session in its lineage, and a lineage that cannot be read counts no factor at all.
+
+Adding a factor needs proof as well. Passkey and TOTP enrollment, phone registration and
+recovery code generation answer `403 step_up_required` until an account that already has a
+passkey or TOTP has stepped up, and `403 reauthentication_required` to an account with neither
+whose sign-in is more than five minutes old. A recovery session is exempt, since enrolling is
+what it is for. Deleting a passkey (`DELETE /users/credentials`) also needs a fresh step-up.
+
 ### What is still accepted
 
 - **A fresh step-up is a window, not a per-request proof.** For five minutes after a step-up,
   the session's access token makes guarded writes on its own. Shortening the window is a
   `requireStepUp({ maxAgeSeconds })` change per route.
-- **Self-service account deletion is not guarded.** `DELETE /users/delete` deletes the caller's
-  own account and is open to accounts with no passkey or TOTP, which could never step up.
+- **A factor added in a session is trusted from the next sign-in.** Enrolling it needs the
+  proof above, not a second factor's approval after the fact, and the owner is not yet sent a
+  notice when one is added.
+- **An account with no factor can add its first one with a recent sign-in alone.** It has
+  nothing else to prove with.
 - **Enrollment invites are not guarded.** They email existing users a sign-in link and change
   no account.
 

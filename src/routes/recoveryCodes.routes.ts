@@ -12,7 +12,7 @@ import {
 } from '../controllers/recoveryCodes.js';
 import { createRouter } from '../lib/createRouter.js';
 import { otpIdentityLimiter, otpIpLimiter } from '../middleware/rateLimit.js';
-import { requireDeviceSessionStepUp } from '../middleware/requireDeviceSessionStepUp.js';
+import { requireFactorEnrollmentProof } from '../middleware/requireFactorEnrollmentProof.js';
 import { ErrorSchema } from '../schemas/generic.responses.js';
 import {
   RecoveryCodeRedeemRequestSchema,
@@ -44,7 +44,7 @@ recoveryCodesRouter.get(
 recoveryCodesRouter.post(
   '/',
   {
-    middleware: [requireDeviceSessionStepUp],
+    middleware: [requireFactorEnrollmentProof],
     auth: 'access',
     allowRecoverySession: true,
     summary: 'Generate recovery codes',

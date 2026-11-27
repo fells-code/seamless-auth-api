@@ -15,6 +15,7 @@ import { AuthEventService } from '../../../src/services/authEventService';
 import { hasMetadataStatement } from '../../../src/services/metadataServiceBootstrap';
 import { buildUser } from '../../factories/userFactory';
 import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -122,6 +123,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
   (AuthEvent.count as any).mockResolvedValue(0);
   (User.findOne as any).mockResolvedValue(buildUser());

@@ -25,6 +25,7 @@ import {
   verifyWebAuthn,
   verifyWebAuthnRegistration,
 } from '../../../src/controllers/webauthn';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -89,6 +90,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   (WebAuthnChallenge.findOne as any).mockResolvedValue(buildWebAuthnChallenge());
   (AuthEvent.count as any).mockResolvedValue(0);
   (getSystemConfig as any).mockResolvedValue({

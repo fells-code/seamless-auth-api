@@ -9,6 +9,8 @@ const authEventLogMock = vi.fn();
 const rejectIfUserLockedMock = vi.fn();
 const issueSessionAndRespondMock = vi.fn(async () => true);
 const recordStepUpVerificationMock = vi.fn();
+const getStepUpSignInTimeMock = vi.fn();
+const signedInAt = new Date('2026-11-01T00:00:00Z');
 const serializeStepUpStatusMock = vi.fn();
 const getSystemConfigMock = vi.fn();
 const loggerMock = {
@@ -41,6 +43,7 @@ vi.mock('../../../src/services/sessionIssuance.js', () => ({
 }));
 
 vi.mock('../../../src/services/stepUpService.js', () => ({
+  getStepUpSignInTime: getStepUpSignInTimeMock,
   recordStepUpVerification: recordStepUpVerificationMock,
   serializeStepUpStatus: serializeStepUpStatusMock,
 }));
@@ -96,6 +99,7 @@ async function loadTotpController() {
 beforeEach(() => {
   vi.clearAllMocks();
   rejectIfUserLockedMock.mockResolvedValue(false);
+  getStepUpSignInTimeMock.mockResolvedValue({ sessionFound: true, signedInAt });
   getSystemConfigMock.mockResolvedValue({ app_name: 'Seamless Auth' });
 });
 
@@ -471,6 +475,42 @@ describe('totp controller', () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(verifyEnabledTotpMock).not.toHaveBeenCalled();
+    });
+
+    it('returns 401 when the current session is gone', async () => {
+      const { verifyTotpMfa } = await loadTotpController();
+      const res = buildRes();
+      getStepUpSignInTimeMock.mockResolvedValue({ sessionFound: false, signedInAt: null });
+
+      await verifyTotpMfa(
+        buildReq(buildUser(), { body: { code: '123456' }, sessionId: 'session-1' }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ error: 'unauthorized' });
+      expect(verifyEnabledTotpMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses a TOTP enrolled after the session signed in', async () => {
+      const { verifyTotpMfa } = await loadTotpController();
+      const res = buildRes();
+      verifyEnabledTotpMock.mockResolvedValue({
+        verified: false,
+        reason: 'enrolled_after_sign_in',
+      });
+
+      await verifyTotpMfa(
+        buildReq(buildUser(), { body: { code: '123456' }, sessionId: 'session-1' }),
+        res,
+      );
+
+      expect(verifyEnabledTotpMock).toHaveBeenCalledWith('user-1', '123456', {
+        enrolledBefore: signedInAt,
+      });
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ error: 'step_up_unavailable' });
+      expect(recordStepUpVerificationMock).not.toHaveBeenCalled();
     });
 
     it('returns 401 and logs failure when the code is invalid', async () => {

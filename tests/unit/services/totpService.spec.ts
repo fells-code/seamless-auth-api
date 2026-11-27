@@ -137,6 +137,53 @@ describe('totpService', () => {
     expect(credential.lastUsedCounter).toBe(values.lastUsedCounter);
   });
 
+  describe('restricted to a credential enrolled before a time', () => {
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const signedInAt = new Date('2026-11-01T12:00:00Z');
+
+    it('refuses a credential enabled after that time without checking the code', async () => {
+      (TotpCredential.findOne as any).mockResolvedValue(
+        buildTotpCredential({
+          ...encryptTotpSecret(secret),
+          verifiedAt: new Date('2026-11-01T12:00:01Z'),
+        }),
+      );
+
+      await expect(
+        verifyEnabledTotp('user-1', generateTotpCode({ secret }), { enrolledBefore: signedInAt }),
+      ).resolves.toEqual({ verified: false, reason: 'enrolled_after_sign_in' });
+      expect(TotpCredential.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses every credential when the time is unknown', async () => {
+      (TotpCredential.findOne as any).mockResolvedValue(
+        buildTotpCredential({ ...encryptTotpSecret(secret) }),
+      );
+
+      await expect(
+        verifyEnabledTotp('user-1', generateTotpCode({ secret }), { enrolledBefore: null }),
+      ).resolves.toEqual({ verified: false, reason: 'enrolled_after_sign_in' });
+    });
+
+    it('accepts an older credential and keeps the restriction in the claim', async () => {
+      (TotpCredential.findOne as any).mockResolvedValue(
+        buildTotpCredential({
+          ...encryptTotpSecret(secret),
+          verifiedAt: new Date('2026-10-01T00:00:00Z'),
+          lastUsedCounter: null,
+        }),
+      );
+
+      const result = await verifyEnabledTotp('user-1', generateTotpCode({ secret }), {
+        enrolledBefore: signedInAt,
+      });
+
+      expect(result.verified).toBe(true);
+      const [, options] = (TotpCredential.update as any).mock.calls[0];
+      expect(options.where.verifiedAt).toEqual({ [Op.lt]: signedInAt });
+    });
+  });
+
   it('rejects a code another request consumed between the read and the write', async () => {
     const secret = 'JBSWY3DPEHPK3PXP';
     const credential = buildTotpCredential({ ...encryptTotpSecret(secret), lastUsedCounter: null });

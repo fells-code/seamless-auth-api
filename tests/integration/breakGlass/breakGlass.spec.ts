@@ -50,6 +50,7 @@ import { buildSystemConfig } from '../../factories/systemConfigFactory.js';
 import { buildTotpCredential } from '../../factories/totpCredentialFactory.js';
 import { buildUser } from '../../factories/userFactory.js';
 import { buildWebAuthnChallenge } from '../../factories/webauthnChallengeFactory.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
 let app: Application;
 
@@ -138,6 +139,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   vi.stubEnv('BREAK_GLASS_EMAILS', 'Root@Example.com, listed@example.com');
   process.env.TOTP_SECRET_ENCRYPTION_KEY = 'test-totp-encryption-key';
   process.env.REFRESH_TOKEN_LOOKUP_SECRET = 'lookup-secret';

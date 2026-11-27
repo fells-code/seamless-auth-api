@@ -4,6 +4,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { Credential } from '../../../src/models/credentials.js';
+import { Session } from '../../../src/models/sessions.js';
+import { buildFreshStepUpSession } from '../../factories/sessionFactory.js';
 
 /**
  * The enrollment gate itself, driven through the real auth middleware.
@@ -35,6 +37,7 @@ beforeEach(async () => {
   const { validateBearerToken } = await import('../../../src/services/sessionService.js');
 
   vi.clearAllMocks();
+  (Session.findOne as any).mockResolvedValue(buildFreshStepUpSession());
   (validateBearerToken as any).mockResolvedValue(null);
   (Credential.findAll as any).mockResolvedValue([]);
   (getSystemConfig as any).mockResolvedValue({

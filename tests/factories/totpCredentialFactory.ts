@@ -10,7 +10,7 @@ export function buildTotpCredential(overrides: any = {}) {
     issuer: 'Seamless Auth',
     accountName: 'test@example.com',
     enabled: true,
-    verifiedAt: new Date(),
+    verifiedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     lastUsedAt: null,
     lastUsedCounter: null,
     createdAt: new Date(),

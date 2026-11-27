@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { Session } from '../../../src/models/sessions.js';
 import {
   DEFAULT_STEP_UP_MAX_AGE_SECONDS,
+  factorPredatesSignIn,
+  findSessionSignInTime,
   getSessionStepUpStatus,
+  getStepUpSignInTime,
   getStepUpStatusFromSession,
   mergeAuthMethod,
   recordStepUpVerification,
@@ -249,6 +252,134 @@ describe('stepUpService', () => {
       verifiedAt: null,
       expiresAt: null,
       maxAgeSeconds: DEFAULT_STEP_UP_MAX_AGE_SECONDS,
+    });
+  });
+
+  describe('when the session holder signed in', () => {
+    const at = (iso: string) => new Date(iso);
+
+    it('is the chain start of a session with no parent', async () => {
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: at('2026-11-01T10:00:00Z'),
+          createdAt: at('2026-11-01T11:00:00Z'),
+          parentSessionId: null,
+        } as never),
+      ).resolves.toEqual(at('2026-11-01T10:00:00Z'));
+    });
+
+    it('falls back to the row creation time', async () => {
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: null,
+          createdAt: at('2026-11-01T11:00:00Z'),
+        } as never),
+      ).resolves.toEqual(at('2026-11-01T11:00:00Z'));
+    });
+
+    it('walks to the earliest session an exchanged child came from', async () => {
+      (Session.findByPk as any)
+        .mockResolvedValueOnce({
+          chainStartedAt: at('2026-11-01T09:00:00Z'),
+          parentSessionId: 'root',
+        })
+        .mockResolvedValueOnce({ chainStartedAt: at('2026-11-01T08:00:00Z') });
+
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: at('2026-11-01T12:00:00Z'),
+          parentSessionId: 'middle',
+        } as never),
+      ).resolves.toEqual(at('2026-11-01T08:00:00Z'));
+      expect(Session.findByPk).toHaveBeenNthCalledWith(1, 'middle');
+      expect(Session.findByPk).toHaveBeenNthCalledWith(2, 'root');
+    });
+
+    it('keeps the child start when a parent began later', async () => {
+      (Session.findByPk as any).mockResolvedValueOnce({
+        chainStartedAt: at('2026-11-01T13:00:00Z'),
+      });
+
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: at('2026-11-01T12:00:00Z'),
+          parentSessionId: 'later',
+        } as never),
+      ).resolves.toEqual(at('2026-11-01T12:00:00Z'));
+    });
+
+    it('is unknown when a parent is missing or has no start', async () => {
+      (Session.findByPk as any).mockResolvedValueOnce(null);
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: at('2026-11-01T12:00:00Z'),
+          parentSessionId: 'gone',
+        } as never),
+      ).resolves.toBeNull();
+
+      (Session.findByPk as any).mockResolvedValueOnce({ chainStartedAt: null, createdAt: null });
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: at('2026-11-01T12:00:00Z'),
+          parentSessionId: 'blank',
+        } as never),
+      ).resolves.toBeNull();
+    });
+
+    it('is unknown when the session itself has no start', async () => {
+      await expect(
+        findSessionSignInTime({ chainStartedAt: null, createdAt: null } as never),
+      ).resolves.toBeNull();
+    });
+
+    it('is unknown when the lineage does not end', async () => {
+      (Session.findByPk as any).mockResolvedValue({
+        chainStartedAt: at('2026-11-01T12:00:00Z'),
+        parentSessionId: 'loop',
+      });
+
+      await expect(
+        findSessionSignInTime({
+          chainStartedAt: at('2026-11-01T12:00:00Z'),
+          parentSessionId: 'loop',
+        } as never),
+      ).resolves.toBeNull();
+      (Session.findByPk as any).mockReset();
+    });
+
+    it('reports a missing current session', async () => {
+      (Session.findOne as any).mockResolvedValueOnce(null);
+
+      await expect(getStepUpSignInTime('session-1', 'user-1')).resolves.toEqual({
+        sessionFound: false,
+        signedInAt: null,
+      });
+    });
+
+    it('reports the current session sign-in time', async () => {
+      const session = buildSession({ parentSessionId: null });
+      (Session.findOne as any).mockResolvedValueOnce(session);
+
+      await expect(getStepUpSignInTime('session-1', 'user-1')).resolves.toEqual({
+        sessionFound: true,
+        signedInAt: session.chainStartedAt,
+      });
+    });
+  });
+
+  describe('whether a factor predates the sign-in', () => {
+    const signedInAt = new Date('2026-11-01T12:00:00Z');
+
+    it('counts only a factor enrolled strictly before it', () => {
+      expect(factorPredatesSignIn(new Date('2026-11-01T11:59:59Z'), signedInAt)).toBe(true);
+      expect(factorPredatesSignIn(signedInAt, signedInAt)).toBe(false);
+      expect(factorPredatesSignIn(new Date('2026-11-01T12:00:01Z'), signedInAt)).toBe(false);
+    });
+
+    it('fails closed on a missing time', () => {
+      expect(factorPredatesSignIn(null, signedInAt)).toBe(false);
+      expect(factorPredatesSignIn(undefined, signedInAt)).toBe(false);
+      expect(factorPredatesSignIn(new Date('2026-01-01T00:00:00Z'), null)).toBe(false);
     });
   });
 });

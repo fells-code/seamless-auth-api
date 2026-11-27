@@ -33,6 +33,7 @@ export class Credential extends Model {
   declare platform: string | null;
   declare browser: string | null;
   declare deviceInfo: string | null;
+  declare readonly createdAt: Date;
 
   declare readonly user?: User;
 

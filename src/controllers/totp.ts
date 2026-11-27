@@ -15,7 +15,11 @@ import { rejectIfUserLocked } from '../services/lockoutPolicyService.js';
 import { isPasskeyRequiredForUser } from '../services/loginPolicyService.js';
 import { issueSessionAndRespond } from '../services/sessionIssuance.js';
 import { liftRecoveryRestriction } from '../services/sessionService.js';
-import { recordStepUpVerification, serializeStepUpStatus } from '../services/stepUpService.js';
+import {
+  getStepUpSignInTime,
+  recordStepUpVerification,
+  serializeStepUpStatus,
+} from '../services/stepUpService.js';
 import {
   disableTotp,
   getTotpStatus,
@@ -252,7 +256,13 @@ export const verifyTotpMfa = async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await verifyEnabledTotp(user.id, code);
+  const { sessionFound, signedInAt } = await getStepUpSignInTime(authReq.sessionId, user.id);
+
+  if (!sessionFound) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  const result = await verifyEnabledTotp(user.id, code, { enrolledBefore: signedInAt });
 
   if (!result.verified) {
     await AuthEventService.log({
@@ -261,6 +271,9 @@ export const verifyTotpMfa = async (req: Request, res: Response) => {
       req,
       metadata: { reason: result.reason, method: 'totp' },
     });
+    if (result.reason === 'enrolled_after_sign_in') {
+      return res.status(401).json({ error: 'step_up_unavailable' });
+    }
     return res.status(401).json({ error: 'totp_verification_failed' });
   }
 
