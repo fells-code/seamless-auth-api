@@ -690,7 +690,7 @@ describe('GET /magic-link/check', () => {
     expect(res.status).toBe(204);
   });
 
-  it('returns 403 when the polling fingerprint does not match the pending link', async () => {
+  it('answers 204 when the polling fingerprint does not match the pending link', async () => {
     (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
     (MagicLinkToken.findOne as any).mockResolvedValue(
       buildMagicLink({ ip_hash: 'different-ip-hash', used_at: null }),
@@ -698,19 +698,18 @@ describe('GET /magic-link/check', () => {
 
     const res = await request(app).get('/magic-link/check');
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe('Invalid request');
+    expect(res.status).toBe(204);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
-        type: 'magic_link_failed',
-        metadata: { reason: 'Polling device IP mismatch' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Polling device IP mismatch', flow: 'magic_link' },
       }),
     );
     expect(Session.create).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when the polling user-agent does not match the pending link', async () => {
+  it('answers 204 when the polling user-agent does not match the pending link', async () => {
     (User.findOne as any).mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
     (MagicLinkToken.findOne as any).mockResolvedValue(
       buildMagicLink({ user_agent_hash: 'different-ua-hash', used_at: null }),
@@ -718,12 +717,12 @@ describe('GET /magic-link/check', () => {
 
     const res = await request(app).get('/magic-link/check');
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(204);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
-        type: 'magic_link_failed',
-        metadata: { reason: 'Polling device user agent mismatch' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Polling device user agent mismatch', flow: 'magic_link' },
       }),
     );
     expect(Session.create).not.toHaveBeenCalled();
@@ -993,8 +992,8 @@ describe('magic link without an attempt id', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'magic_link_failed',
-        metadata: { reason: 'Ephemeral token has no attempt id' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Ephemeral token has no attempt id', flow: 'magic_link' },
       }),
     );
     expect(MagicLinkToken.create).not.toHaveBeenCalled();
@@ -1008,8 +1007,8 @@ describe('magic link without an attempt id', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(AuthEventService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'magic_link_failed',
-        metadata: { reason: 'Ephemeral token has no attempt id' },
+        type: 'login_suspicious',
+        metadata: { reason: 'Ephemeral token has no attempt id', flow: 'magic_link' },
       }),
     );
     expect(MagicLinkToken.findOne).not.toHaveBeenCalled();

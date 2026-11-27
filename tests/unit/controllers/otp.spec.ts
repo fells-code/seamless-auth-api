@@ -264,7 +264,7 @@ describe('otp controller', () => {
     await verifyPhoneNumber(req, res);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to verify OTP' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns success without issuing a session when phone verification is partial', async () => {
@@ -760,7 +760,7 @@ describe('otp controller', () => {
 
     expect(verifyPhoneOTPMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Not Allowed.' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns 401 when the phone is missing during verification', async () => {
@@ -773,7 +773,7 @@ describe('otp controller', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Not Allowed.' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns 200 when phone verification completes the user', async () => {
@@ -831,7 +831,7 @@ describe('otp controller', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid data.' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns 401 when the email verification token is absent from the body', async () => {
@@ -841,7 +841,7 @@ describe('otp controller', () => {
     await verifyEmail(buildReq(buildUser(), { body: {} }), res);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid data' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns 401 when the email is missing during verification', async () => {
@@ -856,7 +856,7 @@ describe('otp controller', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid data' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns success without a session when email verification is partial', async () => {
@@ -933,7 +933,7 @@ describe('otp controller', () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Not Allowed.' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Not allowed' });
   });
 
   it('returns success without a session when login phone verification is partial', async () => {

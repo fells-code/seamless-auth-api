@@ -1369,7 +1369,7 @@ describe('POST /webauthn/login/finish', () => {
     expect(AuthFailure.findAll).not.toHaveBeenCalled();
   });
 
-  it('returns 500 when the assertion verification throws', async () => {
+  it('answers 401 when the assertion verification throws', async () => {
     const user = buildUser({ challenge: 'challenge' });
     (User.findOne as any).mockResolvedValue(user);
     (Credential.findOne as any).mockResolvedValue(buildCredential({ id: 'cred-1' }));
@@ -1393,8 +1393,8 @@ describe('POST /webauthn/login/finish', () => {
       .post('/webauthn/login/finish')
       .send({ assertionResponse: { id: 'cred-1' } });
 
-    expect(res.status).toBe(500);
-    expect(res.body).toEqual({ error: 'Internal server error' });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Authentication failed.' });
   });
 
   it('returns 500 when the credential lookup throws', async () => {

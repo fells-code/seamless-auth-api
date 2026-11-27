@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 
 import { getSystemConfig } from '../config/getSystemConfig.js';
 import { signEphemeralToken } from '../lib/token.js';
-import { buildPrfAuthenticationExtensions } from '../lib/webauthnPrf.js';
+import { buildPrfAuthenticationExtensions, containsPrfOutput } from '../lib/webauthnPrf.js';
 import { isAccountRecoveryAvailable } from '../services/accountRecoveryService.js';
 import { AuthEventService } from '../services/authEventService.js';
 import { decoyCredentialIdFor, decoyPrincipalForSubject } from '../services/decoyPrincipal.js';
@@ -126,15 +126,23 @@ async function respondOtpSent(req: Request, res: Response, kind: 'otp_email' | '
 }
 
 export const decoySendEmailOtp = async (req: Request, res: Response) => {
-  if (await rejectDisabledMethod('email_otp', req, res)) {
+  if (decoyPrincipal(req).verified && (await rejectDisabledMethod('email_otp', req, res))) {
     return;
   }
 
   return respondOtpSent(req, res, 'otp_email');
 };
 
-export const decoySendPhoneOtp = (req: Request, res: Response) =>
-  respondOtpSent(req, res, 'otp_sms');
+/** A real account with no phone is answered as a send too; see `sendRegistrationPhoneOTP`. */
+export const decoySendPhoneOtp = async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+
+  await logDecoy(req, 'otp:otp_sms');
+
+  const token = await signEphemeralToken(decoySubject(req), authReq.attemptId);
+
+  return res.status(200).json({ message: 'success', token });
+};
 
 export const decoySendLoginEmailOtp = async (req: Request, res: Response) => {
   if (await rejectDisabledMethod('email_otp', req, res)) {
@@ -147,6 +155,13 @@ export const decoySendLoginEmailOtp = async (req: Request, res: Response) => {
 export const decoySendLoginPhoneOtp = async (req: Request, res: Response) => {
   if (await rejectDisabledMethod('phone_otp', req, res)) {
     return;
+  }
+
+  const principal = decoyPrincipal(req);
+
+  if (principal.phone && !principal.phoneVerified) {
+    await logDecoy(req, 'otp:otp_sms');
+    return res.status(400).json({ error: 'Invalid data' });
   }
 
   return respondOtpSent(req, res, 'otp_sms');
@@ -186,7 +201,7 @@ async function rejectPasskeyRequired(method: string, req: Request, res: Response
 }
 
 export const decoyVerifyEmailOtp = async (req: Request, res: Response) => {
-  if (await rejectDisabledMethod('email_otp', req, res)) {
+  if (decoyPrincipal(req).verified && (await rejectDisabledMethod('email_otp', req, res))) {
     return;
   }
 
@@ -304,8 +319,13 @@ export const decoyStartWebAuthnLogin = async (req: Request, res: Response) => {
   return res.json(options);
 };
 
+/** The PRF check comes first for a real account too, before any challenge is looked up. */
 export const decoyFinishWebAuthnLogin = async (req: Request, res: Response) => {
   await logDecoy(req, 'webauthn:login_finish');
+
+  if (containsPrfOutput(req.body?.assertionResponse)) {
+    return res.status(400).json({ error: 'prf_output_not_allowed' });
+  }
 
   return res.status(401).json({ error: 'Authentication failed.' });
 };

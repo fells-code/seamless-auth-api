@@ -12,6 +12,7 @@ import { getSystemConfig } from '../config/getSystemConfig.js';
 import { EPHEMERAL_TOKEN_TTL_SECONDS } from '../lib/ephemeralTokenTtl.js';
 import { classifyRefreshRefusal, RefreshRefusalReason } from '../lib/refreshRefusal.js';
 import { refreshReplayWindowMs, sealReplayToken } from '../lib/refreshReplayToken.js';
+import { holdUntilFloor } from '../lib/responseFloor.js';
 import {
   createRefreshTokenLookup,
   generateRefreshToken,
@@ -68,38 +69,6 @@ const REFRESH_REFUSAL_MESSAGES: Record<RefreshRefusalReason, string> = {
   absolute_lifetime_reached: 'Session absolute lifetime reached',
   idle_timeout: 'Session idle timeout reached',
 };
-
-/**
- * How long `/login` takes at minimum, in milliseconds.
- *
- * The real path reads the users table, the lockout counter, the credentials table and
- * the login policy. The decoy path reads only the policy. Left alone, that difference is
- * an oracle in its own right: identical bodies that arrive at measurably different times
- * still answer the question. Holding every answer until a floor removes the difference
- * as long as both paths finish under it.
- *
- * An environment variable rather than a `system_config` key on purpose. The config schema
- * is shared through `@seamless-auth/types`, so a key there means a coordinated release
- * across both SDKs for what is an operational tuning knob, not a policy a deployment
- * changes at runtime.
- *
- * Set it above the slowest real login the deployment sees. Set it to `0` to turn the
- * floor off, which the test suite does so that it is exercised deliberately in one place
- * rather than paid for in every login test.
- */
-function loginResponseFloorMs() {
-  const configured = Number(process.env.LOGIN_RESPONSE_FLOOR_MS);
-
-  return Number.isFinite(configured) && configured >= 0 ? configured : 250;
-}
-
-async function holdUntilFloor(startedAt: number) {
-  const remaining = loginResponseFloorMs() - (Date.now() - startedAt);
-
-  if (remaining > 0) {
-    await new Promise((resolve) => setTimeout(resolve, remaining));
-  }
-}
 
 /**
  * The pre-auth answer `/login` gives, for a real account and for a decoy alike.

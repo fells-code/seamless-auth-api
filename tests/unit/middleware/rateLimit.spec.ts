@@ -297,10 +297,10 @@ describe('flow limiters', () => {
 });
 
 describe('magicLinkEmailLimiter', () => {
-  it('uses authenticated email or ip as key', async () => {
+  it('keys a token on its subject, and otherwise on the submitted email or ip', async () => {
     const { rateLimit, limiters } = await loadFlowLimiters();
     const req: any = {
-      user: { email: 'Test@Example.com' },
+      user: { id: 'user-1', email: 'Test@Example.com' },
       ip: '127.0.0.1',
     };
 
@@ -308,16 +308,19 @@ describe('magicLinkEmailLimiter', () => {
     await limiters.magicLinkEmailLimiter(req, {}, vi.fn());
 
     const options = lastOptions(rateLimit);
-    expect(options.keyGenerator(req)).toBe('email:test@example.com');
+    expect(options.keyGenerator(req)).toBe('subject:user-1');
+    expect(options.keyGenerator({ body: { email: 'Test@Example.com' } })).toBe(
+      'email:test@example.com',
+    );
     expect(options.keyGenerator({ ip: '127.0.0.1' })).toBe('ip:127.0.0.1');
   });
 });
 
 describe('otpIdentityLimiter', () => {
-  it('uses authenticated email or phone as key', async () => {
+  it('keys a token on its subject, and otherwise on the submitted email or phone', async () => {
     const { rateLimit, limiters } = await loadFlowLimiters();
     const req: any = {
-      user: { email: null, phone: '+14155552671' },
+      user: { id: 'user-1', email: null, phone: '+14155552671' },
       ip: '127.0.0.1',
     };
 
@@ -325,8 +328,9 @@ describe('otpIdentityLimiter', () => {
     await limiters.otpIdentityLimiter(req, {}, vi.fn());
 
     const options = lastOptions(rateLimit);
-    expect(options.keyGenerator(req)).toBe('phone:+14155552671');
-    expect(options.keyGenerator({ user: { email: 'Test@Example.com' } })).toBe(
+    expect(options.keyGenerator(req)).toBe('subject:user-1');
+    expect(options.keyGenerator({ body: { phone: '+14155552671' } })).toBe('phone:+14155552671');
+    expect(options.keyGenerator({ body: { email: 'Test@Example.com' } })).toBe(
       'email:test@example.com',
     );
   });
@@ -349,10 +353,10 @@ describe('identity limiters', () => {
     '%s keys the strict bucket on identifier and attempt',
     async (name) => {
       const { attempt, identifier } = await attemptAndIdentifierKeys(name);
-      const owner = { user: { email: 'Owner@x.com' }, attemptId: 'owner-attempt' };
-      const stranger = { user: { email: 'owner@x.com' }, attemptId: 'stranger-attempt' };
+      const owner = { user: { id: 'user-1' }, attemptId: 'owner-attempt' };
+      const stranger = { user: { id: 'user-1' }, attemptId: 'stranger-attempt' };
 
-      expect(attempt(owner)).toBe('email:owner@x.com:attempt:owner-attempt');
+      expect(attempt(owner)).toBe('subject:user-1:attempt:owner-attempt');
       expect(attempt(owner)).not.toBe(attempt(stranger));
       expect(identifier(owner)).toBe(identifier(stranger));
     },
@@ -361,7 +365,7 @@ describe('identity limiters', () => {
   it('falls back to the requester address when there is no attempt', async () => {
     const { attempt } = await attemptAndIdentifierKeys('otpIdentityLimiter');
 
-    expect(attempt({ user: { email: 'a@x.com' }, ip: '1.2.3.4' })).toBe('email:a@x.com:ip:1.2.3.4');
+    expect(attempt({ body: { email: 'A@x.com' }, ip: '1.2.3.4' })).toBe('email:a@x.com:ip:1.2.3.4');
   });
 
   it('passes an attempt bucket error on without consulting the identifier cap', async () => {

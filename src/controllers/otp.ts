@@ -247,17 +247,25 @@ export const sendLoginPhoneOTP = async (req: Request, res: Response) => {
  * which takes an access session (`/registration/phone`). The pre-auth token here can come
  * from an email address alone, so for a verified account nothing is sent and the answer
  * is the one a decoy gives.
+ *
+ * An account with no phone gets that answer too. Whether a sign-up has a phone is up to
+ * whoever registered it, and a decoy is rebuilt from its subject with no memory of what
+ * was submitted, so a `400` here would let a caller tell a decoy from a real sign-up.
  */
 export const sendRegistrationPhoneOTP = async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const user = authReq.user;
 
-  if (user.verified && user.phone) {
+  if (!user.phone || user.verified) {
     await AuthEventService.log({
       userId: user.id,
       type: 'otp_suspicious',
       req,
-      metadata: { reason: 'Registration phone OTP requested for a verified account.' },
+      metadata: {
+        reason: user.phone
+          ? 'Registration phone OTP requested for a verified account.'
+          : 'Registration phone OTP requested for an account with no phone.',
+      },
     });
     const token = await signEphemeralToken(user.id, authReq.attemptId);
     return res.status(200).json({ message: 'success', token });
@@ -313,7 +321,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Failed to verify OTP' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   try {
@@ -325,7 +333,7 @@ export const verifyPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing data' },
       });
-      return res.status(401).json({ error: 'Not Allowed.' });
+      return res.status(401).json({ error: 'Not allowed' });
     }
 
     const verificationResult = await verifyPhoneOTP(user, verificationToken, authReq.attemptId);
@@ -405,7 +413,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Invalid data.' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   if (!verificationToken) {
@@ -416,7 +424,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Invalid data' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   if (!email) {
@@ -427,7 +435,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
       req,
       metadata: { reason: 'Missing data' },
     });
-    return res.status(401).json({ error: 'Invalid data' });
+    return res.status(401).json({ error: 'Not allowed' });
   }
 
   const verificationResult = await verifyEmailOTP(user, verificationToken, authReq.attemptId);
@@ -545,7 +553,7 @@ export const verifyLoginPhoneNumber = async (req: Request, res: Response) => {
         req,
         metadata: { reason: 'Missing data' },
       });
-      return res.status(401).json({ error: 'Not Allowed.' });
+      return res.status(401).json({ error: 'Not allowed' });
     }
 
     const verificationResult = await verifyPhoneOTP(user, verificationToken);

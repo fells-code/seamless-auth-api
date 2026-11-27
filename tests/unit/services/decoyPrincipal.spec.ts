@@ -4,6 +4,8 @@ import {
   decoyCredentialIdFor,
   decoyPrincipalForSubject,
   decoySubjectFor,
+  isRegistrationDecoySubject,
+  registrationDecoySubjectFor,
 } from '../../../src/services/decoyPrincipal.js';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -124,5 +126,51 @@ describe('fabricated secrets', () => {
     const subject = decoySubjectFor('nobody@example.com', 'email');
 
     expect(decoyCredentialIdFor(subject)).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+});
+
+describe('registrationDecoySubjectFor', () => {
+  it('is a stable v4 UUID per address, folded for case', () => {
+    const subject = registrationDecoySubjectFor('Owner@Example.com');
+
+    expect(subject).toMatch(UUID_V4);
+    expect(registrationDecoySubjectFor('owner@example.com')).toBe(subject);
+    expect(registrationDecoySubjectFor('other@example.com')).not.toBe(subject);
+  });
+
+  it('never matches the subject /login derives for the same address', () => {
+    expect(registrationDecoySubjectFor('owner@example.com')).not.toBe(
+      decoySubjectFor('owner@example.com', 'email'),
+    );
+  });
+
+  it('is recognised from the subject alone, and nothing else is', () => {
+    expect(isRegistrationDecoySubject(registrationDecoySubjectFor('owner@example.com'))).toBe(true);
+    expect(isRegistrationDecoySubject(decoySubjectFor('owner@example.com', 'email'))).toBe(false);
+    expect(isRegistrationDecoySubject('6f1c2a9e-3b7d-4c11-9a2e-5d8f0b4c7e21')).toBe(false);
+    expect(isRegistrationDecoySubject('not-a-uuid')).toBe(false);
+  });
+
+  it('depends on the key, so a tag cannot be forged without it', () => {
+    const subject = registrationDecoySubjectFor('owner@example.com');
+
+    vi.stubEnv('DECOY_SUBJECT_SECRET', 'a-different-secret-of-sufficient-length-for-tests');
+
+    expect(isRegistrationDecoySubject(subject)).toBe(false);
+  });
+
+  it('reads as a sign-up nobody has claimed', () => {
+    for (let i = 0; i < 32; i += 1) {
+      const principal = decoyPrincipalForSubject(registrationDecoySubjectFor(`probe${i}@x.com`));
+
+      expect(principal).toEqual(
+        expect.objectContaining({
+          verified: false,
+          emailVerified: false,
+          phoneVerified: false,
+          hasPasskey: false,
+        }),
+      );
+    }
   });
 });

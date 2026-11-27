@@ -40,6 +40,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { AuthEventService } from '../../../src/services/authEventService.js';
 import { User } from '../../../src/models/users.js';
 import { signEphemeralToken } from '../../../src/lib/token.js';
+import { registrationDecoySubjectFor } from '../../../src/services/decoyPrincipal.js';
 import { getSystemConfig } from '../../../src/config/getSystemConfig.js';
 import { buildRegistrationRequest } from '../../factories/requestFactory.js';
 import {
@@ -107,7 +108,7 @@ describe('POST /registration/register', () => {
     expect(generatePhoneOTP).not.toHaveBeenCalled();
   });
 
-  it('handles existing user by sending an email OTP', async () => {
+  it('handles an unverified existing user by sending an email OTP', async () => {
     const user = buildUser();
 
     (User.findOne as any).mockResolvedValue(user);
@@ -120,6 +121,61 @@ describe('POST /registration/register', () => {
     expect(signEphemeralToken).toHaveBeenCalledWith(user.id, expect.any(String));
     expect(generateEmailOTP).toHaveBeenCalledWith(user, { sendMessage: true });
     expect(generatePhoneOTP).not.toHaveBeenCalled();
+  });
+
+  it('answers a verified account as an unclaimed sign-up and sends the owner nothing', async () => {
+    const user = buildUser({ verified: true });
+
+    (User.findOne as any).mockResolvedValue(user);
+
+    const res = await request(app)
+      .post('/registration/register')
+      .send(buildRegistrationRequest({ email: 'Owner@Example.com' }));
+
+    const subject = registrationDecoySubjectFor('owner@example.com');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      message: 'Success',
+      sub: subject,
+      token: 'mock-token',
+      ttl: EPHEMERAL_TOKEN_TTL_SECONDS,
+    });
+    expect(subject).not.toBe(user.id);
+    expect(signEphemeralToken).toHaveBeenCalledWith(subject, expect.any(String));
+    expect(signEphemeralToken).not.toHaveBeenCalledWith(user.id, expect.anything());
+    expect(generateEmailOTP).not.toHaveBeenCalled();
+    expect(User.create).not.toHaveBeenCalled();
+  });
+
+  it('answers a verified account with the same fields as a fresh sign-up', async () => {
+    (User.findOne as any).mockResolvedValue(null);
+    (User.create as any).mockResolvedValue(buildUser({ phone: null }));
+    const fresh = await request(app)
+      .post('/registration/register')
+      .send(buildRegistrationRequest());
+
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+    const claimed = await request(app)
+      .post('/registration/register')
+      .send(buildRegistrationRequest());
+
+    expect(claimed.status).toBe(fresh.status);
+    expect(Object.keys(claimed.body).sort()).toEqual(Object.keys(fresh.body).sort());
+  });
+
+  it('hands the SDK nothing to mail for a verified account under external delivery', async () => {
+    (User.findOne as any).mockResolvedValue(buildUser({ verified: true }));
+
+    const res = await request(app)
+      .post('/registration/register')
+      .set('x-seamless-auth-delivery-mode', 'external')
+      .set('x-seamless-service-token', await mintInternalServiceToken())
+      .send(buildRegistrationRequest());
+
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('delivery');
+    expect(generateEmailOTP).not.toHaveBeenCalled();
   });
 
   // The lookup and the insert are two statements, so double clicking Register has both

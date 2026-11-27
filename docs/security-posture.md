@@ -86,8 +86,13 @@ a passkey and about half have a phone, stable per identifier. A narrow method li
 then as likely to be a decoy as a real account, and one probe settles nothing.
 
 The shape has to be honoured downstream as well. A real account with no phone answers
-`400` on `/otp/generate-phone-otp`, so a decoy shaped without one answers `400` there too.
-Otherwise the shape that was hiding it becomes the thing that shows it.
+`400` on `/otp/generate-login-phone-otp`, so a decoy shaped without one answers `400` there
+too. Otherwise the shape that was hiding it becomes the thing that shows it.
+
+`/otp/generate-phone-otp`, the registration send, answers `200` and sends nothing for an
+account with no phone, as it does for a verified one. A sign-up's phone is whatever its
+registrant submitted, and a decoy is rebuilt from its subject with no memory of that, so no
+decoy shape could match a `400` there.
 
 ### Every rejection a real account can reach, a decoy reaches too
 
@@ -117,6 +122,40 @@ and the ones that matter are the ones a caller can trigger on purpose:
   and reproduces the attachment branch.
 
 Neither validation writes anything, so reproducing them costs a decoy nothing.
+
+The same rule runs the other way: where a real account's failure answers differ from each
+other, a decoy can only match one of them, so the real answers are made to agree.
+
+- `/webauthn/login/finish` refuses an assertion carrying PRF output with
+  `400 prf_output_not_allowed` before anything else, for a decoy as for a real account. An
+  assertion that fails verification, including one over the wrong challenge, answers
+  `401 Authentication failed.` rather than `500`.
+- The four OTP verify endpoints answer every failure, a wrong code, no code pending or a
+  missing field, with `401 { "error": "Not allowed" }`.
+- `/magic-link/check` polled from a device that does not match the request answers `204`,
+  as for a link nobody has clicked. The mismatch is still recorded as `magic_link_failed`.
+
+[`tests/integration/authentication/decoyParity.spec.ts`](../tests/integration/authentication/decoyParity.spec.ts)
+sends each of these requests as a real account and as a decoy and requires the same status,
+body and content type.
+
+### Registering an address that already signs in
+
+`/registration/register` for an address that belongs to a verified account used to answer
+with that account's id, a pre-auth token over it, and a code in the owner's inbox. The id
+is the one `/login` answers with, so comparing the two told a caller the account existed.
+It now answers as a sign-up nobody has claimed: a registration decoy subject, a token over
+it and the same fields, with nothing sent to the owner and no `delivery` block. Someone who
+forgot they had an account signs in instead.
+
+A registration decoy subject is stable per address and never equal to the `/login` decoy
+for it. Its last seven bytes are a keyed tag over the rest, which is how a continuation
+recognises it from the subject alone and answers as an unverified sign-up: no passkey,
+email OTP open whatever the login methods are, and a login code refused for its phone.
+[`decoyParity.spec.ts`](../tests/integration/authentication/decoyParity.spec.ts) runs the
+registration phone send for sign-ups with and without a phone against both decoy shapes.
+An address whose account was never verified still gets its real id and a new code, since
+that is also what a fresh registration produces.
 
 ### What this still does not cover
 
@@ -148,7 +187,15 @@ policy; the decoy path reads only the policy.
 `LOGIN_RESPONSE_FLOOR_MS` (default `250`) holds every `200` pre-auth answer from `/login`, real or
 decoy, to a minimum, which
 removes the difference as long as both paths finish under it. Set it above the slowest
-real login the deployment sees. It is an environment variable rather than a
+real login the deployment sees.
+
+The same floor holds every answer, success or failure, from each route that accepts a
+pre-auth token and from `/registration/register`. There the real path also waits on the
+mail or SMS provider and the decoy waits on nothing, so the floor needs to sit above the
+provider's usual latency too. A send slower than the floor still arrives later than a
+decoy's answer, so a deployment with a slow provider should raise it.
+`defineRoute` mounts the hold ahead of authentication for every `auth: 'ephemeral'` route,
+and for any other route that sets `responseFloor`. It is an environment variable rather than a
 `system_config` key because that schema is shared through `@seamless-auth/types`, and a
 key there means a coordinated release across both SDKs for an operational tuning knob.
 
@@ -159,7 +206,10 @@ key there means a coordinated release across both SDKs for an operational tuning
   `retryAfterSeconds`. Only a real account can be locked, so either answer discloses
   existence. It requires prior failed attempts against that specific account, and
   suppressing it would leave a locked-out user with no way to understand what happened.
-  Accepted. See [Account lockout](#account-lockout).
+  The same holds after `/registration/register`: wrong codes lock a real sign-up, and the
+  registration decoy for a verified address is never locked. That tells a caller no more
+  than locking the account from `/login` already does. Accepted. See
+  [Account lockout](#account-lockout).
 - **A malformed identifier** answers `400`. This does not depend on whether any account
   exists, so it is not an enumeration signal.
 - **External delivery mode** answers a real OTP or magic link request with a `delivery`

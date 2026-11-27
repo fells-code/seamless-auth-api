@@ -22,7 +22,13 @@ async function appWith(name: 'otpIdentityLimiter' | 'magicLinkEmailLimiter') {
   app.post(
     '/flow',
     (req, _res, next) => {
-      Object.assign(req, { user: { email: req.get('x-test-email'), phone: null } });
+      Object.assign(req, {
+        user: {
+          id: `user-${req.get('x-test-email')}`,
+          email: req.get('x-test-email'),
+          phone: null,
+        },
+      });
       const attempt = req.get('x-test-attempt');
       if (attempt) Object.assign(req, { attemptId: attempt });
       next();
